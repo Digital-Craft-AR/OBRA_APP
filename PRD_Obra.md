@@ -113,57 +113,67 @@ Cada bloque es independiente y exportable como sección liquid de Shopify.
 
 ## 4. Flujos principales de usuario
 
-### Flujo A — Creación con IA desde cero (onboarding wizard)
+### Orden de creación de proyecto (v1.0)
+
+El **onboarding** (tema, avatar + problema, **estructura de paquete**: conteos y títulos de bonuses y order bumps, **título del ebook principal**, diseño con paleta y tipografías) es **único y compartido**. **No** define en esta fase el **desglose en capítulos** del ebook principal — eso ocurre en la fase **Contenido** (ver punto 4). La **subida de archivo** no inicia el flujo: ocurre **después** del paso de diseño cuando el usuario eligió **contenido por archivo**; el archivo alimenta el **cuerpo** del main ebook tras parseo y alineación, no la definición previa de diseño.
 
 ```
-1. Usuario crea nuevo proyecto
-2. Wizard guiado paso a paso — cada campo tiene asistencia de IA:
-   - ¿Cuál es el tema de tu infoproducto?
-   - ¿Quién es tu cliente ideal (avatar)?
-   - ¿Qué problema resuelve?
-   - ¿Qué incluye? (ebook, bonuses, order bumps, etc.)
-   - ¿Tenés preferencia de estilo visual?
-
-   → En CADA paso: el usuario puede escribir algo básico o incompleto
-     y la IA lo optimiza/completa de forma profesional en tiempo real.
-     Ejemplo: escribe "mujeres que quieren hacer velas" y la IA lo
-     expande a un avatar completo con demografía, dolores y deseos.
-
-3. IA genera propuesta completa:
-   - Título + subtítulo del ebook principal
-   - Índice y contenido por capítulo (ebook principal; bonuses y order bumps según lo definido en el wizard)
-   - Paleta de colores (60/30/10)
-   - Par tipográfico
-   - Imágenes para cada sección relevante
-4. Usuario revisa y aprueba / edita por sección
-5. IA genera HTML del ebook
-6. Usuario itera sobre el HTML hasta que le guste (cada acción de IA consume créditos; ver §11)
-7. Usuario exporta PDF: **un archivo PDF por ebook** (principal, cada bonus, cada bump); puede descargar uno o **empaquetar todos en un ZIP** (MVP deseable)
+1. Crear nuevo proyecto (incluye elegir content_locale — ver §2)
+2. Elegir fuente de contenido: IA pura **o** archivo (.docx / .pdf) más adelante
+3. Onboarding compartido (asistencia IA en campos de texto del wizard):
+   - Tema → Avatar + problema → Estructura de **paquete** (título main, conteos/títulos bonuses/bumps) → Diseño
+     (presets, paleta 60/30/10, tipografías, medida/orientación de hoja, notas de estilo)
+4. Fase Contenido — bifurcación (tras el diseño); especificación: `features/wizard-ai-generation/wizard-ai-generation.md`
+   ├─ Rama IA: índice/capítulos del **ebook principal** propuestos y confirmados aquí → cuerpo por capítulo → bonuses → bumps
+   └─ Rama Upload: un solo archivo del **ebook principal** (.docx / .pdf) → parseo + IA → **alineación** a formato Obra (índice y capítulos) con **aprobación del usuario** → mismo flujo de hitos (**prefill** del main) → bonuses → bumps
+5. Revisión, iteración HTML, imágenes, exportación PDF (igual para ambas ramas)
 ```
 
-### Flujo B — Transformar contenido existente
+### Onboarding compartido (hasta diseño)
+
+- Wizard guiado paso a paso — en **campos de texto largo**, el usuario puede escribir algo básico y la IA lo optimiza con **“mejorar texto”** (créditos; ver §11).
+- Pasos de producto (detalle en `features/wizard-shared/wizard-shared.md`): tema; avatar + problema; estructura de **paquete** (conteos y títulos bonuses/bumps, título del ebook principal); diseño (preset o manual, paleta, tipografías, formato de hoja). **Capítulos del main ebook:** fase Contenido, no el wizard.
+- **No** se sube archivo en esta fase.
+
+### Rama contenido — IA (tras el diseño)
+
+**Especificación del flujo (hitos, índice congelado, chat por artefacto, créditos por llamada):** `features/wizard-ai-generation/wizard-ai-generation.md`.
+
+Resumen de alto nivel:
 
 ```
-1. Usuario crea nuevo proyecto
-2. Elige cómo ingresar su contenido:
-   - Pega texto / outline directamente
-   - Sube un archivo .docx o .pdf
-3. IA analiza y propone:
-   - Estructura de capítulos reorganizada
-   - Título optimizado para venta
-   - Gaps de contenido para completar
-   - Paleta y tipografías sugeridas
-4. Mismo wizard que Flujo A — con asistencia IA en cada paso
-5. Continúa igual que Flujo A desde paso 4
+1. En la fase Contenido, la IA propone **índice y capítulos** del ebook principal a partir del contexto del wizard (el wizard **no** fijó el número de capítulos)
+2. Usuario confirma el índice; luego **cuerpo por capítulo**; luego **bonuses y order bumps** según conteos/títulos ya definidos en el wizard
+3. Imágenes por sección según reglas de §6
+4. Usuario revisa y edita por sección; IA genera/refina HTML; iteración según créditos
+5. Exportación PDF (§7)
 ```
 
-### Importación de archivos (Flujo B) — reglas MVP
+### Rama contenido — Upload (tras el diseño)
+
+```
+1. Usuario sube un único archivo .docx o .pdf del **ebook principal** (única ingesta de archivo en v1.0)
+2. Parseo + IA (síncrono; ver reglas abajo): propuesta de **índice y división en capítulos** alineada a formato Obra
+3. Usuario **edita y aprueba** la alineación (títulos, fusiones/particiones de secciones según producto)
+4. Continúa el **mismo** flujo de hitos que la rama IA: cuerpo por capítulo con **prefill** desde el archivo, luego bonuses y bumps generados en esa fase
+5. Misma revisión, HTML, exportación que la rama IA
+```
+
+### Importación de archivos (rama Upload — contenido) — reglas MVP
 
 - **Formatos:** `.docx` estándar y **PDF con texto seleccionable** (capa de texto real). **No** se soporta en v1.0: PDF escaneado o basado solo en imagen; **OCR** queda **post-MVP** si se prioriza.
-- **Tamaño máximo por archivo:** **10 MB** (`.docx` y `.pdf`). Un ebook mayormente texto rara vez lo supera; si lo hace, el usuario puede reducir peso o usar “pegar texto”. El tope se puede revisar con datos reales.
+- **Tamaño máximo por archivo:** **10 MB** (`.docx` y `.pdf`). Un ebook mayormente texto rara vez lo supera; si lo hace, el usuario puede reducir peso del archivo o dividir el contenido en otro `.docx`/`.pdf` dentro del límite. El tope se puede revisar con datos reales.
 - **Un archivo por intento:** en cada importación, **un solo archivo** por pasada (no múltiples PDFs a la vez en el MVP).
-- **PDF con contraseña / cifrado:** **rechazar** con mensaje claro; sugerir exportar sin contraseña o pegar el contenido.
-- **Extracción vacía o inválida:** mensaje explícito y opción de **reintentar** con otro archivo o **pegar texto** manualmente.
+- **PDF con contraseña / cifrado:** **rechazar** con mensaje claro; sugerir exportar o guardar una copia **sin contraseña** y volver a subir.
+- **Extracción vacía o inválida:** mensaje explícito y opción de **reintentar** con otro archivo (mismo flujo de importación).
+- **Parseo + análisis IA (v1.0):** flujo **síncrono** — el usuario permanece en la misma pantalla con **estado de carga** hasta completar extracción y análisis o recibir error; **no** cola en background en el MVP. Deshabilitar **doble envío** mientras la petición está en curso (alinear con §4 rendimiento percibido).
+- **Créditos (extracción vs IA):** la **extracción de texto** (.docx/PDF con librerías, **sin pasar por LLM**) **no descuenta** créditos de IA del usuario (costo de plataforma); **sí** descuentan las llamadas que invoquen **modelo de lenguaje** (propuesta de división, regenerar división, refinar/expandir capítulo, bonuses/bumps, etc.) — ver `features/wizard-ai-generation/wizard-ai-generation.md` y §11.
+- **Reemplazo del archivo (v1.0):** el usuario puede **subir otro archivo** que sustituya al anterior **solo hasta** **aprobar la alineación** (índice/capítulos respecto del manuscrito). Tras esa aprobación, el manuscrito queda **atado** al extracto para el ebook principal; cambiar de archivo requiere **acción destructiva** con confirmación explícita o **nuevo proyecto** — sin sustitución silenciosa del binario una vez prefilled el capítulo (ver `features/wizard-ai-generation/wizard-ai-generation.md`).
+- **Asistencia en alineación (v1.0):** además de edición manual de títulos y límites, un botón tipo **“Volver a proponer división con IA”** sobre el **mismo** texto parseado; **no** hilo de chat dedicado solo a la alineación (reduce duplicación con el índice de la rama IA).
+- **Prefill débil (v1.0 — decisión C2):** si un capítulo queda con **muy poco texto** tras el prefill, **aviso no bloqueante** y opción de **completar con IA** (créditos); **no** se bloquea **Aprobar capítulo** por ese motivo. Si **todos** los capítulos quedan por debajo del umbral tras la alineación, **modal fuerte** que impide avanzar hasta corregir **alineación**, **regenerar división** o **archivo** (según reglas de reemplazo); detalle en `features/wizard-ai-generation/wizard-ai-generation.md`.
+- **Retención del archivo (v1.0):** el binario subido se **conserva** en Storage **privado** mientras exista el **proyecto** (misma lógica de ciclo de vida que otros assets del proyecto). Eliminación opcional post-MVP desde ajustes de proyecto.
+- **Logs y telemetría:** **no** registrar contenido del manuscrito ni prompts completos; **sí** metadatos (ids, código de error, duración, tamaño, tipo MIME, resultado). Alinear con arquitectura y privacidad.
+- **Reintentos (parse):** **un** reintento automático en cliente con backoff corto ante fallo transitorio; botón **Reintentar** con el **mismo** archivo (**sin** créditos de IA por la extracción). Sin cola en servidor en el MVP.
 
 ### Flujo C — Editor de proyecto existente (iteración)
 
@@ -221,6 +231,12 @@ La app debe:
 - La IA sugiere 3 opciones de par tipográfico
 - El usuario puede elegir o pedir otras
 
+### Presets de diseño
+
+- Un **preset** agrupa **paleta 60/30/10** y **par tipográfico** (display + body); al aplicarlo, se actualizan ambos de forma conjunta.
+- Si el usuario **edita manualmente** cualquier color o fuente, el estado pasa a **personalizado** (se desvincula del preset activo); puede aplicar otro preset o, si la UI lo ofrece, **restaurar** el último preset elegido.
+- **Pendiente de definir (producto / diseño):** la **lista concreta de presets** para el MVP — nombres, combinaciones de colores y fuentes, y criterios de inclusión (p. ej. cuántos presets mínimos para lanzamiento).
+
 ### Aplicación consistente
 
 - El sistema de diseño se define UNA vez por proyecto
@@ -230,6 +246,8 @@ La app debe:
 ---
 
 ## 6. Generación y gestión de imágenes
+
+**Ámbito y referencias (para no duplicar reglas contradictorias):** El comportamiento **por sección** en el **editor** (regenerar, reemplazar, eliminar, repositorio) se describe **aquí** como fuente de verdad del producto. Los **valores por defecto a nivel proyecto** (`image_mode`, `image_style`) se capturan en el paso **Diseño** del onboarding compartido — ver **`features/wizard-shared/wizard-shared.md`** (sección **Image defaults**). **Facturación en créditos por generación de imagen:** acoplada a la **generación de vista previa** — **TBD** hasta existir el documento de pipeline/vista previa; **`wizard-shared`** y `features/wizard-ai-generation/wizard-ai-generation.md` solo declaran que esos campos son **entradas** al pipeline, sin fijar triggers ni cargos aquí.
 
 ### Generación con IA
 
@@ -284,9 +302,9 @@ La app debe:
 | --- | ------------------------------------------------ | --------- |
 | 1   | Registro/login (email + Google); idioma de UI **es** / **pt-BR** persistido en perfil | Alta      |
 | 2   | Crear proyecto nuevo con **`content_locale`** (idioma de toda la salida; **inmutable** después) | Alta      |
-| 3   | Wizard de onboarding con IA (Flujo A)            | Alta      |
-| 4   | Ingreso de contenido propio (Flujo B)            | Alta      |
-| 5   | Generación de índice y contenido con IA          | Alta      |
+| 3   | Onboarding compartido (wizard hasta **diseño**: tema → **paquete** (títulos/conteos bonuses-bumps, título main) → paleta/tipografías) + elección **IA vs archivo** al crear | Alta      |
+| 4   | Contenido post-diseño: **índice/capítulos del main** + cuerpo + bonuses/bumps — rama **IA** o **subida** `.docx`/`.pdf` con alineación y **mismo** flujo de hitos (`wizard-ai-generation`) | Alta      |
+| 5   | Índice y capítulos del ebook principal en fase Contenido; generación/refinado de texto con IA (incl. bonuses/bumps) | Alta      |
 | 6   | Sistema de diseño: paleta 60/30/10 + tipografías | Alta      |
 | 7   | Generación de imágenes por sección               | Alta      |
 | 8   | Swap de imagen (regenerar con IA / subir propia) | Alta      |
@@ -335,7 +353,7 @@ La app debe:
 | Base de datos        | PostgreSQL (via Supabase)            | Relacional, robusto, gratuito al inicio                    |
 | AI — Texto           | Anthropic Claude API (claude-sonnet) | Mejor para generación de contenido estructurado            |
 | AI — Imágenes        | Gemini API (Nano Banana)             | Generación/edición con stack Google; validar costos y cuotas en el plan elegido |
-| Parsing de docs/PDF  | pdf-parse + mammoth                  | Extracción de texto de `.docx` y PDF con capa de texto (sin OCR en MVP; ver Flujo B) |
+| Parsing de docs/PDF  | pdf-parse + mammoth                  | Extracción de texto de `.docx` y PDF con capa de texto (sin OCR en MVP; **tras** el paso de diseño — rama Upload; ver §4) |
 | PDF Generation       | Puppeteer (via Edge Function)        | Server-side, clean output                                  |
 | Internacionalización | i18next                              | UI solo `es` y `pt-BR`; `content_locale` del proyecto: `es`, `pt-BR`, `en-US`, `en-GB` |
 | Deploy Frontend      | Vercel                               | Edge/CDN; ver §15 (hosting); Speed Insights opcional; §4 Rendimiento |
@@ -530,7 +548,7 @@ Sin *try-before-buy*, marketing y las primeras pantallas post-pago cargan más p
 | Fallas o complejidad en suscripciones / webhooks Mercado Pago | Media | Integración según docs oficiales, sandbox, pruebas de renovación y de compra de créditos |
 | Rentabilidad del plan (p. ej. USD 29 con ~USD 15 en créditos) no cierra frente al uso real | Media        | Modelo de créditos unificado, tabla de costos por acción, escenarios de uso, ajuste de precio o créditos incluidos |
 | Costos de API más altos de lo esperado | Media        | Límite vía créditos, caché donde aplique, revisión de precios de proveedores |
-| Usuarios suben PDF escaneado y esperan importación automática | Media | Mensajes y ayuda en UI; OCR post-MVP; alternativa pegar texto |
+| Usuarios suben PDF escaneado y esperan importación automática | Media | Mensajes y ayuda en UI; OCR post-MVP; alternativa: exportar texto a `.docx` y subir |
 | Calidad de imágenes IA inconsistente   | Media        | Permitir fácil regeneración y upload propio  |
 | Curva de aprendizaje del usuario       | Baja         | Wizard muy guiado + video + recorrido interactivo (§11) |
 | Competidor grande copia la idea        | Baja         | Velocidad de ejecución + comunidad LATAM     |
