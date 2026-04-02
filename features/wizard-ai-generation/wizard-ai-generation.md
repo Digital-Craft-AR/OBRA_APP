@@ -4,7 +4,7 @@
 **Feature slug:** `wizard-ai-generation`  
 **Status:** Draft  
 **Parent reference:** `PRD_Obra.md` (limits, credits model, locales, accessibility)  
-**Related:** `features/wizard-shared/wizard-shared.md` (handoff into this flow; **canonical spec** for the **global three-step journey stepper**; **`image_mode` / `image_style`** defaults); `features/wizard-upload/wizard-upload.md` (**upload** branch: file intake → parse → alignment **until** handoff here). **Image billing:** `PRD_Obra.md` §6 — **coupled to preview generation, TBD** (see master PRD §6 cross-reference).
+**Related:** `features/wizard-shared/wizard-shared.md` (handoff into this flow; **canonical spec** for the **global three-step journey stepper**; **`image_mode` / `image_style`** defaults; optional **`author`**); `features/wizard-upload/wizard-upload.md` (**upload** branch: file intake → parse → alignment **until** handoff here); `features/wizard-preview/wizard-preview.md` (global step 3 — after Content: layouts, images, cover, PDF/ZIP). **Image billing:** `PRD_Obra.md` §6 — coupled to successful generation in **Preview** (`wizard-preview`).
 
 ---
 
@@ -25,9 +25,9 @@ Without explicit milestone-based UX, teams risk: one-shot generation that ignore
 
 **Wizard-defined package and design are fixed** for the pipeline: **bonus/bump counts and titles**, palette, typography, **page format**, and **`image_mode` / `image_style`** (from the Design step — see `wizard-shared`) do not change here without explicit product rules elsewhere. **Chapter structure for the main ebook** is **not** inherited from `wizard-shared` — it is **created or imported** in this phase as above.
 
-**Handoff — image defaults:** `wizard-shared` persists **`image_mode`** (AI-assisted vs placeholders-first) and **`image_style`** as **inputs** to the **editor** and to the **preview / image pipeline** (per `PRD_Obra.md` §6). **When image-generation credits are charged** is **not** defined in this PRD; **billing is coupled to preview generation — TBD** (see master PRD §6). This **content** milestone flow remains **text-first**; it does **not** require generating images.
+**Handoff — image defaults:** `wizard-shared` persists **`image_mode`** (AI-assisted vs placeholders-first) and **`image_style`** as **inputs** to **Content** and to **Preview** (per `PRD_Obra.md` §6 and `features/wizard-preview/wizard-preview.md`). **Image-generation credits** apply on **successful** image generation in Preview, not in this flow. This **content** milestone flow remains **text-first**; it does **not** require generating images.
 
-**Content-only vs preview (next step):** This flow **only** produces and refines **draft text** (index, chapters, bonuses, bumps). It does **not** show a **styled, design-system-accurate preview** of the ebook as PDF/HTML would. After the user completes this flow’s milestones (or per handoff rules), the **next step** is the **editor / preview experience** where they see content with the **already-chosen** palette, typography, and layout — align exact routing with `PRD_Obra.md` §4 and the editor PRD. The UI should **say so explicitly** (banner and/or stepper) so users do not expect WYSIWYG layout while writing chapters here.
+**Content-only vs preview (next step):** This flow **only** produces and refines **draft text** (index, chapters, bonuses, bumps). It does **not** show the **full layout-accurate preview** (layouts, slots, PDF) — that is **global step 3** (`features/wizard-preview/wizard-preview.md`). After the user completes this flow’s milestones (or per handoff rules), the **next step** is **Vista previa** where they see **JSON rendered through templates** with design applied; **long-form text edits** for MVP remain in **Contenido** (general **Edit content** navigation). Align routing with `PRD_Obra.md` §4. The UI should **say so explicitly** (banner and/or stepper) so users do not expect final PDF layout while writing chapters here.
 
 **Global journey stepper:** The **same** three-step component defined in **`wizard-shared`** appears here. **Product UI labels (Spanish):** **Estructura** → **Contenido** → **Vista previa**. **English reference:** **Structure** → **Content** → **Preview**.
 
@@ -178,7 +178,7 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 ### Integration with later phases
 
 - **HTML generation**, **images** (per §6 master PRD), and **PDF export** may follow this PRD’s content milestones; exact boundaries for “when HTML first appears” are **aligned with** editor and export PRDs (see §4 master PRD after content draft exists).
-- **Image credits:** **Billing for image generation is coupled to preview generation — TBD** (canonical pointer: `PRD_Obra.md` §6). **`image_mode` and `image_style` from `wizard-shared`** are **pipeline inputs** alongside per-section editor actions (regenerate / replace / remove).
+- **Image credits:** **Billing** for image generation follows **`features/wizard-preview/wizard-preview.md`** and **`PRD_Obra.md` §6** (charge on successful persist). **`image_mode` and `image_style` from `wizard-shared`** are **pipeline inputs** alongside slot actions in Preview (regenerate / replace / remove).
 
 ---
 
@@ -244,6 +244,6 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 ## Further Notes
 
 - **Order** is always **main ebook → bonuses → order bumps**, skipping empty lanes.
-- **Images:** **per-section** behavior and user actions remain **canonical** in `PRD_Obra.md` §6. **Wizard-level defaults** (`image_mode`, `image_style`) are specified in **`wizard-shared`**; **when credits are charged** for image generation is **TBD** (preview pipeline — **coupled to preview generation**). This PRD focuses on **text milestones**; do **not** duplicate §6 or the preview spec here.
+- **Images:** **per-slot** behavior in **Preview** is canonical in **`features/wizard-preview/wizard-preview.md`** and `PRD_Obra.md` §6. **Wizard-level defaults** (`image_mode`, `image_style`) are specified in **`wizard-shared`**. This PRD focuses on **text milestones**; do **not** duplicate §6 or **`wizard-preview`** here.
 - **Global journey stepper** labels and behavior are **owned** by `wizard-shared`; update this document when that spec changes.
 - This document should stay **synchronized** with `PRD_Obra.md` §4 when the high-level flow diagram changes.

@@ -1,6 +1,6 @@
 # Obra.app — Project Context for Claude Code
 
-Authoritative product scope: `PRD_Obra.md`. Feature-level specs: `features/wizard-shared/wizard-shared.md`, `features/wizard-ai-generation/wizard-ai-generation.md`, `features/wizard-upload/wizard-upload.md`. Technical detail: `ARQUITECTURA_Obra.md`. UI tokens and patterns: `CONVENCIONES.md`.
+Authoritative product scope: `PRD_Obra.md`. Feature-level specs: `features/wizard-shared/wizard-shared.md`, `features/wizard-ai-generation/wizard-ai-generation.md`, `features/wizard-upload/wizard-upload.md`, `features/wizard-preview/wizard-preview.md`. Technical detail: `ARQUITECTURA_Obra.md`. UI tokens and patterns: `CONVENCIONES.md`.
 
 ---
 
@@ -52,7 +52,7 @@ One **three-step** stepper for the whole creation flow (`features/wizard-shared/
 
 1. **Estructura** (Structure) — shared onboarding through **design** (topic → avatar/problem → package structure → design). Does **not** define main-ebook **chapter outline** (that is **Contenido**).
 2. **Contenido** (Content) — AI milestones and/or upload → alignment → same milestones (`wizard-ai-generation`, `wizard-upload` for the upload slice).
-3. **Vista previa** (Preview) — editor / preview with design already applied (not re-running the Design wizard step).
+3. **Vista previa** (Preview) — layout-accurate preview, **image** refinement (slots, cover), and **PDF/ZIP export** with design already applied (`features/wizard-preview/wizard-preview.md`). **Long-form text** is edited in **Contenido** (MVP); Preview is not the primary text surface.
 
 Inner wizard progress (topic, package sub-steps, design) sits **under** step 1 until design is complete.
 
@@ -65,7 +65,7 @@ Inner wizard progress (topic, package sub-steps, design) sits **under** step 1 u
 3. **Content phase** (`wizard-ai-generation`; upload preamble in `wizard-upload`):
    - **AI path:** propose and confirm **index/TOC** for main ebook → chapter bodies → bonuses → bumps.
    - **Upload path:** single `.docx`/`.pdf` → parse (no LLM) + LLM split proposal → user **aligns** → approve → **same** milestone sequence with **prefilled** chapter text → bonuses → bumps.
-4. **Editor / preview, images, PDF export** (`PRD_Obra.md` §6–§7).
+4. **Preview & export** — global step 3 (`features/wizard-preview/wizard-preview.md`): JSON → HTML layouts, image pipeline, cover (Gemini), individual PDFs + project ZIP. **Images / credits:** `PRD_Obra.md` §6.
 
 Upload rules (formats, 10 MB, sync flow, credits, weak prefill): `PRD_Obra.md` §4 and `features/wizard-upload/wizard-upload.md`.
 
@@ -92,7 +92,7 @@ API keys for AI and PDF **never** in the client; use Edge Functions as secure pr
 
 Entity sketch in `PRD_Obra.md` §10. Implementation naming may differ (e.g. `design_system` vs `design_systems` in migrations—follow `ARQUITECTURA_Obra.md` and migrations).
 
-Typical tables: users/profiles, projects (`content_locale`, lifecycle fields), design system row(s), ebooks (main/bonus/bump), chapters, images, credits ledger, subscriptions/payments as needed. **`landing_pages`** is **post-MVP**. Storage bucket for project assets (e.g. `project-images`). **RLS** on all user data.
+Typical tables: users/profiles, projects (`content_locale`, optional **`author`**, lifecycle fields), design system row(s), ebooks (main/bonus/bump), chapters, images, credits ledger, subscriptions/payments as needed. **`landing_pages`** is **post-MVP**. Storage bucket for project assets (e.g. `project-images`). **RLS** on all user data.
 
 ---
 

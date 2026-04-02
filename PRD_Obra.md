@@ -121,18 +121,18 @@ El **onboarding** (tema, avatar + problema, **estructura de paquete**: conteos y
 1. Crear nuevo proyecto (incluye elegir content_locale — ver §2)
 2. Elegir fuente de contenido: IA pura **o** archivo (.docx / .pdf) más adelante
 3. Onboarding compartido (asistencia IA en campos de texto del wizard):
-   - Tema → Avatar + problema → Estructura de **paquete** (título main, conteos/títulos bonuses/bumps) → Diseño
-     (presets, paleta 60/30/10, tipografías, medida/orientación de hoja, notas de estilo)
+   - Tema → Avatar + problema → Estructura de **paquete** (título main, **autor opcional** a nivel proyecto en la misma pantalla que el título principal, conteos/títulos bonuses/bumps) → Diseño
+     (presets, paleta 60/30/10, tipografías, medida/orientación de hoja, notas de estilo) — detalle: `features/wizard-shared/wizard-shared.md`
 4. Fase Contenido — bifurcación (tras el diseño); especificación: `features/wizard-ai-generation/wizard-ai-generation.md`
    ├─ Rama IA: índice/capítulos del **ebook principal** propuestos y confirmados aquí → cuerpo por capítulo → bonuses → bumps
    └─ Rama Upload: un solo archivo del **ebook principal** (.docx / .pdf) → parseo + IA → **alineación** a formato Obra (índice y capítulos) con **aprobación del usuario** → mismo flujo de hitos (**prefill** del main) → bonuses → bumps
-5. Revisión, iteración HTML, imágenes, exportación PDF (igual para ambas ramas)
+5. **Vista previa** (paso global 3) y exportación: revisión con **layouts** y **slots de imagen**, portada con IA, PDF por entregable y ZIP del proyecto — especificación: `features/wizard-preview/wizard-preview.md` (igual para ambas ramas de contenido)
 ```
 
 ### Onboarding compartido (hasta diseño)
 
 - Wizard guiado paso a paso — en **campos de texto largo**, el usuario puede escribir algo básico y la IA lo optimiza con **“mejorar texto”** (créditos; ver §11).
-- Pasos de producto (detalle en `features/wizard-shared/wizard-shared.md`): tema; avatar + problema; estructura de **paquete** (conteos y títulos bonuses/bumps, título del ebook principal); diseño (preset o manual, paleta, tipografías, formato de hoja). **Capítulos del main ebook:** fase Contenido, no el wizard.
+- Pasos de producto (detalle en `features/wizard-shared/wizard-shared.md`): tema; avatar + problema; estructura de **paquete** (conteos y títulos bonuses/bumps, título del ebook principal, **autor opcional** en proyecto); diseño (preset o manual, paleta, tipografías, formato de hoja). **Capítulos del main ebook:** fase Contenido, no el wizard.
 - **No** se sube archivo en esta fase.
 
 ### Rama contenido — IA (tras el diseño)
@@ -175,21 +175,18 @@ Resumen de alto nivel:
 - **Logs y telemetría:** **no** registrar contenido del manuscrito ni prompts completos; **sí** metadatos (ids, código de error, duración, tamaño, tipo MIME, resultado). Alinear con arquitectura y privacidad.
 - **Reintentos (parse):** **un** reintento automático en cliente con backoff corto ante fallo transitorio; botón **Reintentar** con el **mismo** archivo (**sin** créditos de IA por la extracción). Sin cola en servidor en el MVP.
 
-### Flujo C — Editor de proyecto existente (iteración)
+### Flujo C — Proyecto existente (Contenido + Vista previa)
 
 ```
 1. Usuario entra a proyecto guardado
 2. Navega entre ebook principal, bonuses y order bumps (mismo sistema de diseño)
-3. Puede editar por sección:
-   - Cambiar imagen (regenerar con IA / subir propia)
-   - Cambiar paleta de colores
-   - Cambiar tipografías
-   - Editar texto
-   - Agregar/quitar capítulos
-4. Vista previa en tiempo real del HTML generado por ebook activo
-5. Iteración según créditos disponibles — cada generación u optimización con IA descuenta del saldo mensual
-6. Re-exportar PDF cuando esté conforme: **un PDF por ebook**; opción **“Descargar todo (ZIP)”** con todos los PDFs del proyecto
+3. En **Contenido** (paso global 2): editar texto, índice/capítulos según reglas de `features/wizard-ai-generation/wizard-ai-generation.md`; IA por hito según créditos
+4. En **Vista previa** (paso global 3 — `features/wizard-preview/wizard-preview.md`): ver layouts finales; **imágenes** por slots (regenerar con IA / subir); portada IA; **sin edición in-place de texto largo en MVP** (volver a Contenido)
+5. Opcional: ajustes de **paleta/tipografías** según producto (si se permiten post-wizard, alinear con modelo de datos — no duplicar aquí reglas no cerradas)
+6. Re-exportar PDF: **un PDF por entregable**; **ZIP** con todos los PDFs del proyecto; política de fallos del ZIP — ver `features/wizard-preview/wizard-preview.md`
 ```
+
+*Nota:* el detalle de **swap de imagen**, **export** y **preview** está en **`features/wizard-preview/wizard-preview.md`**; hitos de texto en **`features/wizard-ai-generation/wizard-ai-generation.md`**.
 
 ### Accesibilidad (baseline v1.0)
 
@@ -247,7 +244,7 @@ La app debe:
 
 ## 6. Generación y gestión de imágenes
 
-**Ámbito y referencias (para no duplicar reglas contradictorias):** El comportamiento **por sección** en el **editor** (regenerar, reemplazar, eliminar, repositorio) se describe **aquí** como fuente de verdad del producto. Los **valores por defecto a nivel proyecto** (`image_mode`, `image_style`) se capturan en el paso **Diseño** del onboarding compartido — ver **`features/wizard-shared/wizard-shared.md`** (sección **Image defaults**). **Facturación en créditos por generación de imagen:** acoplada a la **generación de vista previa** — **TBD** hasta existir el documento de pipeline/vista previa; **`wizard-shared`** y `features/wizard-ai-generation/wizard-ai-generation.md` solo declaran que esos campos son **entradas** al pipeline, sin fijar triggers ni cargos aquí.
+**Ámbito y referencias (para no duplicar reglas contradictorias):** El comportamiento **por sección** en el **editor** (regenerar, reemplazar, eliminar, repositorio) se describe **aquí** como fuente de verdad del producto. Los **valores por defecto a nivel proyecto** (`image_mode`, `image_style`) se capturan en el paso **Diseño** del onboarding compartido — ver **`features/wizard-shared/wizard-shared.md`** (sección **Image defaults**). **Pipeline de vista previa** (slots, cola al abrir Preview, regeneración con confirmación, portada): **`features/wizard-preview/wizard-preview.md`**. **Facturación en créditos por generación de imagen:** acoplada a generación exitosa en ese pipeline; reglas globales y tabla — **§11** y este §6; no duplicar triggers detallados en el PRD maestro.
 
 ### Generación con IA
 
@@ -275,7 +272,7 @@ La app debe:
 ### PDF (ebook, bonuses, order bump)
 
 - **Un PDF por artefacto:** el ebook principal, cada bonus y cada order bump genera **su propio archivo PDF** (no un solo PDF fusionado). Así el usuario puede entregar archivos por separado como suele hacerse con infoproductos.
-- **Descarga conjunta (MVP deseable):** acción para obtener **un ZIP** que incluya todos los PDFs del proyecto con nombres claros (p. ej. por título o tipo).
+- **Descarga conjunta (MVP):** acción para obtener **un ZIP** que incluya los PDFs del proyecto (nombres claros; sin fecha en el nombre — ver `features/wizard-preview/wizard-preview.md`). Si **falla** la generación de **cualquier** PDF del lote, el ZIP **aborta** (error global; sin paquete parcial en MVP).
 - Generado desde HTML vía Puppeteer (server-side)
 - Tamaño: A4 o Letter (opción del usuario)
 - Fonts embebidas
@@ -302,15 +299,15 @@ La app debe:
 | --- | ------------------------------------------------ | --------- |
 | 1   | Registro/login (email + Google); idioma de UI **es** / **pt-BR** persistido en perfil | Alta      |
 | 2   | Crear proyecto nuevo con **`content_locale`** (idioma de toda la salida; **inmutable** después) | Alta      |
-| 3   | Onboarding compartido (wizard hasta **diseño**: tema → **paquete** (títulos/conteos bonuses-bumps, título main) → paleta/tipografías) + elección **IA vs archivo** al crear | Alta      |
+| 3   | Onboarding compartido (wizard hasta **diseño**: tema → **paquete** (títulos/conteos bonuses-bumps, título main, **autor opcional**) → paleta/tipografías) + elección **IA vs archivo** al crear | Alta      |
 | 4   | Contenido post-diseño: **índice/capítulos del main** + cuerpo + bonuses/bumps — rama **IA** o **subida** `.docx`/`.pdf` con alineación y **mismo** flujo de hitos (`wizard-ai-generation`) | Alta      |
 | 5   | Índice y capítulos del ebook principal en fase Contenido; generación/refinado de texto con IA (incl. bonuses/bumps) | Alta      |
 | 6   | Sistema de diseño: paleta 60/30/10 + tipografías | Alta      |
 | 7   | Generación de imágenes por sección               | Alta      |
 | 8   | Swap de imagen (regenerar con IA / subir propia) | Alta      |
-| 9   | Editor por sección (texto, imagen, diseño)       | Alta      |
+| 9   | Contenido: edición de texto por hito; **Vista previa:** imágenes y export (texto largo no in-place en MVP — `wizard-preview`) | Alta      |
 | 10  | Ebooks bonus y order bumps (mismo flujo de diseño) | Alta   |
-| 11  | Vista previa en tiempo real (HTML por ebook)     | Alta      |
+| 11  | Vista previa (paso 3) + layouts + imágenes por slot + export PDF/ZIP — `features/wizard-preview/wizard-preview.md` | Alta      |
 | 12  | Exportación PDF: un archivo por ebook + ZIP opcional con todo el paquete | Alta |
 | 13  | Saldo y consumo de créditos IA (unificado texto/HTML/imagen) | Alta |
 | 14  | Compra de paquetes de créditos IA adicionales (mismo saldo) | Alta |
@@ -411,6 +408,7 @@ credit_purchases (opcional; facturación de top-ups)
 
 projects
   id, user_id, name, status, content_locale (es | pt-BR | en-US | en-GB; inmutable tras creación)
+  author (TEXT nullable; opcional; mismo campo “autor/marca” unificado — captura en wizard con título principal)
   archived_at (nullable), deleted_at (nullable; papelera — hard delete a los 30 días)
   created_at, updated_at
   -- máx. 20 activos (sin archivar y sin deleted_at) por cuenta

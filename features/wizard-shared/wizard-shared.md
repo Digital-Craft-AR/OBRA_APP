@@ -4,7 +4,7 @@
 **Feature slug:** `wizard-shared`  
 **Status:** Draft  
 **Parent reference:** `PRD_Obra.md` (limits, credits model, locales)  
-**Related:** `features/wizard-ai-generation/wizard-ai-generation.md` (global stepper step 2–3; handoff includes **image defaults**). **Image billing and preview pipeline:** `PRD_Obra.md` §6 (cross-reference; preview-generation spec **TBD**).
+**Related:** `features/wizard-ai-generation/wizard-ai-generation.md` (global stepper step 2–3; handoff includes **image defaults**); `features/wizard-preview/wizard-preview.md` (global step 3 — preview, image pipeline, export). **Image billing:** `PRD_Obra.md` §6 and **`wizard-preview`** (charge on successful generation; pipeline triggers).
 
 ---
 
@@ -13,7 +13,7 @@
 Creators need a guided, AI-assisted path from “new project” to a coherent infoproduct package (main ebook + bonuses + order bumps) without design or code skills. The **onboarding wizard** (through **design**: palette, typography, page format) must:
 
 - Collect **topic, audience, and problem** in a way that supports AI expansion without overwhelming users.
-- Let users define **package structure** (bonus and bump counts and titles, plus **main ebook title**) with strong AI assistance while preserving **control** (manual edits, selective regeneration). **Main ebook chapter count and outline are not defined here** — they belong to the **content phase** (`wizard-ai-generation` for the AI path, or upload alignment for the file path; see `PRD_Obra.md` §4).
+- Let users define **package structure** (bonus and bump counts and titles, plus **main ebook title** and optional **project-level `author`** on the **same screen** as the main title) with strong AI assistance while preserving **control** (manual edits, selective regeneration). **`author`** is optional; when empty it is omitted from downstream prompts (e.g. cover). **Main ebook chapter count and outline are not defined here** — they belong to the **content phase** (`wizard-ai-generation` for the AI path, or upload alignment for the file path; see `PRD_Obra.md` §4).
 - Capture **design** (page geometry, palette, typography) once per project, with **preview matching export**.
 
 **File upload for existing content is not part of this wizard:** the user chooses at project creation whether content will later come from **pure AI** or from an **uploaded file** (`.docx`/`.pdf`), but the **upload step runs only after** the design step, as part of the **content** phase (see `PRD_Obra.md` §4).
@@ -102,42 +102,43 @@ The **inner** wizard progress (topic, structure sub-steps, design) remains as to
 14. As a user, I want to **choose one** of the five **or** write my **own main title**, so that I stay in control of branding.
 15. As a user, I want to **regenerate the set of five** suggestions, so that I can see alternatives; I accept that **my chip selection clears** and I must pick again, while **my custom title field is preserved** if I used it.
 16. As a user, I want a short **explanation message** after regenerating the five, so that I am not surprised that selection reset.
+17. As a user, I want an optional **author** field (single field for the whole project) **on the same step** as the **main ebook title**, so that cover and credits can use it when I choose to fill it.
 
 ### Package structure — bonus titles (dedicated step)
 
-17. As a user, I want **AI-suggested titles for each bonus** based on the chosen main title, so that the package feels coherent.
-18. As a user, I want to **regenerate a single bonus title**, so that I can fix one row without touching others.
-19. As a user, I want **“Regenerate all”** for bonus titles, so that I can refresh many at once **except** rows I locked by selecting or editing.
-20. As a user, I want **manual typing** to count as **protected** from batch regeneration, so that my edits are not wiped accidentally.
-21. As a user, I want to **unlock** a row explicitly if I want it to participate in **regenerate all** again, so that sticky lock is not permanent by mistake.
-22. As a user, if I end up with **fewer** bonus deliverables than I first chose, I want the **project bonus count** to **shrink** to match what I actually kept, so that the project does not show phantom slots.
+18. As a user, I want **AI-suggested titles for each bonus** based on the chosen main title, so that the package feels coherent.
+19. As a user, I want to **regenerate a single bonus title**, so that I can fix one row without touching others.
+20. As a user, I want **“Regenerate all”** for bonus titles, so that I can refresh many at once **except** rows I locked by selecting or editing.
+21. As a user, I want **manual typing** to count as **protected** from batch regeneration, so that my edits are not wiped accidentally.
+22. As a user, I want to **unlock** a row explicitly if I want it to participate in **regenerate all** again, so that sticky lock is not permanent by mistake.
+23. As a user, if I end up with **fewer** bonus deliverables than I first chose, I want the **project bonus count** to **shrink** to match what I actually kept, so that the project does not show phantom slots.
 
 ### Package structure — bump titles (dedicated step)
 
-23. As a user, I want the **same behaviors as bonuses** for **order bump** titles (individual regenerate, regenerate all with locks, manual protection, unlock, count reduction), so that mental models stay consistent across lanes.
+24. As a user, I want the **same behaviors as bonuses** for **order bump** titles (individual regenerate, regenerate all with locks, manual protection, unlock, count reduction), so that mental models stay consistent across lanes.
 
 ### Design
 
-24. As a user, I want to choose **page size** (e.g. A4 / Letter) and **orientation** (portrait / landscape), so that my PDF matches my expectations.
-25. As a user, I want the **preview** in the app to match **exported PDF** for those choices, so that I do not get layout surprises.
-26. As a user, I want to pick a **design preset** that sets **palette and fonts** together, so that I get a cohesive look quickly.
-27. As a user, I want **manual control** of colors and fonts after a preset, and I understand the preset link breaks → **Custom**, so that I can fine-tune without hidden coupling.
-28. As a user, I want a **free-text field** for visual style notes (plus optional chips/presets where applicable), so that I can steer illustration vs photo, mood, etc., aligned with image generation later.
-29. As a user, I want **“Improve text”** only where there is **long text**, not on purely structural controls (counts, toggles, color pickers, image mode), so that buttons always match the field type.
+25. As a user, I want to choose **page size** (e.g. A4 / Letter) and **orientation** (portrait / landscape), so that my PDF matches my expectations.
+26. As a user, I want the **preview** in the app to match **exported PDF** for those choices, so that I do not get layout surprises.
+27. As a user, I want to pick a **design preset** that sets **palette and fonts** together, so that I get a cohesive look quickly.
+28. As a user, I want **manual control** of colors and fonts after a preset, and I understand the preset link breaks → **Custom**, so that I can fine-tune without hidden coupling.
+29. As a user, I want a **free-text field** for visual style notes (plus optional chips/presets where applicable), so that I can steer illustration vs photo, mood, etc., aligned with image generation later.
+30. As a user, I want **“Improve text”** only where there is **long text**, not on purely structural controls (counts, toggles, color pickers, image mode), so that buttons always match the field type.
 
 ### Design — image defaults
 
-30. As a user, I want to choose a **default image path** — **AI-assisted** (coherent generated images when the pipeline creates them) or **placeholders-first** (slots intended for **my own uploads** unless I change behavior in the editor) — so that the product matches my workflow and expectations.
-31. As a user, I want to pick an **image style** from the product catalog that **fits my palette and topic**, so that downstream images stay on-brand; I understand this does **not** generate images in this step.
+31. As a user, I want to choose a **default image path** — **AI-assisted** (coherent generated images when the pipeline creates them) or **placeholders-first** (slots intended for **my own uploads** unless I change behavior in the editor) — so that the product matches my workflow and expectations.
+32. As a user, I want to pick an **image style** from the product catalog that **fits my palette and topic**, so that downstream images stay on-brand; I understand this does **not** generate images in this step.
 
 ### Credits and errors
 
-32. As a user, I want **clear loading and error states** when AI runs, so that I know whether to retry or fix input.
-33. As a user, I want **credits** to be charged only per product rules (success paths, no charge on failed operations), so that I trust billing (see master PRD). **Image generation credits** follow the **preview-generation** billing rules once defined (**TBD**); this wizard does not charge for images.
+33. As a user, I want **clear loading and error states** when AI runs, so that I know whether to retry or fix input.
+34. As a user, I want **credits** to be charged only per product rules (success paths, no charge on failed operations), so that I trust billing (see master PRD). **Image generation credits** apply when images are successfully generated in **Preview** (`features/wizard-preview/wizard-preview.md`); this wizard does not charge for images.
 
 ### Post-wizard (handoff)
 
-34. As a user, after finishing the **design** step, I want either **AI content generation** or **file upload** (depending on my earlier choice), with **package titles, counts, design system, and image defaults (`image_mode`, `image_style`)** already applied, so that I can define **main ebook chapters** and body content in the **Contenido** phase toward export.
+35. As a user, after finishing the **design** step, I want either **AI content generation** or **file upload** (depending on my earlier choice), with **package titles, counts, design system, and image defaults (`image_mode`, `image_style`)** already applied, so that I can define **main ebook chapters** and body content in the **Contenido** phase toward export.
 
 ---
 
@@ -162,7 +163,7 @@ The **inner** wizard progress (topic, structure sub-steps, design) remains as to
 - **AvatarProblem module:** two fields in one step; independent improve actions.
 - **Package structure module** (composite):
   - **Counts** submodule: bonus count, bump count only; enforce caps from master PRD. **Does not** collect main ebook chapter count.
-  - **Main titles** submodule: fetch five suggestions, selection model, custom title field, batch regenerate with **selection reset** behavior and **preserve custom field**.
+  - **Main titles** submodule: fetch five suggestions, selection model, custom title field, optional **`author`** (project-level, same screen), batch regenerate with **selection reset** behavior and **preserve custom field**.
   - **Bonus titles** submodule: list of rows with per-row state `{ value, source, lockedByUser | dirty | explicitSelect, unlockedForBatch }` (exact shape is an implementation detail; behavior is specified in Solution).
   - **Bump titles** submodule: same as bonuses, separate state.
 - **Design module:** preset catalog loaded from configuration; page size + orientation; palette and font controls; “custom” vs “based on preset” state; free-text style notes; **Images** subsection — `image_mode` (AI-assisted vs placeholders-first), `image_style` (enum aligned with `PRD_Obra.md` §6); **no** image-generation API calls in this step for MVP.
@@ -178,7 +179,7 @@ The **inner** wizard progress (topic, structure sub-steps, design) remains as to
 
 ### Data model alignment
 
-- Project stores **final** counts for bonuses/bumps after package structure steps complete.
+- Project stores **final** counts for bonuses/bumps after package structure steps complete; optional **`author`** (nullable string) when the user fills it.
 - Project stores **design system** fields: colors, fonts, page size, orientation, preset id (if any), custom flag, style notes; **`image_mode`**, **`image_style`** (and optional **style-notes override** semantics for prompts — align with preview pipeline when specified).
 - Titles for main, each bonus, each bump stored on the relevant **ebook** entities per master schema.
 - **Main ebook chapter list / count** is persisted when the user completes the relevant milestones in **`wizard-ai-generation`** (AI path) or **upload alignment** (file path), not at the end of `wizard-shared`.
@@ -203,10 +204,10 @@ The **inner** wizard progress (topic, structure sub-steps, design) remains as to
 2. Build **Topic** step with long-text field and **Improve text** (loading, error, disabled while pending).
 3. Build **Avatar + problem** step (two fields, each with **Improve text**).
 4. Build **Package structure — counts** UI (sliders/inputs within max bonus/bump limits; clear labels; **no** main-ebook chapter count).
-5. Build **Package structure — main titles**: display five suggestions (chips/cards), custom input, **Regenerate five** with **selection reset** + **copy**; ensure custom field **not** cleared on batch regenerate.
+5. Build **Package structure — main titles**: display five suggestions (chips/cards), custom input, optional **author** field (project-level), **Regenerate five** with **selection reset** + **copy**; ensure custom field **not** cleared on batch regenerate.
 6. Build **Package structure — bonus titles** step: list UI, per-row regenerate, **Regenerate all** respecting locks, **unlock** control, dirty/selected semantics, empty states.
 7. Build **Package structure — bump titles** step reusing the same patterns as bonuses with **separate** state.
-8. Build **Design** step: page size + orientation; preset picker; palette + font controls; sync **custom** state when user edits; optional **restore preset**; long-text style notes + **Improve text** where applicable; **Images** subsection — `image_mode` + `image_style` with helper copy that **image billing** is tied to **preview generation** (**TBD**), not this screen.
+8. Build **Design** step: page size + orientation; preset picker; palette + font controls; sync **custom** state when user edits; optional **restore preset**; long-text style notes + **Improve text** where applicable; **Images** subsection — `image_mode` + `image_style` with helper copy that **image billing** occurs when images are generated in **Preview** (`features/wizard-preview/wizard-preview.md`), not this screen.
 9. Wire **preview** dimensions to **page size and orientation** so preview matches export contract.
 10. Integrate **credit-aware** UI (disable or gate actions when no credits — aligns with global degraded mode; wizard-specific copy may reference master rules).
 11. **Accessibility:** labels, `aria-live` for AI replacements, focus management on step change and dialogs.
@@ -232,15 +233,15 @@ The **inner** wizard progress (topic, structure sub-steps, design) remains as to
 4. **Microcopy** ES / pt-BR: global stepper labels, step titles, helper text for **main batch regenerate**, **lock/unlock**, **regenerate all** when everything locked, **custom vs preset** state.
 5. **Empty, loading, and error** states for AI actions; **skeleton** patterns for slow responses.
 6. **Iconography** for lock/unlock, preset vs custom, and step progress.
-7. **Design — Images** subsection: ES / pt-BR helper copy for **AI-assisted vs placeholders-first**, **image style** picker, and **no credits on this screen** / **preview billing TBD** (aligned with `PRD_Obra.md` §6 pointer).
+7. **Design — Images** subsection: ES / pt-BR helper copy for **AI-assisted vs placeholders-first**, **image style** picker, and **no credits on this screen** (credits when images generate in Preview — `features/wizard-preview/wizard-preview.md`; aligned with `PRD_Obra.md` §6).
 
 ---
 
 ## Out of Scope
 
 - **Post-design content upload** (`.docx`/`.pdf`), parse, alignment to Obra chapter/index format, and merge into the content milestone flow — detailed in **`PRD_Obra.md` §4** and cross-linked specs; this document ends at **design complete**; handoff contract: **package** structure (titles, bonus/bump counts) + design system + **`image_mode` / `image_style`** + `content_locale` + chosen branch (IA vs upload next). **Main ebook chapters** are **not** part of this handoff.
-- **Editor** after wizard (chapter HTML, per-section image actions, full export pipeline) beyond **design tokens**, **image defaults**, and **structure** handed off.
-- **Preview-generation spec** (when image credits are charged, batching, first-run vs rebuild): **TBD** — do not duplicate here; **`image_mode` + `image_style`** are inputs — see **`PRD_Obra.md` §6** pointer.
+- **Preview / export** after Content (global step 3): **`features/wizard-preview/wizard-preview.md`** — not specified in this document beyond **design tokens**, **image defaults**, and **structure** handed off.
+- **Preview image pipeline** (when credits are charged, queue on open, slot contracts): canonical spec **`features/wizard-preview/wizard-preview.md`**; **`image_mode` + `image_style`** are inputs — see also **`PRD_Obra.md` §6**.
 - **Concrete preset list** and **exact credit table** per AI action (owned by master PRD / product research).
 - **Mercado Pago**, **email verification**, and **subscription gating** — covered at journey level in master PRD, not implemented detail here.
 - **Landing page** blocks and Shopify liquid — post-MVP.

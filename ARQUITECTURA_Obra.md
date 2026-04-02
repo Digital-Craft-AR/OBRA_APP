@@ -249,6 +249,7 @@ CREATE TABLE projects (
   name            TEXT NOT NULL,
   status          TEXT DEFAULT 'draft',   -- draft | in_progress | complete
   content_locale  TEXT NOT NULL CHECK (content_locale IN ('es', 'pt-BR', 'en-US', 'en-GB')), -- salida del proyecto; inmutable en app tras INSERT
+  author          TEXT,                 -- opcional; captura en wizard con título principal — ver `features/wizard-shared/wizard-shared.md`, `features/wizard-preview/wizard-preview.md`
   archived_at     TIMESTAMPTZ,           -- NULL = no archivado; si set, no cuenta en el límite de 20 activos
   deleted_at      TIMESTAMPTZ,           -- NULL = no en papelera; si set, soft delete — hard delete tras 30 días (job programado)
   created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -446,7 +447,7 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 
 ### 4.6 `image-generate`
 **Propósito:** Generar una imagen con **Gemini API** usando el modelo de imagen **Nano Banana** (familia Gemini Image; ver documentación actual de Google para el id de modelo concreto).  
-**Alineación con producto:** los **defaults** `image_mode` / `image_style` del **onboarding** (`design_systems`, capturados en `StepDesign`) son **entradas** al prompt y al comportamiento por sección; la **facturación en créditos** por generación de imagen queda **acoplada a la generación de vista previa — TBD** (canonical: `PRD_Obra.md` §6; no duplicar reglas aquí). El **wizard compartido no invoca** esta función.
+**Alineación con producto:** los **defaults** `image_mode` / `image_style` del **onboarding** (`design_systems`, capturados en `StepDesign`) son **entradas** al prompt y al comportamiento por slot; la **facturación en créditos** por generación de imagen sigue **`features/wizard-preview/wizard-preview.md`** y **`PRD_Obra.md` §6** (cargo al éxito al persistir). El **wizard compartido no invoca** esta función.
 
 **Input:**
 ```json
@@ -559,14 +560,14 @@ Fin del wizard compartido (diseño + image_mode/image_style guardados en design_
         ↓
 → ai-generate-content por capítulo (orden; upload: texto puede venir prellenado)
         ↓
-→ HTML / vista previa: pipeline puede invocar image-generate y otras piezas según PRD §6 y **spec de vista previa (TBD)**; créditos de imagen **no** fijados aquí
+→ Vista previa (paso global 3): pipeline según **`features/wizard-preview/wizard-preview.md`** y PRD §6 — puede invocar `image-generate` y optimización de assets; créditos al **éxito** según ledger
         ↓
 → ai-generate-html (contenido + diseño) cuando aplique al flujo de producto
         ↓
 HTML en ebooks / preview → iteración (ImageSlot: regenerar / subir por sección) → Export PDF
 ```
 
-Detalle de hitos y freeze de índice: `features/wizard-ai-generation/wizard-ai-generation.md`. **Imágenes (comportamiento por sección, billing TBD):** `PRD_Obra.md` §6.
+Detalle de hitos y freeze de índice: `features/wizard-ai-generation/wizard-ai-generation.md`. **Vista previa / imágenes / export:** `features/wizard-preview/wizard-preview.md`; reglas de producto amplias: `PRD_Obra.md` §6–§7.
 
 ---
 
@@ -648,12 +649,10 @@ Construir en este orden estricto hasta PDF — cada paso depende del anterior:
 | 4 | Wizard shell | Navegación entre pasos, estado en Zustand | Dashboard |
 | 5 | AiAssistField | Campo con optimización IA | Edge Fn: ai-optimize |
 | 6 | Pasos del wizard | StepTopic, StepAvatar, estructura de **paquete**, StepDesign (**defaults** `image_mode` / `image_style`; sin image-generate; sin capítulos del main ebook) | AiAssistField |
-| 7 | Fase Contenido (post-diseño) | Índice/capítulos (IA o upload+alineación) → cuerpo por capítulo → bonuses/bumps; imágenes según §6 / editor / **vista previa (TBD)** | Edge Fns: parse-document (upload), generate-index, generate-content, image-generate (cuando el pipeline la invoque) |
-| 8 | Generación HTML | HTML del ebook con diseño aplicado | Edge Fn: ai-generate-html |
-| 9 | Editor | Preview en iframe + iteración | HTML generado |
-| 10 | Export PDF | Descarga del ebook final | Edge Fn: export-pdf |
-| 11 | i18n | ES + PT en toda la UI | Flujo anterior (puede avanzar en paralelo desde ~4) |
-| 12 | Plan único y pagos | **Un plan** en v1.0; **Mercado Pago** (AR/BR, moneda local); **créditos** mensuales del plan (sin arrastre) + **top-ups** fijos (acumulan); webhooks → `mercadopago-webhook`, ledger, UI de saldo (PRD §11) | Auth + DB + Edge Functions |
+| 7 | Fase Contenido (post-diseño) | Índice/capítulos (IA o upload+alineación) → cuerpo por capítulo → bonuses/bumps | Edge Fns: parse-document (upload), generate-index, generate-content |
+| 8 | Vista previa (paso global 3) | JSON → layouts HTML; slots de imagen; portada IA; cola al abrir; **export-pdf** por entregable + **ZIP** del proyecto; navegación **Edit content** ↔ Contenido | Edge Fns: image-generate, optimize, export-pdf, empaquetado ZIP — ver `features/wizard-preview/wizard-preview.md` |
+| 9 | i18n | ES + PT en toda la UI | Flujo anterior (puede avanzar en paralelo desde ~4) |
+| 10 | Plan único y pagos | **Un plan** en v1.0; **Mercado Pago** (AR/BR, moneda local); **créditos** mensuales del plan (sin arrastre) + **top-ups** fijos (acumulan); webhooks → `mercadopago-webhook`, ledger, UI de saldo (PRD §11) | Auth + DB + Edge Functions |
 
 ### Post-MVP (venta en tienda online; p. ej. Shopify)
 

@@ -4,7 +4,7 @@
 **Feature slug:** `wizard-upload`  
 **Status:** Draft  
 **Parent reference:** `PRD_Obra.md` (limits, credits, locales, import rules §4)  
-**Related:** `features/wizard-ai-generation/wizard-ai-generation.md` (shared **Contenido** milestones **after** alignment: chapter loop with prefill → bonuses → bumps); `features/wizard-shared/wizard-shared.md` (handoff **into** this flow after design)
+**Related:** `features/wizard-ai-generation/wizard-ai-generation.md` (shared **Contenido** milestones **after** alignment: chapter loop with prefill → bonuses → bumps); `features/wizard-shared/wizard-shared.md` (handoff **into** this flow after design); `features/wizard-preview/wizard-preview.md` (same **Preview** step as the AI branch after Content)
 
 ---
 
