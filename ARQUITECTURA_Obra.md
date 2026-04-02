@@ -1,7 +1,8 @@
 # Arquitectura Técnica — Obra (obra.app)
-**Versión:** 1.0  
-**Fecha:** Marzo 2026  
-**Stack:** React + Vite + TypeScript · Supabase · Claude API · Gemini API (Nano Banana) · Vercel
+**Versión:** 1.1  
+**Fecha:** Abril 2026  
+**Stack:** React + Vite + TypeScript · Supabase · Claude API · Gemini API (Nano Banana) · Vercel  
+**Referencias:** `PRD_Obra.md` (producto y negocio), `CONVENCIONES.md` (UI), documentación interna en `docs/`.
 
 ---
 
@@ -61,10 +62,43 @@ El frontend React se comunica exclusivamente con Supabase. Supabase expone Edge 
 
 - **Soft launch:** tráfico y pagos permitidos; **marketing agresivo** solo tras el **checklist “listo para cobrar”** del PRD.
 - El equipo marca en revisión conjunta los ítems del checklist antes de escalar adquisición.
+- **Smoke manual pre-producción:** **`docs/operations/smoke-test.md`**.
+
+### 1.7 Documentación en el repositorio (`docs/`)
+
+Material operativo y de desarrollo **en inglés**; el PRD sigue siendo la fuente de verdad de producto.
+
+| Ruta | Contenido |
+|------|-----------|
+| **`docs/README.md`** | Índice de la carpeta |
+| **`docs/operations/incident-runbook.md`** | Respuesta a incidentes, paneles de proveedores, reglas de comunicación (PRD §9) |
+| **`docs/operations/smoke-test.md`** | Checklist de smoke antes de deploy (PRD §16) |
+| **`docs/development/ci-pipeline.md`** | Expectativas de CI/E2E Playwright y decisiones abiertas (PRD §16) |
+| **`docs/infrastructure/supabase.md`** | Región, ref de proyecto, PITR — completar tras provisionar Supabase |
 
 ---
 
 ## 2. Estructura de carpetas del proyecto
+
+Raíz del **repositorio Git** (monorepo liviano: app + especificaciones + ops):
+
+```
+OBRA_APP/
+├── .gitignore                      # P. ej. .claude/worktrees/ (copias worktree de Claude Code; no versionar)
+├── PRD_Obra.md
+├── ARQUITECTURA_Obra.md
+├── CONVENCIONES.md
+├── docs/                           # Ver §1.7
+│   ├── README.md
+│   ├── operations/
+│   │   ├── incident-runbook.md
+│   │   └── smoke-test.md
+│   ├── development/
+│   │   └── ci-pipeline.md
+│   └── infrastructure/
+│       └── supabase.md
+└── obra/                           # Aplicación (Vite + React); árbol detallado debajo
+```
 
 ```
 obra/
@@ -160,9 +194,10 @@ obra/
 │
 ├── public/
 ├── .env.local                      # Variables de entorno (nunca al repo)
-├── .cursorrules                    # Reglas para Cursor (ver sección 8)
 └── package.json
 ```
+
+**Nota:** el árbol bajo `src/` describe la **organización lógica** alineada al PRD (wizard, editor, dashboard). La implementación puede usar **`src/pages/`** + `App.tsx` y React Router en lugar de carpetas `src/app/(auth)/`, manteniendo las mismas responsabilidades.
 
 ### 2.1 Pruebas (PRD §16 — modelo B)
 
@@ -184,6 +219,10 @@ obra/
 - **PDF / importación:** feedback de progreso acorde a duración real; no permitir **doble submit** en export ni en upload.
 - **Medición:** **Vercel Speed Insights** u otra fuente de vitals **opcional** en producción; revisión manual con Lighthouse en builds candidatos (alinear con PRD §16).
 
+### 2.4 Conversión y demostración de valor (PRD §11)
+
+- **Video** y **recorrido interactivo** (ambos requeridos a nivel producto) hasta exportación PDF; la implementación puede repartirse entre **landing pública** (`(marketing)` / página de Obra) y **flujo dentro de la app** (tour guiado), según diseño UX.
+
 ---
 
 ## 3. Base de datos (PostgreSQL via Supabase)
@@ -198,7 +237,7 @@ obra/
 CREATE TABLE profiles (
   id          UUID REFERENCES auth.users PRIMARY KEY,
   full_name   TEXT,
-  plan        TEXT DEFAULT 'starter', -- starter | pro | agency
+  plan        TEXT DEFAULT 'base', -- v1.0: un solo plan comercial (PRD §11); ampliar valores si hay más planes
   ui_locale   TEXT DEFAULT 'es' CHECK (ui_locale IN ('es', 'pt-BR')), -- idioma de la app; editable por el usuario
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
@@ -451,6 +490,8 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 ### 4.11 `mercadopago-webhook`
 **Propósito:** Recibir **webhooks** de Mercado Pago (pagos, suscripciones, rechazos). Validar firma; actualizar tablas de suscripción / créditos; marcar flags para **avisos in-app** (PRD §11). **HTTPS** público; URL registrada en el panel de MP.
 
+**Modelo de créditos (PRD §11):** v1.0 = **un solo plan** comercial (ancla USD 29/mes; cobro local ARS/BRL con referencia). Los **créditos incluidos en la suscripción** se renuevan por ciclo y **no arrastran** al siguiente; los **top-ups** son **paquetes fijos** cuyos créditos **sí se acumulan** en el saldo. La lógica de acreditación y el **ledger** deben distinguir origen (plan vs compra) para políticas y soporte; los importes concretos de paquetes salen de la **investigación de créditos** del PRD.
+
 ---
 
 ## 5. Estado global del cliente (Zustand)
@@ -547,10 +588,6 @@ interface AiAssistFieldProps {
 
 ---
 
-## 8. Archivo `.cursorrules`
-
-Este archivo va en la raíz del proyecto y le da contexto permanente a Cursor.
-
 ```
 Estás construyendo Obra (obra.app), un SaaS para creadores de infoproductos en LATAM y Brasil.
 
@@ -609,7 +646,7 @@ Construir en este orden estricto hasta PDF — cada paso depende del anterior:
 | 9 | Editor | Preview en iframe + iteración | HTML generado |
 | 10 | Export PDF | Descarga del ebook final | Edge Fn: export-pdf |
 | 11 | i18n | ES + PT en toda la UI | Flujo anterior (puede avanzar en paralelo desde ~4) |
-| 12 | Planes | Límites por plan; cobros vía Mercado Pago (AR/BR); créditos IA | Auth + DB |
+| 12 | Plan único y pagos | **Un plan** en v1.0; **Mercado Pago** (AR/BR, moneda local); **créditos** mensuales del plan (sin arrastre) + **top-ups** fijos (acumulan); webhooks → `mercadopago-webhook`, ledger, UI de saldo (PRD §11) | Auth + DB + Edge Functions |
 
 ### Post-MVP (venta en tienda online; p. ej. Shopify)
 
@@ -635,4 +672,4 @@ No es foco del producto hasta cerrar el núcleo PDF. Orden sugerido:
 
 ---
 
-*Documento generado como base para desarrollo en Cursor. Leer junto con PRD_Obra.md antes de iniciar cualquier módulo.*
+*Documento de arquitectura técnica. Leer junto con **PRD_Obra.md**, **CONVENCIONES.md** y la carpeta **`docs/`** (operaciones, CI, infraestructura) antes de despliegues o cambios transversales.*
