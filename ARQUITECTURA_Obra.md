@@ -37,7 +37,8 @@ El frontend React se comunica exclusivamente con Supabase. Supabase expone Edge 
 
 ### 1.2 Notificaciones (PRD §11 — modelo B)
 
-- **Correo de cuenta:** plantillas **Supabase Auth** (reset, verificación, etc.).
+- **Correo de cuenta:** plantillas **Supabase Auth** (reset, verificación, etc.). **Verificación:** email/contraseña requiere `email_confirmed_at` **antes** de exponer checkout de suscripción; pantalla dedicada si el usuario entra sin verificar — ver **PRD §11 Adquisición**.
+- **Auth multi-proveedor:** **Supabase Auth** con **identity linking** (email + OAuth, p. ej. Google) hacia **un `user_id`**; misma regla de negocio que **PRD §11** — vinculación de identidades; evitar duplicados por mismo email verificado.
 - **Pagos:** **Mercado Pago** (comprobantes / avisos según su flujo); **webhooks** MP → Edge Function que actualiza estado de suscripción y dispara **avisos in-app** (créditos, renovación, fallo de cobro).
 
 ### 1.3 Observabilidad (PRD §9 — modelo B)
@@ -127,7 +128,7 @@ obra/
 │   │   │   ├── StepTopic.tsx
 │   │   │   ├── StepAvatar.tsx
 │   │   │   ├── StepStructure.tsx
-│   │   │   ├── StepDesign.tsx
+│   │   │   ├── StepDesign.tsx      # Paleta, tipografías, notas de estilo, **defaults de imagen** (`image_mode`, `image_style` — sin llamada a image-generate en el wizard; ver `features/wizard-shared/wizard-shared.md`)
 │   │   │   └── AiAssistField.tsx   # Campo con botón "Optimizar con IA"
 │   │   ├── editor/
 │   │   │   ├── EbookPreview.tsx    # Vista previa HTML en iframe
@@ -157,7 +158,7 @@ obra/
 │   ├── hooks/
 │   │   ├── useProject.ts           # CRUD de proyectos
 │   │   ├── useAi.ts                # Llamadas a Edge Functions de IA
-│   │   ├── useImages.ts            # Generación y upload de imágenes
+│   │   ├── useImages.ts            # Generación (image-generate) y upload; respeta §6 y defaults del proyecto (wizard-shared)
 │   │   └── useExport.ts            # Trigger de exportación PDF
 │   │
 │   ├── lib/
@@ -178,7 +179,7 @@ obra/
 ├── supabase/
 │   └── functions/                  # Edge Functions (Deno)
 │       ├── ai-optimize/            # Optimizar texto con Claude
-│       ├── parse-document/         # Extraer texto de .docx / PDF (Flujo B; ver PRD)
+│       ├── parse-document/         # Extraer texto de .docx / PDF (tras paso diseño — rama Upload; ver PRD §4)
 │       ├── ai-generate-content/    # Generar contenido del ebook
 │       ├── ai-generate-index/      # Generar índice de capítulos
 │       ├── ai-generate-landing/    # Generar bloques de landing (post-MVP)
@@ -249,6 +250,7 @@ CREATE TABLE projects (
   name            TEXT NOT NULL,
   status          TEXT DEFAULT 'draft',   -- draft | in_progress | complete
   content_locale  TEXT NOT NULL CHECK (content_locale IN ('es', 'pt-BR', 'en-US', 'en-GB')), -- salida del proyecto; inmutable en app tras INSERT
+  author          TEXT,                 -- opcional; captura en wizard con título principal — ver `features/wizard-shared/wizard-shared.md`, `features/wizard-preview/wizard-preview.md`
   archived_at     TIMESTAMPTZ,           -- NULL = no archivado; si set, no cuenta en el límite de 20 activos
   deleted_at      TIMESTAMPTZ,           -- NULL = no en papelera; si set, soft delete — hard delete tras 30 días (job programado)
   created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -256,6 +258,7 @@ CREATE TABLE projects (
 );
 
 -- Sistema de diseño (1 por proyecto)
+-- Campos adicionales del paso Diseño (tamaño de página, orientación, preset, notas, etc.): ver `features/wizard-shared/wizard-shared.md`
 CREATE TABLE design_systems (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id      UUID REFERENCES projects(id) ON DELETE CASCADE UNIQUE,
@@ -263,7 +266,9 @@ CREATE TABLE design_systems (
   color_secondary TEXT NOT NULL,      -- 30% — hex
   color_accent    TEXT NOT NULL,      -- 10% — hex
   font_display    TEXT NOT NULL,      -- Google Font para títulos
-  font_body       TEXT NOT NULL       -- Google Font para cuerpo
+  font_body       TEXT NOT NULL,      -- Google Font para cuerpo
+  image_mode      TEXT,               -- ai_assisted | placeholders_first — defaults del wizard; ver wizard-shared
+  image_style     TEXT                -- catálogo alineado a PRD_Obra §6; entradas al pipeline de preview/imagen
 );
 
 -- Ebooks: máx. 1 main + 5 bonus + 2 order_bump por proyecto (v1.0; validar en app o triggers)
@@ -336,10 +341,14 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 
 **Rate limiting (PRD §9 — modelo B):** en funciones **costosas** (IA, PDF, parse, export de datos, etc.), aplicar **límite por usuario autenticado** y, si aplica, **por IP**; umbrales según implementación. Responder `429` con mensaje claro cuando se supere el cupo.
 
-### Importación de archivos (Flujo B)
+### Importación de archivos (rama Upload — post-diseño)
 
+- Invocación **después** del onboarding compartido cuando el usuario eligió **contenido por archivo** (ver `PRD_Obra.md` §4).
 - Función dedicada (p. ej. `parse-document`): **mammoth** para `.docx` estándar, **pdf-parse** (o equivalente) para PDF con **texto seleccionable** — **sin OCR** en MVP.
 - Validar **tamaño máximo 10 MB**, **un archivo por request**, **rechazar** PDF con contraseña o extracción vacía; respuestas de error alineadas al PRD.
+- Tras parseo + IA, el usuario **alinea** índice/capítulos al formato Obra (aprobación); entonces se persisten `chapters` y el flujo continúa como en la rama IA (mismos hitos: cuerpo por capítulo → bonuses → bumps). El **número de capítulos** no viene del wizard compartido — se fija en esta fase (ver `features/wizard-ai-generation/wizard-ai-generation.md`).
+- **Almacenamiento:** el archivo subido permanece en bucket **privado** mientras exista el proyecto (path acotado por usuario/proyecto); ver `PRD_Obra.md` §4 y `features/wizard-ai-generation/wizard-ai-generation.md` (ops).
+- **Observabilidad:** **no** loguear cuerpo del documento ni prompts completos; metadatos y códigos de error únicamente (coherente con §1 logging).
 
 ### 4.1 `ai-optimize`
 **Propósito:** Optimizar cualquier campo de texto del wizard con Claude.  
@@ -356,20 +365,23 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 ---
 
 ### 4.2 `ai-generate-index`
-**Propósito:** Generar el índice de capítulos del ebook.  
-**Input:**
+**Propósito:** Proponer el **índice / lista de capítulos** del ebook principal en la **fase Contenido** (no en el wizard compartido).  
+**Input:** Contexto del proyecto (tema, avatar, problema, título main, `content_locale`, sistema de diseño referido si aplica). Opcional: `chapter_count_hint` o rango máximo según reglas de producto — **no** se envía un `chapter_count` fijado en `wizard-shared` (ese paso ya no define capítulos).
 ```json
 {
   "topic": "velas aromáticas",
   "avatar": "...",
+  "problem": "...",
+  "main_ebook_title": "...",
   "language": "es",
-  "chapter_count": 8
+  "chapter_count_hint": 8
 }
 ```
 **Output:**
 ```json
 { "chapters": [{ "order": 1, "title": "..." }, ...] }
 ```
+**Nota:** Tras **confirmación** del usuario en UI, el índice se persiste y aplica la regla de **index freeze** del PRD de generación de contenido.
 
 ---
 
@@ -436,6 +448,8 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 
 ### 4.6 `image-generate`
 **Propósito:** Generar una imagen con **Gemini API** usando el modelo de imagen **Nano Banana** (familia Gemini Image; ver documentación actual de Google para el id de modelo concreto).  
+**Alineación con producto:** los **defaults** `image_mode` / `image_style` del **onboarding** (`design_systems`, capturados en `StepDesign`) son **entradas** al prompt y al comportamiento por slot; la **facturación en créditos** por generación de imagen sigue **`features/wizard-preview/wizard-preview.md`** y **`PRD_Obra.md` §6** (cargo al éxito al persistir). El **wizard compartido no invoca** esta función.
+
 **Input:**
 ```json
 {
@@ -498,6 +512,7 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 
 ```typescript
 // store/projectStore.ts
+// DesignSystem: colores, fuentes, formato de página, notas de estilo, image_mode, image_style — ver wizard-shared + types
 interface ProjectStore {
   // Proyecto activo
   project: Project | null
@@ -525,41 +540,35 @@ interface ProjectStore {
 
 ---
 
-## 6. Flujo de datos — Wizard completo
+## 6. Flujo de datos — Onboarding y fase Contenido
+
+**Onboarding compartido** (hasta diseño): paquete + diseño + **`image_mode` / `image_style`** (defaults de imagen, **sin** `image-generate` ni consumo de créditos de imagen en el wizard); **sin** capítulos del main ebook en Zustand/DB como lista definitiva. Detalle: `features/wizard-shared/wizard-shared.md`.
 
 ```
 Usuario escribe en campo
         ↓
-[AiAssistField] detecta texto
+[AiAssistField] → Edge Function: ai-optimize (solo wizard)
         ↓
-Click "Optimizar con IA"
+... completa tema → avatar/problema → estructura de paquete (títulos, bonuses/bumps) → diseño (incl. defaults de imagen)
         ↓
-→ Edge Function: ai-optimize
+Fin del wizard compartido (diseño + image_mode/image_style guardados en design_systems)
         ↓
-Claude devuelve texto mejorado
+┌───────────────────────────┬───────────────────────────────────────────────┐
+│ Rama IA (Contenido)       │ Rama Upload (Contenido)                       │
+│ → ai-generate-index       │ → parse-document (+ IA propone split)         │
+│   usuario confirma índice │   usuario alinea índice/capítulos y aprueba   │
+└───────────────────────────┴───────────────────────────────────────────────┘
         ↓
-Campo se actualiza en UI + Zustand
+→ ai-generate-content por capítulo (orden; upload: texto puede venir prellenado)
         ↓
-... (usuario completa todos los pasos) ...
+→ Vista previa (paso global 3): pipeline según **`features/wizard-preview/wizard-preview.md`** y PRD §6 — puede invocar `image-generate` y optimización de assets; créditos al **éxito** según ledger
         ↓
-Click "Generar mi ebook"
+→ ai-generate-html (contenido + diseño) cuando aplique al flujo de producto
         ↓
-→ Edge Function: ai-generate-index
-        ↓
-→ Edge Function: ai-generate-content (x N capítulos, paralelo)
-        ↓
-→ Edge Function: image-generate (x N capítulos, paralelo)
-        ↓
-→ Edge Function: ai-generate-html (con todo el contenido + diseño)
-        ↓
-HTML guardado en ebooks.html_content (Supabase)
-        ↓
-EbookPreview renderiza el HTML en iframe
-        ↓
-Usuario itera → feedback → ai-generate-html nuevamente
-        ↓
-Usuario conforme → Export PDF → Descarga
+HTML en ebooks / preview → iteración (ImageSlot: regenerar / subir por sección) → Export PDF
 ```
+
+Detalle de hitos y freeze de índice: `features/wizard-ai-generation/wizard-ai-generation.md`. **Vista previa / imágenes / export:** `features/wizard-preview/wizard-preview.md`; reglas de producto amplias: `PRD_Obra.md` §6–§7.
 
 ---
 
@@ -636,17 +645,15 @@ Construir en este orden estricto hasta PDF — cada paso depende del anterior:
 | # | Módulo | Descripción | Dependencias |
 |---|---|---|---|
 | 1 | Setup | Vite + TypeScript + shadcn + Supabase client | — |
-| 2 | Auth | Login / Register / Sesión persistente | Supabase Auth |
+| 2 | Auth | Login / Register / Sesión persistente; **linking** email + OAuth (un `user_id`) | Supabase Auth |
 | 3 | Dashboard | Lista de proyectos + crear nuevo | Auth + DB |
 | 4 | Wizard shell | Navegación entre pasos, estado en Zustand | Dashboard |
 | 5 | AiAssistField | Campo con optimización IA | Edge Fn: ai-optimize |
-| 6 | Pasos del wizard | StepTopic, StepAvatar, StepStructure, StepDesign | AiAssistField |
-| 7 | Generación de contenido | Índice + capítulos + imágenes | Edge Fns: generate-index, generate-content, image-generate |
-| 8 | Generación HTML | HTML del ebook con diseño aplicado | Edge Fn: ai-generate-html |
-| 9 | Editor | Preview en iframe + iteración | HTML generado |
-| 10 | Export PDF | Descarga del ebook final | Edge Fn: export-pdf |
-| 11 | i18n | ES + PT en toda la UI | Flujo anterior (puede avanzar en paralelo desde ~4) |
-| 12 | Plan único y pagos | **Un plan** en v1.0; **Mercado Pago** (AR/BR, moneda local); **créditos** mensuales del plan (sin arrastre) + **top-ups** fijos (acumulan); webhooks → `mercadopago-webhook`, ledger, UI de saldo (PRD §11) | Auth + DB + Edge Functions |
+| 6 | Pasos del wizard | StepTopic, StepAvatar, estructura de **paquete**, StepDesign (**defaults** `image_mode` / `image_style`; sin image-generate; sin capítulos del main ebook) | AiAssistField |
+| 7 | Fase Contenido (post-diseño) | Índice/capítulos (IA o upload+alineación) → cuerpo por capítulo → bonuses/bumps | Edge Fns: parse-document (upload), generate-index, generate-content |
+| 8 | Vista previa (paso global 3) | JSON → layouts HTML; slots de imagen; portada IA; cola al abrir; **export-pdf** por entregable + **ZIP** del proyecto; navegación **Edit content** ↔ Contenido | Edge Fns: image-generate, optimize, export-pdf, empaquetado ZIP — ver `features/wizard-preview/wizard-preview.md` |
+| 9 | i18n | ES + PT en toda la UI | Flujo anterior (puede avanzar en paralelo desde ~4) |
+| 10 | Plan único y pagos | **Un plan** en v1.0; **Mercado Pago** (AR/BR, moneda local); **créditos** mensuales del plan (sin arrastre) + **top-ups** fijos (acumulan); webhooks → `mercadopago-webhook`, ledger, UI de saldo (PRD §11) | Auth + DB + Edge Functions |
 
 ### Post-MVP (venta en tienda online; p. ej. Shopify)
 
@@ -672,4 +679,4 @@ No es foco del producto hasta cerrar el núcleo PDF. Orden sugerido:
 
 ---
 
-*Documento de arquitectura técnica. Leer junto con **PRD_Obra.md**, **CONVENCIONES.md** y la carpeta **`docs/`** (operaciones, CI, infraestructura) antes de despliegues o cambios transversales.*
+*Documento de arquitectura técnica. Leer junto con **PRD_Obra.md**, **`features/wizard-shared/wizard-shared.md`** (diseño + defaults de imagen), **`features/wizard-ai-generation/wizard-ai-generation.md`**, **CONVENCIONES.md** y la carpeta **`docs/`** (operaciones, CI, infraestructura) antes de despliegues o cambios transversales.*
