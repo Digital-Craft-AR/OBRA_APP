@@ -37,7 +37,8 @@ El frontend React se comunica exclusivamente con Supabase. Supabase expone Edge 
 
 ### 1.2 Notificaciones (PRD §11 — modelo B)
 
-- **Correo de cuenta:** plantillas **Supabase Auth** (reset, verificación, etc.).
+- **Correo de cuenta:** plantillas **Supabase Auth** (reset, verificación, etc.). **Verificación:** email/contraseña requiere `email_confirmed_at` **antes** de exponer checkout de suscripción; pantalla dedicada si el usuario entra sin verificar — ver **PRD §11 Adquisición**.
+- **Auth multi-proveedor:** **Supabase Auth** con **identity linking** (email + OAuth, p. ej. Google) hacia **un `user_id`**; misma regla de negocio que **PRD §11** — vinculación de identidades; evitar duplicados por mismo email verificado.
 - **Pagos:** **Mercado Pago** (comprobantes / avisos según su flujo); **webhooks** MP → Edge Function que actualiza estado de suscripción y dispara **avisos in-app** (créditos, renovación, fallo de cobro).
 
 ### 1.3 Observabilidad (PRD §9 — modelo B)
@@ -644,7 +645,7 @@ Construir en este orden estricto hasta PDF — cada paso depende del anterior:
 | # | Módulo | Descripción | Dependencias |
 |---|---|---|---|
 | 1 | Setup | Vite + TypeScript + shadcn + Supabase client | — |
-| 2 | Auth | Login / Register / Sesión persistente | Supabase Auth |
+| 2 | Auth | Login / Register / Sesión persistente; **linking** email + OAuth (un `user_id`) | Supabase Auth |
 | 3 | Dashboard | Lista de proyectos + crear nuevo | Auth + DB |
 | 4 | Wizard shell | Navegación entre pasos, estado en Zustand | Dashboard |
 | 5 | AiAssistField | Campo con optimización IA | Edge Fn: ai-optimize |
