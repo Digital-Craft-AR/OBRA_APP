@@ -1,770 +1,356 @@
-# PRD — Obra
+# PRD — Obra (obra.app)
 
-**Producto:** obra.app  
-**Versión:** 1.0  
-**Fecha:** Marzo 2026  
-**Estado:** Draft para revisión  
+**Product:** obra.app  
+**Version:** 1.0  
+**Date:** March 2026  
+**Status:** Aligned with repository documentation (`features/`, `ARQUITECTURA_Obra.md`, `CONVENCIONES.md`, `CLAUDE.md`). Implementation-ready; any material scope change updates this document.
 
----
-
-## 1. Visión del producto
-
-**Obra** es una plataforma SaaS que permite a creadores de infoproductos generar proyectos de venta digital — ebook principal, bonuses y order bumps — usando inteligencia artificial, con control total sobre diseño, imágenes y contenido, y exportación PDF lista para publicar. **Lanzamiento inicial: Argentina y Brasil** (ampliación del resto de LATAM posterior). **No es foco del MVP** dónde o cómo el usuario vende el producto en internet (p. ej. muchas infoproductoras usan **Shopify**); integración o material específico para esa venta se aborda **post-MVP** (ver landing liquid).
-
-### Problema que resuelve
-
-Las herramientas existentes (Gamma, Canva, Adoptimizer) están pensadas para slides o diseño genérico. Ninguna entiende el flujo real de un infoproductor: crear un ebook en HTML con diseño profesional, generar bonuses y order bumps coherentes con el mismo sistema de diseño, y exportar todo en PDF. El proceso actual es manual, lento y requiere conocimientos técnicos. La **página de venta online** del producto es otro trabajo; Obra **no prioriza** ese canal en el MVP (p. ej. tiendas tipo Shopify entran en post-MVP).
-
-### Propuesta de valor única
-
-> "De la idea al paquete de infoproducto (ebook + bonuses + bumps) exportable en PDF, en minutos, con IA — sin saber diseño ni código."
-
-**Dominio:** obra.app  
-**Idiomas:** la **interfaz** solo **es** y **pt-BR**; el **idioma de salida** del infoproducto lo fija cada **proyecto** (`es`, `pt-BR`, `en-US`, `en-GB`). Ver §2.
-
-### Diferenciadores clave vs competencia
-
-
-| Feature                                       | Gamma | Canva   | Obra |
-| --------------------------------------------- | ----- | ------- | ---- |
-| Salida en HTML/PDF profesional                | ❌     | ❌       | ✅    |
-| Paquete coherente (ebook + bonuses + bumps, mismo diseño) | ❌     | ❌       | ✅    |
-| Material de venta para tienda online (p. ej. liquid / Shopify) | ❌     | ❌       | ✅ (post-MVP) |
-| Sistema de diseño 60/30/10 por proyecto       | ❌     | Parcial | ✅    |
-| Generación + swap de imágenes con IA          | ✅     | Parcial | ✅    |
-| Pensado para infoproductores LATAM            | ❌     | ❌       | ✅    |
-
+**Authoritative detail:** Feature-level behavior is specified in `features/*` (English). If anything conflicts, **this PRD** plus the relevant **`features/{slug}/{slug}.md`** win over informal notes.
 
 ---
 
-## 2. Usuarios objetivo
+## Problem Statement
 
-### Mercado primario
+Infoproduct creators need to ship a **coherent digital package**—a **main ebook**, **bonuses**, and **order bumps**—with professional layout, consistent design, section visuals, and **print-ready PDFs**. Tools such as Gamma, Canva, and Adoptimizer optimize for slides or generic design; they do not match the real infoproducer workflow: **HTML-structured longform**, a **single design system** across all deliverables, and **separate PDFs** per artifact.
 
-- **Lanzamiento v1.0:** creadores de infoproductos en **Argentina** y **Brasil** (checkout y facturación acordes a esos mercados).
-- **Canal de venta del infoproducto** (p. ej. Shopify u otra tienda): **fuera de alcance e interés del MVP**; no se integra ni se documenta como flujo prioritario hasta post-MVP. **No confundir** con el **pago de la suscripción a Obra** (Mercado Pago).
-- Ampliación a otros países de LATAM: prevista tras validar el lanzamiento inicial.
+Today that workflow is **manual, slow, and technical**. Building the **sales page** for the product (e.g. Shopify) is a separate job. **Obra does not prioritize** that sales channel in **MVP**; subscription payment to Obra (e.g. via Mercado Pago) must not be confused with **where the creator sells** their infoproduct.
 
-### Perfil de usuario principal — "Valentina"
+**Initial launch markets:** Argentina and Brazil, with expansion to the rest of LATAM after validation.
 
-- Mujer, 28–42 años, LATAM o mercado hispano de USA
-- Quiere generar ingresos desde casa con conocimientos propios
-- Tiene contenido o expertise pero no sabe diseñar ni programar
-- Frustrada con herramientas genéricas que no entienden su flujo
-- Necesita un sistema completo A-Z, no tutoriales sueltos
-- Miedos: que quede amateur, que tarde demasiado, que no sepa usarlo
+**Primary persona (“Valentina”):** woman, 28–42, LATAM or US Hispanic market; wants home income from expertise; has content but not design or code skills; frustrated by generic tools; needs an end-to-end system; fears looking amateur, wasting time, or not knowing how to use the product.
 
-### Perfil secundario
-
-- Freelancers o agencias que crean infoproductos para clientes
-- Creadores con experiencia que quieren acelerar su producción
-
-### Idioma de la interfaz y del proyecto
-
-- **Interfaz (UI):** solo **español** y **portugués (Brasil) — `pt-BR`**. El usuario puede **cambiar el idioma de la app** en cualquier momento; la preferencia se **persiste en el perfil de cuenta** (`ui_locale`).
-- **Salida del proyecto (contenido generado):** un campo **`content_locale`** (código del **catálogo i18n** de producto) define el idioma de **toda** la generación: texto, HTML, PDFs, textos en imágenes si aplica. Se elige **al crear el proyecto** y **no se puede modificar** después; para entregar en otro idioma, **nuevo proyecto**.
-- **Catálogo i18n de salida:** distinto del par UI es/pt-BR. En v1.0 el proyecto puede fijar **`content_locale`** entre: **`es`** (español), **`pt-BR`**, **`en-US`** (inglés EE. UU.) y **`en-GB`** (inglés Reino Unido; código BCP 47 estándar — no usar `en-UK`). Se pueden **ampliar** más locales después.
-- **Mezcla:** es válido usar la UI en un idioma y generar el infoproducto en otro (p. ej. UI en español, proyecto en portugués).
-- **Prompts del usuario vs salida:** el usuario puede escribir en **cualquier idioma**; la IA **produce** siempre según **`content_locale` del proyecto** (los prompts de sistema en backend siguen las convenciones técnicas del repositorio).
+**Secondary personas:** freelancers or agencies building infoproducts for clients; experienced creators who want speed.
 
 ---
 
-## 3. Estructura de un "Proyecto"
+## Solution
 
-Un proyecto en Obra es la unidad mínima de trabajo y contiene:
+**Obra** is a SaaS that uses AI to take a creator from **idea** to an **exportable infoproduct package** (ebook + bonuses + bumps) in **PDF**, with control over **design** (60/30/10 palette and font pairs), **images** (AI or upload), and **content**, **without** design or coding skills.
 
-```
-PROYECTO (MVP) — límites v1.0 (ver §11)
-├── 📘 Ebook principal (exactamente 1 por proyecto)
-│   ├── Contenido (AI-generated o ingresado por usuario)
-│   ├── Diseño (paleta 60/30/10 + tipografías)
-│   └── Imágenes (AI-generated, intercambiables)
-│
-├── 🎁 Bonuses (hasta 5)
-│   └── Mismo sistema de diseño que el ebook principal
-│
-└── ⚡ Order Bumps (hasta 2)
-    └── Mismo sistema de diseño que el ebook principal
+**Unique value proposition**
 
-Cuenta (v1.0): hasta **20 proyectos activos** por usuario; **archivados ilimitados**; eliminación con **30 días** en DB/Storage antes de borrado definitivo (ver §11)
+> From idea to an exportable infoproduct package (ebook + bonuses + bumps) in PDF, in minutes, with AI—without design or code.
 
-Post-MVP
-└── 🛒 Landing Page para Shopify
-    ├── Vista previa completa
-    └── Bloques liquid separados (copiables individualmente)
-```
+**Domain:** obra.app  
 
-### Bloques de landing page (estructura estándar — post-MVP)
+**Languages**
 
-1. Hero / Promesa principal
-2. Dolores / Problemas del avatar
-3. Beneficios (qué vas a lograr)
-4. Solución / Presentación del producto
-5. Bonuses
-6. Precio / CTA con urgencia (opción de contador de tiempo regresivo)
-7. Garantía
-8. Testimonios (placeholder si no tiene)
-9. FAQs
-10. Mini historia del autor (opcional, activable por el usuario)
+- **App UI (`ui_locale`):** **Spanish (`es`)** and **Brazilian Portuguese (`pt-BR`)** only. The user may switch anytime; preference is stored on the account.
+- **Generated product output (`content_locale`):** chosen **when the project is created** and **immutable** afterward. v1.0 catalog: **`es`**, **`pt-BR`**, **`en-US`**, **`en-GB`** (BCP 47; do not use `en-UK`). All generated text, HTML, PDFs, and on-image copy follow `content_locale`.
+- **Mixing:** UI may be in one language while the project outputs in another (e.g. Spanish UI, Portuguese output).
+- **User prompts:** the user may type in any language; **model output** follows the project’s `content_locale`.
 
-Cada bloque es independiente y exportable como sección liquid de Shopify.
+**Key differentiation (summary)**
 
-### Edición del proyecto, estados respecto del export y duplicación (v1.0)
-
-Esta subsección cierra reglas de producto para **editar un proyecto existente**, **alineación con PDFs exportados**, **reabrir el onboarding de estructura**, **rama Upload**, **reset por avatar/problema** y **duplicar proyecto**. Detalle de UI por paso: `features/wizard-shared`, `wizard-ai-generation`, `wizard-upload`, `wizard-preview`.
-
-#### Campo `status` del proyecto (respecto del export)
-
-El campo **`status`** en `projects` admite **solo** los tres valores siguientes. **Progreso del stepper / wizard (v1.0):** **no** se persiste en fila `projects`; vive en **cliente** (ruta, estado de UI, store tipo Zustand). Reabrir en otro dispositivo o tras recarga puede **reconstruir** la posición a partir de datos ya guardados (p. ej. ebooks/capítulos) y reglas de producto, sin columna dedicada de “paso actual” en v1.0. Si más adelante se requiere continuidad estricta cross-device en el mismo pixel del flujo, valorar un campo aparte — **no** sobrecargar `status`.
-
-| Valor | Significado |
-| ----- | ----------- |
-| **`draft`** | Primera generación del proyecto: **aún no** hubo **ningún** export exitoso que cuente como publicación. |
-| **`published`** | Hubo **al menos un** export exitoso (da igual si fue **un** PDF de un entregable, varios o el **ZIP** del proyecto — con **uno** alcanza). El proyecto queda alineado con “última publicación/export” desde la perspectiva de la app. |
-| **`modified`** | El paquete actual **ya no** coincide con el último export exitoso: o bien hubo **cambios materiales** tras `published`, o bien un evento equivalente (p. ej. reset confirmado tras haber exportado antes). Los PDF ya descargados **no** se actualizan solos; la app indica que conviene **reexportar** para alinear el paquete publicado con el estado actual. |
-
-**Transiciones (flujo canónico)**
-
-El ciclo de producto es: **`draft` → `published` → `modified` → `published` → `modified` → …** (después del primer export, solo alterna **`published`** y **`modified`**).
-
-- Proyecto nuevo → `draft`.
-- **`draft` → `published` y `modified` → `published`:** cuenta como **export exitoso** solo cuando el usuario completa **al menos una invocación de export** que termina en **éxito total** de esa invocación.
-- **Atomicidad de cada invocación:** la **función de export** (cada acción disparada por el usuario) es **una sola** operación de producto. Por dentro puede **subdividirse** (p. ej. varios PDFs, empaquetado ZIP, pasos en secuencia); si **cualquier** sub-parte **falla**, **toda** esa invocación se considera **fallida** — **no** actualiza `status` a `published`, **no** se trata como éxito parcial (no entregar “lo que sí salió” como si el export hubiera completado).
-- **Varias invocaciones en la UI:** si la app ofrece más de una acción (p. ej. PDF por entregable y/o ZIP del proyecto), **cada** acción es atómica por separado. Para `published` basta **una** invocación que haya terminado **completa** con éxito; **no** exige que el usuario haya ejecutado **todas** las acciones posibles del proyecto.
-- `published` → `modified`: al persistir cualquier **cambio material** (lista siguiente).
-- Mientras el proyecto permanece `draft`, los cambios **no** pasan por `modified` (no había línea base `published` previa).
-- **Una vez alcanzado `published`, no se vuelve a `draft`** en v1.0: reset por avatar/problema, reemplazo de archivo u otros eventos destructivos **no** rebajan el proyecto a `draft`; si ya hubo al menos un export, el estado refleja **desalineación** respecto de ese export (`modified`) hasta el próximo export exitoso.
-
-**Cambios que pasan el proyecto a `modified`** (cuando el estado actual era `published`)
-
-Persistir cualquiera de:
-
-- **Diseño:** fila de sistema de diseño del proyecto (paleta 60/30/10, tipografías, tamaño/orientación de página, `image_mode` / `image_style`, y campos equivalentes definidos en `design_systems`).
-- **Contenido de entregables:** HTML/texto de capítulos, índice/estructura de capítulos del main, contenido de bonuses u order bumps, o metadatos de entregable que afecten el artefacto exportado (p. ej. títulos que salgan en PDF).
-- **Imágenes del paquete:** slots por capítulo, **portada/cover**, **assets de proyecto** vinculados al preview/export, ya sean IA o **subida del usuario** (sustitución o borrado que cambie el resultado exportable).
-- **Estructura de paquete** cuando afecte entregables existentes (conteos, eliminación o adición de bonuses/bumps, cambios que invaliden contenido previo) — salvo que implementación limite ciertos cambios; la intención de producto es que **sí** cuenten como material si impactan lo exportable.
-- **Rama Upload:** **reemplazo del archivo** fuente tras el flujo explícito de reemplazo (ver abajo).
-- **Reset “comenzar de nuevo”** tras cambio de avatar o problema (ver abajo): si **`status`** era **`draft`** (nunca hubo export exitoso), permanece **`draft`**; si era **`published`** o **`modified`**, pasa a **`modified`** (los PDF ya exportados ya no representan el paquete actual hasta un nuevo export exitoso).
-
-**Excepción — no pasa a `modified`**
-
-- Cambiar **solo** **`projects.name`** (nombre en listado / organización del dashboard) **no** actualiza `published` → `modified`. En v1.0 ese campo **no** está enlazado al texto de **portada** ni a títulos de entregables en el export: lo que va en la portada u otros PDFs proviene de **otros** campos del modelo; renombrar el proyecto en el sistema **no** invalida PDFs ya generados.
-
-**Cambios que por sí solos no exigen flujo especial de “alineación”**
-
-- Editar **títulos de bonuses** o **título del main** u otros ajustes de texto de estructura que **no** sean avatar ni problema: **no** requieren el modal de “comenzar de nuevo”; siguen las reglas normales de persistencia y, si el proyecto estaba `published`, pasan a `modified` si califican como cambio material.
-
-**UX**
-
-- Mostrar el estado (`draft` / `published` / `modified`) en dashboard y/o cabecera del proyecto; en `modified`, copy orientado a **reexportar** si el usuario quiere un paquete PDF al día (mensaje **no bloqueante**).
-- Con `published`, la UI debe **aclarar** (badge secundario, tooltip o línea de ayuda) que **“publicado”** significa **al menos una invocación de export completada con éxito** (no necesariamente que el usuario haya corrido **todas** las acciones de export disponibles para el proyecto). **Dentro** de cada invocación no hay éxito parcial: o la operación **completa** OK o **falla** en bloque.
-- No prometer **versionado** de PDFs en la app: el usuario puede conservar archivos viejos en su disco; la app solo refleja estado y última acción de export exitosa.
-
-#### Diseño después del wizard
-
-- El usuario puede **editar el sistema de diseño** tras completar el paso de diseño del onboarding, desde una **superficie dedicada** (p. ej. “Apariencia del proyecto”), además de poder **reabrir** el paso Diseño dentro del flujo de estructura si el shell lo permite.
-- **Una sola fuente de verdad** en base de datos para colores, fuentes y defaults de imagen (`design_systems` por proyecto).
-
-#### Reabrir estructura (onboarding completo)
-
-- El usuario puede **volver a recorrer el onboarding de estructura** (tema, avatar, problema, paquete, diseño) en un **proyecto ya existente**.
-- **Créditos:** no hay recargo ni tarifa extra por “reabrir estructura”. Solo se consumen **los mismos créditos** que correspondan a **llamadas a IA** que el usuario dispare después (igual que en el resto del producto).
-
-#### Cambio de avatar o problema
-
-- Si el usuario **cambia avatar o problema** guardados, la app debe **advertir** que el contenido existente del paquete **puede dejar de estar alineado** con ese nuevo marco (texto e imágenes).
-- Ofrecer CTA **“Comenzar de nuevo con estos parámetros”** con **confirmación en dos pasos** (explicar alcance → confirmar).
-- **Alcance del reset al confirmar:** todo el **contenido de texto** y el **estado de hitos** asociados del **ebook principal, bonuses y order bumps**. **No** se redefine en este reset el `content_locale` ni el diseño por defecto salvo que el producto decida lo contrario en otra regla; la intención es vaciar/regenerar el **contenido acoplado al avatar/problema**.
-- **Imágenes (política estricta):** eliminar **referencias en base de datos** y los **objetos en Storage** correspondientes para: imágenes por slot (incluidas **subidas por el usuario**), **portadas/covers**, y **demás assets de proyecto** usados en preview/export del paquete. Objetivo: evitar mezcla visual entre marco viejo y nuevo.
-- **Rama Upload:** tras el reset, el **binario** del manuscrito puede seguir existiendo en Storage; el usuario continúa en el flujo de **Contenido** con el **mismo archivo** (re-alineación / hitos) o usa el flujo explícito de **reemplazar archivo** según `features/wizard-upload`. El reset **no** sustituye automáticamente el archivo fuente.
-
-**Destino en la UI tras confirmar el reset (segundo paso):**
-
-- **Stepper global:** paso **Contenido** (paso 2); **Estructura** permanece **completado** (el usuario ya guardó avatar/problema nuevos en Estructura antes del CTA).
-- **Rama IA:** primer hito de la secuencia canónica de Contenido — **índice / tabla de contenidos del ebook principal** (definición de capítulos antes del cuerpo). Bonuses y order bumps **sin** contenido regenerado hasta que el usuario avance esos hitos en orden.
-- **Rama Upload:** reentrada al preámbulo de Contenido con el **mismo** archivo: pantalla de **alineación** (índice/capítulos respecto del manuscrito) como punto de reanudación; **no** exigir resubir el binario salvo que el usuario elija **Reemplazar archivo**. Tras **aprobar alineación**, mismo bucle capítulo a capítulo con prefill según `wizard-upload` / `wizard-ai-generation`.
-- **Vista previa:** no forzar salto al paso 3 hasta que el producto defina reglas de acceso con contenido vacío; el usuario vuelve a Preview cuando el flujo de hitos lo permita (coherente con `wizard-preview`).
-
-#### Reemplazo del archivo (rama Upload)
-
-- En **cualquier** momento (incluso tras aprobar alineación o con contenido avanzado), el reemplazo del `.docx`/`.pdf` ocurre **solo** mediante un flujo explícito **“Reemplazar archivo”**, con **confirmación fuerte** y advertencia sobre impacto en índice/capítulos.
-- La **extracción** (parse sin LLM) **no** consume créditos de IA; aplicar reglas de **modal fuerte** si **todos** los capítulos quedan por debajo del umbral tras la alineación (`features/wizard-upload`, `wizard-ai-generation`).
-
-#### Duplicar proyecto
-
-- **Duplicar** crea un **nuevo** proyecto (`project_id` nuevo) con **copia profunda** de todo lo necesario para que sea un clon usable, respetando límites de cuenta (**20 activos**, archivo, papelera).
-- **`status` del clon:** siempre **`draft`**, aunque el origen estuviera `published` o `modified` — en el clon **aún no** hubo export exitoso; el usuario debe exportar de nuevo para alcanzar `published`.
-- **Nombre del proyecto (`projects.name`):** nombre del origen + sufijo **` - Copia`** (UI **es**); en **pt-BR** usar equivalente local (p. ej. **` - Cópia`**). El usuario puede renombrar después.
-- **Tras duplicar con éxito:** abrir **dentro del proyecto clon**, siempre en un **punto fijo** — paso global **Contenido** (paso 2 del stepper), **independientemente** de en qué paso estuviera el usuario en el proyecto origen.
-- **`archived_at` y `deleted_at`:** **NULL** en el clon (proyecto activo nuevo).
-
-**Checklist explícita (v1.0 — todo obligatorio en la copia salvo que no exista en el origen):**
-
-- **`content_locale`** — mismo valor que el proyecto origen.  
-- **`author`** — copiar si el origen lo tiene; si es NULL, el clon queda NULL.  
-- **`projects.name`** — nombre del origen + **` - Copia`** (es) / equivalente **pt-BR** (p. ej. **` - Cópia`**); el usuario puede editarlo después.  
-- **Rama de contenido** — si el origen es **IA**, el clon es **IA**; si el origen es **Upload**, el clon es **Upload** con el **mismo manuscrito** en el sentido de producto: **duplicar el archivo** `.docx`/`.pdf` en Storage (nuevo objeto / nuevas rutas bajo el nuevo `project_id`), **no** compartir una única clave entre dos proyectos.  
-- Avatar, problema, título(s), estructura de paquete, contenido (capítulos/índice/hitos), diseño e imágenes — como en la tabla siguiente.
-
-**Ámbito de copia (producto — todo lo exportable y su contexto):**
-
-| Área | Incluye (v1.0) |
-| ---- | -------------- |
-| **Avatar y problema** | Valores persistidos del wizard / contexto de estructura (tema, avatar, problema) según modelo de datos. |
-| **Títulos y estructura de paquete** | Título del ebook principal, títulos (y metadatos asociados en DB) de bonuses y order bumps, **conteos** y estructura de paquete aprobada; filas `ebooks` y relaciones coherentes. |
-| **Proyecto (metadatos)** | `content_locale`, `author`, `name` (con sufijo de copia) — alineado a la checklist anterior. |
-| **Contenido** | Índice/capítulos, cuerpos HTML (o equivalente) y **todo** el estado persistido del flujo de **Contenido** (aprobaciones, orden, datos por hito) para que el clon sea funcionalmente equivalente al origen en texto — **sin** copiar historial de **export** en app del proyecto origen (el clon arranca en `draft`). |
-| **Diseño** | Fila(s) de **sistema de diseño** del proyecto (paleta, tipografías, página, `image_mode` / `image_style`, etc.). |
-| **Imágenes** | Referencias en DB **y** **objetos en Storage** (slots, portada/cover, assets de proyecto): **duplicar** a nuevas rutas bajo el nuevo `project_id` para que borrar el origen **no** rompa al clon. |
-| **Rama Upload (manuscrito)** | **Duplicación física** del binario y metadatos de importación; el clon apunta **solo** a sus propios objetos en Storage. |
-
-**Qué no se copia**
-
-- **Saldo / ledger de créditos**, suscripción, pagos, ni identidad de usuario (el clon pertenece al **mismo** `user_id` que dispara la duplicación).
-- **Registros de export** o artefactos de “último PDF generado en app” del proyecto origen, si existieran: el clon arranca **sin** publicación previa (`draft`).
-
-#### Problemas de implementación y políticas de consistencia (v1.0)
-
-*Cierre de riesgos técnicos ligados a §3 (reset, duplicado, export). El detalle de stack (Supabase, Edge Functions, colas) se documenta en implementación y en `ARQUITECTURA_Obra.md`.*
-
-**1. Reset por avatar/problema (contenido + imágenes + Storage)**
-
-- **Objetivo:** no dejar **referencias en DB** a objetos inexistentes en Storage, ni **blobs huérfanos** que debían eliminarse, de manera **consistente** una vez que el usuario ve el reset como completado.
-- **Orden orientativo** (ajustable a la pila): persistir el **nuevo** estado de contenido/hitos y limpieza lógica de capítulos; **recolectar** paths de Storage a borrar desde las filas afectadas; **actualizar o borrar** filas que referencian esas URLs; **eliminar** objetos en Storage.
-- **Fallo parcial:** si un paso **crítico** falla (p. ej. borrado en Storage o escritura en DB), **no** comunicar éxito al usuario; ofrecer **error claro** y **reintento** idempotente donde sea posible. Evitar “reset a medias” sin forma de corregir desde la app.
-- **RLS / seguridad:** todas las operaciones en contexto del **`user_id`** dueño del proyecto.
-
-**2. Duplicar proyecto**
-
-- **Doble clic / reenvío:** la acción debe ser **segura** ante peticiones duplicadas (p. ej. UI bloqueada hasta respuesta, **idempotency key** o una sola operación servidor por intención de duplicado).
-- **Fallo a mitad:** si la copia falla tras crear `project_id` o parte de los datos, debe existir **estrategia explícita**: rollback transaccional, proyecto “fallido” + limpieza programada, o reanudación documentada — **sin** dos clones parciales confusos sin mensaje.
-- **Orden DB ↔ Storage:** copiar o crear filas y **objetos en Storage** en un orden que **minimice** ventanas con URLs nuevas rotas; al cerrar la feature, el equipo fija el orden concreto en arquitectura.
-
-**3. Export atómico (backend)**
-
-- **Éxito observable** y actualización de `projects.status` a `published` **solo** cuando **todas** las sub-partes de **esa** invocación hayan concluido bien; ante fallo, no marcar éxito, limpiar temporales según política y permitir **reintentar**.
-- **Créditos / cobro:** alinear con §11 — **no** descontar por operaciones que **no** finalizaron con éxito.
-
-#### Dependencias de implementación (resumen)
-
-- El **backend** debe registrar **export exitoso** para actualizar `projects.status` (`draft`/`modified` → `published`) **solo** según las reglas de atomicidad anteriores.
-- **RLS** en reset, duplicado y export; sin bypass inadvertido.
-- **i18n:** la redacción concreta de modales, badges de `status` y mensajes de export queda a cargo de **implementación** (archivos de locale del repo), en **es** y **pt-BR** según `ui_locale`; este PRD define **semántica** (qué significa cada estado y cuándo falla un export), no strings finales.
+| Capability | Gamma | Canva | Obra |
+|------------|:-----:|:-----:|:----:|
+| Professional HTML/PDF output | No | No | Yes |
+| Coherent package (ebook + bonuses + bumps, same design) | No | No | Yes |
+| Sales material for online store (e.g. Liquid / Shopify) | No | No | Yes (post-MVP) |
+| Per-project 60/30/10 design system | No | Partial | Yes |
+| AI image generation + swap | Yes | Partial | Yes |
+| Built for LATAM infoproducers | No | No | Yes |
 
 ---
 
-## 4. Flujos principales de usuario
+## User Stories
 
-### Orden de creación de proyecto (v1.0)
-
-El **onboarding** (tema, avatar + problema, **estructura de paquete**: conteos y títulos de bonuses y order bumps, **título del ebook principal**, diseño con paleta y tipografías) es **único y compartido**. **No** define en esta fase el **desglose en capítulos** del ebook principal — eso ocurre en la fase **Contenido** (ver punto 4). La **subida de archivo** no inicia el flujo: ocurre **después** del paso de diseño cuando el usuario eligió **contenido por archivo**; el archivo alimenta el **cuerpo** del main ebook tras parseo y alineación, no la definición previa de diseño.
-
-```
-1. Crear nuevo proyecto (incluye elegir content_locale — ver §2)
-2. Elegir fuente de contenido: IA pura **o** archivo (.docx / .pdf) más adelante
-3. Onboarding compartido (asistencia IA en campos de texto del wizard):
-   - Tema → Avatar + problema → Estructura de **paquete** (título main, **autor opcional** a nivel proyecto en la misma pantalla que el título principal, conteos/títulos bonuses/bumps) → Diseño
-     (presets, paleta 60/30/10, tipografías, medida/orientación de hoja, notas de estilo) — detalle: `features/wizard-shared/wizard-shared.md`
-4. Fase Contenido — bifurcación (tras el diseño); especificación: `features/wizard-ai-generation/wizard-ai-generation.md`
-   ├─ Rama IA: índice/capítulos del **ebook principal** propuestos y confirmados aquí → cuerpo por capítulo → bonuses → bumps
-   └─ Rama Upload: un solo archivo del **ebook principal** (.docx / .pdf) → parseo + IA → **alineación** a formato Obra (índice y capítulos) con **aprobación del usuario** → mismo flujo de hitos (**prefill** del main) → bonuses → bumps
-5. **Vista previa** (paso global 3) y exportación: revisión con **layouts** y **slots de imagen**, portada con IA, PDF por entregable y ZIP del proyecto — especificación: `features/wizard-preview/wizard-preview.md` (igual para ambas ramas de contenido)
-```
-
-### Onboarding compartido (hasta diseño)
-
-- Wizard guiado paso a paso — en **campos de texto largo**, el usuario puede escribir algo básico y la IA lo optimiza con **“mejorar texto”** (créditos; ver §11).
-- Pasos de producto (detalle en `features/wizard-shared/wizard-shared.md`): tema; avatar + problema; estructura de **paquete** (conteos y títulos bonuses/bumps, título del ebook principal, **autor opcional** en proyecto); diseño (preset o manual, paleta, tipografías, formato de hoja). **Capítulos del main ebook:** fase Contenido, no el wizard.
-- **No** se sube archivo en esta fase.
-
-### Rama contenido — IA (tras el diseño)
-
-**Especificación del flujo (hitos, índice congelado, chat por artefacto, créditos por llamada):** `features/wizard-ai-generation/wizard-ai-generation.md`.
-
-Resumen de alto nivel:
-
-```
-1. En la fase Contenido, la IA propone **índice y capítulos** del ebook principal a partir del contexto del wizard (el wizard **no** fijó el número de capítulos)
-2. Usuario confirma el índice; luego **cuerpo por capítulo**; luego **bonuses y order bumps** según conteos/títulos ya definidos en el wizard
-3. Imágenes por sección según reglas de §6
-4. Usuario revisa y edita por sección; IA genera/refina HTML; iteración según créditos
-5. Exportación PDF (§7)
-```
-
-### Rama contenido — Upload (tras el diseño)
-
-```
-1. Usuario sube un único archivo .docx o .pdf del **ebook principal** (única ingesta de archivo en v1.0)
-2. Parseo + IA (síncrono; ver reglas abajo): propuesta de **índice y división en capítulos** alineada a formato Obra
-3. Usuario **edita y aprueba** la alineación (títulos, fusiones/particiones de secciones según producto)
-4. Continúa el **mismo** flujo de hitos que la rama IA: cuerpo por capítulo con **prefill** desde el archivo, luego bonuses y bumps generados en esa fase
-5. Misma revisión, HTML, exportación que la rama IA
-```
-
-### Importación de archivos (rama Upload — contenido) — reglas MVP
-
-- **Formatos:** `.docx` estándar y **PDF con texto seleccionable** (capa de texto real). **No** se soporta en v1.0: PDF escaneado o basado solo en imagen; **OCR** queda **post-MVP** si se prioriza.
-- **Tamaño máximo por archivo:** **10 MB** (`.docx` y `.pdf`). Un ebook mayormente texto rara vez lo supera; si lo hace, el usuario puede reducir peso del archivo o dividir el contenido en otro `.docx`/`.pdf` dentro del límite. El tope se puede revisar con datos reales.
-- **Un archivo por intento:** en cada importación, **un solo archivo** por pasada (no múltiples PDFs a la vez en el MVP).
-- **PDF con contraseña / cifrado:** **rechazar** con mensaje claro; sugerir exportar o guardar una copia **sin contraseña** y volver a subir.
-- **Extracción vacía o inválida:** mensaje explícito y opción de **reintentar** con otro archivo (mismo flujo de importación).
-- **Parseo + análisis IA (v1.0):** flujo **síncrono** — el usuario permanece en la misma pantalla con **estado de carga** hasta completar extracción y análisis o recibir error; **no** cola en background en el MVP. Deshabilitar **doble envío** mientras la petición está en curso (alinear con §4 rendimiento percibido).
-- **Créditos (extracción vs IA):** la **extracción de texto** (.docx/PDF con librerías, **sin pasar por LLM**) **no descuenta** créditos de IA del usuario (costo de plataforma); **sí** descuentan las llamadas que invoquen **modelo de lenguaje** (propuesta de división, regenerar división, refinar/expandir capítulo, bonuses/bumps, etc.) — ver `features/wizard-ai-generation/wizard-ai-generation.md` y §11.
-- **Reemplazo del archivo (v1.0):** el usuario puede **sustituir** el `.docx`/`.pdf` **en cualquier momento** mediante el flujo explícito **“Reemplazar archivo”** (confirmación fuerte, impacto en índice/capítulos). Sin sustitución silenciosa del binario. Ver **§3 — Edición del proyecto** y `features/wizard-upload`.
-- **Asistencia en alineación (v1.0):** además de edición manual de títulos y límites, un botón tipo **“Volver a proponer división con IA”** sobre el **mismo** texto parseado; **no** hilo de chat dedicado solo a la alineación (reduce duplicación con el índice de la rama IA).
-- **Prefill débil (v1.0 — decisión C2):** si un capítulo queda con **muy poco texto** tras el prefill, **aviso no bloqueante** y opción de **completar con IA** (créditos); **no** se bloquea **Aprobar capítulo** por ese motivo. Si **todos** los capítulos quedan por debajo del umbral tras la alineación, **modal fuerte** que impide avanzar hasta corregir **alineación**, **regenerar división** o **archivo** (según reglas de reemplazo); detalle en `features/wizard-ai-generation/wizard-ai-generation.md`.
-- **Retención del archivo (v1.0):** el binario subido se **conserva** en Storage **privado** mientras exista el **proyecto** (misma lógica de ciclo de vida que otros assets del proyecto). Eliminación opcional post-MVP desde ajustes de proyecto.
-- **Logs y telemetría:** **no** registrar contenido del manuscrito ni prompts completos; **sí** metadatos (ids, código de error, duración, tamaño, tipo MIME, resultado). Alinear con arquitectura y privacidad.
-- **Reintentos (parse):** **un** reintento automático en cliente con backoff corto ante fallo transitorio; botón **Reintentar** con el **mismo** archivo (**sin** créditos de IA por la extracción). Sin cola en servidor en el MVP.
-
-### Flujo C — Proyecto existente (Contenido + Vista previa)
-
-```
-1. Usuario entra a proyecto guardado
-2. Navega entre ebook principal, bonuses y order bumps (mismo sistema de diseño)
-3. En **Contenido** (paso global 2): editar texto, índice/capítulos según reglas de `features/wizard-ai-generation/wizard-ai-generation.md`; IA por hito según créditos
-4. En **Vista previa** (paso global 3 — `features/wizard-preview/wizard-preview.md`): ver layouts finales; **imágenes** por slots (regenerar con IA / subir); portada IA; **sin edición in-place de texto largo en MVP** (volver a Contenido)
-5. **Diseño post-wizard** y **reabrir estructura** (onboarding completo), **estados** `draft` / `published` / `modified`, **reset por avatar/problema**, **duplicar** y **reemplazar archivo** Upload: ver **§3 — Edición del proyecto, estados respecto del export y duplicación**.
-6. Re-exportar PDF: **un PDF por entregable**; **ZIP** con todos los PDFs del proyecto; política de fallos del ZIP — ver `features/wizard-preview/wizard-preview.md`. Un export exitoso actualiza `projects.status` según §3.
-```
-
-*Nota:* el detalle de **swap de imagen**, **export** y **preview** está en **`features/wizard-preview/wizard-preview.md`**; hitos de texto en **`features/wizard-ai-generation/wizard-ai-generation.md`**.
-
-### Accesibilidad (baseline v1.0)
-
-- **Objetivo:** cumplir **WCAG 2.1 nivel A** en la aplicación web; aspirar a **nivel AA** en flujos críticos: **registro/login**, **wizard de onboarding**, **checkout/pagos** (Mercado Pago embebido o redirección según integración), **exportación** y **ajustes de cuenta** (exportar datos / eliminar cuenta).
-- **Teclado:** todas las acciones principales utilizables **sin ratón**; orden de tabulación coherente con el flujo; en **diálogos modales** (confirmaciones, errores) **trampa de foco** y cierre con **Escape** donde el componente lo permita.
-- **Formularios y wizard:** cada control con **etiqueta** visible o asociada; mensajes de validación y error **no** dependen solo del color; cuando la IA **complete u optimice** un campo, el cambio relevante se comunica de forma perceptible (p. ej. `aria-live` **polite**, sin inundar al usuario).
-- **Contenido generado (PDF/HTML del infoproducto):** en v1.0 **no** se exige PDF/UA ni HTML semántico “a prueba de lectores de pantalla” para los entregables al cliente final; prioridad es calidad visual y coherencia del paquete. Mejoras de accesibilidad del **artefacto exportado** quedan **post-MVP** si hay demanda.
-- **Pruebas:** el guion de **smoke manual** (ver §16) incluye al menos **un recorrido solo con teclado** del wizard (avanzar, retroceder, editar campo, disparar asistencia IA si está en el guion).
-
-### Rendimiento percibido (v1.0) — modelo B
-
-- **Objetivo:** la app debe sentirse **rápida y predecible** en uso normal; **no** se fija un SLA numérico al usuario final en v1.0. Orientación interna: revisar **Core Web Vitals** en rutas clave (**login/dashboard**, **wizard**, **editor**) con **Lighthouse** o **Vercel Speed Insights** (si está habilitado) de forma **periódica o antes de releases** mayores — umbrales **por acordar** con el equipo según dispositivos objetivo.
-- **Carga inicial:** evitar **pantallas en blanco** prolongadas; **shell** o esqueleto visible enseguida; diferir trabajo no crítico (analytics, prefetch secundario) sin bloquear interacción.
-- **Operaciones lentas (IA, PDF, importación):** **estados de carga** explícitos (spinner, barra, texto “generando…” / “exportando…”); **deshabilitar** acciones duplicadas mientras la petición está en curso; **errores** con opción de reintentar según §9.
-- **Respuestas de IA:** si la plataforma lo permite sin comprometer costo ni complejidad, **streaming** del texto al usuario es **deseable** en wizard y editor; si no, bloques de texto que aparezcan al completar el tramo con feedback claro de progreso.
-- **Activos:** imágenes en UI con **formato y tamaño** adecuados (p. ej. WebP donde aplique); el HTML/PDF del infoproducto sigue reglas de exportación del PRD (§7), distintas del shell de la app.
+1. As a **new visitor**, I want to **understand what Obra does and for whom**, so that I can decide whether to subscribe.  
+2. As a **creator**, I want to **sign up with email and password or Google**, so that I can access Obra with a method I trust.  
+3. As a **user**, I want the **app UI in Spanish or Brazilian Portuguese**, so that I can work in my preferred language.  
+4. As a **user**, I want my **UI language choice saved on my account**, so that it persists across sessions and devices.  
+5. As a **subscriber**, I want to **create a new project**, so that I can start a new infoproduct package.  
+6. As a **creator**, I want to **choose the output language (`content_locale`) at project creation**, so that all generated material matches my buyer’s language.  
+7. As a **creator**, I want **`content_locale` locked after creation**, so that I do not accidentally mix languages in one package; I accept creating **another project** for another output language.  
+8. As a **creator**, I want to **choose whether content will come from pure AI or from an uploaded manuscript later**, so that the product matches my starting point.  
+9. As a **creator**, I want a **guided onboarding wizard** (topic → avatar + problem → package structure → design), so that I am not overwhelmed by empty forms.  
+10. As a **creator**, I want **“Improve text” on long fields in the wizard**, so that rough notes become clearer copy using AI (with credits).  
+11. As a **creator**, I want to **set bonus and order-bump counts within product limits**, so that the scope of my package is explicit before content work.  
+12. As a **creator**, I want **AI-suggested main titles** and to **pick or type my own**, so that I keep control while moving fast.  
+13. As a **creator**, I want **optional project-level author/brand** captured with the main title, so that covers and metadata can use it when present.  
+14. As a **creator**, I want **separate steps for bonus titles and bump titles** with **per-row regenerate and lock rules**, so that batch actions do not overwrite choices I care about.  
+15. As a **creator**, I want **design presets, 60/30/10 palette, font pairs, page size and orientation**, so that preview and PDF match the same geometry.  
+16. As a **creator**, I want **image defaults (`image_mode`, `image_style`) in the design step without spending image credits there**, so that Preview/export owns billing for generation.  
+17. As a **creator**, I want **main ebook chapter outline defined in the Content phase**, not in Structure, so that the wizard does not pretend chapters are fixed too early.  
+18. As a **creator on the AI path**, I want the system to **propose and let me confirm an index/TOC** for the main ebook, so that chapter boundaries are explicit before bodies.  
+19. As a **creator on the AI path**, I want **chapter bodies, then bonuses, then bumps** in a clear milestone order, so that I always know what is next.  
+20. As a **creator on the upload path**, I want to **upload one `.docx` or text-layer `.pdf` after design**, so that my existing manuscript feeds the main ebook.  
+21. As a **creator on the upload path**, I want **parse + LLM split proposal + alignment UI**, so that Obra chapters map to my file with my approval.  
+22. As a **creator**, I want **the same milestone sequence after alignment** as the AI path (with prefill from the file), so that both branches feel like one product.  
+23. As a **creator**, I want **clear errors for password-protected PDFs, empty extraction, or oversize files**, so that I know how to fix the input.  
+24. As a **creator**, I want **synchronous processing with a blocking loading state** for import in MVP, so that I know when I can continue.  
+25. As a **creator**, I want **text extraction without LLM to cost no AI credits**, so that only language-model steps consume my balance.  
+26. As a **creator**, I want **“Replace file” only via an explicit confirmed flow**, so that my manuscript is never swapped silently.  
+27. As a **creator**, I want **weak prefill warnings and a strong modal if all chapters are below threshold**, so that quality issues are visible without blocking trivial cases.  
+28. As a **creator**, I want **Preview (global step 3)** to show **layout-accurate HTML**, **image slots**, **cover generation**, and **export**, so that I see what buyers will get.  
+29. As a **creator**, I want **long-form text edited in Content**, not primarily in Preview in MVP, so that the product does not split editing across two confusing surfaces.  
+30. As a **creator**, I want **regenerate, upload, or remove images per section**, so that I can fix weak visuals quickly.  
+31. As a **creator**, I want **one PDF per deliverable** plus an optional **ZIP of all PDFs**, so that I can distribute files the way infoproducers usually do.  
+32. As a **creator**, I want **ZIP export to fail entirely if any PDF in the batch fails**, so that I do not ship a partial package by mistake in MVP.  
+33. As a **creator**, I want **export to be atomic per user action**: either the whole action succeeds or it fails without advancing `published` status, so that status matches reality.  
+34. As a **creator**, I want to see **`draft` / `published` / `modified`** explained in the UI, so that I know whether I need to re-export.  
+35. As a **creator**, I want **renaming the project in the dashboard** not to invalidate exported PDFs, so that organization does not trigger false “out of date” states.  
+36. As a **creator**, I want to **edit the design system after the wizard** from a dedicated surface, so that I can refine appearance without redoing everything.  
+37. As a **creator**, I want to **re-run full structure onboarding** on an existing project without extra fees—only paying credits for **new AI calls**, so that iteration is fair.  
+38. As a **creator**, when I **change avatar or problem**, I want a **warning and a two-step “start over” confirmation**, so that I understand content may no longer fit.  
+39. As a **creator**, after **start over for avatar/problem**, I want **text milestones and images cleared**, **storage objects removed**, and **upload manuscript handling** to follow upload PRD rules, so that I do not get visual or narrative mix-ups.  
+40. As a **creator**, I want **duplicate project** to deep-copy everything exportable into a **new** project that starts as **`draft`**, so that I can fork work safely.  
+41. As a **creator**, after duplicate, I want to land in **Content (global step 2)** in the clone regardless of where I was in the source, so that behavior is predictable.  
+42. As a **creator**, I want **cloned upload-branch projects to get a physical copy of the manuscript in storage**, so that deleting the original does not break the clone.  
+43. As a **creator**, I want **at most 20 active projects**, **unlimited archived**, and **delete → 30-day retention → hard delete**, so that limits and recovery are clear.  
+44. As a **paying user without trial**, I want **email verified before subscription checkout** (email/password path), so that I do not pay tied to an unconfirmed inbox.  
+45. As a **user**, I want **OAuth (e.g. Google)** to skip manual email verification when the provider marks email verified, so that friction matches trust.  
+46. As a **user**, I want **one business `user_id`** with **linked identities** when email matches and is verified, so that I do not accidentally split payments and data.  
+47. As a **subscriber**, I want **Mercado Pago** for **recurring subscription** and **one-off credit top-ups** in **local currency** (ARS/BRL) with **USD anchor messaging** where helpful, so that pricing feels local.  
+48. As a **subscriber**, I want **included monthly credits to reset each billing cycle without rollover**, and **purchased top-up credits to accumulate**, so that the model matches communication.  
+49. As a **subscriber**, I want **credits deducted only after successful backend completion**, so that failed AI or export does not steal my balance.  
+50. As a **user with a failed subscription**, I want **access blocked to the tool** but **retained top-up balance messaging**, so that I understand what happens when I resubscribe.  
+51. As a **new paying user**, I want a **demo video and dismissible interactive tour**, so that I see value quickly without a free trial.  
+52. As a **user**, I want **in-app help/FAQ** in my UI language, so that self-serve answers common questions.  
+53. As a **user**, I want **email support** for escalations, so that I can resolve issues the FAQ cannot.  
+54. As a **user**, I want **in-app notices** for low credits, renewal, and payment failure driven by webhooks and DB state, so that I am not dependent on marketing email in MVP.  
+55. As a **user**, I want **privacy policy and terms** in **es** and **pt-BR** before register/pay, so that trust and compliance baselines are visible.  
+56. As a **user**, I want **export my data** and **delete my account** with strong confirmation, so that I can exercise portability and erasure (model C—legal to refine).  
+57. As a **user**, I want **WCAG 2.1 Level A** across the app and **AA on critical flows** (auth, wizard, pay, export, account danger zone), so that I can complete core tasks with keyboard and assistive tech where reasonable.  
+58. As a **creator**, I want **clear loading and disabled double-submit** on slow AI, PDF, and import operations, so that the app feels predictable.  
+59. As a **creator**, I want **rate limits** to protect the service from abuse without replacing the **credit** model, so that outliers cannot burn the platform.  
+60. As an **operator**, I want **logs without manuscript text, full prompts, or raw PII**, so that observability does not create new privacy risk.  
+61. As a **stakeholder**, I want a **soft launch**: payments on, aggressive marketing only after a **“ready to charge” checklist**, so that we reduce reputational and support risk.  
+62. As a **deployer**, I want a **documented manual smoke path** including **keyboard wizard** and **payments/webhooks** checks, so that production promotes are deliberate.  
+63. As an **engineer**, I want **a few stable Playwright E2E tests** (e.g. login, create project, one wizard step) with **AI mockable**, so that CI catches regressions without runaway cost.  
+64. As a **creator**, I want **Gemini-class image generation** with **minimum width** and **WebP output**, so that section art is usable in PDF.  
+65. As a **creator**, I want **clean PDFs** (embedded fonts, no browser chrome margins) from **server-side rendering**, so that downloads look professional.  
+66. As a **LATAM user**, I want **data hosted with explicit region choice (target LATAM on Supabase)** and **subprocessors disclosed**, so that privacy story matches reality.  
+67. As a **team**, we want **PITR or equivalent backups** when the tier allows, plus **periodic logical exports** off the single production account, so that recovery is possible.  
+68. As a **product owner**, we want **credit counts and per-action credit table** finalized before public “X credits/month” marketing, so that unit economics hold.  
+69. As a **creator**, I want **post-MVP Shopify landing** (preview + copyable Liquid blocks) **out of MVP**, so that scope stays focused on PDF package excellence.  
+70. As a **creator**, I understand **exported customer-facing PDF/HTML is not held to PDF/UA or strict semantic HTML in v1.0**, so that effort goes to visual quality first.
 
 ---
 
-## 5. Sistema de diseño por proyecto
+## Implementation Decisions
 
-### Regla 60/30/10 de color
+### Internationalization
 
-- **60%** — Color dominante (fondos, áreas grandes)
-- **30%** — Color secundario (secciones, cards)
-- **10%** — Color acento (botones, highlights, iconos)
+- UI resources must cover **`es`** and **`pt-BR`** only; implementation chooses file naming conventions for i18n libraries.  
+- Semantic meaning of modals, `status` badges, and export copy lives in this PRD; final strings live in app resources.
 
-La app debe:
+### Project composition (MVP)
 
-- Generar paleta automáticamente según el tema/nicho
-- Permitir que el usuario elija manualmente con color picker
-- Mostrar preview del 60/30/10 antes de aplicar
-- Aplicar la misma paleta al ebook principal, bonuses y order bumps (y en post-MVP a la landing)
+- **One** main ebook, **up to 5** bonuses, **up to 2** order bumps per project—same design system across all.  
+- **Post-MVP:** Shopify-oriented landing (preview + independent Liquid blocks). Standard block order when built: Hero → pain → benefits → solution → bonuses → price/CTA (optional countdown) → guarantee → testimonials → FAQs → optional author story.
 
-### Tipografías
+### Account limits (v1.0)
 
-- Par tipográfico: display (títulos) + body (cuerpo)
-- Fuentes: Google Fonts (gratuitas, cargables en HTML)
-- La IA sugiere 3 opciones de par tipográfico
-- El usuario puede elegir o pedir otras
+- **20 active** projects per user; **unlimited archived**; **delete** → **30-day** retention then **hard delete**. Archiving frees an active slot but **does not** delete storage until trash expiry.
 
-### Presets de diseño
+### Project `status` vs export (v1.0)
 
-- Un **preset** agrupa **paleta 60/30/10** y **par tipográfico** (display + body); al aplicarlo, se actualizan ambos de forma conjunta.
-- Si el usuario **edita manualmente** cualquier color o fuente, el estado pasa a **personalizado** (se desvincula del preset activo); puede aplicar otro preset o, si la UI lo ofrece, **restaurar** el último preset elegido.
-- **Pendiente de definir (producto / diseño):** la **lista concreta de presets** para el MVP — nombres, combinaciones de colores y fuentes, y criterios de inclusión (p. ej. cuántos presets mínimos para lanzamiento).
+- Values only: **`draft`**, **`published`**, **`modified`**.  
+- **Wizard global step position** is **not** stored on `projects` in v1.0; client reconstructs from saved domain data and product rules.  
+- **`draft`:** no successful export yet. **`published`:** at least **one** user export **action** completed **fully** successfully (any single deliverable PDF, multiple, or full ZIP—one success is enough). **`modified`:** package no longer matches last successful export; user should **re-export** (non-blocking messaging).  
+- **Per user action, atomicity:** if any sub-step of that action fails, **whole action fails**—no partial success treated as complete, **no** `published` transition.  
+- **Never return to `draft`** from `published` in v1.0; destructive events yield **`modified`** if there was a prior successful export.  
+- **Material changes** (design row, deliverable HTML/index, package images including cover and uploads, package structure affecting exports, upload file replace, confirmed avatar/problem reset when previously exported) move **`published` → `modified`**. **Exception:** changing **only** dashboard **`projects.name`** does **not** move to `modified` in v1.0.
 
-### Aplicación consistente
+### Editing and advanced flows
 
-- El sistema de diseño se define UNA vez por proyecto
-- Se aplica automáticamente al ebook principal, todos los bonuses y order bumps (y en post-MVP a la landing)
-- Si el usuario cambia la paleta, se actualiza en todos los documentos del proyecto
+- **Design after wizard:** editable via dedicated project appearance surface; optional re-entry to design inside structure flow if shell allows. Single DB source of truth for design system per project.  
+- **Re-open full structure onboarding** on existing project: allowed; no extra product fee—only AI credit consumption as usual.  
+- **Avatar/problem change:** warn; offer **two-step** “start over with these parameters”; on confirm, clear text + content milestones; **delete DB references and storage objects** for section images, covers, and project assets used in preview/export; **do not** auto-replace upload manuscript binary (user uses replace flow if needed). After confirm: global step **Content**; AI branch starts at main index; upload branch returns to **alignment** with same file unless user replaces.  
+- **Replace manuscript:** only explicit **Replace file** flow anytime; strong confirmation; extraction without LLM consumes **no** AI credits; follow weak-prefill and all-chapters-below-threshold modal rules in feature PRDs.  
+- **Duplicate:** new `project_id`; **`draft`**; name suffix localized (` - Copia` / ` - Cópia`); open clone in **Content** step 2; deep copy per checklist in prior Spanish spec (locales, author, branch type, structure, content state, design, images and storage **duplicated** for clone, not shared pointers for binaries). No copy of subscription/ledger; no “export history” carrying over as published.
 
----
+### Backend consistency (reset, duplicate, export)
 
-## 6. Generación y gestión de imágenes
+- Reset: ordered steps so DB and storage stay consistent; **no user-visible success** on partial critical failure; retries idempotent where possible; RLS scoped to owner.  
+- Duplicate: idempotent or guarded against double-submit; strategy for partial failure documented at architecture level.  
+- Export success and `published` transition only when **all** parts of **that** invocation succeed; credits align with **no charge on failure**.
 
-**Ámbito y referencias (para no duplicar reglas contradictorias):** El comportamiento **por sección** en el **editor** (regenerar, reemplazar, eliminar, repositorio) se describe **aquí** como fuente de verdad del producto. Los **valores por defecto a nivel proyecto** (`image_mode`, `image_style`) se capturan en el paso **Diseño** del onboarding compartido — ver **`features/wizard-shared/wizard-shared.md`** (sección **Image defaults**). **Pipeline de vista previa** (slots, cola al abrir Preview, regeneración con confirmación, portada): **`features/wizard-preview/wizard-preview.md`**. **Facturación en créditos por generación de imagen:** acoplada a generación exitosa en ese pipeline; reglas globales y tabla — **§11** y este §6; no duplicar triggers detallados en el PRD maestro.
+### Primary creation order (v1.0)
 
-### Generación con IA
+1. Create project including **`content_locale`**.  
+2. Choose **AI** vs **upload-later** branch.  
+3. Shared wizard to **design**: topic → avatar + problem → package (counts, main title + optional author, bonus/bump titles) → design (presets, palette, fonts, page, image defaults).  
+4. **Content** phase: AI index path or upload parse/align path → shared milestones → bonuses/bumps.  
+5. **Preview** (global step 3): layouts, images, cover, PDF per artifact + ZIP.  
 
-- Cada sección de cada ebook del proyecto (principal, bonus u order bump) puede tener una imagen asociada
-- La IA genera imágenes coherentes con el tema y la paleta de colores
-- Estilos disponibles: ilustración flat, fotografía, isométrico, minimalista, etc.
+Detail: `features/wizard-shared`, `wizard-ai-generation`, `wizard-upload`, `wizard-preview`.
 
-### Interacción del usuario con imágenes
+### File import (upload branch, MVP)
 
-- **Regenerar**: pedir a la IA una nueva versión ("más colorida", "sin personas", etc.)
-- **Reemplazar**: subir imagen propia (JPG, PNG, WebP)
-- **Eliminar**: quitar la imagen y dejar solo texto
-- **Repositorio**: imágenes generadas quedan guardadas en el proyecto
+- **`.docx`** and **text-selectable PDF** only; **no** scanned PDF/OCR in MVP.  
+- **Max 10 MB** per file; **one file per import attempt**.  
+- Reject **encrypted/password PDF** with clear guidance.  
+- **Synchronous** UX in MVP; prevent double submission while in flight.  
+- **Telemetry:** metadata only—no manuscript body or full prompts in logs.
 
-### Proveedor de imágenes
+### Accessibility and performance (model B)
 
-- API: **Google Gemini API** — modelos de imagen **Nano Banana** (familia Gemini Image; ver docs de Google para el modelo concreto en producción)
-- Resolución: mínimo 1200px de ancho
-- Formato de salida: WebP optimizado
+- **WCAG 2.1 Level A** app-wide; **AA** on critical flows (auth, wizard, checkout path, export, account export/delete). Keyboard, labels, non-color-only errors, reasonable modal focus behavior; `aria-live` polite when AI fills fields.  
+- **Exported infoproduct** PDF/HTML: **no** PDF/UA or strict buyer-facing accessibility requirement in v1.0.  
+- **Perceived performance:** skeletons, disable duplicate actions during long ops, optional streaming for AI where cost/complexity allow; periodic vitals review on key routes (tooling optional, thresholds team-defined).
 
----
+### Design system
 
-## 7. Exportación
+- **60/30/10** rule; AI suggestion + manual pickers; preview before apply; **one** design system per project applied to all deliverables (and post-MVP landing).  
+- **Preset** bundles palette + font pair; first manual edit unlinks preset to **Custom**; optional restore. **Concrete preset list** for MVP is a **product/design deliverable** still to be finalized.
 
-### PDF (ebook, bonuses, order bump)
+### Images
 
-- **Un PDF por artefacto:** el ebook principal, cada bonus y cada order bump genera **su propio archivo PDF** (no un solo PDF fusionado). Así el usuario puede entregar archivos por separado como suele hacerse con infoproductos.
-- **Descarga conjunta (MVP):** acción para obtener **un ZIP** que incluya los PDFs del proyecto (nombres claros; sin fecha en el nombre — ver `features/wizard-preview/wizard-preview.md`). Si **falla** la generación de **cualquier** PDF del lote, el ZIP **aborta** (error global; sin paquete parcial en MVP).
-- Generado desde HTML vía Puppeteer (server-side)
-- Tamaño: A4 o Letter (opción del usuario)
-- Fonts embebidas
-- Imágenes optimizadas
-- Sin márgenes de browser (clean PDF)
+- Per-section images for main, bonuses, bumps; styles (flat illustration, photo, isometric, minimalist, etc.); **regenerate / upload / delete**; persist in project.  
+- **Provider:** Google **Gemini** image family (**Nano Banana** class); min width **1200px**; **WebP** output.  
+- **Credit triggers** for images tied to **successful preview pipeline generation**—detail in `features/wizard-preview` and credit model here; do not duplicate trigger tables in this master PRD.
 
-### Landing Page para Shopify (post-MVP)
+### Export
 
-- Vista previa completa dentro de la app
-- Exportación como bloques liquid independientes
-- Cada bloque es una sección de Shopify (`.liquid`)
-- El usuario copia y pega cada bloque en su theme
-- Incluye CSS embebido por bloque (no rompe el theme)
-- Los bloques respetan la paleta de colores del proyecto
+- **One PDF per artifact**; optional **ZIP** of all project PDFs; clear filenames **without** dates in name (detail in `wizard-preview`).  
+- **HTML → PDF** via **server-side** rendering (e.g. Puppeteer-class tool) with embedded fonts and optimized images; **A4 or Letter** user choice.  
+- **Post-MVP:** downloadable HTML export; Shopify Liquid blocks.
 
----
+### MVP capabilities (checklist)
 
-## 8. Features — MVP vs Futuro
+Mirror of shipped intent: auth (email + Google), `content_locale`, shared wizard through design, content phase both branches, design system, images, preview step, PDF+ZIP, credits + top-ups, dashboard limits/trash, help center + email support, legal links, account export/delete, in-app billing notices, Mercado Pago subscription + webhooks.
 
-### MVP (v1.0) — Lo que se lanza primero
+### Technology stack (products, not commands)
 
+- **Frontend:** React, Vite, TypeScript.  
+- **UI:** Tailwind CSS, **shadcn/ui** (Radix-class primitives).  
+- **Backend/BaaS:** Supabase (Auth, Postgres, Storage, Edge Functions).  
+- **Payments:** Mercado Pago (subscriptions + one-off top-ups, webhooks → app state).  
+- **Text AI:** Anthropic Claude API.  
+- **Image AI:** Google Gemini API (Nano Banana–class models).  
+- **Document text extraction:** libraries for DOCX and text-layer PDF (no OCR MVP).  
+- **PDF generation:** server-side headless browser class tool (e.g. Puppeteer) behind Edge Functions.  
+- **i18n:** i18next (or equivalent) for UI locales.  
+- **Frontend hosting:** Vercel.  
+- **AI-assisted development:** Cursor and Claude Code as complementary tools.  
+- **E2E:** small Playwright suite—model B.
 
-| #   | Feature                                          | Prioridad |
-| --- | ------------------------------------------------ | --------- |
-| 1   | Registro/login (email + Google); idioma de UI **es** / **pt-BR** persistido en perfil | Alta      |
-| 2   | Crear proyecto nuevo con **`content_locale`** (idioma de toda la salida; **inmutable** después) | Alta      |
-| 3   | Onboarding compartido (wizard hasta **diseño**: tema → **paquete** (títulos/conteos bonuses-bumps, título main, **autor opcional**) → paleta/tipografías) + elección **IA vs archivo** al crear | Alta      |
-| 4   | Contenido post-diseño: **índice/capítulos del main** + cuerpo + bonuses/bumps — rama **IA** o **subida** `.docx`/`.pdf` con alineación y **mismo** flujo de hitos (`wizard-ai-generation`) | Alta      |
-| 5   | Índice y capítulos del ebook principal en fase Contenido; generación/refinado de texto con IA (incl. bonuses/bumps) | Alta      |
-| 6   | Sistema de diseño: paleta 60/30/10 + tipografías | Alta      |
-| 7   | Generación de imágenes por sección               | Alta      |
-| 8   | Swap de imagen (regenerar con IA / subir propia) | Alta      |
-| 9   | Contenido: edición de texto por hito; **Vista previa:** imágenes y export (texto largo no in-place en MVP — `wizard-preview`) | Alta      |
-| 10  | Ebooks bonus y order bumps (mismo flujo de diseño) | Alta   |
-| 11  | Vista previa (paso 3) + layouts + imágenes por slot + export PDF/ZIP — `features/wizard-preview/wizard-preview.md` | Alta      |
-| 12  | Exportación PDF: un archivo por ebook + ZIP opcional con todo el paquete | Alta |
-| 13  | Saldo y consumo de créditos IA (unificado texto/HTML/imagen) | Alta |
-| 14  | Compra de paquetes de créditos IA adicionales (mismo saldo) | Alta |
-| 15  | Dashboard: archivar (ilimitado), **20 activos** max; eliminar → papelera **30 días** → hard delete | Media     |
-| 16  | Centro de ayuda / FAQ en app + soporte por **email** (contenido ES + PT-BR); **sin** chat en vivo | Media     |
-| 17  | **Política de privacidad** + **Términos** (es + pt-BR), enlaces antes de registro/pago; canal email complementario (ver §15) | Alta      |
-| 18  | **Ajustes de cuenta:** **exportar mis datos** (paquete descargable) + **eliminar cuenta** con confirmación (modelo C; ver §15) | Alta      |
-| 19  | **Avisos in-app** (créditos, renovación, pago fallido) vía webhooks MP + estado; **sin** email de producto propio salvo Auth/MP | Alta      |
+### Security and abuse (model B)
 
+- **Rate limiting** per authenticated user on expensive operations: text/image generation, PDF export, document parsing, user-data export, and analogous endpoints. Optional IP limits for public endpoints. Implementation mechanism and thresholds documented in architecture/ops—not only credits.
 
-### Post-MVP (v1.x — v2.0)
+### Observability and incidents (model B)
 
+- Platform logs (hosting + Supabase); **point alerts** for webhook failures, error spikes, daily AI spend threshold—channels TBD.  
+- **Incident playbook:** check provider status; prolonged impact → in-app banner; **email users** only for payment, subscription, or data-integrity risk.  
+- **Runbook** lives in internal ops documentation (English).
 
-| Feature                                          | Versión estimada |
-| ------------------------------------------------ | ---------------- |
-| Landing page con vista previa y bloques liquid   | v1.1             |
-| OCR / PDF escaneados en importación              | v1.x (tras validar demanda) |
-| Chat / soporte síncrono (WhatsApp, widget, etc.) | v1.x             |
-| Exportación HTML descargable                     | v1.1             |
-| Templates prediseñados por nicho                 | v1.2             |
-| Historial de versiones por proyecto              | v1.2             |
-| Colaboración (compartir proyecto)                | v2.0             |
-| Integración directa con Shopify API              | v2.0             |
-| Generación de secuencia de emails de lanzamiento | v2.0             |
-| Newsletters / email marketing propio (fuera de Auth/MP) | v1.x      |
-| Página de estado pública (status page)             | v1.x             |
+### Data model (principal entities)
 
+Sketch (names may vary in migrations): users/profiles with `ui_locale`; projects with `content_locale`, optional `author`, `status`, archive/delete timestamps; design system per project; ebooks (main/bonus/bump) with index; chapters with HTML and image reference; images metadata; credit ledger and purchases; subscriptions. **`landing_pages` post-MVP.** RLS on all user-owned data.
 
----
+### Business model (v1.0)
 
-## 9. Stack técnico
+- **Single launch plan**; **USD ~29/mo** anchor; local ARS/BRL at checkout.  
+- **No** free tier, **no** trial, **no** freemium—active subscription required to use the tool.  
+- **Monthly included credits** refresh each cycle—**no rollover**. **Top-up packs** (fixed sizes/prices TBD) **accumulate** until used.  
+- **Credit economics** (included count, per-action table) are a **product research** task before public numeric promises.
 
+### Acquisition gates
 
-| Capa                 | Tecnología                           | Justificación                                              |
-| -------------------- | ------------------------------------ | ---------------------------------------------------------- |
-| Frontend             | React + Vite + TypeScript            | Moderno, rápido, amplio soporte en Cursor                  |
-| UI Components        | shadcn/ui + Tailwind CSS             | Primitivas Radix; alinear con WCAG 2.1 (ver §4 Accesibilidad) |
-| Pagos / facturación  | Mercado Pago                         | Suscripción + top-ups; notificaciones/comprobantes según MP; webhooks → estado en app |
-| Backend / BaaS       | Supabase                             | Auth (email transaccional cuenta), DB, Storage, Edge Functions |
-| Base de datos        | PostgreSQL (via Supabase)            | Relacional, robusto, gratuito al inicio                    |
-| AI — Texto           | Anthropic Claude API (claude-sonnet) | Mejor para generación de contenido estructurado            |
-| AI — Imágenes        | Gemini API (Nano Banana)             | Generación/edición con stack Google; validar costos y cuotas en el plan elegido |
-| Parsing de docs/PDF  | pdf-parse + mammoth                  | Extracción de texto de `.docx` y PDF con capa de texto (sin OCR en MVP; **tras** el paso de diseño — rama Upload; ver §4) |
-| PDF Generation       | Puppeteer (via Edge Function)        | Server-side, clean output                                  |
-| Internacionalización | i18next                              | UI solo `es` y `pt-BR`; `content_locale` del proyecto: `es`, `pt-BR`, `en-US`, `en-GB` |
-| Deploy Frontend      | Vercel                               | Edge/CDN; ver §15 (hosting); Speed Insights opcional; §4 Rendimiento |
-| Rendimiento UX       | Lighthouse / Speed Insights (opc.)   | Baseline vitals en rutas clave; estados de carga — §4      |
-| Deploy Backend / datos | Supabase hosted                    | **Región LATAM**; PITR/backups según plan; copias lógicas §15 D |
-| Pruebas E2E          | Playwright (pocas specs)             | Modelo B; login, proyecto, wizard — ver §16                |
-| Editor de código     | Cursor                               | Desarrollo asistido por IA                                 |
-| Avisos de producto   | UI in-app (banner / toast / cuenta)  | Créditos, renovación, pago fallido — modelo B; ver §11     |
-| Protección de APIs   | Rate limiting en Edge Functions      | Modelo B; ver debajo                                       |
-| Observabilidad       | Vercel + Supabase + alertas (modelo B) | Logs de plataforma; alertas puntuales; ver debajo      |
-| Incidentes externos  | UX + runbook interno (modelo B)        | Sin status page pública en MVP; ver debajo               |
+- Email/password: **verified email before subscription checkout**; unverified users see **verification shell only**—no dashboard, no checkout. Paid-but-unverified is an **implementation bug**, not a supported path.  
+- OAuth: treat as verified when provider + Supabase say so.
 
+### Identity linking
+
+- **One** business user ↔ **one** `user_id`; Supabase **links** OAuth and email when verified email matches; settings may allow connecting another provider. Duplicate accounts → support path; **no** promised automatic merge of two `user_id`s in v1.0.
+
+### Support and notifications (model B)
+
+- Help center / FAQ in app; **email** support; **no** live chat in MVP.  
+- **Transactional email:** Supabase Auth defaults for verify/reset; Mercado Pago handles its receipts; **product** relies on **in-app notices** for credits, renewal, failures.
+
+### Compliance and hosting (draft—legal review required)
+
+- Privacy policy + terms in **es** and **pt-BR** before register/pay.  
+- **Self-serve:** downloadable **export my data** package; **delete account** with strong confirmation and coordinated subscription cancellation per integration capabilities.  
+- **Hosting:** Supabase region chosen explicitly (target **LATAM**); frontend on Vercel; subprocessors listed in privacy policy (Vercel, Supabase, Mercado Pago, AI providers as applicable).  
+- **Backups:** PITR or equivalent when tier allows; periodic logical DB export + storage strategy to encrypted off-account storage; restore drills internal.
+
+### Launch (v1.0)
+
+- **Soft launch:** public URL + real payments allowed; **no aggressive marketing** until **“ready to charge”** checklist passes (MP sandbox+prod smoke, webhooks, credits integrity, legal pages live, account flows tested, at least one operational alert, backup posture documented).  
+- **Manual smoke** mandatory before production promotes mature; **few** E2E tests in CI—see internal CI doc.
 
 ---
 
-### Límites de tasa y abuso (v1.0) — modelo B
+## Testing Decisions
 
-- **Edge Functions costosas:** aplicar **rate limiting** por **usuario autenticado** (p. ej. `auth.uid`) en invocaciones que llaman a **APIs de pago** o recursos pesados: generación con **Claude** y **Gemini API (imágenes)**, **Puppeteer** (PDF), **`parse-document`**, **`export-user-data`**, y funciones análogas. Los **créditos** limitan el uso económico pero **no** sustituyen el rate limit ante abuso, bugs o bucles en el cliente.
-- **Por IP:** **opcional** (p. ej. endpoints públicos, webhooks, o mitigación complementaria). Umbrales **por definir** (solicitudes por minuto / ventana) según pruebas y costos.
-- **Implementación:** elegir mecanismo en despliegue (p. ej. Redis/Upstash, tabla + ventana en Postgres, u oferta nativa) y **documentar** umbrales en el repositorio.
-
-### Observabilidad y alertas (v1.0) — modelo B
-
-- **Base:** logs y métricas nativas de **Vercel** (frontend/despliegue) y **Supabase** (Edge Functions, base de datos); revisión **manual** en consolas ante incidentes.
-- **Alertas puntuales** (*umbrales y canal — email, Slack, etc. — por definir*):
-  - **Webhooks Mercado Pago:** fallos repetidos o cola de eventos no procesados (riesgo de estado de suscripción incorrecto).
-  - **Errores en backend:** pico de **5xx** o de fallos en Edge Functions en una ventana corta.
-  - **Costo de IA:** gasto **diario estimado** (Claude / Gemini imágenes) por encima de un tope (derivado de presupuesto o de créditos vendidos).
-- **Privacidad en logs:** **no** registrar contenido de ebooks, **prompts completos** ni datos personales en claro; preferir **ids** (UUID), códigos de error y contadores. Alinear con §15.
-
-### Incidentes y dependencias externas (v1.0) — modelo B
-
-- **Proveedores críticos:** APIs de **texto**, **imágenes**, **Mercado Pago**, **Supabase**, **Vercel** (y similares). Caídas o lentitud **no** están bajo control total de Obra.
-- **Experiencia de usuario:** mensajes de error **claros** (“el servicio no está disponible, probá más tarde”); **reintentos** acotados en el cliente donde tenga sentido.
-- **Runbook interno (equipo):** documento **corto** con orden sugerido: **(1)** revisar **estado/salud** en paneles de cada proveedor; **(2)** si el impacto es **prolongado**, activar **banner o aviso global** en la app; **(3)** **email** a usuarios solo si afecta **pagos**, **suscripción** o **riesgo de pérdida/integridad de datos** — no para cada degradación breve de IA. Versión viva en el repo: **`docs/operations/incident-runbook.md`** (inglés, operaciones).
-- **Créditos:** **no** descontar créditos si la operación **no** finalizó con éxito en el backend (evitar cobrar por fallo del proveedor); una línea en **FAQ** al respecto.
-- **Fuera del MVP:** **página de estado** pública (status page); ver §12.
+- **Principle:** test **observable behavior** and user-visible outcomes—**not** implementation trivia that churns on refactors.  
+- **Manual:** operations smoke checklist covers Mercado Pago (sandbox + real when touching payments), webhooks, credits, happy path **create project → wizard → export** (or agreed subset), **keyboard-only** wizard traversal, and spot checks for account export/delete.  
+- **Automated:** **1–3** stable E2E flows (e.g. login, create project, advance wizard one step); AI may be **mocked** or run in **staging** with bounded cost.  
+- **Accessibility testing:** smoke includes at least one keyboard pass through wizard critical controls.  
+- **Performance:** periodic manual vitals check on agreed authenticated route before major releases—**no** hard CI gate unless team adds one later.  
+- **Modules to prioritize for automated coverage:** authentication boundary, project creation shell, first wizard transitions (exact scope agreed with engineering).
 
 ---
 
-## 10. Arquitectura de datos (entidades principales)
+## Out of scope (MVP)
 
-```
-users
-  id, email, name, plan, ui_locale (es | pt-BR), created_at
+- Shopify landing (preview + Liquid blocks)—post-MVP.  
+- Native mobile apps (responsive web only).  
+- Visual drag-and-drop WYSIWYG editor for longform.  
+- Direct Shopify API integration.  
+- OCR for scanned PDF import.  
+- Changing `content_locale` after project creation (create a new project instead).  
+- Video or audio generation.  
+- Paid template marketplace.  
+- Multi-user teams per account.  
+- Live chat, WhatsApp, or phone support in MVP.  
+- White label.  
+- Proprietary email marketing campaigns (beyond Auth + MP + in-app).  
+- CAPTCHA at registration unless abuse forces it—rate limiting remains baseline.  
+- Public status page—use in-app messaging + internal runbook in MVP.
 
-subscriptions (opcional si se separa de users)
-  id, user_id, plan_id, period_start, period_end, included_ai_credits
-
-credit_ledger (o equivalente)
-  id, user_id, delta, balance_after, reason (consumo_ia | compra_paquete | renovación_plan | ajuste), metadata (modelo, tokens, tipo de acción, payment_id), created_at
-
-credit_purchases (opcional; facturación de top-ups)
-  id, user_id, credits_granted, amount_paid, currency, payment_provider_id, created_at
-
-projects
-  id, user_id, name, status (draft | published | modified), content_locale (es | pt-BR | en-US | en-GB; inmutable tras creación)
-  author (TEXT nullable; opcional; mismo campo “autor/marca” unificado — captura en wizard con título principal)
-  archived_at (nullable), deleted_at (nullable; papelera — hard delete a los 30 días)
-  created_at, updated_at
-  -- máx. 20 activos (sin archivar y sin deleted_at) por cuenta
-  -- status: ver §3 — draft = sin export exitoso aún; published = al menos un export exitoso; modified = cambios tras published hasta el próximo export exitoso
-
-design_system
-  id, project_id
-  color_primary, color_secondary, color_accent
-  font_display, font_body
-
-ebooks
-  id, project_id, type (main | bonus | order_bump)
-  -- máx. 1 main + 5 bonus + 2 order_bump por proyecto
-  title, subtitle, target_avatar
-  index (JSON array de capítulos)
-
-chapters
-  id, ebook_id, order, title, content_html, image_url
-
-landing_pages (post-MVP)
-  id, project_id
-  blocks (JSON array de bloques)
-  preview_html
-
-images
-  id, project_id, chapter_id (nullable)
-  url, prompt_used, source (ai|upload)
-```
+**Post-MVP feature examples (version hints):** Liquid landing v1.1; OCR v1.x; live support v1.x; downloadable HTML v1.1; niche templates v1.2; version history v1.2; collaboration v2.0; Shopify API v2.0; launch email sequences v2.0; newsletters v1.x; public status page v1.x.
 
 ---
 
-## 11. Modelo de negocio
+## Further Notes
 
-### Planes de suscripción (v1.0)
+### Success metrics (first ~3 months)
 
-- **Un solo plan** en el lanzamiento inicial: precio de referencia **USD 29/mes** (ancla de producto). La **cantidad de créditos de IA incluidos** por ciclo y su equivalencia económica (orden de magnitud **~USD 15/mes** en valor de uso de APIs) **no** se fija numéricamente aquí: ver **Investigación — créditos del plan** debajo.
-- **Planes adicionales** (p. ej. distintos precios o cupos): fuera del alcance de v1.0 salvo decisión posterior explícita.
+- Validate plan economics (price vs included credits vs API cost) before or during launch.  
+- **100** paying active subscriptions in month one (directional).  
+- **~30%** checkout-to-active subscription conversion in month one (directional).  
+- Time to **first complete ebook package** under **~20 minutes** (directional).  
+- **NPS > 40**; **monthly churn < 8%** (directional).
 
-#### Investigación — créditos del plan (tarea de producto)
+### Risk register (summary)
 
-- Definir **cuántos créditos** incluye el plan base por mes y la **tabla de costo en créditos** por tipo de acción (texto, HTML, imagen, etc.) a partir del costo real de APIs y márgenes objetivo.
-- Validar que el modelo cierra frente a escenarios de uso (ligero vs intensivo) antes de fijar comunicación pública detallada (“X créditos/mes”).
+Key risks: conversion without trial; Mercado Pago/webhook complexity; plan margin vs real usage; API cost drift; users expecting OCR; inconsistent AI images; learning curve; competitor copying; LGPD/AR compliance expectations; storage cost of archives; abuse of Edge Functions; silent webhook failures; data loss; long provider outages. Mitigations align with sections above (video+tour, sandbox testing, credit model, messaging, regeneration, guided wizard, legal review, monitoring, backups, banners).
 
-### Límites de cantidad (v1.0)
+### Document hierarchy
 
-- **Por cuenta — proyectos activos:** máximo **20** a la vez. Cuentan como **activos** los que **no** están archivados ni en flujo de eliminación (papelera).
-- **Archivar:** el usuario puede **archivar tantos proyectos como quiera** (sin tope de cantidad). Los archivados **siguen ocupando** espacio en base de datos y **Storage** (PDFs, imágenes, etc.); archivar solo los **oculta** de la vista principal y **libera un cupo** dentro del límite de 20 activos.
-- **Eliminar:** al **eliminar**, el proyecto entra en **retención de 30 días** (sigue en disco y DB); pasado ese plazo se ejecuta **hard delete** (borrado definitivo de filas y objetos en Storage). Durante los 30 días puede ofrecerse **restaurar** desde papelera (*deseable en MVP*). Tras el hard delete no hay recuperación.
-- **Por proyecto:** **1** ebook principal (obligatorio, único); hasta **5** ebooks tipo bonus; hasta **2** ebooks tipo order bump. La UI y el backend deben **impedir** superar estos máximos.
-- Los **planes de pago** futuros pueden cambiar cupos o storage; en v1.0 los números anteriores son la **referencia** del producto.
+- **`features/*`** PRDs refine wizard, content, upload, preview, signup, profile, support, etc.  
+- **`ARQUITECTURA_Obra.md`** is the technical structure companion.  
+- **`CONVENCIONES.md`** and **`CLAUDE.md`** capture UI/engineering norms for the repo.
 
-### Créditos de IA (modelo unificado)
+### Appendix — Legacy section cross-reference
 
-- Una misma **moneda de créditos** (interna) financia **toda** la generación con IA: texto (wizard, optimización de campos), contenido e índice, **HTML**, e **imágenes** (cada proveedor/modelo puede tener un **costo en créditos** distinto según precio al backend).
-- **Créditos incluidos en la suscripción (por ciclo mensual):** se **renuevan** con cada período de facturación; lo **no consumido al cierre del ciclo no se acumula** al siguiente (el cupo mensual del plan no arrastra).
-- **Créditos comprados en paquetes (top-ups):** se ofrecen como **paquetes fijos** de tamaños concretos (cantidades y precios por definir en producto tras la investigación de créditos). Estos créditos **sí se acumulan** en el saldo hasta consumirse (no caducan con el giro mensual del plan). El cobro usa la misma pasarela (**Mercado Pago**). Los ingresos por top-up entran en el **margen** y deben cubrir el costo variable de IA de ese uso adicional.
-- El usuario ve **saldo** y **consumo** (MVP: al menos saldo y descuentos por acción o por tipo de acción).
-- **Rentabilidad:** validar que el pool de créditos asignado al plan cubra el **costo esperado** (y un margen) según supuestos de uso; si no cierra, se ajusta precio, créditos incluidos, tabla de costos en créditos por acción, o **precio/margen de los paquetes extra**.
+Older docs may cite **Spanish PRD section numbers**. Approximate mapping to this document:
 
-### Adquisición (v1.0)
-
-- **Solo pago:** sin free tier, sin prueba gratuita y sin freemium. El uso de la app requiere una suscripción activa al **plan único** (v1.0).
-- El registro de cuenta está ligado al flujo de pago (o la cuenta queda sin acceso hasta completar la suscripción, según implementación de checkout).
-- **Verificación de email (v1.0):** para registro **email/contraseña**, **Supabase Auth** exige confirmación de correo (`email_confirmed_at`). **Orden de acceso:** primero email verificado, luego suscripción activa. Si el usuario inicia sesión con email **no verificado**, la app muestra **solo** la pantalla de verificación (instrucciones, **reenvío de enlace**, enlace a ayuda/soporte): **sin** dashboard, **sin** checkout de suscripción y **sin** resto de la herramienta. El **checkout de Mercado Pago** para la suscripción **no** se ofrece hasta que el email esté verificado — evita cobros ligados a buzones inválidos o inaccesibles y el caso “pagó y no puede entrar” por bandeja sin confirmar. **OAuth** (p. ej. Google): si Supabase marca el email como verificado, no se muestra esa pantalla. Un pago registrado con cuenta aún no verificada se trata como **bug de implementación** (gating roto), no como flujo soportado.
-- **Vinculación de identidades (v1.0):** **un solo `user_id` de negocio** por persona para perfil, datos, ledger y vínculo con Mercado Pago (metadata/`external_reference`). Los métodos previstos incluyen **email/contraseña** y **OAuth** (p. ej. **Google**). **Supabase Auth** debe **vincular** (link) identidades al **mismo usuario** cuando el **email coincide** y está **verificado** en el proveedor, **evitando** una segunda cuenta duplicada por el mismo correo. La **cuenta / ajustes** debe permitir **conectar un proveedor adicional** de inicio de sesión al usuario autenticado (cuando el producto exponga la acción). Cuentas **duplicadas** por fallo de configuración o casos límite no son flujo normal: **soporte** + corrección de linking; **no** se promete fusión automática de datos entre dos `user_id` en v1.0 salvo decisión expresa posterior.
-- **Mercados iniciales:** Argentina y Brasil; **pasarela:** **Mercado Pago** (suscripciones recurrentes y pagos únicos para top-ups de créditos).
-- **Moneda y precios al público:** cobro en **moneda local** según mercado (**ARS** en Argentina, **BRL** en Brasil), con **referencia en USD** (p. ej. ancla **USD 29/mes**) en copy cuando ayude a comparar; los importes locales concretos y redondeos dependen de la integración MP y de política comercial.
-
-### Confianza y conversión (sin prueba gratuita)
-
-Sin *try-before-buy*, marketing y las primeras pantallas post-pago cargan más peso que en un modelo con trial:
-
-- **Precios y planes:** comunicación explícita del **plan único**, precio (local + referencia USD), **créditos de IA incluidos** por ciclo (detalle numérico cuando cierre la investigación), **límites** (**20 proyectos activos**, archivados ilimitados, eliminación con retención **30 días**) y **por proyecto** (1 principal + 5 bonus + 2 bumps), qué acciones consumen créditos (y orden de magnitud si aplica), y al **agotar créditos:** opción de **comprar paquetes adicionales** o esperar a la renovación mensual.
-- **Demostración de valor:** **video** y **recorrido interactivo** (ambos) que muestren el flujo completo hasta la exportación PDF (ebook + bonuses + bumps).
-- **Política comercial (garantía / reembolso):** el **copy** visible al usuario debe **revisarse con asesoría legal** antes del lanzamiento de pagos; plazo, condiciones y texto definitivos no están fijados en este PRD.
-- **Soporte inicial:** ver **Soporte (v1.0)** debajo.
-
-### Soporte (v1.0) — modelo B
-
-- **Self-serve primero:** **centro de ayuda / FAQ** integrado en la app (o sección “Ayuda” enlazada desde el layout), con artículos en **es** y **pt-BR** alineados al `ui_locale` o accesibles en ambos idiomas.
-- **Contacto:** **correo electrónico** como canal oficial para casos no resueltos por la ayuda. Las **direcciones** (p. ej. soporte / privacidad) son **placeholders** hasta definir dominio y buzones finales; las plantillas de contacto se alinean al tono del producto.
-- **Fuera del MVP:** **chat en vivo**, WhatsApp u otros canales síncronos de soporte (ver §12).
-- **Expectativas de respuesta:** objetivo interno de **48 h hábiles** como **referencia operativa**; **revisar con asesoría legal** antes de fijarlo en **Términos** u otros textos vinculantes (no es compromiso hasta entonces).
-
-### Notificaciones y correo (v1.0) — modelo B
-
-- **Correo transaccional de cuenta:** **Supabase Auth** (flujos de **verificación de email** según **Adquisición (v1.0)** — email/contraseña; **recuperación de contraseña**, etc.), con la configuración SMTP/plantillas que provea Supabase. **No** se introduce en el MVP un proveedor de email masivo aparte (p. ej. Resend/Campaign Monitor) salvo requerimiento técnico.
-- **Pagos y facturación:** **Mercado Pago** gestiona comprobantes y notificaciones propias del checkout según su producto; Obra **no duplica** envíos de recibo si el usuario ya los recibe por MP, salvo decisión comercial posterior.
-- **Producto (sin depender de email):** **avisos en la app** — banner, toast o sección en **cuenta** — para situaciones críticas: **créditos bajos o agotados**, **renovación próxima**, **pago rechazado o suscripción en riesgo**, alimentados por **webhooks** de Mercado Pago y estado en base de datos.
-- **Fuera del MVP:** newsletters, resúmenes por correo de uso, “drip” de onboarding por email (salvo lo que ya envíe Auth/MP por su cuenta).
-
-### Modelo de costos a considerar
-
-- **Unidad económica clave:** margen = ingreso por suscripción (**USD 29/mes** como ancla) + **ingresos por créditos comprados aparte** − **costo variable de IA** (texto + imagen según uso real) − costos fijos (infra, soporte, pagos). El valor de uso de APIs cubierto por el plan (orden de magnitud **~USD 15/mes** en créditos incluidos) debe mapearse vía **tabla de conversión créditos → USD de costo** por modelo/acción; **validar** con escenarios (usuario ligero vs intensivo y uso con top-ups) en la **investigación de créditos del plan**.
-- Claude API: ~$0.003 por 1K tokens (output) — entra en el mismo pool de créditos que el resto.
-- Gemini API (imágenes / Nano Banana): **validar** precio por imagen en la tarifa vigente de Google — idem en el modelo de créditos.
-- Supabase: gratuito hasta 500MB DB / 1GB storage
-- Vercel: gratuito en tier hobby
+| Legacy § | Topic |
+|:--------:|-------|
+| §1 | Vision, problem, differentiation → **Problem Statement**, **Solution** |
+| §2 | Users and locales → **Solution** (languages), **Implementation Decisions** (internationalization) |
+| §3 | Project structure, status, editing, duplicate, reset → **Implementation Decisions** (project composition, status, editing) |
+| §4 | Flows, accessibility, performance → **User Stories**, **Implementation Decisions**, **Testing Decisions** |
+| §5 | Design system → **Implementation Decisions** (design system) |
+| §6 | Images → **Implementation Decisions** (images) |
+| §7 | Export → **Implementation Decisions** (export) |
+| §8 | MVP table → **Implementation Decisions** (MVP capabilities) |
+| §9 | Stack, rate limits, observability, incidents → **Implementation Decisions** (technology, security, observability) |
+| §10 | Data entities → **Implementation Decisions** (data model) |
+| §11 | Business, credits, acquisition, support, email → **Implementation Decisions** (business model through notifications) |
+| §12 | Out of MVP list → **Out of scope** |
+| §13 | Metrics → **Further Notes** (success metrics) |
+| §14 | Risks → **Further Notes** (risk register) |
+| §15 | Compliance, hosting, backups → **Implementation Decisions** (compliance and hosting) |
+| §16 | Launch, QA, CI → **Implementation Decisions** (launch), **Testing Decisions** |
 
 ---
 
-## 12. Lo que queda FUERA del MVP
-
-- Landing page para Shopify (vista previa y bloques liquid; ver post-MVP)
-- App mobile (solo web responsive)
-- Editor drag & drop visual (WYSIWYG)
-- Integración directa con Shopify API
-- OCR en PDFs escaneados para importación (texto solo en PDF “seleccionable” en MVP)
-- Cambiar el idioma de salida (`content_locale`) de un proyecto ya creado (crear otro proyecto)
-- Generación de videos o audio
-- Marketplace de templates de pago
-- Multi-usuario por cuenta (teams)
-- Soporte por chat en vivo, WhatsApp o teléfono (MVP: email + ayuda en app; ver §11)
-- White label
-- Campañas de **email marketing** propias (MVP: **Supabase Auth** + notificaciones **Mercado Pago** + avisos **in-app**; ver §11)
-- **CAPTCHA** u otro desafío en **registro** (salvo reactivación ante abuso documentado; el **rate limit** técnico §9 sigue siendo la base)
-- **Página de estado** pública (status page tipo Instatus / Statuspage; el MVP usa mensajes en app + runbook §9)
-
----
-
-## 13. Métricas de éxito (primeros 3 meses)
-
-- Modelo económico del plan base (precio vs créditos vs costo API) **validado** antes o durante el lanzamiento inicial (objetivo: margen positivo en escenarios de uso definidos)
-- 100 suscripciones de pago activas en el primer mes
-- 30% de conversión de inicio de checkout a suscripción activa (primer mes; mide fricción de pago)
-- Tiempo de creación de primer ebook completo < 20 minutos
-- NPS > 40
-- Churn mensual < 8%
-
----
-
-## 14. Riesgos y mitigaciones
-
-
-| Riesgo                                 | Probabilidad | Mitigación                                   |
-| -------------------------------------- | ------------ | -------------------------------------------- |
-| Conversión baja sin trial (desconfianza / precio) | Media        | Precios claros, **video + tour interactivo**; copy de garantía/reembolso **revisado con legal** (§11) |
-| Fallas o complejidad en suscripciones / webhooks Mercado Pago | Media | Integración según docs oficiales, sandbox, pruebas de renovación y de compra de créditos |
-| Rentabilidad del plan (p. ej. USD 29 con ~USD 15 en créditos) no cierra frente al uso real | Media        | Modelo de créditos unificado, tabla de costos por acción, escenarios de uso, ajuste de precio o créditos incluidos |
-| Costos de API más altos de lo esperado | Media        | Límite vía créditos, caché donde aplique, revisión de precios de proveedores |
-| Usuarios suben PDF escaneado y esperan importación automática | Media | Mensajes y ayuda en UI; OCR post-MVP; alternativa: exportar texto a `.docx` y subir |
-| Calidad de imágenes IA inconsistente   | Media        | Permitir fácil regeneración y upload propio  |
-| Curva de aprendizaje del usuario       | Baja         | Wizard muy guiado + video + recorrido interactivo (§11) |
-| Competidor grande copia la idea        | Baja         | Velocidad de ejecución + comunidad LATAM     |
-| Expectativas legales (LGPD / AR) sin canal ni políticas | Media | §15: documentos, región de datos, **autoservicio** export + baja de cuenta |
-| Muchos proyectos archivados / en papelera aumentan costo de Storage | Media | Monitoreo, límites de plan futuros, comunicar que archivar no libera espacio hasta eliminar |
-| Abuso o picos de llamadas a Edge Functions (costo API) | Media | Rate limiting por usuario (§9 modelo B); alertas de costo |
-| Fallos silenciosos en webhooks MP o picos de error sin detección | Media | Observabilidad modelo B: alertas webhooks + 5xx + umbral de costo IA |
-| Pérdida de datos (DB o Storage) por error o incidente | Media/Baja | PITR + export periódico externo (§15 D); prueba de restauración |
-| Caída prolongada de proveedor (IA, MP, Supabase) sin comunicación | Media | Modelo B: banner in-app; email solo si afecta pagos o datos |
-
-
----
-
-## 15. Cumplimiento, datos y hosting (borrador)
-
-**Contexto:** usuarios en **Argentina** y **Brasil**; empresa radicada en **Argentina**. Texto legal definitivo y ley aplicable — **revisión con asesor legal** antes de lanzamiento de pagos.
-
-### A) Documentos legales y checkout
-
-- **Política de privacidad** y **Términos / condiciones de uso** (o equivalente) en **español** y **portugués (Brasil)**, accesibles desde el **footer** y **antes** de completar registro o pago.
-- **Ley aplicable, jurisdicción** y cláusulas de servicios digitales — *definir con abogado* (empresa en Argentina; usuarios en BR implican atención a **LGPD** y normativa local).
-
-### B) Derechos de titulares de datos — **autoservicio (modelo C, MVP)**
-
-- **En la app (Ajustes de cuenta):**
-  - **Exportar / descargar mis datos:** el usuario obtiene un **paquete descargable** con copia de la información que Obra trata sobre él (portabilidad). Contenido mínimo: perfil, proyectos, ebooks/capítulos, sistema de diseño, registros de créditos relevantes y **referencias a assets** en Storage; formato **por definir** (p. ej. `JSON` estructurado + archivos en `ZIP`). Si el volumen es grande, **generación asíncrona** + enlace de descarga temporal (firmado).
-  - **Eliminar cuenta:** flujo con **confirmación fuerte** (p. ej. reingreso de email o frase de confirmación). Debe **cancelar o coordinar la baja** de la **suscripción en Mercado Pago** según la integración disponible; luego **eliminar** datos del usuario en **Auth**, **base de datos** y **objetos en Storage** asociados, o proceso de purga acorde a **asesoría legal**. Si hace falta un **periodo de gracia** antes del borrado definitivo de la cuenta, *definir con abogado* y reflejarlo en Términos.
-- **Canal email** (dirección **placeholder** tipo `privacidad@…` hasta dominio final): complementario para **rectificación**, solicitudes atípicas o incidencias que no cubra el autoservicio; **revisar** con asesoría legal al cerrar buzones y textos.
-- **Objetivo para solicitudes por email** (cuando aplique): respuesta del orden de **30 días** salvo complejidad (formalizar en Política/Términos con asesoría legal).
-
-### C) Residencia de datos y proveedores
-
-- **Base de datos, auth, storage y Edge Functions:** **Supabase**, con **región elegida explícitamente** al crear el proyecto; **objetivo: LATAM** (p. ej. Sudamérica — verificar región disponible en el panel de Supabase al provisionar). Anotar **región y referencia del proyecto** en **`docs/infrastructure/supabase.md`** tras el alta.
-- **Frontend / despliegue:** **Vercel** (aplicación web); el tráfico y assets se sirven según configuración de Vercel (edge/CDN).
-- **Listado de subprocesadores** en la política de privacidad (mínimo): Vercel, Supabase, Mercado Pago, proveedores de IA (p. ej. Anthropic, Google Gemini), según lo que procesen datos personales en producción.
-
-### D) Backups y recuperación (v1.0) — modelo B
-
-- **Supabase:** habilitar **PITR** (point-in-time recovery) u opción equivalente de **backups continuos** **si el plan contratado lo incluye**; confirmar al elegir tier y región.
-- **Copia de seguridad lógica periódica:** **export** programado (p. ej. **semanal**) de la base de datos (p. ej. `pg_dump` o backup nativo exportable) y **estrategia** para **Storage** (objetos en bucket: listado + copia o sync) — *detalle de automatización por definir*.
-- **Destino:** copias almacenadas **fuera** de la única línea de producción sin redundancia (otro bucket, cuenta cloud o almacenamiento compatible **S3** con **cifrado** en reposo y acceso restringido al equipo).
-- **RPO/RTO:** **no** prometer tiempos de recuperación al usuario final salvo **SLA** comercial explícito; mantener **runbook interno** (quién restaura, en qué orden: DB → Storage → verificación).
-- **Práctica recomendada:** **prueba de restauración** periódica (p. ej. trimestral) en entorno aislado — *calendarizar en operaciones*.
-
----
-
-## 16. Lanzamiento y salida a producción (v1.0)
-
-### Estrategia — **soft launch (opción C)**
-
-- La aplicación puede estar **accesible públicamente** y aceptar **registros y pagos**, pero **sin** campaña de marketing agresiva (ads masivos, influencers, lanzamiento mediático) **hasta** completar el **checklist “listo para cobrar”** y estabilizar el primer tráfico real.
-- Objetivo: reducir riesgo reputacional y de soporte mientras se validan **Mercado Pago**, **webhooks**, **créditos** y flujos legales en producción.
-
-### Checklist “listo para cobrar” (Definition of Done comercial)
-
-Antes de **escalar** comunicación comercial o inversión en adquisición, el equipo confirma como mínimo:
-
-1. **Mercado Pago:** flujo de **suscripción** y **compra de créditos adicionales** probados en **sandbox** y al menos **un** flujo de pago **real** en producción; **webhooks** recibidos y procesados correctamente.
-2. **Créditos:** el saldo y los descuentos son **coherentes**; los créditos se **descuentan solo** tras **éxito** de la operación en backend (alinear con §9).
-3. **Legal / datos:** **Política de privacidad** y **Términos** publicados; flujos de **exportar datos** y **eliminar cuenta** accesibles y probados (§15).
-4. **Observabilidad (modelo B):** al menos **una** alerta operativa activa (p. ej. fallos repetidos de webhooks MP o pico de errores 5xx).
-5. **Backups (modelo D):** **PITR** u opción equivalente activada **si el plan lo incluye**, **o** al menos **un** export lógico documentado y guardado fuera de la cuenta de producción única.
-
-*La lista puede ajustarse con el equipo; lo crítico es no “gritar” el lanzamiento antes de ver pagos y datos estables.*
-
-### QA y pruebas (v1.0) — modelo B
-
-- **Manual (obligatorio antes de deploy a producción):** guion de **smoke test** en **`docs/operations/smoke-test.md`**: **Mercado Pago** (sandbox + verificación de webhooks), **flujo de pago** acordado, **créditos**, camino feliz **crear proyecto → wizard → editor → export** (o subconjunto mínimo acordado), más **recorrido solo teclado** del wizard según §4; checklist opcional legal/performance según ese documento. Quien despliega **no** salta este paso hasta soft launch maduro.
-- **Automatizado:** **Playwright** (u homologo) con **pocas** pruebas E2E **estables** (orientación **1–3**): p. ej. **login**, **crear proyecto**, **avanzar** al menos un paso del wizard. Las respuestas de IA pueden **mockearse** en test o ejecutarse contra **staging** con costo acotado.
-- **Alcance:** no se exige **suite E2E completa** en el MVP; se amplía con la madurez del producto.
-- **CI:** ejecutar E2E en **pull request** o antes de merge a rama principal — decisiones abiertas y plantilla en **`docs/development/ci-pipeline.md`**.
-- **Rendimiento (modelo B):** antes de un release relevante, **revisión puntual** (Lighthouse local o panel de Vercel) en **al menos una** ruta autenticada acordada — *sin* gate duro de métricas en CI salvo que el equipo lo incorpore después.
-
----
-
-*Documento generado como base para desarrollo. Próximo paso: documento de arquitectura técnica detallada.*
+*Master product requirements for Obra. Technical architecture and feature PRDs extend this document.*

@@ -7,4 +7,6 @@
 | [development/ci-pipeline.md](development/ci-pipeline.md) | E2E / Playwright expectations and open choices (PRD §16) |
 | [infrastructure/supabase.md](infrastructure/supabase.md) | Region and project reference — fill after provisioning |
 
-Product and architecture specs live at the repository root: `PRD_Obra.md`, `ARQUITECTURA_Obra.md`, `CONVENCIONES.md`.
+**Light monorepo:** product specs and engineering docs live at the repository root (`PRD_Obra.md`, `features/`, `ARQUITECTURA_Obra.md`, `CONVENCIONES.md`, `CLAUDE.md`). The web app is intended under `obra/` when present.
+
+For product scope start with `PRD_Obra.md` and `features/`. For implementation layout and infra, use `ARQUITECTURA_Obra.md`, `CONVENCIONES.md`, and `CLAUDE.md`.
