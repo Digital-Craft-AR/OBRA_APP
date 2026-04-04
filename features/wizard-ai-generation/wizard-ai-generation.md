@@ -62,6 +62,16 @@ Step 3 **Vista previa** means **seeing** the product with **design tokens alread
 
 **Persistence:** **Autosave** per artifact (chapter, bonus, bump, index while in that phase) with **retry** on failure; detailed **idempotency / no double-charge on failed calls** follows backend billing rules (see master PRD).
 
+### Avatar / problem reset (handoff)
+
+If the user confirms **Start fresh with these parameters** after changing avatar or problem, main + bonuses + bumps **textual content** and related **package images** are cleared per **`PRD_Obra.md` §3**. **Resume position in this flow:**
+
+- **Global stepper:** **Content** (step 2); **Structure** remains **completed** (new avatar/problem already saved).
+- **AI path:** Land on the **first milestone** — **main ebook index / table of contents** — then chapter loop → bonuses → bumps in strict order.
+- **Upload path:** Land on **alignment** using the **same** stored manuscript (no mandatory re-upload; user may still use **Replace file** from `wizard-upload`). After **Approve alignment**, continue the **chapter loop with prefill** as today.
+
+Do **not** land on **Preview** (step 3) as the default post-reset destination unless product rules explicitly allow Preview with an empty or partial content pipeline.
+
 ---
 
 ## User Stories

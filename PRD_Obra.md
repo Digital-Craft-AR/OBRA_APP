@@ -115,21 +115,25 @@ Esta subsección cierra reglas de producto para **editar un proyecto existente**
 
 #### Campo `status` del proyecto (respecto del export)
 
-El campo **`status`** en `projects` admite **solo** los tres valores siguientes. Si hace falta otro eje (p. ej. progreso interno del wizard), usar **otro** campo o convención explícita en el modelo de datos — **no** sobrecargar `status`.
+El campo **`status`** en `projects` admite **solo** los tres valores siguientes. **Progreso del stepper / wizard (v1.0):** **no** se persiste en fila `projects`; vive en **cliente** (ruta, estado de UI, store tipo Zustand). Reabrir en otro dispositivo o tras recarga puede **reconstruir** la posición a partir de datos ya guardados (p. ej. ebooks/capítulos) y reglas de producto, sin columna dedicada de “paso actual” en v1.0. Si más adelante se requiere continuidad estricta cross-device en el mismo pixel del flujo, valorar un campo aparte — **no** sobrecargar `status`.
 
 | Valor | Significado |
 | ----- | ----------- |
 | **`draft`** | Primera generación del proyecto: **aún no** hubo **ningún** export exitoso que cuente como publicación. |
 | **`published`** | Hubo **al menos un** export exitoso (da igual si fue **un** PDF de un entregable, varios o el **ZIP** del proyecto — con **uno** alcanza). El proyecto queda alineado con “última publicación/export” desde la perspectiva de la app. |
-| **`modified`** | Tras estar `published`, hubo **cambios materiales** (lista debajo). Los archivos PDF ya descargados por el usuario **no** se actualizan solos; la app refleja que el paquete **puede** estar desactualizado respecto del último export hasta que vuelva a exportar con éxito. |
+| **`modified`** | El paquete actual **ya no** coincide con el último export exitoso: o bien hubo **cambios materiales** tras `published`, o bien un evento equivalente (p. ej. reset confirmado tras haber exportado antes). Los PDF ya descargados **no** se actualizan solos; la app indica que conviene **reexportar** para alinear el paquete publicado con el estado actual. |
 
-**Transiciones**
+**Transiciones (flujo canónico)**
+
+El ciclo de producto es: **`draft` → `published` → `modified` → `published` → `modified` → …** (después del primer export, solo alterna **`published`** y **`modified`**).
 
 - Proyecto nuevo → `draft`.
-- `draft` → `published`: **primer** export exitoso (cualquier entregable o ZIP, según la acción que el backend considere “export exitoso” para actualizar el campo).
+- **`draft` → `published` y `modified` → `published`:** cuenta como **export exitoso** solo cuando el usuario completa **al menos una invocación de export** que termina en **éxito total** de esa invocación.
+- **Atomicidad de cada invocación:** la **función de export** (cada acción disparada por el usuario) es **una sola** operación de producto. Por dentro puede **subdividirse** (p. ej. varios PDFs, empaquetado ZIP, pasos en secuencia); si **cualquier** sub-parte **falla**, **toda** esa invocación se considera **fallida** — **no** actualiza `status` a `published`, **no** se trata como éxito parcial (no entregar “lo que sí salió” como si el export hubiera completado).
+- **Varias invocaciones en la UI:** si la app ofrece más de una acción (p. ej. PDF por entregable y/o ZIP del proyecto), **cada** acción es atómica por separado. Para `published` basta **una** invocación que haya terminado **completa** con éxito; **no** exige que el usuario haya ejecutado **todas** las acciones posibles del proyecto.
 - `published` → `modified`: al persistir cualquier **cambio material** (lista siguiente).
-- `modified` → `published`: **cualquier** export exitoso posterior (misma regla: al menos uno exitoso en esa operación de export).
 - Mientras el proyecto permanece `draft`, los cambios **no** pasan por `modified` (no había línea base `published` previa).
+- **Una vez alcanzado `published`, no se vuelve a `draft`** en v1.0: reset por avatar/problema, reemplazo de archivo u otros eventos destructivos **no** rebajan el proyecto a `draft`; si ya hubo al menos un export, el estado refleja **desalineación** respecto de ese export (`modified`) hasta el próximo export exitoso.
 
 **Cambios que pasan el proyecto a `modified`** (cuando el estado actual era `published`)
 
@@ -140,7 +144,11 @@ Persistir cualquiera de:
 - **Imágenes del paquete:** slots por capítulo, **portada/cover**, **assets de proyecto** vinculados al preview/export, ya sean IA o **subida del usuario** (sustitución o borrado que cambie el resultado exportable).
 - **Estructura de paquete** cuando afecte entregables existentes (conteos, eliminación o adición de bonuses/bumps, cambios que invaliden contenido previo) — salvo que implementación limite ciertos cambios; la intención de producto es que **sí** cuenten como material si impactan lo exportable.
 - **Rama Upload:** **reemplazo del archivo** fuente tras el flujo explícito de reemplazo (ver abajo).
-- **Reset “comenzar de nuevo”** tras cambio de avatar o problema (ver abajo): siempre deja el proyecto en situación equivalente a contenido regenerable; el **`status`** debe actualizarse según reglas de implementación (p. ej. vuelta a `draft` hasta nuevo export, o `modified` si ya había `published` — **definir en implementación de forma consistente** con el hecho de que los PDF previos ya no representan el paquete actual).
+- **Reset “comenzar de nuevo”** tras cambio de avatar o problema (ver abajo): si **`status`** era **`draft`** (nunca hubo export exitoso), permanece **`draft`**; si era **`published`** o **`modified`**, pasa a **`modified`** (los PDF ya exportados ya no representan el paquete actual hasta un nuevo export exitoso).
+
+**Excepción — no pasa a `modified`**
+
+- Cambiar **solo** **`projects.name`** (nombre en listado / organización del dashboard) **no** actualiza `published` → `modified`. En v1.0 ese campo **no** está enlazado al texto de **portada** ni a títulos de entregables en el export: lo que va en la portada u otros PDFs proviene de **otros** campos del modelo; renombrar el proyecto en el sistema **no** invalida PDFs ya generados.
 
 **Cambios que por sí solos no exigen flujo especial de “alineación”**
 
@@ -149,6 +157,7 @@ Persistir cualquiera de:
 **UX**
 
 - Mostrar el estado (`draft` / `published` / `modified`) en dashboard y/o cabecera del proyecto; en `modified`, copy orientado a **reexportar** si el usuario quiere un paquete PDF al día (mensaje **no bloqueante**).
+- Con `published`, la UI debe **aclarar** (badge secundario, tooltip o línea de ayuda) que **“publicado”** significa **al menos una invocación de export completada con éxito** (no necesariamente que el usuario haya corrido **todas** las acciones de export disponibles para el proyecto). **Dentro** de cada invocación no hay éxito parcial: o la operación **completa** OK o **falla** en bloque.
 - No prometer **versionado** de PDFs en la app: el usuario puede conservar archivos viejos en su disco; la app solo refleja estado y última acción de export exitosa.
 
 #### Diseño después del wizard
@@ -169,6 +178,13 @@ Persistir cualquiera de:
 - **Imágenes (política estricta):** eliminar **referencias en base de datos** y los **objetos en Storage** correspondientes para: imágenes por slot (incluidas **subidas por el usuario**), **portadas/covers**, y **demás assets de proyecto** usados en preview/export del paquete. Objetivo: evitar mezcla visual entre marco viejo y nuevo.
 - **Rama Upload:** tras el reset, el **binario** del manuscrito puede seguir existiendo en Storage; el usuario continúa en el flujo de **Contenido** con el **mismo archivo** (re-alineación / hitos) o usa el flujo explícito de **reemplazar archivo** según `features/wizard-upload`. El reset **no** sustituye automáticamente el archivo fuente.
 
+**Destino en la UI tras confirmar el reset (segundo paso):**
+
+- **Stepper global:** paso **Contenido** (paso 2); **Estructura** permanece **completado** (el usuario ya guardó avatar/problema nuevos en Estructura antes del CTA).
+- **Rama IA:** primer hito de la secuencia canónica de Contenido — **índice / tabla de contenidos del ebook principal** (definición de capítulos antes del cuerpo). Bonuses y order bumps **sin** contenido regenerado hasta que el usuario avance esos hitos en orden.
+- **Rama Upload:** reentrada al preámbulo de Contenido con el **mismo** archivo: pantalla de **alineación** (índice/capítulos respecto del manuscrito) como punto de reanudación; **no** exigir resubir el binario salvo que el usuario elija **Reemplazar archivo**. Tras **aprobar alineación**, mismo bucle capítulo a capítulo con prefill según `wizard-upload` / `wizard-ai-generation`.
+- **Vista previa:** no forzar salto al paso 3 hasta que el producto defina reglas de acceso con contenido vacío; el usuario vuelve a Preview cuando el flujo de hitos lo permita (coherente con `wizard-preview`).
+
 #### Reemplazo del archivo (rama Upload)
 
 - En **cualquier** momento (incluso tras aprobar alineación o con contenido avanzado), el reemplazo del `.docx`/`.pdf` ocurre **solo** mediante un flujo explícito **“Reemplazar archivo”**, con **confirmación fuerte** y advertencia sobre impacto en índice/capítulos.
@@ -176,14 +192,64 @@ Persistir cualquiera de:
 
 #### Duplicar proyecto
 
-- **Duplicar** crea una **copia completa** del proyecto: mismos datos persistidos necesarios para un clon usable (metadatos, diseño, ebooks, capítulos, imágenes, archivo upload en Storage si aplica, etc.) bajo **nuevo** `project_id`, respetando límites de cuenta (**20 activos**, archivo, papelera).
-- La implementación debe definir **copia de objetos en Storage** (nuevas rutas/prefijos) para que el borrado o retención de un proyecto **no** rompa al clon.
+- **Duplicar** crea un **nuevo** proyecto (`project_id` nuevo) con **copia profunda** de todo lo necesario para que sea un clon usable, respetando límites de cuenta (**20 activos**, archivo, papelera).
+- **`status` del clon:** siempre **`draft`**, aunque el origen estuviera `published` o `modified` — en el clon **aún no** hubo export exitoso; el usuario debe exportar de nuevo para alcanzar `published`.
+- **Nombre del proyecto (`projects.name`):** nombre del origen + sufijo **` - Copia`** (UI **es**); en **pt-BR** usar equivalente local (p. ej. **` - Cópia`**). El usuario puede renombrar después.
+- **Tras duplicar con éxito:** abrir **dentro del proyecto clon**, siempre en un **punto fijo** — paso global **Contenido** (paso 2 del stepper), **independientemente** de en qué paso estuviera el usuario en el proyecto origen.
+- **`archived_at` y `deleted_at`:** **NULL** en el clon (proyecto activo nuevo).
+
+**Checklist explícita (v1.0 — todo obligatorio en la copia salvo que no exista en el origen):**
+
+- **`content_locale`** — mismo valor que el proyecto origen.  
+- **`author`** — copiar si el origen lo tiene; si es NULL, el clon queda NULL.  
+- **`projects.name`** — nombre del origen + **` - Copia`** (es) / equivalente **pt-BR** (p. ej. **` - Cópia`**); el usuario puede editarlo después.  
+- **Rama de contenido** — si el origen es **IA**, el clon es **IA**; si el origen es **Upload**, el clon es **Upload** con el **mismo manuscrito** en el sentido de producto: **duplicar el archivo** `.docx`/`.pdf` en Storage (nuevo objeto / nuevas rutas bajo el nuevo `project_id`), **no** compartir una única clave entre dos proyectos.  
+- Avatar, problema, título(s), estructura de paquete, contenido (capítulos/índice/hitos), diseño e imágenes — como en la tabla siguiente.
+
+**Ámbito de copia (producto — todo lo exportable y su contexto):**
+
+| Área | Incluye (v1.0) |
+| ---- | -------------- |
+| **Avatar y problema** | Valores persistidos del wizard / contexto de estructura (tema, avatar, problema) según modelo de datos. |
+| **Títulos y estructura de paquete** | Título del ebook principal, títulos (y metadatos asociados en DB) de bonuses y order bumps, **conteos** y estructura de paquete aprobada; filas `ebooks` y relaciones coherentes. |
+| **Proyecto (metadatos)** | `content_locale`, `author`, `name` (con sufijo de copia) — alineado a la checklist anterior. |
+| **Contenido** | Índice/capítulos, cuerpos HTML (o equivalente) y **todo** el estado persistido del flujo de **Contenido** (aprobaciones, orden, datos por hito) para que el clon sea funcionalmente equivalente al origen en texto — **sin** copiar historial de **export** en app del proyecto origen (el clon arranca en `draft`). |
+| **Diseño** | Fila(s) de **sistema de diseño** del proyecto (paleta, tipografías, página, `image_mode` / `image_style`, etc.). |
+| **Imágenes** | Referencias en DB **y** **objetos en Storage** (slots, portada/cover, assets de proyecto): **duplicar** a nuevas rutas bajo el nuevo `project_id` para que borrar el origen **no** rompa al clon. |
+| **Rama Upload (manuscrito)** | **Duplicación física** del binario y metadatos de importación; el clon apunta **solo** a sus propios objetos en Storage. |
+
+**Qué no se copia**
+
+- **Saldo / ledger de créditos**, suscripción, pagos, ni identidad de usuario (el clon pertenece al **mismo** `user_id` que dispara la duplicación).
+- **Registros de export** o artefactos de “último PDF generado en app” del proyecto origen, si existieran: el clon arranca **sin** publicación previa (`draft`).
+
+#### Problemas de implementación y políticas de consistencia (v1.0)
+
+*Cierre de riesgos técnicos ligados a §3 (reset, duplicado, export). El detalle de stack (Supabase, Edge Functions, colas) se documenta en implementación y en `ARQUITECTURA_Obra.md`.*
+
+**1. Reset por avatar/problema (contenido + imágenes + Storage)**
+
+- **Objetivo:** no dejar **referencias en DB** a objetos inexistentes en Storage, ni **blobs huérfanos** que debían eliminarse, de manera **consistente** una vez que el usuario ve el reset como completado.
+- **Orden orientativo** (ajustable a la pila): persistir el **nuevo** estado de contenido/hitos y limpieza lógica de capítulos; **recolectar** paths de Storage a borrar desde las filas afectadas; **actualizar o borrar** filas que referencian esas URLs; **eliminar** objetos en Storage.
+- **Fallo parcial:** si un paso **crítico** falla (p. ej. borrado en Storage o escritura en DB), **no** comunicar éxito al usuario; ofrecer **error claro** y **reintento** idempotente donde sea posible. Evitar “reset a medias” sin forma de corregir desde la app.
+- **RLS / seguridad:** todas las operaciones en contexto del **`user_id`** dueño del proyecto.
+
+**2. Duplicar proyecto**
+
+- **Doble clic / reenvío:** la acción debe ser **segura** ante peticiones duplicadas (p. ej. UI bloqueada hasta respuesta, **idempotency key** o una sola operación servidor por intención de duplicado).
+- **Fallo a mitad:** si la copia falla tras crear `project_id` o parte de los datos, debe existir **estrategia explícita**: rollback transaccional, proyecto “fallido” + limpieza programada, o reanudación documentada — **sin** dos clones parciales confusos sin mensaje.
+- **Orden DB ↔ Storage:** copiar o crear filas y **objetos en Storage** en un orden que **minimice** ventanas con URLs nuevas rotas; al cerrar la feature, el equipo fija el orden concreto en arquitectura.
+
+**3. Export atómico (backend)**
+
+- **Éxito observable** y actualización de `projects.status` a `published` **solo** cuando **todas** las sub-partes de **esa** invocación hayan concluido bien; ante fallo, no marcar éxito, limpiar temporales según política y permitir **reintentar**.
+- **Créditos / cobro:** alinear con §11 — **no** descontar por operaciones que **no** finalizaron con éxito.
 
 #### Dependencias de implementación (resumen)
 
-- El **backend** debe registrar **export exitoso** para actualizar `projects.status` (`draft`/`modified` → `published`).
-- Orden transaccional y permisos (**RLS**) al borrar filas de imágenes y objetos en Storage en el reset por avatar/problema; manejar fallos parciales sin dejar referencias rotas.
-- **i18n:** textos de modales y badges en **es** y **pt-BR** alineados a `ui_locale`.
+- El **backend** debe registrar **export exitoso** para actualizar `projects.status` (`draft`/`modified` → `published`) **solo** según las reglas de atomicidad anteriores.
+- **RLS** en reset, duplicado y export; sin bypass inadvertido.
+- **i18n:** la redacción concreta de modales, badges de `status` y mensajes de export queda a cargo de **implementación** (archivos de locale del repo), en **es** y **pt-BR** según `ui_locale`; este PRD define **semántica** (qué significa cada estado y cuándo falla un export), no strings finales.
 
 ---
 
