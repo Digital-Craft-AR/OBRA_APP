@@ -109,6 +109,82 @@ Post-MVP
 
 Cada bloque es independiente y exportable como sección liquid de Shopify.
 
+### Edición del proyecto, estados respecto del export y duplicación (v1.0)
+
+Esta subsección cierra reglas de producto para **editar un proyecto existente**, **alineación con PDFs exportados**, **reabrir el onboarding de estructura**, **rama Upload**, **reset por avatar/problema** y **duplicar proyecto**. Detalle de UI por paso: `features/wizard-shared`, `wizard-ai-generation`, `wizard-upload`, `wizard-preview`.
+
+#### Campo `status` del proyecto (respecto del export)
+
+El campo **`status`** en `projects` admite **solo** los tres valores siguientes. Si hace falta otro eje (p. ej. progreso interno del wizard), usar **otro** campo o convención explícita en el modelo de datos — **no** sobrecargar `status`.
+
+| Valor | Significado |
+| ----- | ----------- |
+| **`draft`** | Primera generación del proyecto: **aún no** hubo **ningún** export exitoso que cuente como publicación. |
+| **`published`** | Hubo **al menos un** export exitoso (da igual si fue **un** PDF de un entregable, varios o el **ZIP** del proyecto — con **uno** alcanza). El proyecto queda alineado con “última publicación/export” desde la perspectiva de la app. |
+| **`modified`** | Tras estar `published`, hubo **cambios materiales** (lista debajo). Los archivos PDF ya descargados por el usuario **no** se actualizan solos; la app refleja que el paquete **puede** estar desactualizado respecto del último export hasta que vuelva a exportar con éxito. |
+
+**Transiciones**
+
+- Proyecto nuevo → `draft`.
+- `draft` → `published`: **primer** export exitoso (cualquier entregable o ZIP, según la acción que el backend considere “export exitoso” para actualizar el campo).
+- `published` → `modified`: al persistir cualquier **cambio material** (lista siguiente).
+- `modified` → `published`: **cualquier** export exitoso posterior (misma regla: al menos uno exitoso en esa operación de export).
+- Mientras el proyecto permanece `draft`, los cambios **no** pasan por `modified` (no había línea base `published` previa).
+
+**Cambios que pasan el proyecto a `modified`** (cuando el estado actual era `published`)
+
+Persistir cualquiera de:
+
+- **Diseño:** fila de sistema de diseño del proyecto (paleta 60/30/10, tipografías, tamaño/orientación de página, `image_mode` / `image_style`, y campos equivalentes definidos en `design_systems`).
+- **Contenido de entregables:** HTML/texto de capítulos, índice/estructura de capítulos del main, contenido de bonuses u order bumps, o metadatos de entregable que afecten el artefacto exportado (p. ej. títulos que salgan en PDF).
+- **Imágenes del paquete:** slots por capítulo, **portada/cover**, **assets de proyecto** vinculados al preview/export, ya sean IA o **subida del usuario** (sustitución o borrado que cambie el resultado exportable).
+- **Estructura de paquete** cuando afecte entregables existentes (conteos, eliminación o adición de bonuses/bumps, cambios que invaliden contenido previo) — salvo que implementación limite ciertos cambios; la intención de producto es que **sí** cuenten como material si impactan lo exportable.
+- **Rama Upload:** **reemplazo del archivo** fuente tras el flujo explícito de reemplazo (ver abajo).
+- **Reset “comenzar de nuevo”** tras cambio de avatar o problema (ver abajo): siempre deja el proyecto en situación equivalente a contenido regenerable; el **`status`** debe actualizarse según reglas de implementación (p. ej. vuelta a `draft` hasta nuevo export, o `modified` si ya había `published` — **definir en implementación de forma consistente** con el hecho de que los PDF previos ya no representan el paquete actual).
+
+**Cambios que por sí solos no exigen flujo especial de “alineación”**
+
+- Editar **títulos de bonuses** o **título del main** u otros ajustes de texto de estructura que **no** sean avatar ni problema: **no** requieren el modal de “comenzar de nuevo”; siguen las reglas normales de persistencia y, si el proyecto estaba `published`, pasan a `modified` si califican como cambio material.
+
+**UX**
+
+- Mostrar el estado (`draft` / `published` / `modified`) en dashboard y/o cabecera del proyecto; en `modified`, copy orientado a **reexportar** si el usuario quiere un paquete PDF al día (mensaje **no bloqueante**).
+- No prometer **versionado** de PDFs en la app: el usuario puede conservar archivos viejos en su disco; la app solo refleja estado y última acción de export exitosa.
+
+#### Diseño después del wizard
+
+- El usuario puede **editar el sistema de diseño** tras completar el paso de diseño del onboarding, desde una **superficie dedicada** (p. ej. “Apariencia del proyecto”), además de poder **reabrir** el paso Diseño dentro del flujo de estructura si el shell lo permite.
+- **Una sola fuente de verdad** en base de datos para colores, fuentes y defaults de imagen (`design_systems` por proyecto).
+
+#### Reabrir estructura (onboarding completo)
+
+- El usuario puede **volver a recorrer el onboarding de estructura** (tema, avatar, problema, paquete, diseño) en un **proyecto ya existente**.
+- **Créditos:** no hay recargo ni tarifa extra por “reabrir estructura”. Solo se consumen **los mismos créditos** que correspondan a **llamadas a IA** que el usuario dispare después (igual que en el resto del producto).
+
+#### Cambio de avatar o problema
+
+- Si el usuario **cambia avatar o problema** guardados, la app debe **advertir** que el contenido existente del paquete **puede dejar de estar alineado** con ese nuevo marco (texto e imágenes).
+- Ofrecer CTA **“Comenzar de nuevo con estos parámetros”** con **confirmación en dos pasos** (explicar alcance → confirmar).
+- **Alcance del reset al confirmar:** todo el **contenido de texto** y el **estado de hitos** asociados del **ebook principal, bonuses y order bumps**. **No** se redefine en este reset el `content_locale` ni el diseño por defecto salvo que el producto decida lo contrario en otra regla; la intención es vaciar/regenerar el **contenido acoplado al avatar/problema**.
+- **Imágenes (política estricta):** eliminar **referencias en base de datos** y los **objetos en Storage** correspondientes para: imágenes por slot (incluidas **subidas por el usuario**), **portadas/covers**, y **demás assets de proyecto** usados en preview/export del paquete. Objetivo: evitar mezcla visual entre marco viejo y nuevo.
+- **Rama Upload:** tras el reset, el **binario** del manuscrito puede seguir existiendo en Storage; el usuario continúa en el flujo de **Contenido** con el **mismo archivo** (re-alineación / hitos) o usa el flujo explícito de **reemplazar archivo** según `features/wizard-upload`. El reset **no** sustituye automáticamente el archivo fuente.
+
+#### Reemplazo del archivo (rama Upload)
+
+- En **cualquier** momento (incluso tras aprobar alineación o con contenido avanzado), el reemplazo del `.docx`/`.pdf` ocurre **solo** mediante un flujo explícito **“Reemplazar archivo”**, con **confirmación fuerte** y advertencia sobre impacto en índice/capítulos.
+- La **extracción** (parse sin LLM) **no** consume créditos de IA; aplicar reglas de **modal fuerte** si **todos** los capítulos quedan por debajo del umbral tras la alineación (`features/wizard-upload`, `wizard-ai-generation`).
+
+#### Duplicar proyecto
+
+- **Duplicar** crea una **copia completa** del proyecto: mismos datos persistidos necesarios para un clon usable (metadatos, diseño, ebooks, capítulos, imágenes, archivo upload en Storage si aplica, etc.) bajo **nuevo** `project_id`, respetando límites de cuenta (**20 activos**, archivo, papelera).
+- La implementación debe definir **copia de objetos en Storage** (nuevas rutas/prefijos) para que el borrado o retención de un proyecto **no** rompa al clon.
+
+#### Dependencias de implementación (resumen)
+
+- El **backend** debe registrar **export exitoso** para actualizar `projects.status` (`draft`/`modified` → `published`).
+- Orden transaccional y permisos (**RLS**) al borrar filas de imágenes y objetos en Storage en el reset por avatar/problema; manejar fallos parciales sin dejar referencias rotas.
+- **i18n:** textos de modales y badges en **es** y **pt-BR** alineados a `ui_locale`.
+
 ---
 
 ## 4. Flujos principales de usuario
@@ -168,7 +244,7 @@ Resumen de alto nivel:
 - **Extracción vacía o inválida:** mensaje explícito y opción de **reintentar** con otro archivo (mismo flujo de importación).
 - **Parseo + análisis IA (v1.0):** flujo **síncrono** — el usuario permanece en la misma pantalla con **estado de carga** hasta completar extracción y análisis o recibir error; **no** cola en background en el MVP. Deshabilitar **doble envío** mientras la petición está en curso (alinear con §4 rendimiento percibido).
 - **Créditos (extracción vs IA):** la **extracción de texto** (.docx/PDF con librerías, **sin pasar por LLM**) **no descuenta** créditos de IA del usuario (costo de plataforma); **sí** descuentan las llamadas que invoquen **modelo de lenguaje** (propuesta de división, regenerar división, refinar/expandir capítulo, bonuses/bumps, etc.) — ver `features/wizard-ai-generation/wizard-ai-generation.md` y §11.
-- **Reemplazo del archivo (v1.0):** el usuario puede **subir otro archivo** que sustituya al anterior **solo hasta** **aprobar la alineación** (índice/capítulos respecto del manuscrito). Tras esa aprobación, el manuscrito queda **atado** al extracto para el ebook principal; cambiar de archivo requiere **acción destructiva** con confirmación explícita o **nuevo proyecto** — sin sustitución silenciosa del binario una vez prefilled el capítulo (ver `features/wizard-ai-generation/wizard-ai-generation.md`).
+- **Reemplazo del archivo (v1.0):** el usuario puede **sustituir** el `.docx`/`.pdf` **en cualquier momento** mediante el flujo explícito **“Reemplazar archivo”** (confirmación fuerte, impacto en índice/capítulos). Sin sustitución silenciosa del binario. Ver **§3 — Edición del proyecto** y `features/wizard-upload`.
 - **Asistencia en alineación (v1.0):** además de edición manual de títulos y límites, un botón tipo **“Volver a proponer división con IA”** sobre el **mismo** texto parseado; **no** hilo de chat dedicado solo a la alineación (reduce duplicación con el índice de la rama IA).
 - **Prefill débil (v1.0 — decisión C2):** si un capítulo queda con **muy poco texto** tras el prefill, **aviso no bloqueante** y opción de **completar con IA** (créditos); **no** se bloquea **Aprobar capítulo** por ese motivo. Si **todos** los capítulos quedan por debajo del umbral tras la alineación, **modal fuerte** que impide avanzar hasta corregir **alineación**, **regenerar división** o **archivo** (según reglas de reemplazo); detalle en `features/wizard-ai-generation/wizard-ai-generation.md`.
 - **Retención del archivo (v1.0):** el binario subido se **conserva** en Storage **privado** mientras exista el **proyecto** (misma lógica de ciclo de vida que otros assets del proyecto). Eliminación opcional post-MVP desde ajustes de proyecto.
@@ -182,8 +258,8 @@ Resumen de alto nivel:
 2. Navega entre ebook principal, bonuses y order bumps (mismo sistema de diseño)
 3. En **Contenido** (paso global 2): editar texto, índice/capítulos según reglas de `features/wizard-ai-generation/wizard-ai-generation.md`; IA por hito según créditos
 4. En **Vista previa** (paso global 3 — `features/wizard-preview/wizard-preview.md`): ver layouts finales; **imágenes** por slots (regenerar con IA / subir); portada IA; **sin edición in-place de texto largo en MVP** (volver a Contenido)
-5. Opcional: ajustes de **paleta/tipografías** según producto (si se permiten post-wizard, alinear con modelo de datos — no duplicar aquí reglas no cerradas)
-6. Re-exportar PDF: **un PDF por entregable**; **ZIP** con todos los PDFs del proyecto; política de fallos del ZIP — ver `features/wizard-preview/wizard-preview.md`
+5. **Diseño post-wizard** y **reabrir estructura** (onboarding completo), **estados** `draft` / `published` / `modified`, **reset por avatar/problema**, **duplicar** y **reemplazar archivo** Upload: ver **§3 — Edición del proyecto, estados respecto del export y duplicación**.
+6. Re-exportar PDF: **un PDF por entregable**; **ZIP** con todos los PDFs del proyecto; política de fallos del ZIP — ver `features/wizard-preview/wizard-preview.md`. Un export exitoso actualiza `projects.status` según §3.
 ```
 
 *Nota:* el detalle de **swap de imagen**, **export** y **preview** está en **`features/wizard-preview/wizard-preview.md`**; hitos de texto en **`features/wizard-ai-generation/wizard-ai-generation.md`**.
@@ -407,11 +483,12 @@ credit_purchases (opcional; facturación de top-ups)
   id, user_id, credits_granted, amount_paid, currency, payment_provider_id, created_at
 
 projects
-  id, user_id, name, status, content_locale (es | pt-BR | en-US | en-GB; inmutable tras creación)
+  id, user_id, name, status (draft | published | modified), content_locale (es | pt-BR | en-US | en-GB; inmutable tras creación)
   author (TEXT nullable; opcional; mismo campo “autor/marca” unificado — captura en wizard con título principal)
   archived_at (nullable), deleted_at (nullable; papelera — hard delete a los 30 días)
   created_at, updated_at
   -- máx. 20 activos (sin archivar y sin deleted_at) por cuenta
+  -- status: ver §3 — draft = sin export exitoso aún; published = al menos un export exitoso; modified = cambios tras published hasta el próximo export exitoso
 
 design_system
   id, project_id
