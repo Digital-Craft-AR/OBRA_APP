@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "Obra",
+    "tagline": "De idea a infoproducto, con IA"
+  },
+  "nav": {
+    "dashboard": "Mis proyectos",
+    "newProject": "Nuevo proyecto",
+    "settings": "Configuración",
+    "help": "Ayuda",
+    "logout": "Cerrar sesión"
+  },
+  "dashboard": {
+    "title": "Mis proyectos",
+    "empty": "Aún no tenés proyectos. ¡Creá el primero!",
+    "createFirst": "Crear mi primer proyecto"
+  }
+}
