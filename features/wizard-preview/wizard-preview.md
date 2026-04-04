@@ -203,4 +203,4 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 - **Author field:** single optional **`author`** string at **project** level, captured **on the same screen as main title** in shared package structure (`wizard-shared` alignment required).
 - **Chapter opener vs random body layouts:** opener is **fixed per project**; randomization applies to **body/continuation** pages per prior rules—ensure PRD **§Implementation** and layout tags stay consistent.
 - **Billing:** align image credit triggers with **`PRD_Obra.md` §11** and global ledger rules; export remains **compute-only**.
-- **Related docs to update when implementing:** master PRD cross-links, `wizard-shared` (author + main title screen), `ESTADO_ACTUAL.md`, and architecture notes for **render pipeline** and **export**—as per repo documentation norms.
+- **Related docs to update when implementing:** master PRD cross-links, `wizard-shared` (author + main title screen), `ARQUITECTURA_Obra.md`, `CLAUDE.md`, and `docs/` as needed for **render pipeline** and **export**—as per repo documentation norms.
