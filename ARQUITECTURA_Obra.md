@@ -248,7 +248,7 @@ CREATE TABLE projects (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID REFERENCES profiles(id) ON DELETE CASCADE,
   name            TEXT NOT NULL,
-  status          TEXT DEFAULT 'draft',   -- draft | in_progress | complete
+  status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'modified')), -- respecto del último export; ver PRD_Obra.md §3
   content_locale  TEXT NOT NULL CHECK (content_locale IN ('es', 'pt-BR', 'en-US', 'en-GB')), -- salida del proyecto; inmutable en app tras INSERT
   author          TEXT,                 -- opcional; captura en wizard con título principal — ver `features/wizard-shared/wizard-shared.md`, `features/wizard-preview/wizard-preview.md`
   archived_at     TIMESTAMPTZ,           -- NULL = no archivado; si set, no cuenta en el límite de 20 activos
