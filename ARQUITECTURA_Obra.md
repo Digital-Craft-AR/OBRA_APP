@@ -320,6 +320,10 @@ CREATE TABLE images (
 );
 ```
 
+### Consistencia de datos (reset, duplicado, export)
+
+Políticas de producto sobre **orden DB ↔ Storage**, **fallos parciales** en reset y duplicado, **export atómico** y **RLS**: ver **`PRD_Obra.md` §3 — Problemas de implementación y políticas de consistencia**. Al implementar Edge Functions, jobs y buckets, documentar en este archivo el **orden concreto** de operaciones y los mecanismos de **idempotencia** / **reintento** adoptados.
+
 ### Row Level Security (RLS)
 Todas las tablas tienen RLS activado. Política base para todas:
 ```sql
