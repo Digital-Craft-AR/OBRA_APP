@@ -1,6 +1,8 @@
-# Obra.app — Project Context for Claude Code
+# Obra.app — Project context
 
-Authoritative product scope: `PRD_Obra.md`. Feature-level specs: `features/wizard-shared/wizard-shared.md`, `features/wizard-ai-generation/wizard-ai-generation.md`, `features/wizard-upload/wizard-upload.md`, `features/wizard-preview/wizard-preview.md`. Technical detail: `ARQUITECTURA_Obra.md`. UI tokens and patterns: `CONVENCIONES.md`.
+**Monorepo:** specs and ops at repo root; **web app** under `obra/` (see `ARQUITECTURA_Obra.md`).
+
+Authoritative product scope: `PRD_Obra.md`. Feature-level specs: `features/wizard-shared/wizard-shared.md`, `features/wizard-ai-generation/wizard-ai-generation.md`, `features/wizard-upload/wizard-upload.md`, `features/wizard-preview/wizard-preview.md` (plus other `features/*` as listed there). Technical detail: `ARQUITECTURA_Obra.md`. UI tokens and patterns: `CONVENCIONES.md`.
 
 ---
 
@@ -54,7 +56,7 @@ One **three-step** stepper for the whole creation flow (`features/wizard-shared/
 2. **Contenido** (Content) — AI milestones and/or upload → alignment → same milestones (`wizard-ai-generation`, `wizard-upload` for the upload slice).
 3. **Vista previa** (Preview) — layout-accurate preview, **image** refinement (slots, cover), and **PDF/ZIP export** with design already applied (`features/wizard-preview/wizard-preview.md`). **Long-form text** is edited in **Contenido** (MVP); Preview is not the primary text surface.
 
-Inner wizard progress (topic, package sub-steps, design) sits **under** step 1 until design is complete.
+Inner wizard progress (topic, avatar/problem, package sub-steps, design) sits **under** step 1 until design is complete.
 
 ---
 
@@ -78,7 +80,7 @@ Upload rules (formats, 10 MB, sync flow, credits, weak prefill): `PRD_Obra.md` �
 - **Backend / data:** Supabase (Auth, PostgreSQL, Storage, Edge Functions)  
 - **AI — text:** Anthropic Claude API  
 - **AI — images:** Google **Gemini API** (Nano Banana / image models per PRD)  
-- **Document parsing:** e.g. mammoth + pdf-parse (no OCR in MVP for scans)  
+- **Document parsing:** text-layer **DOCX** and **PDF** libraries (no OCR in MVP for scans)  
 - **PDF:** Puppeteer (server-side, e.g. Edge Function)  
 - **i18n (UI):** i18next — `es`, `pt-BR`  
 - **Deploy:** Vercel  
@@ -98,7 +100,7 @@ Typical tables: users/profiles, projects (`content_locale`, optional **`author`*
 
 ## Brand & design system (app shell)
 
-**CRITICAL:** Import design tokens from `src/lib/tokens.ts`. Do not use ad-hoc colors for UI.
+**CRITICAL:** Import design tokens from `obra/src/lib/tokens.ts` once the app exists. Do not use ad-hoc colors for UI.
 
 - Navy base **#204970** — sidebar/nav **obra-blue-900**, flat, no gradient  
 - Main area: white; cards: white with **obra-blue-100** border  
@@ -108,28 +110,16 @@ Typical tables: users/profiles, projects (`content_locale`, optional **`author`*
 - Buttons: pill (`border-radius: 9999px`) — on dark: green fill + dark text; on light: blue fill + white text  
 - **No gradients** in the app shell  
 
-Full token rules: `CONVENCIONES.md` and `tokens.ts`.
+Full token rules: `CONVENCIONES.md` and `obra/src/lib/tokens.ts`.
 
 ---
 
 ## Engineering rules
 
-- **Zero hardcoding:** no stray colors, sizes, user-visible strings, or styles inline. Use `tokens.ts`, `src/components/ui/`, or i18n keys (`i18n.ts` / locale JSON). Add abstractions when missing.
+- **Zero hardcoding:** no stray colors, sizes, user-visible strings, or styles inline. Use `obra/src/lib/tokens.ts`, `obra/src/components/ui/`, and i18n resources under `obra/src/`. Add abstractions when missing.
 - **Styling:** follow `CONVENCIONES.md` and project Cursor rules. Do not style bare HTML element selectors (`h1`, `p`, etc.) in global CSS outside `@layer base`—see existing comment in this file re: Tailwind v4 specificity.
 - **Prompts / UX copy:** AI and product prompts should assume the project design system where relevant.
-- **Documentation updates (after meaningful work):**
-  - `ESTADO_ACTUAL.md` — current platform state (not a changelog)
-  - `CLAUDE.md` — stack, design rules, or this context summary
-  - `ARQUITECTURA_Obra.md` — DB, folders, infra
-  - `PRD_Obra.md` — when product scope changes
-  - `CONVENCIONES.md` — tokens/patterns
-  - `ONBOARDING.md` — setup changes
-
----
-
-## Working modules (implementation status)
-
-Track what is actually built in **`ESTADO_ACTUAL.md`**, not only in this file. Typical areas: auth (Supabase), dashboard, wizard shell, content flows, editor, export.
+- **Documentation updates (after meaningful work):** `CLAUDE.md`, `ARQUITECTURA_Obra.md`, `PRD_Obra.md`, `CONVENCIONES.md`, `docs/` as relevant, and `ONBOARDING.md` if setup instructions change.
 
 ---
 

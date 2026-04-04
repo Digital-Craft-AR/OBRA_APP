@@ -15,14 +15,14 @@
 | `obra-blue-700` | `#2D6499` | Botones primary, links, acentos |
 | `obra-blue-100` | `#E8F0F7` | Bordes de cards, badges default |
 | `obra-blue-50` | `#F4F8FC` | Fondos sutiles |
-| `obra-green-400` | `#CCFF00` | CTAs, highlights, acento principal |
+| `obra-green-400` | `#C8E62B` | CTAs, highlights, acento principal |
 | `obra-neutral-900` | `#0F2438` | Texto body |
 | `obra-neutral-600` | `#5A7A94` | Texto secundario, captions |
 | `obra-neutral-400` | `#9CA3AF` | Placeholders |
 | `obra-neutral-200` | `#DDE8F0` | Bordes de inputs |
 | `obra-neutral-100` | `#F8FAFB` | Fondo de inputs |
 
-**Fuente de verdad:** `src/lib/tokens.ts` — siempre consultalo antes de usar un color.
+**Fuente de verdad:** `obra/src/lib/tokens.ts` (app dentro del monorepo) — consultalo antes de usar un color.
 
 ### Regla absoluta: Zero hardcoding
 
@@ -30,9 +30,9 @@
 
 | Tipo de valor | Debe venir de |
 |---------------|---------------|
-| Color / tamaño / sombra | Token en `tokens.ts` → clase Tailwind `obra-*` |
-| Componente UI | `src/components/ui/` (Button, Dialog, Card, etc.) |
-| Texto visible | Clave en `src/i18n.ts` via `t('...')` |
+| Color / tamaño / sombra | Token en `obra/src/lib/tokens.ts` → clase Tailwind `obra-*` |
+| Componente UI | `obra/src/components/ui/` (Button, Dialog, Card, etc.) |
+| Texto visible | Recursos i18n del proyecto (p. ej. `t('...')`) — sin strings sueltos en JSX |
 | Valor de lógica | Constante o variable nombrada |
 
 **Nunca:**
@@ -145,14 +145,13 @@ Usar sintaxis Tailwind `/`, nunca `rgba()`:
 
 | Herramienta | Rol |
 |-------------|-----|
-| **Claude Code** | Herramienta principal de desarrollo. TODO se hace acá. |
-| **VSCode** | Editor de código. Solo para leer/navegar archivos. |
-| **Supabase Dashboard** | Administrar DB, auth, storage |
-| **localhost:5173** | Revisar resultados después de cada cambio |
+| **Cursor** | IDE con asistente de código integrado |
+| **Claude Code** | Agente de código en terminal / flujos largos |
+| **VS Code** (u otro editor) | Lectura, diffs y tareas puntuales si aplica |
+| **Supabase** (dashboard) | DB, auth, storage |
+| **Dev server local** (Vite) | Verificar UI después de cambios |
 
-No usamos Cursor. No usamos GitHub Copilot.
-
-### Prompts para Claude Code
+### Prompts para asistentes de código (Cursor, Claude Code, etc.)
 
 **Hacer:**
 - Referenciar tokens por nombre: "usá `obra-blue-900` para el sidebar"
@@ -173,20 +172,21 @@ Nunca agregar estilos a selectores HTML bare (`h1`, `h2`, `p`, `a`, `input`, `bu
 
 CSS global solo para: `@theme` tokens, `:root` custom properties, `@font-face`, y `box-sizing` dentro de `@layer base`.
 
-### Estructura de archivos
+### Monorepo y estructura de archivos
 
-- **Páginas** → `src/pages/NombrePage.tsx`
-- **Componentes UI base** → `src/components/ui/Nombre.tsx`
-- **Componentes de feature** → `src/components/feature/Nombre.tsx`
-- **Lógica de estado** → `src/store/nombreStore.ts` (Zustand)
-- **Servicios/utils** → `src/lib/`
+En la raíz del repo viven **producto y especificaciones** (`PRD_Obra.md`, `features/`, `docs/`, `ARQUITECTURA_Obra.md`, `CLAUDE.md`, este archivo). La **aplicación** vive bajo **`obra/`** (ver `ARQUITECTURA_Obra.md`).
 
-### shadcn/ui
+Dentro de `obra/src/` (convención actual):
 
-```bash
-npx shadcn-ui@latest add <componente>
-```
-Después customizar según el design system de Obra (tokens, colores, pill buttons, etc.)
+- **Rutas / páginas** → `obra/src/app/` (React Router)
+- **Componentes UI base** → `obra/src/components/ui/`
+- **Componentes de feature** → `obra/src/components/<feature>/`
+- **Estado** → `obra/src/store/` (Zustand u otra capa acordada)
+- **Servicios y utilidades** → `obra/src/lib/`
+
+### Componentes UI (shadcn/ui)
+
+Usar **shadcn/ui** como base de primitivos; añadir componentes con **su CLI oficial** y adaptarlos al design system Obra (tokens, botones pill, etc.).
 
 ---
 
@@ -208,7 +208,7 @@ No cambiarlas sin consultar:
 
 ## 🌍 Internacionalización
 
-- La app soporta 3 idiomas de UI: español (`es`), inglés (`en`) y portugués (`pt`)
-- Config en `src/i18n.ts` — los 3 idiomas están completos
-- El selector de idioma vive en el sidebar footer del dashboard
-- Todos los textos visibles al usuario deben usar el sistema de i18n — nunca strings hardcodeados
+- **UI (`ui_locale`):** solo **español (`es`)** y **portugués de Brasil (`pt-BR`)**, alineado a `PRD_Obra.md` §2.
+- Recursos y configuración i18n viven en la app (`obra/src/`, p. ej. `i18n/` + setup en código).
+- El selector de idioma suele vivir en el pie del sidebar del dashboard (o equivalente acordado).
+- Todo texto visible al usuario pasa por i18n — nunca strings hardcodeados en componentes.
