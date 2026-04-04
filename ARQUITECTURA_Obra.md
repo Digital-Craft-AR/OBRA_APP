@@ -89,6 +89,8 @@ OBRA_APP/
 ├── PRD_Obra.md
 ├── ARQUITECTURA_Obra.md
 ├── CONVENCIONES.md
+├── CLAUDE.md                       # Contexto de ingeniería (Cursor, Claude Code, etc.)
+├── features/                       # PRDs por feature (inglés); extienden el PRD maestro
 ├── docs/                           # Ver §1.7
 │   ├── README.md
 │   ├── operations/
@@ -173,8 +175,7 @@ obra/
 │   │   └── index.ts                # Tipos TypeScript globales
 │   │
 │   └── i18n/
-│       ├── es.json                 # Español (LATAM)
-│       └── pt.json                 # Portugués (BR)
+│       └── …                       # Recursos UI `es` y `pt-BR` (nombres de archivo según setup i18next)
 │
 ├── supabase/
 │   └── functions/                  # Edge Functions (Deno)
@@ -609,11 +610,11 @@ Stack: React + Vite + TypeScript, shadcn/ui, Tailwind CSS, Supabase, Zustand, i1
 Reglas absolutas:
 - Todo el código en TypeScript estricto, nunca `any`
 - Componentes funcionales con hooks, nunca clases
-- Estado global solo en Zustand (store/projectStore.ts)
+- Estado global solo en Zustand (p. ej. `obra/src/store/projectStore.ts`)
 - Llamadas a APIs externas SOLO desde Supabase Edge Functions, nunca desde el cliente
 - Estilos solo con Tailwind CSS, nunca CSS inline ni archivos .css separados
 - Todos los textos de UI usan i18next (t('key')), nunca strings hardcodeados
-- Todos los prompts de Claude se definen en src/lib/prompts.ts
+- Prompts de modelo de texto centralizados en `obra/src/lib/prompts.ts` (o capa equivalente)
 - Nombres de archivos: PascalCase para componentes, camelCase para hooks y utils
 - Cada componente tiene su propio archivo, nunca múltiples componentes en un archivo
 - Los Edge Functions se escriben en TypeScript/Deno
@@ -656,7 +657,7 @@ Construir en este orden estricto hasta PDF — cada paso depende del anterior:
 | 6 | Pasos del wizard | StepTopic, StepAvatar, estructura de **paquete**, StepDesign (**defaults** `image_mode` / `image_style`; sin image-generate; sin capítulos del main ebook) | AiAssistField |
 | 7 | Fase Contenido (post-diseño) | Índice/capítulos (IA o upload+alineación) → cuerpo por capítulo → bonuses/bumps | Edge Fns: parse-document (upload), generate-index, generate-content |
 | 8 | Vista previa (paso global 3) | JSON → layouts HTML; slots de imagen; portada IA; cola al abrir; **export-pdf** por entregable + **ZIP** del proyecto; navegación **Edit content** ↔ Contenido | Edge Fns: image-generate, optimize, export-pdf, empaquetado ZIP — ver `features/wizard-preview/wizard-preview.md` |
-| 9 | i18n | ES + PT en toda la UI | Flujo anterior (puede avanzar en paralelo desde ~4) |
+| 9 | i18n | UI `es` + `pt-BR` en toda la app | Flujo anterior (puede avanzar en paralelo desde ~4) |
 | 10 | Plan único y pagos | **Un plan** en v1.0; **Mercado Pago** (AR/BR, moneda local); **créditos** mensuales del plan (sin arrastre) + **top-ups** fijos (acumulan); webhooks → `mercadopago-webhook`, ledger, UI de saldo (PRD §11) | Auth + DB + Edge Functions |
 
 ### Post-MVP (venta en tienda online; p. ej. Shopify)
@@ -683,4 +684,4 @@ No es foco del producto hasta cerrar el núcleo PDF. Orden sugerido:
 
 ---
 
-*Documento de arquitectura técnica. Leer junto con **PRD_Obra.md**, **`features/wizard-shared/wizard-shared.md`** (diseño + defaults de imagen), **`features/wizard-ai-generation/wizard-ai-generation.md`**, **CONVENCIONES.md** y la carpeta **`docs/`** (operaciones, CI, infraestructura) antes de despliegues o cambios transversales.*
+*Documento de arquitectura técnica. Leer junto con **PRD_Obra.md**, **`CLAUDE.md`**, **`features/wizard-shared/wizard-shared.md`** (diseño + defaults de imagen), **`features/wizard-ai-generation/wizard-ai-generation.md`**, **CONVENCIONES.md** y la carpeta **`docs/`** (operaciones, CI, infraestructura) antes de despliegues o cambios transversales.*
