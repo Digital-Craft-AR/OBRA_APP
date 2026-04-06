@@ -1,2 +1,5 @@
 # Claude Code: git worktree copies (large, duplicate node_modules; not the canonical tree)
 .claude/worktrees/
+
+# Supabase CLI local state
+supabase/.temp/

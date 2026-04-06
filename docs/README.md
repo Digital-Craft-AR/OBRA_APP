@@ -7,6 +7,9 @@
 | [operations/incident-runbook.md](operations/incident-runbook.md) | Triage order, provider dashboards, comms rules (PRD §9) |
 | [operations/smoke-test.md](operations/smoke-test.md) | Pre-production manual smoke checklist (PRD §16) |
 | [development/ci-pipeline.md](development/ci-pipeline.md) | E2E / Playwright expectations and open choices (PRD §16) |
+| [development/auth-rls-baseline.md](development/auth-rls-baseline.md) | `creator_profiles` + RLS + auth trigger (#28) |
+| [development/supabase-rls-smoke.md](development/supabase-rls-smoke.md) | Manual RLS isolation checks for `creator_profiles` |
+| [../supabase/README.md](../supabase/README.md) | Supabase folder: migrations and Edge Functions entry |
 | [infrastructure/supabase.md](infrastructure/supabase.md) | Supabase region rationale (LATAM), project ref placeholders, dashboard links, env **names** for local + Vercel Preview/Production — no secrets in git |
 | [infrastructure/vercel.md](infrastructure/vercel.md) | Vercel **Root Directory** `obra`, Vite build/output (`dist`), `VITE_*` env names vs `SUPABASE_*` (#27), Git PR previews — no secrets in git |
 | [architecture/backend.md](architecture/backend.md) | Backend architecture: data, edge functions, and reliability |
