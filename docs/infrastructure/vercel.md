@@ -6,6 +6,14 @@ This document describes how to connect **Vercel** to this repository, configure 
 
 ---
 
+## Vercel project status
+
+**As of last MCP check:** Vercel **`list_projects`** for team **Digital Craft** (`digitalcraftprojects`) shows **no** project dedicated to Obra yet. **Next step:** in Vercel → **Add New… → Project**, import **`Digital-Craft-AR/OBRA_APP`**, set **Root Directory** to **`obra`**, then add env vars (`VITE_SUPABASE_*`) per below. Use a clear project name such as **`obra`** or **`obra-app`**.
+
+After the project exists, you can re-check with Vercel MCP (`list_projects`, `get_project`, deployments tools) instead of hunting the dashboard.
+
+---
+
 ## Monorepo layout
 
 This repository is a **light monorepo**: product specs and engineering docs live at the **repository root** (`PRD_Obra.md`, `features/`, `ARQUITECTURA_Obra.md`, `docs/`, etc.). The **web application** lives under **`obra/`** (React + Vite + TypeScript per architecture).
@@ -57,7 +65,7 @@ The Supabase JS client in the Vite app reads **`import.meta.env`**. Per `ARQUITE
 3. Set **Root Directory** to `obra` and confirm Preview deployments are enabled (default for Git-connected projects).
 4. **Do not** store secrets in the repository (no `.env.production` with real keys in git). Use Vercel’s environment UI per environment.
 
-**Human verification:** Open a test PR and confirm a **Preview** deployment appears in the Vercel dashboard and the deployment URL loads. Confirm **Production** after merging to the production branch (typically `main`). Automated verification from this workspace is not available without Vercel API/dashboard access.
+**Verification:** Open a test PR and confirm a **Preview** deployment appears in the Vercel dashboard and the deployment URL loads. Confirm **Production** after merging to the production branch (typically `main`). With Vercel MCP enabled, use **`list_deployments`** / **`get_deployment`** on the Obra project once it is linked.
 
 ---
 

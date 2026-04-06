@@ -2,7 +2,7 @@
 
 **Aligned with:** PRD §15 (compliance and hosting, user story 66 — explicit region choice), ARQUITECTURA §1.1 (datos/hosting) and §9 (environment variables).
 
-Fill **project identity** fields **after** the Supabase project is created. Do not commit secrets (service role keys, connection strings with passwords, or any key values).
+Do not commit secrets (service role keys, connection strings with passwords, or any key values). **Publishable** project URL and **reference ID** below are safe to version (they appear in client config patterns); **anon** and **service_role** keys stay in secret stores only.
 
 ---
 
@@ -15,13 +15,12 @@ Fill **project identity** fields **after** the Supabase project is created. Do n
 - **Latency:** Primary users in AR/BR benefit from compute and database proximity in a South American region versus US-East or EU defaults.
 - **Privacy narrative:** PRD and architecture call for an **explicit** region choice and subprocessors disclosure; documenting the chosen region here keeps engineering, legal, and the privacy policy aligned (user story 66).
 
-**Decision framework (before the project exists):**
+**At provisioning (or if the region is ever changed):**
 
-1. In [Supabase Dashboard](https://supabase.com/dashboard) → **New project**, list **available regions** for the team’s org/plan.
-2. Prefer **South America** (or the closest named equivalent Supabase offers, e.g. São Paulo–style region slug—**confirm the exact slug in the UI** at provisioning time).
-3. If no LATAM region is available, pick the **closest acceptable** region, record the exception here, and update the privacy/subprocessor narrative with **legal review** (per existing note at the end of this file).
+1. In [Supabase Dashboard](https://supabase.com/dashboard) → project **Settings → General**, confirm **Region** matches the LATAM intent above (or document any approved exception).
+2. If no LATAM region was available when the project was created, record the exception in the [Project identity](#project-identity) table and update the privacy/subprocessor narrative with **legal review** (per note at end of file).
 
-**After provisioning:** Replace placeholders in [Project identity](#project-identity) with the real **project ref** and **region display name / slug** from Supabase Settings → General.
+**MCP note:** The Supabase MCP connection exposes the project API URL (used to derive **project ref** below). It does **not** return the dashboard **region** label; copy the region string from **Settings → General** into this doc when you need a single written source of truth for legal/PRD alignment.
 
 ---
 
@@ -30,14 +29,15 @@ Fill **project identity** fields **after** the Supabase project is created. Do n
 
 | Field                           | Value                                                                 |
 | ------------------------------- | --------------------------------------------------------------------- |
-| **Supabase project name**       | *e.g. `obra-production` — set at creation*                            |
-| **Project ref** (dashboard URL) | **TBD — set after provisioning** (Settings → General → Reference ID) |
-| **Region**                      | **TBD — set after provisioning** (target: LATAM / South America per above) |
-| **Organization**                | *Supabase org name — set after provisioning*                          |
+| **Supabase project name**       | **obra** (per team; confirm display name in dashboard if it differs)   |
+| **Project ref** (Reference ID)  | `vkdnsraoqxtdxxhxirhk`                                                |
+| **Project API URL**             | `https://vkdnsraoqxtdxxhxirhk.supabase.co` (same value as `VITE_SUPABASE_URL` / `SUPABASE_URL`) |
+| **Region**                      | **Confirm in dashboard** — Settings → General → Region (target: LATAM / South America per above) |
+| **Organization**                | *Set to your Supabase org display name when documenting for ops*     |
 
-**Dashboard links (after ref is known):**
+**Dashboard links:**
 
-- **Project home:** `https://supabase.com/dashboard/project/<project-ref>`
+- **Project home:** `https://supabase.com/dashboard/project/vkdnsraoqxtdxxhxirhk`
 - **API settings (URL, anon key reference — copy values only into secret stores):** Project → **Settings** → **API**
 - **Database:** Project → **Database**
 - **Edge Functions:** Project → **Edge Functions**
