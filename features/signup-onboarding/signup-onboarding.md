@@ -169,6 +169,11 @@ If subscription is **not valid** (e.g. renewal failed per product policy): user 
 
 - Uses **Supabase Auth** change-email flows. On **pending verification**, entitlement resolver returns **`verify_email`** (or dedicated shell type behaviorally identical: **no** checkout, **no** top-up, **no** product). **Subscription** remains on **`user_id`**.
 
+### OAuth and identity linking (engineering handoff)
+
+- **Google (or other OAuth):** when Supabase marks the provider email as verified, `email_confirmed_at` is set and the client **skips** the `verify_email` shell (issue #34).
+- **Link / unlink providers:** implemented with **Supabase Auth** (`linkIdentity`, dashboard settings). The **account settings** UI and detailed unlink rules live in the **profile** epic (#18 / #44). **Duplicate `user_ids`** for the same person stay **support-handled** in v1.0 (no self-serve merge).
+
 ### Security and abuse
 
 - **Rate limits** on **resend verification** and **refresh/reconcile** triggers align with master PRD **model B** (technical baseline; exact thresholds not fixed here).

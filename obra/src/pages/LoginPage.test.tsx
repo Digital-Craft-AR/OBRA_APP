@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
@@ -29,7 +29,10 @@ function renderLogin(options: { session?: unknown; loading?: boolean } = {}) {
         <AuthContext.Provider value={{ session: session as never, loading }}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/app" element={<div data-testid="app-landed">app</div>} />
+            <Route path="/app" element={<Outlet />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<div data-testid="app-landed">app</div>} />
+            </Route>
           </Routes>
         </AuthContext.Provider>
       </MemoryRouter>

@@ -5,7 +5,7 @@ import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 
-export function LoginPage() {
+export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { session, loading } = useAuth();
@@ -13,7 +13,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [oauthBusy, setOauthBusy] = useState(false);
+  const [checkEmailOnly, setCheckEmailOnly] = useState(false);
 
   if (!loading && session) {
     return <Navigate to="/app" replace />;
@@ -23,35 +23,46 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const { error: signError } = await supabase.auth.signInWithPassword({
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { data, error: signError } = await supabase.auth.signUp({
       email,
       password,
+      options: { emailRedirectTo: redirectTo },
     });
     setBusy(false);
     if (signError) {
-      const msg = signError.message.toLowerCase();
-      if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
-        setError(t("auth.emailNotConfirmed"));
-        return;
-      }
-      setError(t("auth.error"));
+      setError(t("auth.registerError"));
       return;
     }
-    void navigate("/app", { replace: true });
+    if (data.session) {
+      void navigate("/app", { replace: true });
+      return;
+    }
+    setCheckEmailOnly(true);
   }
 
-  async function onGoogleClick() {
-    setError(null);
-    setOauthBusy(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    setOauthBusy(false);
-    if (oauthError) {
-      setError(t("auth.oauthStartError"));
-    }
+  if (checkEmailOnly) {
+    return (
+      <div className="flex min-h-screen flex-col bg-white">
+        <header className="border-b border-obra-blue-100 px-6 py-4">
+          <Link
+            to="/"
+            className="font-[family-name:var(--font-display)] text-lg font-semibold text-obra-blue-900"
+          >
+            {t("app.name")}
+          </Link>
+        </header>
+        <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12">
+          <p className="max-w-md text-center text-sm text-obra-neutral-600">{t("auth.registerCheckEmail")}</p>
+          <Link
+            to="/login"
+            className="text-sm font-medium text-obra-blue-700 underline-offset-4 hover:underline"
+          >
+            {t("auth.backToLogin")}
+          </Link>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -70,25 +81,8 @@ export function LoginPage() {
           className="w-full max-w-sm space-y-4 rounded-2xl border border-obra-blue-100 bg-white p-8 shadow-sm"
         >
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-obra-blue-900">
-            {t("nav.login")}
+            {t("auth.registerTitle")}
           </h1>
-          <Button
-            type="button"
-            variant="primary"
-            className="w-full"
-            disabled={busy || oauthBusy}
-            onClick={() => void onGoogleClick()}
-          >
-            {oauthBusy ? t("auth.working") : t("auth.continueWithGoogle")}
-          </Button>
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <span className="w-full border-t border-obra-neutral-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-2 text-xs text-obra-neutral-600">{t("auth.orDivider")}</span>
-            </div>
-          </div>
           <label className="block space-y-1">
             <span className="text-sm text-obra-neutral-600">{t("auth.email")}</span>
             <input
@@ -104,10 +98,11 @@ export function LoginPage() {
             <span className="text-sm text-obra-neutral-600">{t("auth.password")}</span>
             <input
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               value={password}
               onChange={(ev) => setPassword(ev.target.value)}
               required
+              minLength={8}
               className="w-full rounded-full border border-obra-neutral-200 bg-obra-neutral-100 px-4 py-2.5 text-sm outline-none ring-obra-blue-700 focus:ring-2"
             />
           </label>
@@ -116,15 +111,12 @@ export function LoginPage() {
               {error}
             </p>
           ) : null}
-          <Button type="submit" variant="cta" className="w-full" disabled={busy || oauthBusy}>
-            {busy ? t("auth.working") : t("auth.submit")}
+          <Button type="submit" variant="cta" className="w-full" disabled={busy}>
+            {busy ? t("auth.working") : t("auth.registerSubmit")}
           </Button>
           <p className="text-center text-sm text-obra-neutral-600">
-            <Link
-              to="/register"
-              className="font-medium text-obra-blue-700 underline-offset-4 hover:underline"
-            >
-              {t("auth.needAccount")}
+            <Link to="/login" className="font-medium text-obra-blue-700 underline-offset-4 hover:underline">
+              {t("auth.haveAccount")}
             </Link>
           </p>
         </form>
