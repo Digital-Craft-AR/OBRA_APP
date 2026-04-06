@@ -27,13 +27,14 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 ## Project identity
 
 
-| Field                           | Value                                                                 |
-| ------------------------------- | --------------------------------------------------------------------- |
-| **Supabase project name**       | **obra** (per team; confirm display name in dashboard if it differs)   |
-| **Project ref** (Reference ID)  | `spmnqozkpjhcskxnavbf`                                                |
-| **Project API URL**             | `https://spmnqozkpjhcskxnavbf.supabase.co` (same value as `VITE_SUPABASE_URL` / `SUPABASE_URL`) |
-| **Region**                      | **Confirm in dashboard** — Settings → General → Region (target: LATAM / South America per above) |
-| **Organization**                | *Set to your Supabase org display name when documenting for ops*     |
+| Field                          | Value                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Supabase project name**      | **obra** (per team; confirm display name in dashboard if it differs)                             |
+| **Project ref** (Reference ID) | `spmnqozkpjhcskxnavbf`                                                                           |
+| **Project API URL**            | `https://spmnqozkpjhcskxnavbf.supabase.co` (same value as `VITE_SUPABASE_URL` / `SUPABASE_URL`)  |
+| **Region**                     | **Confirm in dashboard** — Settings → General → Region (target: LATAM / South America per above) |
+| **Organization**               | *Set to your Supabase org display name when documenting for ops*                                 |
+
 
 **Dashboard links:**
 
@@ -41,7 +42,7 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 - **API settings (URL, anon key reference — copy values only into secret stores):** Project → **Settings** → **API**
 - **Database:** Project → **Database**
 - **Edge Functions:** Project → **Edge Functions**
-- **Auth:** Project → **Authentication**
+- **Auth:** Project → **Authentication** (Google OAuth setup: [auth-google-oauth.md](../development/auth-google-oauth.md))
 - **Storage:** Project → **Storage**
 - **Status / incidents:** [Supabase status](https://status.supabase.com/)
 
@@ -49,28 +50,34 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 
 ## Environment variables (names only)
 
-**Convention (Obra frontend):** The stack is **React + Vite** (`CLAUDE.md`, `ARQUITECTURA_Obra.md` §9). Public client config uses the **`VITE_` prefix** so Vite exposes them to the browser build. Do **not** add a `VITE_` prefix to secrets that must never ship to the client.
+**Convention (Obra frontend):** The stack is **React + Vite** (`CLAUDE.md`, `ARQUITECTURA_Obra.md` §9). Public client config uses the `**VITE_` prefix** so Vite exposes them to the browser build. Do **not** add a `VITE_` prefix to secrets that must never ship to the client.
 
-| Variable                 | Client (browser) | Purpose |
-| ------------------------ | ---------------- | ------- |
-| `VITE_SUPABASE_URL`      | Yes              | Supabase project URL (HTTPS). |
+
+| Variable                 | Client (browser) | Purpose                                                              |
+| ------------------------ | ---------------- | -------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`      | Yes              | Supabase project URL (HTTPS).                                        |
 | `VITE_SUPABASE_ANON_KEY` | Yes              | Supabase **anon** public key; safe for client with **RLS** enforced. |
+
 
 **Service role (server / Edge only):**
 
-| Variable                     | Client (browser) | Purpose |
-| ---------------------------- | ---------------- | ------- |
-| `SUPABASE_SERVICE_ROLE_KEY`  | **Never**        | Bypasses RLS; **only** Supabase Edge Functions, trusted server jobs, or CI secrets—**never** Vite, never Vercel env vars consumed by the SPA bundle. Configure via **Supabase Dashboard** (Edge Function secrets) or your server secret store—not in `.env` files committed to git. |
 
-If the codebase later introduces **server-side** calls on **Vercel** (e.g. Route Handlers) that need admin access, mirror the same rule: store the service role only in Vercel **server** secrets, never as `VITE_*`.
+| Variable                    | Client (browser) | Purpose                                                                                                                                                                                                                                                                             |
+| --------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Never**        | Bypasses RLS; **only** Supabase Edge Functions, trusted server jobs, or CI secrets—**never** Vite, never Vercel env vars consumed by the SPA bundle. Configure via **Supabase Dashboard** (Edge Function secrets) or your server secret store—not in `.env` files committed to git. |
+
+
+If the codebase later introduces **server-side** calls on **Vercel** (e.g. Route Handlers) that need admin access, mirror the same rule: store the service role only in Vercel **server** secrets, never as `VITE_`*.
 
 ### Matrix: where to set each name (values = secret stores only)
 
-| Name                         | Local dev              | Vercel Preview | Vercel Production |
-| ---------------------------- | ---------------------- | -------------- | ----------------- |
-| `VITE_SUPABASE_URL`          | `.env.local` (or team-standard local file; gitignored) | Project → Settings → Environment Variables → **Preview** | Same → **Production** |
-| `VITE_SUPABASE_ANON_KEY`     | `.env.local` (gitignored) | Preview        | Production        |
-| `SUPABASE_SERVICE_ROLE_KEY`  | Not in frontend `.env`; only where Edge/local Deno tooling expects it (e.g. Supabase CLI secrets / Dashboard) | Only if a **server** workload on Vercel needs it (unusual for default Obra shape); never for static SPA env | Same as Preview |
+
+| Name                        | Local dev                                                                                                     | Vercel Preview                                                                                              | Vercel Production     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------- |
+| `VITE_SUPABASE_URL`         | `.env.local` (or team-standard local file; gitignored)                                                        | Project → Settings → Environment Variables → **Preview**                                                    | Same → **Production** |
+| `VITE_SUPABASE_ANON_KEY`    | `.env.local` (gitignored)                                                                                     | Preview                                                                                                     | Production            |
+| `SUPABASE_SERVICE_ROLE_KEY` | Not in frontend `.env`; only where Edge/local Deno tooling expects it (e.g. Supabase CLI secrets / Dashboard) | Only if a **server** workload on Vercel needs it (unusual for default Obra shape); never for static SPA env | Same as Preview       |
+
 
 **Preview vs Production:** Use **separate** Supabase projects if you want data isolation between staging and production; otherwise use one project and accept shared data (not recommended for production-like QA). Document the team choice next to the table when decided.
 
@@ -103,12 +110,13 @@ Buckets (fill when defined):
 Issue **#27** calls out these **logical** names for documentation and non-Vite tooling (values only in secret stores):
 
 - `SUPABASE_URL` — project API URL  
-- `SUPABASE_ANON_KEY` — anon (public) key  
+- `SUPABASE_ANON_KEY` — anon (public) key
 
-The **Vite** app under `obra/` must use the **`VITE_` prefix** so the client bundle receives them: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (same values as above). See [`vercel.md`](vercel.md) for Preview vs Production on Vercel (issue **#30**).
+The **Vite** app under `obra/` must use the `**VITE_` prefix** so the client bundle receives them: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (same values as above). See `[vercel.md](vercel.md)` for Preview vs Production on Vercel (issue **#30**).
 
 ---
 
 ## Notes
 
 - If region choice changes before launch, update this file and the privacy / subprocessors list with legal review.
+
