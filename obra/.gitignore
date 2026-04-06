@@ -1,4 +1,5 @@
 # Local overrides (secrets, machine-specific)
+.env
 .env.local
 .env.*.local
 
