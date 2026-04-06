@@ -8,12 +8,14 @@ Fill this file **after** the Supabase project is created. Do not commit secrets 
 
 ## Project identity
 
-| Field | Value |
-| ----- | ----- |
-| **Supabase project name** | _e.g. obra-production_ |
-| **Project ref** (dashboard URL) | _e.g. `abcdefghijklmnop` — from Supabase Settings → General_ |
-| **Region** | _Target: LATAM (e.g. South America) — confirm available regions in dashboard_ |
-| **Organization** | _Supabase org name_ |
+
+| Field                           | Value                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| **Supabase project name**       | *e.g. obra-production*                                                        |
+| **Project ref** (dashboard URL) | *e.g. `abcdefghijklmnop` — from Supabase Settings → General*                  |
+| **Region**                      | *Target: LATAM (e.g. South America) — confirm available regions in dashboard* |
+| **Organization**                | *Supabase org name*                                                           |
+
 
 ---
 
@@ -33,10 +35,11 @@ Buckets (fill when defined):
 ## External logical backups
 
 - Scheduled `pg_dump` or native export to encrypted storage outside the single production account (PRD §15 D).
-- **Storage objects:** sync or export strategy — _TBD automation details_.
+- **Storage objects:** sync or export strategy — *TBD automation details*.
 
 ---
 
 ## Notes
 
 - If region choice changes before launch, update this file and the privacy / subprocessors list with legal review.
+

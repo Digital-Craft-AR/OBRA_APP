@@ -1,3 +1,63 @@
+# Obra architecture (hub)
+
+**Version:** 2.0  
+**Date:** April 2026  
+**Stack:** React + Vite + TypeScript · Supabase · Claude API · Gemini API · Vercel
+
+This file is the architecture entry point. Detailed implementation is split by domain:
+
+- Backend architecture: [`docs/architecture/backend.md`](docs/architecture/backend.md)
+- Frontend architecture: [`docs/architecture/frontend.md`](docs/architecture/frontend.md)
+- Business logic architecture: [`docs/architecture/business_logic.md`](docs/architecture/business_logic.md)
+- Canonical project/ebook data model (shared appendix): [`docs/architecture/project-ebook-data-model.md`](docs/architecture/project-ebook-data-model.md)
+
+## 1) System summary
+
+Obra uses a browser frontend (React) that talks to Supabase for auth, data, storage, and Edge Functions.
+External providers (Claude, Gemini, Puppeteer, Mercado Pago webhooks) are integrated from backend functions only, never from the client.
+
+```text
+Browser (React/Vite)
+  -> Supabase (Auth + Postgres + Storage + Edge Functions)
+    -> Claude API (text)
+    -> Gemini API (images)
+    -> Puppeteer (PDF)
+    -> Mercado Pago webhooks
+```
+
+## 2) Domain split
+
+### Backend
+
+Owns data persistence, RLS, storage paths, edge-function orchestration, idempotency, and operational reliability.
+
+Read: [`docs/architecture/backend.md`](docs/architecture/backend.md)
+
+### Frontend
+
+Owns route/module composition, state management, i18n rendering, wizard/editor/preview UX, and client-side quality constraints.
+
+Read: [`docs/architecture/frontend.md`](docs/architecture/frontend.md)
+
+### Business logic
+
+Owns lifecycle and invariant rules across the three-step journey (Structure, Content, Preview), including phase transitions, reset/duplicate semantics, and credit-success behavior.
+
+Read: [`docs/architecture/business_logic.md`](docs/architecture/business_logic.md)
+
+## 3) Primary references
+
+- Product source of truth: [`PRD_Obra.md`](PRD_Obra.md)
+- Feature-level specs:
+  - [`features/wizard-shared/wizard-shared.md`](features/wizard-shared/wizard-shared.md)
+  - [`features/wizard-ai-generation/wizard-ai-generation.md`](features/wizard-ai-generation/wizard-ai-generation.md)
+  - [`features/wizard-upload/wizard-upload.md`](features/wizard-upload/wizard-upload.md)
+  - [`features/wizard-preview/wizard-preview.md`](features/wizard-preview/wizard-preview.md)
+- UI rules and tokens: [`CONVENCIONES.md`](CONVENCIONES.md)
+- Engineering context: [`CLAUDE.md`](CLAUDE.md)
+- Operational docs index: [`docs/README.md`](docs/README.md)
+
+When product and architecture docs diverge, `PRD_Obra.md` and feature specs win for product behavior.
 # Arquitectura Técnica — Obra (obra.app)
 **Versión:** 1.1  
 **Fecha:** Abril 2026  
@@ -245,21 +305,36 @@ CREATE TABLE profiles (
 );
 
 -- Proyectos: máx. 20 activos por usuario (archived_at IS NULL AND deleted_at IS NULL); archivados ilimitados
+-- Wizard / journey: no global stepper index on this table (PRD_Obra.md §3); derive from domain + structure_completed_at.
+-- content_locale, author, topic, problem, target_avatar: single source of truth on project; join ebooks → projects for IA / export context (no duplicate columns on ebooks).
 CREATE TABLE projects (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID REFERENCES profiles(id) ON DELETE CASCADE,
   name            TEXT NOT NULL,
   status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'modified')), -- respecto del último export; ver PRD_Obra.md §3
   content_locale  TEXT NOT NULL CHECK (content_locale IN ('es', 'pt-BR', 'en-US', 'en-GB')), -- salida del proyecto; inmutable en app tras INSERT
-  author          TEXT,                 -- opcional; captura en wizard con título principal — ver `features/wizard-shared/wizard-shared.md`, `features/wizard-preview/wizard-preview.md`
+  content_source  TEXT NOT NULL CHECK (content_source IN ('ai', 'upload')), -- chosen at project creation; wizard-upload vs AI content path
+  author          TEXT,                 -- optional; wizard main-title step — see wizard-shared, wizard-preview
+  topic           TEXT,                 -- wizard topic step; long-form input for IA prompts
+  problem         TEXT,                 -- reader / avatar problem statement; wizard + content IA
+  target_avatar   JSONB,                -- audience persona JSON; canonical on project — join from ebooks via project_id
+  structure_completed_at TIMESTAMPTZ,   -- NULL until Structure + design promoted to design_systems + ebook package; not the 3-step UI index
   archived_at     TIMESTAMPTZ,           -- NULL = no archivado; si set, no cuenta en el límite de 20 activos
   deleted_at      TIMESTAMPTZ,           -- NULL = no en papelera; si set, soft delete — hard delete tras 30 días (job programado)
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Draft wizard payload (hybrid C): JSON until user completes Design; then promote to projects + design_systems + ebooks and delete or clear this row.
+-- Optimistic concurrency: UPDATE ... SET payload = $p, updated_at = now() WHERE project_id = $id AND updated_at = $client_seen; if 0 rows, return 409 Conflict.
+CREATE TABLE project_structure_drafts (
+  project_id UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  payload    JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Sistema de diseño (1 por proyecto)
--- Campos adicionales del paso Diseño (tamaño de página, orientación, preset, notas, etc.): ver `features/wizard-shared/wizard-shared.md`
+-- Extra Design-step fields: wizard-shared (page, preset, style notes, image defaults).
 CREATE TABLE design_systems (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id      UUID REFERENCES projects(id) ON DELETE CASCADE UNIQUE,
@@ -268,26 +343,77 @@ CREATE TABLE design_systems (
   color_accent    TEXT NOT NULL,      -- 10% — hex
   font_display    TEXT NOT NULL,      -- Google Font para títulos
   font_body       TEXT NOT NULL,      -- Google Font para cuerpo
+  page_size       TEXT NOT NULL,      -- e.g. A4, Letter — export / preview
+  page_orientation TEXT NOT NULL CHECK (page_orientation IN ('portrait', 'landscape')),
+  preset_id       TEXT,                -- NULL when fully custom
+  is_custom_from_preset BOOLEAN NOT NULL DEFAULT false,
+  style_notes     TEXT,
   image_mode      TEXT,               -- ai_assisted | placeholders_first — defaults del wizard; ver wizard-shared
-  image_style     TEXT                -- catálogo alineado a PRD_Obra §6; entradas al pipeline de preview/imagen
+  image_style     TEXT,               -- catálogo alineado a PRD_Obra §6; entradas al pipeline de preview/imagen
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Ebooks: máx. 1 main + 5 bonus + 2 order_bump por proyecto (v1.0; validar en app o triggers)
+-- Locale, author, persona, problem: read from projects via project_id (no duplication).
 CREATE TABLE ebooks (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id    UUID REFERENCES projects(id) ON DELETE CASCADE,
   type          TEXT NOT NULL CHECK (type IN ('main', 'bonus', 'order_bump')),
   title         TEXT,
   subtitle      TEXT,
-  target_avatar JSONB,                -- { description, age, pains, desires }
-  html_content  TEXT,                 -- HTML generado final
+  layout_template_html TEXT,          -- optional per-ebook HTML shell / placeholders; canonical body text lives in chapters.content; full page for PDF = compose template + chapter bodies (see wizard-preview)
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX ebooks_one_main_per_project ON ebooks (project_id) WHERE (type = 'main');
+-- Package limits (MVP): enforce in app/API for UX and in DB as final guard.
+-- Suggested trigger policy on INSERT/UPDATE of ebooks:
+--   - reject if main count > 1
+--   - reject if bonus count > 5
+--   - reject if order_bump count > 2
+-- Keep product limits centralized in one DB function to avoid drift with API constants.
 
--- Capítulos de cada ebook
+-- Content-phase orchestration (wizard-ai-generation / wizard-upload): one row per project once Structure is done.
+-- Cursor + index freeze; not a substitute for chapter body storage (chapters table). Optimistic concurrency: UPDATE ... WHERE updated_at = $seen.
+-- Phase CHECK is authoritative in DB; extend only via migration when product adds/renames milestones.
+-- Semantics: upload_alignment = upload branch only (content_source = upload) through Approve alignment; main_index = AI path TOC before chapter loop; main_chapter = main ebook chapter loop (both branches after index freeze / alignment).
+CREATE TABLE project_content_progress (
+  project_id            UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  current_phase         TEXT NOT NULL CHECK (current_phase IN (
+                            'upload_alignment',
+                            'main_index',
+                            'main_chapter',
+                            'bonus',
+                            'order_bump',
+                            'complete'
+                          )),
+  main_index_frozen_at  TIMESTAMPTZ,       -- set when user leaves index / approves alignment (wizard-ai-generation)
+  current_ebook_id      UUID REFERENCES ebooks(id) ON DELETE SET NULL,
+  current_chapter_id    UUID REFERENCES chapters(id) ON DELETE SET NULL,
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Upload branch: manuscript binary in Storage; metadata here for RLS, clone (copy blob to new path), replace, and trash/purge ordering.
+-- At most one "current" row per project (superseded_at IS NULL). On replace: insert new row, set previous.superseded_at, then delete old object from Storage (see PRD consistency ordering).
+CREATE TABLE project_manuscripts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  storage_path    TEXT NOT NULL,
+  mime            TEXT NOT NULL,
+  byte_size       BIGINT NOT NULL CHECK (byte_size > 0 AND byte_size <= 10485760), -- PRD_Obra.md §4: 10 MB max
+  checksum_sha256 TEXT,
+  uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  superseded_at   TIMESTAMPTZ              -- NULL = active manuscript for parse/alignment; set when user replaces file
+);
+
+CREATE UNIQUE INDEX project_manuscripts_one_current_per_project
+  ON project_manuscripts (project_id)
+  WHERE (superseded_at IS NULL);
+
+-- Capítulos de cada ebook (main, bonus, order_bump ebooks all use this table when content is chapter-scoped).
+-- User approval per unit (wizard-ai-generation): set approved_at when the user explicitly approves that chapter; NULL = draft / not yet approved.
 CREATE TABLE chapters (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ebook_id    UUID REFERENCES ebooks(id) ON DELETE CASCADE,
@@ -295,8 +421,44 @@ CREATE TABLE chapters (
   title       TEXT NOT NULL,
   content     TEXT,                   -- Contenido en markdown o HTML
   image_id    UUID,                   -- FK a images (nullable)
+  approved_at TIMESTAMPTZ,            -- NULL until user approves this chapter in Contenido flow
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Contenido scoped chat (wizard-ai-generation): separate threads per PRD — index chat vs per-chapter chat; no cross-artifact leakage.
+-- chapter_id IS NULL: exactly one thread per project = "main index / TOC" chat (exists before chapter rows are created).
+-- chapter_id set: one thread per chapter row (main, bonus, or order_bump ebook chapters).
+CREATE TABLE content_chat_threads (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  chapter_id  UUID REFERENCES chapters(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX content_chat_threads_one_main_index
+  ON content_chat_threads (project_id)
+  WHERE (chapter_id IS NULL);
+
+CREATE UNIQUE INDEX content_chat_threads_one_per_chapter
+  ON content_chat_threads (chapter_id)
+  WHERE (chapter_id IS NOT NULL);
+
+-- Persist user turns server-side with idempotency (MVP): client sends `client_message_id`; server inserts once per thread.
+-- Persist assistant turns only after the stream completes (MVP): INSERT one row per completed assistant reply; stream is a client UX concern.
+CREATE TABLE content_chat_messages (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  thread_id   UUID NOT NULL REFERENCES content_chat_threads(id) ON DELETE CASCADE,
+  client_message_id TEXT,             -- required for role='user' in API contract; unique per thread for retries
+  role        TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX content_chat_messages_thread_created ON content_chat_messages (thread_id, created_at);
+CREATE UNIQUE INDEX content_chat_messages_thread_client_msg_unique
+  ON content_chat_messages (thread_id, client_message_id)
+  WHERE (client_message_id IS NOT NULL);
 
 -- Landing pages
 CREATE TABLE landing_pages (
@@ -321,9 +483,62 @@ CREATE TABLE images (
 );
 ```
 
+### Wizard-related persistence (summary)
+
+- **No** `wizard_context` blob on `projects`: use `topic`, `problem`, `target_avatar`, `author`, and `content_locale` as first-class columns.
+- **`content_source`** and **`structure_completed_at`** live on `projects` only; the global three-step position is still **not** stored (see `PRD_Obra.md` §3).
+- **`project_structure_drafts`**: in-progress Structure wizard state until design is committed; then promote in a transaction to `projects`, `design_systems`, and `ebooks`, and remove or clear the draft row. **Optimistic locking** on **`updated_at`** (same pattern as `project_content_progress`); no last-write-wins silent overwrite.
+- **`ebooks`**: no duplicate of `content_locale`, `author`, `problem`, or `target_avatar`; load **`projects`** by `ebooks.project_id` (or fetch project once per request). Avatar/problem reset updates **`projects`** only; clear dependent content per `PRD_Obra.md` §3.
+- **`project_content_progress`**: single row per project for **Contenido** milestone cursor (`current_phase` with **Postgres `CHECK`** on allowed values), optional `current_ebook_id` / `current_chapter_id`, **`main_index_frozen_at`**, and **`updated_at`** for optimistic locking. Allowed phases: `upload_alignment`, `main_index`, `main_chapter`, `bonus`, `order_bump`, `complete` — align app enums and PRDs (`wizard-ai-generation`, `wizard-upload`). **App** must set initial phase by `content_source` (upload → `upload_alignment`; ai → `main_index`).
+- **Create `project_content_progress` in the same DB transaction** that sets **`projects.structure_completed_at`**, promotes **`project_structure_drafts`** into canonical `projects` / `design_systems` / `ebooks`, and deletes or clears the draft row. **Invariant:** if `structure_completed_at IS NOT NULL`, a **`project_content_progress` row must exist** for that `project_id`. Do not lazy-insert on first navigation unless the transaction above failed and a repair job runs idempotently.
+- **`project_manuscripts`**: one **active** row per project (`superseded_at` NULL) for upload branch; `storage_path` in bucket; **replace** = new row + supersede previous + delete old object per PRD ordering. Supports **project clone** (copy file to new path + new row).
+- **`chapters.approved_at`**: per-chapter **Contenido** approval timestamp (`wizard-ai-generation`); applies to chapters under **main, bonus, or order_bump** ebooks. Do not duplicate approval state in `project_content_progress` beyond the cursor. Single-chapter bonuses/bumps: one chapter row with `approved_at` when done.
+- **Main ebook TOC (table of contents):** persist as **`chapters` rows** on the **main** `ebook` as soon as the user **confirms the index** (AI path) or **approves alignment** (upload path): `order`, `title`, `content` NULL or empty until generated/prefilled; **`approved_at`** is set when the user **approves that chapter’s body**, not when the TOC is confirmed. **Index freeze** is **`project_content_progress.main_index_frozen_at`** (and phase transition to `main_chapter`), not a separate TOC table. **Reopen index** edits these rows (with PRD confirmation flows when bodies already exist).
+- **`content_chat_threads` / `content_chat_messages`:** **Contenido** IA chat only (`wizard-ai-generation`). **`chapter_id` NULL** → single **main-index** thread per `project_id`. **`chapter_id` set** → one thread per **chapter** (main, bonus, or bump). **Upload alignment** UX has **no** persistent project-wide chat in MVP per `wizard-upload`; do not overload these threads for alignment unless product extends the PRD. **User turn persistence (MVP):** server inserts `role='user'` with `client_message_id` idempotency (unique per `thread_id`) after request acceptance; retries must not duplicate rows or charges. **Streaming (MVP):** insert **`assistant` rows only when the generation finishes** (full `content`); no per-chunk DB updates. Mid-stream recovery is client-side or out of scope unless product adds partial/cancel rows later.
+- **Avatar/problem reset (confirmed, `PRD_Obra.md` §3):** After clearing dependent **content** and **storage** per product rules, **delete all `content_chat_threads`** for the project (**CASCADE** removes `content_chat_messages`). **No** chat archive in MVP — avoids stale assistant context against wiped chapters.
+
 ### Consistencia de datos (reset, duplicado, export)
 
 Políticas de producto sobre **orden DB ↔ Storage**, **fallos parciales** en reset y duplicado, **export atómico** y **RLS**: ver **`PRD_Obra.md` §3 — Problemas de implementación y políticas de consistencia**. Al implementar Edge Functions, jobs y buckets, documentar en este archivo el **orden concreto** de operaciones y los mecanismos de **idempotencia** / **reintento** adoptados.
+
+### Duplicate project (data checklist, MVP)
+
+Aligned with **`PRD_Obra.md` §3** (new `project_id`, `draft`, localized name suffix, land on **Content** step 2, **no** shared Storage pointers for binaries).
+
+**Copy (new UUIDs; maintain internal FK map old → new):**
+
+| Domain | Action |
+|--------|--------|
+| `projects` | New row: wizard fields, `content_source`, `structure_completed_at` as in source, `status = draft`, clear export-related semantics per PRD |
+| `design_systems` | One row for new project |
+| `ebooks` | All rows for source project |
+| `chapters` | All rows; remap `ebook_id`; remap `image_id` if images copied |
+| `project_content_progress` | One row; remap `current_ebook_id` / `current_chapter_id` to **new** ids |
+| `project_manuscripts` | **Active** row only (`superseded_at` NULL): new row + **physical copy** of object to a new `storage_path` under **new** `project_id` |
+| `images` | Rows + **copy** blobs to new paths (no shared `storage_path` with source) |
+| `project_structure_drafts` | Copy only if present (source still in Structure); usually empty when duplicating from dashboard |
+
+**Do not copy:** subscription / credits ledger; “export published” history as published state on the clone.
+
+**`content_chat_threads` / `content_chat_messages`:** **Do not copy** for MVP — the clone starts **without** IA chat history so prompts and assistant context do not carry over as if they were the same project. Revisit if product wants full transcript parity.
+
+**Ordering / failure:** implement **Storage copies first or DB-first** with a documented rollback strategy; duplicate must be **idempotent** or guarded against double-submit (`PRD_Obra.md` §3).
+
+**Duplicate idempotency (MVP):** accept an **idempotency key** (header or body) per user; if the same key replayed within a TTL, return the **same** new `project_id` and **201** (or **200** with body) without a second clone. Alternatively, guard with **unique (user_id, client_request_id)** on a small `duplicate_jobs` table. Prevents double-click / retry storms.
+
+### Avatar/problem reset (confirmed) — operation order (MVP)
+
+Aligned with **`PRD_Obra.md` §3** (clear text milestones and images; **delete** DB refs and Storage for preview/export assets; **do not** auto-delete or replace **upload manuscript** binary — user uses **Replace file** if needed).
+
+Recommended **happy-path** order (adjust if your Edge Function uses a compensating saga):
+
+1. **Delete `content_chat_threads`** for `project_id` (CASCADE drops `content_chat_messages`) — removes index + chapter threads without depending on chapter deletes.
+2. **Null or remove chapter-bound assets:** clear `chapters.image_id` / detach slots as needed, then delete **`images`** rows for `project_id` and **delete** corresponding **Storage** objects (or mark tombstone + async purge — document chosen pattern).
+3. **Clear or delete `chapters`** (and any TOC rows) for project ebooks per product rules; reset **`project_content_progress`** to the **initial** Content phase for this `content_source` (`upload_alignment` vs `main_index`), clear **`main_index_frozen_at`**, **`current_ebook_id`**, **`current_chapter_id`**, bump **`updated_at`** for optimistic clients.
+4. **Persist new `target_avatar` / `problem`** on **`projects`** (and apply **`published` → `modified`** if applicable per PRD).
+5. **Commit** before reporting success; on failure, **do not** tell the user the reset succeeded (`PRD_Obra.md` §3).
+
+**Note:** If step 2–3 are split across requests, define **one** authoritative server entrypoint for reset so the client cannot observe half-cleared state without recovery.
 
 ### Row Level Security (RLS)
 Todas las tablas tienen RLS activado. Política base para todas:
@@ -481,7 +696,7 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 { "ebook_id": "uuid", "format": "A4" }
 ```
 **Proceso:**
-1. Recuperar `html_content` del ebook
+1. Componer HTML exportable: `layout_template_html` (si existe) + contenido de `chapters` / modelo canónico de render según `wizard-preview`
 2. Lanzar Puppeteer headless
 3. Renderizar HTML con fonts y assets
 4. Exportar PDF
