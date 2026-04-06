@@ -1,8 +1,8 @@
 # Business logic architecture (Obra)
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Last update:** April 2026  
-**Scope:** Domain flows, invariants, lifecycle rules, and cross-layer contracts.
+**Scope:** Domain flows, invariants, lifecycle rules, cross-layer contracts, and UI route guard derivation.
 
 ## 1) Domain model intent
 
@@ -110,6 +110,36 @@ When duplicating a project:
 - **Frontend**: drives user intent and phase transitions with validated UX actions.
 - **Backend**: enforces final invariants (DB checks, RLS, idempotency, operation ordering).
 - **Business logic**: defines what is allowed and when transitions can happen.
+
+## 9) Global journey step vs persistence (route guards)
+
+The **three-step UI** (Structure → Content → Preview) is **not** stored as an index on `projects`. Derive the active global step from:
+
+- `projects.structure_completed_at`
+- `project_content_progress.current_phase`
+
+### 9.1 Canonical mapping (MVP)
+
+| Condition | Global UI step | Allowed workspace path segment | Notes |
+|-----------|----------------|--------------------------------|--------|
+| `structure_completed_at IS NULL` | Structure (1) | `.../structure` only | User completes Structure + design promotion in this step. |
+| `structure_completed_at IS NOT NULL` AND `current_phase <> 'complete'` | Content (2) | `.../content` | Sub-routes under Content are owned by feature modules (`wizard-ai-generation`, `wizard-upload`). |
+| `structure_completed_at IS NOT NULL` AND `current_phase = 'complete'` | Preview (3) | `.../preview` | Aligns with preview as post–Content milestones ([`../../features/wizard-preview/wizard-preview.md`](../../features/wizard-preview/wizard-preview.md)). |
+
+If the user opens a **deeper URL** than allowed (e.g. `/preview` while still in Structure), the frontend **redirects** to the allowed segment and explains briefly (non-blocking). Implementation: single resolver shared across routes — see [`frontend.md`](frontend.md) §8.
+
+### 9.2 Inconsistent rows (error surface)
+
+**Invariant** (see [`../../ARQUITECTURA_Obra.md`](../../ARQUITECTURA_Obra.md)): when `structure_completed_at` is set, a `project_content_progress` row **must** exist for that `project_id`.
+
+If the client observes `structure_completed_at` set **without** a progress row:
+
+- **Do not** silently pick a global step or mutate data to “fix” it from the browser.
+- Show an **explicit error/recovery** state (support message, reload, or trigger server-side repair if one exists).
+
+### 9.3 `current_phase` detail
+
+Allowed values and initialization (`upload` vs `ai`) remain as in §3. The table above only addresses **global** workspace routing; internal Content milestones still follow `current_phase`, cursors, and feature PRDs.
 
 Related docs:
 
