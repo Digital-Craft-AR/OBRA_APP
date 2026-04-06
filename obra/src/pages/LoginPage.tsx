@@ -13,6 +13,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
 
   if (!loading && session) {
     return <Navigate to="/app" replace />;
@@ -34,6 +35,20 @@ export function LoginPage() {
     void navigate("/app", { replace: true });
   }
 
+  async function onGoogleClick() {
+    setError(null);
+    setOauthBusy(true);
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    setOauthBusy(false);
+    if (oauthError) {
+      setError(t("auth.oauthStartError"));
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="border-b border-obra-blue-100 px-6 py-4">
@@ -52,6 +67,23 @@ export function LoginPage() {
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-obra-blue-900">
             {t("nav.login")}
           </h1>
+          <Button
+            type="button"
+            variant="primary"
+            className="w-full"
+            disabled={busy || oauthBusy}
+            onClick={() => void onGoogleClick()}
+          >
+            {oauthBusy ? t("auth.working") : t("auth.continueWithGoogle")}
+          </Button>
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <span className="w-full border-t border-obra-neutral-200" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-2 text-xs text-obra-neutral-600">{t("auth.orDivider")}</span>
+            </div>
+          </div>
           <label className="block space-y-1">
             <span className="text-sm text-obra-neutral-600">{t("auth.email")}</span>
             <input
@@ -79,7 +111,7 @@ export function LoginPage() {
               {error}
             </p>
           ) : null}
-          <Button type="submit" variant="cta" className="w-full" disabled={busy}>
+          <Button type="submit" variant="cta" className="w-full" disabled={busy || oauthBusy}>
             {busy ? t("auth.working") : t("auth.submit")}
           </Button>
         </form>
