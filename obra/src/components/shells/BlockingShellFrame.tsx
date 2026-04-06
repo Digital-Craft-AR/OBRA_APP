@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
+import { shellPanelClass } from "@/lib/uiClasses";
 
 type BlockingShellFrameProps = {
   titleKey: string;
@@ -23,10 +24,7 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
     <div className="flex min-h-screen flex-col bg-white">
       <header className="border-b border-obra-blue-100 px-6 py-4">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <Link
-            to="/"
-            className="font-[family-name:var(--font-display)] text-lg font-semibold text-obra-blue-900"
-          >
+          <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
             {t("app.name")}
           </Link>
           <Button
@@ -40,8 +38,8 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
         </div>
       </header>
       <main className="flex flex-1 flex-col items-center px-6 py-12">
-        <div className="w-full max-w-lg space-y-6 rounded-2xl border border-obra-blue-100 bg-white p-8 shadow-sm">
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-obra-blue-900">
+        <div className={shellPanelClass}>
+          <h1 className="font-display text-2xl font-bold text-obra-blue-950">
             {t(titleKey)}
           </h1>
           {children}

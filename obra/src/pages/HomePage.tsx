@@ -7,7 +7,7 @@ export function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6">
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-obra-blue-900">
+      <h1 className="font-display text-3xl font-bold text-obra-blue-950">
         {t("app.name")}
       </h1>
       <p className="max-w-md text-center text-obra-neutral-600">{t("home.lead")}</p>

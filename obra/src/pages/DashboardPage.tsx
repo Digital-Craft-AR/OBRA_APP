@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
+import { contentCardClass } from "@/lib/uiClasses";
 
 type ProfileRow = {
   id: string;
@@ -43,8 +44,8 @@ export function DashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-white">
-      <aside className="flex w-56 flex-col bg-obra-blue-900 px-4 py-6 text-white">
-        <span className="font-[family-name:var(--font-display)] text-lg font-semibold">
+      <aside className="flex w-sidebar flex-col bg-obra-blue-900 px-4 py-6 text-white">
+        <span className="font-display text-lg font-semibold">
           {t("app.name")}
         </span>
         <nav className="mt-8 flex flex-col gap-2 text-sm">
@@ -65,7 +66,7 @@ export function DashboardPage() {
         </div>
       </aside>
       <main className="flex flex-1 flex-col gap-6 p-10">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-obra-blue-900">
+        <h1 className="font-display text-2xl font-bold text-obra-blue-950">
           {t("dashboard.title")}
         </h1>
         <p className="text-obra-neutral-600">{t("dashboard.welcome")}</p>
@@ -76,7 +77,7 @@ export function DashboardPage() {
             {error}
           </p>
         ) : profile ? (
-          <div className="max-w-lg rounded-2xl border border-obra-blue-100 p-6">
+          <div className={contentCardClass}>
             <p className="text-sm text-obra-neutral-600">{t("dashboard.field.id")}</p>
             <p className="font-mono text-sm text-obra-neutral-900">{profile.id}</p>
             <p className="mt-4 text-sm text-obra-neutral-600">

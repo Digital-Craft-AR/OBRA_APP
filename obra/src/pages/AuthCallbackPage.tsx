@@ -70,10 +70,7 @@ export function AuthCallbackPage() {
     return (
       <div className="flex min-h-screen flex-col bg-white">
         <header className="border-b border-obra-blue-100 px-6 py-4">
-          <Link
-            to="/"
-            className="font-[family-name:var(--font-display)] text-lg font-semibold text-obra-blue-900"
-          >
+          <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
             {t("app.name")}
           </Link>
         </header>
