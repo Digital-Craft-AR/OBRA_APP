@@ -83,6 +83,21 @@ describe("LoginPage", () => {
     });
   });
 
+  it("shows popup-blocked copy when OAuth reports a blocked popup", async () => {
+    signInWithOAuth.mockResolvedValue({ error: { message: "Popup blocked by browser" } });
+    const user = userEvent.setup();
+    renderLogin();
+    const main = screen.getByRole("main");
+
+    await user.click(within(main).getByRole("button", { name: /continuar con google/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        i18n.t("auth.oauthPopupBlocked", { lng: "es" }),
+      );
+    });
+  });
+
   it("submits email/password and navigates to /app on success", async () => {
     const user = userEvent.setup();
     renderLogin();

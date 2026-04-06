@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
+import { mapSignUpErrorToKey } from "@/auth/registerErrors";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -31,7 +32,8 @@ export function RegisterPage() {
     });
     setBusy(false);
     if (signError) {
-      setError(t("auth.registerError"));
+      const key = mapSignUpErrorToKey(signError.message);
+      setError(t(`auth.${key}`));
       return;
     }
     if (data.session) {

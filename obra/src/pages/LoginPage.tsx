@@ -50,6 +50,11 @@ export function LoginPage() {
     });
     setOauthBusy(false);
     if (oauthError) {
+      const om = oauthError.message.toLowerCase();
+      if (om.includes("popup") || om.includes("blocked")) {
+        setError(t("auth.oauthPopupBlocked"));
+        return;
+      }
       setError(t("auth.oauthStartError"));
     }
   }
