@@ -20,7 +20,7 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 1. In [Supabase Dashboard](https://supabase.com/dashboard) → project **Settings → General**, confirm **Region** matches the LATAM intent above (or document any approved exception).
 2. If no LATAM region was available when the project was created, record the exception in the [Project identity](#project-identity) table and update the privacy/subprocessor narrative with **legal review** (per note at end of file).
 
-**MCP note:** The Supabase MCP connection exposes the project API URL (used to derive **project ref** below). It does **not** return the dashboard **region** label; copy the region string from **Settings → General** into this doc when you need a single written source of truth for legal/PRD alignment.
+**MCP note:** Cursor’s **Supabase MCP** must be linked to this same project ref (`spmnqozkpjhcskxnavbf`) in **Cursor Settings → MCP** (re-auth or select project) so tools like `get_project_url` match this doc. The MCP does **not** return the dashboard **region** label; copy the region string from **Settings → General** into this doc when you need a single written source of truth for legal/PRD alignment.
 
 ---
 
@@ -30,14 +30,14 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 | Field                           | Value                                                                 |
 | ------------------------------- | --------------------------------------------------------------------- |
 | **Supabase project name**       | **obra** (per team; confirm display name in dashboard if it differs)   |
-| **Project ref** (Reference ID)  | `vkdnsraoqxtdxxhxirhk`                                                |
-| **Project API URL**             | `https://vkdnsraoqxtdxxhxirhk.supabase.co` (same value as `VITE_SUPABASE_URL` / `SUPABASE_URL`) |
+| **Project ref** (Reference ID)  | `spmnqozkpjhcskxnavbf`                                                |
+| **Project API URL**             | `https://spmnqozkpjhcskxnavbf.supabase.co` (same value as `VITE_SUPABASE_URL` / `SUPABASE_URL`) |
 | **Region**                      | **Confirm in dashboard** — Settings → General → Region (target: LATAM / South America per above) |
 | **Organization**                | *Set to your Supabase org display name when documenting for ops*     |
 
 **Dashboard links:**
 
-- **Project home:** `https://supabase.com/dashboard/project/vkdnsraoqxtdxxhxirhk`
+- **Project home:** `https://supabase.com/dashboard/project/spmnqozkpjhcskxnavbf`
 - **API settings (URL, anon key reference — copy values only into secret stores):** Project → **Settings** → **API**
 - **Database:** Project → **Database**
 - **Edge Functions:** Project → **Edge Functions**
