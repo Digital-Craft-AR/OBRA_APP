@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 import { shellPanelClass } from "@/lib/uiClasses";
@@ -25,9 +25,7 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className={shellPanelClass}>
           <div className="flex items-center justify-between gap-4 border-b border-obra-blue-100 pb-4">
-            <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
-              {t("app.name")}
-            </Link>
+            <ObraLogoLink />
             <Button
               type="button"
               variant="ghost"

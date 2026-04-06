@@ -5,6 +5,7 @@ import { useAuth } from "@/auth/authContext";
 import { mapSignUpErrorToKey } from "@/auth/registerErrors";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
+import { AuthFlowHeader } from "@/components/obra/AuthFlowHeader";
 import { authCardClass, inputFieldClass } from "@/lib/uiClasses";
 
 export function RegisterPage() {
@@ -47,11 +48,7 @@ export function RegisterPage() {
   if (checkEmailOnly) {
     return (
       <div className="flex min-h-screen flex-col bg-obra-blue-50">
-        <header className="border-b border-obra-blue-100 px-6 py-4">
-          <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
-            {t("app.name")}
-          </Link>
-        </header>
+        <AuthFlowHeader />
         <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12">
           <p className="max-w-md text-center text-sm text-obra-neutral-600">{t("auth.registerCheckEmail")}</p>
           <Link
@@ -67,11 +64,7 @@ export function RegisterPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-obra-blue-50">
-      <header className="border-b border-obra-blue-100 px-6 py-4">
-        <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
-          {t("app.name")}
-        </Link>
-      </header>
+      <AuthFlowHeader />
       <main className="flex flex-1 items-center justify-center px-6 py-12">
         <form onSubmit={(e) => void onSubmit(e)} className={authCardClass}>
           <h1 className="font-display text-2xl font-bold text-obra-blue-950">
