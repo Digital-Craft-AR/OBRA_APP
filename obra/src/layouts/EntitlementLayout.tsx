@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
+import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
 import { EntitlementProvider, useEntitlement } from "@/entitlement/EntitlementProvider";
 
 function EntitlementGate() {
@@ -8,16 +10,13 @@ function EntitlementGate() {
   const { targetPath, loading, loadError } = useEntitlement();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-obra-blue-50 text-obra-neutral-600">
-        {t("common.loading")}
-      </div>
-    );
+    return <AuthFlowLoading variant="fullscreen" />;
   }
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-obra-blue-50 px-6">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-obra-blue-50 px-6">
+        <ObraLogoLink to="/" imgClassName="h-11 w-auto max-w-[220px] object-contain" />
         <p className="max-w-md text-center text-sm text-red-600" role="alert">
           {t("entitlement.profileError")}
         </p>

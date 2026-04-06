@@ -5,6 +5,8 @@ import {
   classifyOAuthCallbackError,
   formatOAuthCallbackUserMessage,
 } from "@/auth/oauthCallbackErrors";
+import { AuthFlowHeader } from "@/components/obra/AuthFlowHeader";
+import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -69,11 +71,7 @@ export function AuthCallbackPage() {
   if (message) {
     return (
       <div className="flex min-h-screen flex-col bg-obra-blue-50">
-        <header className="border-b border-obra-blue-100 px-6 py-4">
-          <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
-            {t("app.name")}
-          </Link>
-        </header>
+        <AuthFlowHeader />
         <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12">
           <p className="max-w-md text-center text-sm text-red-600" role="alert">
             {message}
@@ -89,9 +87,5 @@ export function AuthCallbackPage() {
     );
   }
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-obra-blue-50 px-6">
-      <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p>
-    </div>
-  );
+  return <AuthFlowLoading variant="fullscreen" />;
 }

@@ -11,10 +11,9 @@ export const buttonBaseClass = [
   "disabled:pointer-events-none disabled:opacity-40",
 ].join(" ");
 
-const greenPrimary =
-  "bg-obra-green-400 text-obra-blue-950 hover:brightness-105";
+const greenPrimary = "bg-obra-green-400 text-obra-blue-950 hover:brightness-105";
 
-/** `primary` and `cta` are the main Obra CTA (green). `secondary` is blue for alternate actions (e.g. OAuth). */
+/** `primary` / `cta` — main green CTA. `secondary` — blue (e.g. OAuth). */
 export const buttonVariantClass = {
   primary: greenPrimary,
   cta: greenPrimary,
