@@ -66,12 +66,13 @@ Los tokens se exponen como utilidades Tailwind via `@theme` en `index.css`. Usá
 ### Botones
 
 - **Forma:** Pill shape siempre (`rounded-full` / `border-radius: 9999px`)
-- **Solo 4 variantes — no se permiten otras:**
+- **Variantes permitidas (no inventar otras en componentes):**
 
 | Variante | Background | Texto | Hover | Uso |
 |----------|-----------|-------|-------|-----|
-| `primary` | `obra-blue-700` | blanco | `obra-blue-900` | Acciones principales sobre fondo claro (equiv. Figma **secondary**) |
-| `cta` | `obra-green-400` | `obra-blue-950` | `brightness-105` | Call-to-action (equiv. Figma **primary**) |
+| `primary` | `obra-green-400` | `obra-blue-950` | `brightness-105` | CTA principal (alias: `cta`) |
+| `cta` | igual que `primary` | — | — | Mismo estilo; nombre legado |
+| `secondary` | `obra-blue-700` | blanco | `obra-blue-900` | Acción alternativa (p. ej. OAuth sobre fondo claro) |
 | `ghost` | transparente | `obra-blue-700` | `obra-blue-50` | Borde `obra-blue-700`; secundario / cancelar (equiv. Figma **tertiary**) |
 | `ghostDark` | transparente | blanco | `white/10` | Borde `white/20`; solo sobre `obra-blue-900` (sidebar) |
 | `destructive` | `red-500` | blanco | `red-600` | Acciones de eliminación/peligro |

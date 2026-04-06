@@ -17,7 +17,7 @@ export function HomePage() {
         </Link>
         <Link
           to="/register"
-          className={`${buttonBaseClass} ${buttonVariantClass.primary}`}
+          className={`${buttonBaseClass} ${buttonVariantClass.secondary}`}
         >
           {t("home.ctaRegister")}
         </Link>

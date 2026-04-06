@@ -11,10 +11,14 @@ export const buttonBaseClass = [
   "disabled:pointer-events-none disabled:opacity-40",
 ].join(" ");
 
-/** Color variants aligned with `figma_make/src/app/components/obra/button.tsx` (primary=green, secondary=blue, tertiary=bordered). */
+const greenPrimary =
+  "bg-obra-green-400 text-obra-blue-950 hover:brightness-105";
+
+/** `primary` and `cta` are the main Obra CTA (green). `secondary` is blue for alternate actions (e.g. OAuth). */
 export const buttonVariantClass = {
-  primary: "bg-obra-blue-700 text-white hover:bg-obra-blue-900",
-  cta: "bg-obra-green-400 text-obra-blue-950 hover:brightness-105",
+  primary: greenPrimary,
+  cta: greenPrimary,
+  secondary: "bg-obra-blue-700 text-white hover:bg-obra-blue-900",
   ghost: "bg-transparent text-obra-blue-700 border border-obra-blue-700 hover:bg-obra-blue-50",
   destructive: "bg-red-500 text-white hover:bg-red-600",
   /** Sidebar / dark surfaces (obra-blue-900); not in Figma CVA but same pill + border language. */
