@@ -13,26 +13,30 @@
 
 ## E2E (Playwright)
 
-| Topic | Recommendation |
-| ----- | -------------- |
-| **Scope** | 1–3 stable flows (e.g. login, create project, one wizard step). |
-| **AI** | Prefer **mocked** AI responses in CI; optional staging job with real APIs and cost cap. |
-| **Secrets** | Staging Supabase URL, anon key, test user credentials — store as CI secrets, never in the repo. |
-| **Blocking** | Do not block MVP on a perfect pipeline; add gates as flakiness drops. |
+
+| Topic        | Recommendation                                                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| **Scope**    | 1–3 stable flows (e.g. login, create project, one wizard step).                                 |
+| **AI**       | Prefer **mocked** AI responses in CI; optional staging job with real APIs and cost cap.         |
+| **Secrets**  | Staging Supabase URL, anon key, test user credentials — store as CI secrets, never in the repo. |
+| **Blocking** | Do not block MVP on a perfect pipeline; add gates as flakiness drops.                           |
+
 
 ---
 
 ## Open decisions (record here when closed)
 
-| Decision | Options | Chosen |
-| -------- | ------- | ------ |
-| When to run E2E | On every PR / on merge to `main` / nightly only | _TBD_ |
-| Required checks for merge | Lint only / Lint + E2E | _TBD_ |
-| Staging environment | Dedicated Supabase project vs preview deploy | _TBD_ |
+
+| Decision                  | Options                                         | Chosen |
+| ------------------------- | ----------------------------------------------- | ------ |
+| When to run E2E           | On every PR / on merge to `main` / nightly only | *TBD*  |
+| Required checks for merge | Lint only / Lint + E2E                          | *TBD*  |
+| Staging environment       | Dedicated Supabase project vs preview deploy    | *TBD*  |
+
 
 ---
 
 ## Related
 
-- Repository layout: `e2e/` (see `ARQUITECTURA_Obra.md` §2.1).
+- Repository layout: `e2e/` (see [`../architecture/frontend.md`](../architecture/frontend.md)).
 - Manual smoke checklist remains mandatory before production deploys (PRD §16).
