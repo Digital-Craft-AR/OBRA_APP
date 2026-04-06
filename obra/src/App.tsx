@@ -2,6 +2,7 @@ import { Route, Routes, Navigate } from "react-router-dom";
 import { ProtectedLayout } from "@/layouts/ProtectedLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { HomePage } from "@/pages/HomePage";
+import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
 import { LoginPage } from "@/pages/LoginPage";
 
 export function App() {
@@ -9,6 +10,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route element={<ProtectedLayout />}>
         <Route path="/app" element={<DashboardPage />} />
       </Route>

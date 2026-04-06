@@ -8,6 +8,7 @@
 | [operations/smoke-test.md](operations/smoke-test.md) | Pre-production manual smoke checklist (PRD §16) |
 | [development/ci-pipeline.md](development/ci-pipeline.md) | E2E / Playwright expectations and open choices (PRD §16) |
 | [development/auth-rls-baseline.md](development/auth-rls-baseline.md) | `creator_profiles` + RLS + auth trigger (#28) |
+| [development/auth-google-oauth.md](development/auth-google-oauth.md) | Google OAuth: Supabase + GCP redirects, Vercel callbacks, identity linking (#83) |
 | [development/supabase-rls-smoke.md](development/supabase-rls-smoke.md) | Manual RLS isolation checks for `creator_profiles` |
 | [../supabase/README.md](../supabase/README.md) | Supabase folder: migrations and Edge Functions entry |
 | [infrastructure/supabase.md](infrastructure/supabase.md) | Supabase region rationale (LATAM), project ref placeholders, dashboard links, env **names** for local + Vercel Preview/Production — no secrets in git |
