@@ -2,10 +2,15 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
+import { GoogleIcon } from "@/components/obra/GoogleIcon";
+import { ObraInput } from "@/components/obra/ObraInput";
+import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
-import { AuthFlowHeader } from "@/components/obra/AuthFlowHeader";
-import { authCardClass, inputFieldClass } from "@/lib/uiClasses";
+import { authCardClass } from "@/lib/uiClasses";
+
+const footerLinkClass =
+  "cursor-pointer border-0 bg-transparent p-0 font-body text-xs text-obra-neutral-400 hover:text-obra-neutral-600";
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -62,70 +67,89 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-obra-blue-50">
-      <AuthFlowHeader />
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
-        <form onSubmit={(e) => void onSubmit(e)} className={authCardClass}>
-          <h1 className="font-display text-2xl font-bold text-obra-blue-950">
-            {t("nav.login")}
-          </h1>
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            disabled={busy || oauthBusy}
-            onClick={() => void onGoogleClick()}
-          >
-            {oauthBusy ? t("auth.working") : t("auth.continueWithGoogle")}
-          </Button>
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <span className="w-full border-t border-obra-neutral-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-obra-blue-50 px-2 text-xs text-obra-neutral-600">{t("auth.orDivider")}</span>
-            </div>
-          </div>
-          <label className="block space-y-1">
-            <span className="text-label text-obra-neutral-600">{t("auth.email")}</span>
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(ev) => setEmail(ev.target.value)}
-              required
-              className={inputFieldClass}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-label text-obra-neutral-600">{t("auth.password")}</span>
-            <input
+    <main className="flex min-h-screen w-full flex-col items-center justify-center bg-obra-blue-50 p-6 font-body">
+      <form onSubmit={(e) => void onSubmit(e)} className={authCardClass} noValidate>
+        <div className="flex justify-center">
+          <ObraLogoLink to="/" imgClassName="h-10 w-auto max-w-[200px] object-contain" />
+        </div>
+
+        <div className="text-center">
+          <h1 className="font-display text-xl text-obra-blue-950">{t("nav.login")}</h1>
+          <p className="mt-1 font-body text-sm text-obra-neutral-600">{t("auth.loginSubtitle")}</p>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <ObraInput
+            label={t("auth.email")}
+            type="email"
+            autoComplete="email"
+            placeholder={t("auth.emailPlaceholder")}
+            value={email}
+            onChange={(ev) => setEmail(ev.target.value)}
+            required
+          />
+          <div className="flex flex-col gap-1">
+            <ObraInput
+              label={t("auth.password")}
               type="password"
               autoComplete="current-password"
+              placeholder={t("auth.passwordPlaceholder")}
               value={password}
               onChange={(ev) => setPassword(ev.target.value)}
               required
-              className={inputFieldClass}
             />
-          </label>
-          {error ? (
-            <p className="text-sm text-red-600" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <Button type="submit" variant="cta" className="w-full" disabled={busy || oauthBusy}>
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="font-body text-xs text-obra-blue-700 hover:underline"
+              >
+                {t("auth.forgotPassword")}
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex flex-col gap-3">
+          <Button type="submit" variant="secondary" className="w-full" disabled={busy || oauthBusy}>
             {busy ? t("auth.working") : t("auth.submit")}
           </Button>
-          <p className="text-center text-sm text-obra-neutral-600">
-            <Link
-              to="/register"
-              className="font-medium text-obra-blue-700 underline-offset-4 hover:underline"
-            >
-              {t("auth.needAccount")}
-            </Link>
-          </p>
-        </form>
-      </main>
-    </div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full gap-2"
+            disabled={busy || oauthBusy}
+            onClick={() => void onGoogleClick()}
+          >
+            <GoogleIcon />
+            {oauthBusy ? t("auth.working") : t("auth.continueWithGoogle")}
+          </Button>
+        </div>
+
+        <p className="text-center text-sm text-obra-neutral-600">
+          {t("auth.needAccountLead")}{" "}
+          <Link
+            to="/register"
+            className="font-medium text-obra-blue-700 underline-offset-4 hover:underline"
+          >
+            {t("auth.signUpLink")}
+          </Link>
+        </p>
+
+        <div className="flex justify-center gap-5 border-t border-obra-blue-100 pt-4">
+          <button type="button" className={footerLinkClass}>
+            {t("auth.terms")}
+          </button>
+          <button type="button" className={footerLinkClass}>
+            {t("auth.privacy")}
+          </button>
+        </div>
+      </form>
+    </main>
   );
 }

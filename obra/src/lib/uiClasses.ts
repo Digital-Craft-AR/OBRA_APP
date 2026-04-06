@@ -2,9 +2,9 @@
  * Canonical layout / surface classes aligned with CONVENCIONES.md and Figma design system tokens.
  */
 
-/** Single auth/register/login form card */
+/** Auth card — matches Figma login (`figma_make` / mac-latte figma.site): rounded-2xl, p-10, flex gap-6 */
 export const authCardClass =
-  "w-full max-w-auth-card space-y-4 rounded-card border border-obra-blue-100 bg-white p-8 shadow-card";
+  "flex w-full max-w-auth-card flex-col gap-6 rounded-2xl border border-obra-blue-100 bg-white p-10 shadow-card";
 
 /** Text inputs (not buttons — those stay pill / rounded-full) */
 export const inputFieldClass =

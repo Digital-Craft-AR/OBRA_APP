@@ -7,14 +7,16 @@ import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { RegisterPage } from "@/pages/RegisterPage";
 
-const { signUp } = vi.hoisted(() => ({
+const { signUp, signInWithOAuth } = vi.hoisted(() => ({
   signUp: vi.fn(),
+  signInWithOAuth: vi.fn(),
 }));
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
     auth: {
       signUp,
+      signInWithOAuth,
     },
   },
 }));
@@ -38,7 +40,9 @@ function renderRegister(options: { session?: unknown; loading?: boolean } = {}) 
 describe("RegisterPage", () => {
   beforeEach(() => {
     signUp.mockReset();
+    signInWithOAuth.mockReset();
     signUp.mockResolvedValue({ data: { session: null }, error: null });
+    signInWithOAuth.mockResolvedValue({ error: null });
   });
 
   it("submits signUp with emailRedirectTo pointing at auth callback", async () => {

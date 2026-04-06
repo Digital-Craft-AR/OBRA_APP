@@ -105,7 +105,7 @@ describe("LoginPage", () => {
 
     await user.type(within(main).getByLabelText(/correo/i), "a@b.co");
     await user.type(within(main).getByLabelText(/contraseña/i), "secretpass");
-    await user.click(within(main).getByRole("button", { name: /^entrar$/i }));
+    await user.click(within(main).getByRole("button", { name: /iniciar sesión/i }));
 
     await waitFor(() => {
       expect(signInWithPassword).toHaveBeenCalledWith({
