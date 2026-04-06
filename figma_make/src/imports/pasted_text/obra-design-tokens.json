@@ -1,0 +1,164 @@
+Obra.app — Design System & Core Components for Figma Make                                                                                                                             
+                                               
+  Brand feel: Notion meets Canva. Editorial, clean, professional. LATAM SaaS for infoproduct creators. Navy blue + tennis ball green. Zero gradients, zero decoration anywhere.         
+   
+  ---                                                                                                                                                                                   
+  COLORS                                                          
+        
+  Create a color styles library with these exact values:
+                                                                                                                                                                                        
+  obra-blue-950 / #0F2438 — primary text, darkest shade                                                                                                                                 
+  obra-blue-900 / #204970 — sidebar and nav background                                                                                                                                  
+  obra-blue-700 / #2D6499 — primary buttons, links, focus rings                                                                                                                         
+  obra-blue-100 / #E8F0F7 — card borders, default badge backgrounds
+  obra-blue-50 / #F4F8FC — subtle page backgrounds                                                                                                                                      
+  obra-green-400 / #C8E62B — CTA buttons, key highlights, credit badge
+  obra-neutral-900 / #0F2438 — body text                                                                                                                                                
+  obra-neutral-600 / #5A7A94 — secondary text, captions, metadata 
+  obra-neutral-400 / #9CA3AF — placeholder text                                                                                                                                         
+  obra-neutral-200 / #DDE8F0 — input borders                                                                                                                                            
+  obra-neutral-100 / #F8FAFB — input backgrounds                                                                                                                                        
+  white / #FFFFFF — main content area background (pure, no tint)                                                                                                                        
+                                                                                                                                                                                        
+  ---                                                             
+  TYPOGRAPHY                                                                                                                                                                            
+                                                                  
+  Two font families only. Create text styles for each level.
+                                                                                                                                                                                        
+  Display font: Fraunces (serif, expressive) — used for page titles, section headings, ebook-related headings                                                                           
+  Body font: Plus Jakarta Sans (geometric sans) — used for all UI, labels, body copy, captions                                                                                          
+                                                                                                                                                                                        
+  Text styles to create:                                          
+  Page Title — Fraunces, 24px, Bold, obra-blue-950                                                                                                                                      
+  Section Title — Plus Jakarta Sans, 18px, Semibold, obra-blue-950                                                                                                                      
+  Body — Plus Jakarta Sans, 14px, Regular, obra-neutral-900
+  Body Strong — Plus Jakarta Sans, 14px, Semibold, obra-neutral-900                                                                                                                     
+  Caption — Plus Jakarta Sans, 12px, Regular, obra-neutral-600    
+  Label — Plus Jakarta Sans, 13px, Medium, obra-blue-950                                                                                                                                
+  Button Text — Plus Jakarta Sans, 14px, Semibold                 
+                                                                                                                                                                                        
+  Absolute rule: 14px minimum for any body text. 12px only for captions and metadata.                                                                                                   
+                                                                                                                                                                                        
+  ---                                                                                                                                                                                   
+  SPACING                                                         
+         
+  Base unit: 4px. All spacing values must be multiples of 4. Create spacing tokens: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64. No arbitrary values.
+                                                                                                                                                                                        
+  ---
+  BORDER RADIUS                                                                                                                                                                         
+                                                                  
+  input — 8px
+  card — 12px
+  button — 9999px (pill, always)
+  badge — 9999px (pill, always)                                                                                                                                                         
+  modal — 16px                                                                                                                                                                          
+                                                                                                                                                                                        
+  ---                                                                                                                                                                                   
+  SHADOWS                                                         
+         
+  shadow-card — 0px 1px 3px rgba(15,36,56,0.08), 0px 1px 2px rgba(15,36,56,0.04)
+  shadow-card-hover — 0px 4px 12px rgba(15,36,56,0.12), 0px 2px 4px rgba(15,36,56,0.06)                                                                                                 
+  shadow-sm — 0px 1px 2px rgba(15,36,56,0.06)                                                                                                                                           
+                                                                                                                                                                                        
+  ---                                                                                                                                                                                   
+  COMPONENTS TO BUILD                                             
+                                                                                                                                                                                        
+  Build each as a Figma component with all variants and states documented.
+                                                                                                                                                                                        
+  BUTTON                                                          
+  Shape: pill (border-radius 9999px). Height: 40px. Horizontal padding: 20px.                                                                                                           
+  4 variants:                                                                                                                                                                           
+  Primary — obra-blue-700 fill, white text. Hover: obra-blue-900. Disabled: 40% opacity.                                                                                                
+  CTA — obra-green-400 fill, obra-blue-950 text. Hover: brightness +5%. Disabled: 40% opacity.                                                                                          
+  Ghost — transparent fill, obra-blue-700 text, obra-blue-700 border 1px. Hover: obra-blue-50 fill. Disabled: 40% opacity.                                                              
+  Destructive — red-500 fill, white text. Hover: red-600. Disabled: 40% opacity.                                                                                                        
+  States for all: Default, Hover, Focused (2px obra-blue-700 ring), Disabled, Loading (spinner replaces or precedes label).                                                             
+  Sizes: Default (40px height) and Small (32px height).                                                                                                                                 
+                                                                                                                                                                                        
+  INPUT                                                                                                                                                                                 
+  Height: 44px. Border-radius: 8px. Background: obra-neutral-100. Border: 1px obra-neutral-200.                                                                                         
+  Always has a visible label above the field (never inside as placeholder-only label).                                                                                                  
+  Placeholder text color: obra-neutral-400.                                                                                                                                             
+  States: Default, Focused (2px obra-blue-700 ring, border obra-blue-700), Error (border red-500 + red error text + error icon below), Disabled (40% opacity), Filled.                  
+  Variants: Single line, Textarea (min height 120px, same styles).                                                                                                                      
+                                                                                                                                                                                        
+  BADGE                                                                                                                                                                                 
+  Shape: pill. Padding: 4px 10px. Font: 12px semibold.                                                                                                                                  
+  2 variants:                                                                                                                                                                           
+  Default — obra-blue-100 background, obra-blue-700 text.                                                                                                                               
+  Warning — yellow-50 background, yellow-700 text.                                                                                                                                      
+  Additional status variants for project cards: Borrador (default style), Publicado (green-50 background, green-700 text), Modificado (warning style).                                  
+                                                                                                                                                                                        
+  CARD                                                                                                                                                                                  
+  Background: white. Border: 1px obra-blue-100. Border-radius: 12px. Shadow: shadow-card.                                                                                               
+  Hover state: border color shifts to obra-blue-700, shadow-card-hover, translateY -2px.                                                                                                
+  Base card component plus a Project Card variant that includes: project name (Body Strong), status badge, last modified caption, color palette swatch (3 circles, 14px each), artifact 
+  count caption (e.g. "1 ebook · 3 bonuses"), and a 3-dot action menu icon.                                                                                                             
+                                                                                                                                                                                        
+  SIDEBAR                                                                                                                                                                               
+  Width: 280px. Background: obra-blue-900 (flat, no gradient, no texture).
+  Contains: logo area at top, nav items group, bottom zone with user info + credits badge.                                                                                              
+  Nav item states: Default (white text, 40% opacity), Active (white text, 100% opacity, obra-blue-700 left border 3px, slight obra-blue-950 background), Hover (white text, 80% opacity,
+   obra-blue-950 background).                                                                                                                                                           
+  Credits badge in bottom zone: obra-green-400 pill with credit count in obra-blue-950 text.                                                                                            
+                                                                                                                                                                                        
+  GLOBAL STEPPER                                                  
+  3 steps: Estructura — Contenido — Vista previa.                                                                                                                                       
+  Connected by a horizontal line between circles.                                                                                                                                       
+  States per step: Upcoming (empty circle obra-neutral-400, muted label), Active (filled obra-blue-700 circle with step number, bold label obra-blue-700), Completed (obra-blue-700
+  circle with checkmark icon, regular label obra-neutral-600).                                                                                                                          
+  Full-width component that sits at the top of the main content area, below the app header.
+                                                                                                                                                                                        
+  AI ASSIST FIELD                                                                                                                                                                       
+  A textarea with an embedded AI action. Below or inside the bottom-right corner of the textarea: a small button labeled "Mejorar con IA" with a sparkle icon. This button has its own  
+  states: Default, Loading (spinner, button disabled), Success (brief flash then returns to default), Error.                                                                            
+  Same input styles as the base textarea. The AI button must not obscure text.
+                                                                                                                                                                                        
+  STATUS BADGE (project-specific)                                 
+  Three values with distinct visual treatment but always: background + text + (optionally) a small dot icon. Never color alone.                                                         
+  Borrador — neutral. Publicado — green. Modificado — yellow-warning.                                                                                                                   
+                                                                                                                                                                                        
+  AVATAR / USER CHIP                                                                                                                                                                    
+  Small circular avatar (32px) + name text beside it. Used in sidebar bottom and any user attribution context.                                                                          
+                                                                                                                                                                                        
+  MODAL                                                           
+  Border-radius 16px. White background. Shadow elevated. Overlay: obra-blue-950 at 40% opacity behind.                                                                                  
+  Header: title (Section Title style) + optional close icon button (top right, ghost icon).                                                                                             
+  Body: content area with 24px padding.                                                                                                                                                 
+  Footer: action buttons right-aligned. Destructive modals have a red-tinted header area or warning icon.                                                                               
+  Always includes a focus trap and Escape key close behavior (document in the spec notes).                                                                                              
+                                                                                                                                                                                        
+  TOAST NOTIFICATION                                                                                                                                                                    
+  Appears bottom-right. Border-radius 12px. Shadow shadow-card-hover. Max width 360px.                                                                                                  
+  Variants: Success (green-50 bg, green-700 border-left 3px, checkmark icon), Error (red-50 bg, red-500 border-left, X icon), Info (obra-blue-50 bg, obra-blue-700 border-left, info    
+  icon).                                                                                                                                                                                
+  Auto-dismiss after 4 seconds. Manual close X button.                                                                                                                                  
+                                                                                                                                                                                        
+  EMPTY STATE                                                     
+  Centered layout: illustration area (placeholder box, 120x120px) + heading (Section Title) + body copy (Body, obra-neutral-600, max-width 320px) + primary CTA button.                 
+  Used when dashboard has no projects, when a content section is empty, etc.                                                                                                            
+                                                                                                                                                                                        
+  SKELETON LOADER                                                                                                                                                                       
+  Animated shimmer blocks (light gray, obra-neutral-200, subtle left-to-right shine animation) to represent loading content. Variants matching the shapes of: card, text line (full     
+  width), text line (60% width), image block, title block.                                                                                                                              
+   
+  ---                                                                                                                                                                                   
+  LAYOUT FOUNDATIONS                                              
+                                                                                                                                                                                        
+  Document these as frame examples:
+                                                                                                                                                                                        
+  App Shell — 1280px wide. Left: 280px sidebar (obra-blue-900). Right: remaining width, white background, 40px padding.                                                                 
+   
+  Auth Shell — Centered card (420px wide) on obra-blue-50 background. Card: white, border obra-blue-100, border-radius 16px, 40px padding, shadow-card.                                 
+                                                                  
+  Wizard Shell — App shell with the global stepper pinned below the top bar. Content area below stepper: 720px max-width, centered, top padding 40px.                                   
+                                                                  
+  ---                                                                                                                                                                                   
+  ACCESSIBILITY NOTES TO INCLUDE IN SPEC                          
+                                                                                                                                                                                        
+  Focus ring: 2px solid obra-blue-700, 2px offset, on all interactive elements.
+  Minimum touch target: 44x44px for all clickable elements.                                                                                                                             
+  Error states must use icon + text in addition to color change — never color alone.                                                                                                    
+  All form inputs must have a visible label element — placeholder is not a label.                                                                                                       
+  Contrast requirement: 4.5:1 minimum for body text, 3:1 for large text and UI components.                                                                                              
+                                                                                           

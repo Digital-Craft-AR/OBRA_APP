@@ -1,0 +1,9 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+/* Obra skeleton shimmer animation */
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
