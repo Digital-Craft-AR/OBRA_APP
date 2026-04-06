@@ -42,7 +42,7 @@ Configure these in the Vercel project (**Settings → General → Build & Develo
 | **Build Command** | `pnpm run build` or `npm run build` (match the package manager used for install) |
 | **Output Directory** | `dist` (Vite default) |
 
-**Note:** If the Vercel project shows **READY** deployments but the repo’s `obra/` app is still minimal, confirm build settings match the real Vite layout (`package.json`, `vite.config.*`) so future commits do not fail unexpectedly.
+**Note:** The `obra/` app ships a Vite + React build (`npm run build` → `dist/`). Keep **Root Directory** set to **`obra`** so Git-triggered builds run the app toolchain.
 
 **Optional `vercel.json`:** If you need to pin settings in-repo, place a minimal `vercel.json` **inside `obra/`** (same folder as the Vercel root). Do **not** duplicate conflicting settings at the repository root when Root Directory is `obra` — Vercel reads config from the configured root. A root-level `vercel.json` is only useful if the Vercel **Root Directory** is the repository root (not recommended for this repo).
 

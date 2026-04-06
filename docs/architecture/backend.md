@@ -44,7 +44,7 @@ Canonical relational model is described in:
 
 Core tables and responsibilities:
 
-- Identity/profile: `auth.users`, `profiles`
+- Identity/profile: `auth.users`, `creator_profiles` (Obra-owned row; see [`../development/auth-rls-baseline.md`](../development/auth-rls-baseline.md))
 - Project root: `projects`, `project_structure_drafts`
 - Design/content artifacts: `design_systems`, `ebooks`, `chapters`, `images`
 - Content progression: `project_content_progress`, `project_manuscripts`
@@ -72,7 +72,7 @@ Hard backend invariants:
 
 ## 5) Edge Functions catalog
 
-All functions live under `obra/supabase/functions/` and return:
+All functions live under `supabase/functions/` (repo root) and return:
 
 ```json
 { "data": "...", "error": null }
