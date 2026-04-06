@@ -1,0 +1,20 @@
+# Supabase CLI — Obra monorepo (migrations + Edge Functions).
+# Docs: https://supabase.com/docs/guides/cli/config
+
+project_id = "obra_app"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+# Webhooks must validate Mercado Pago signatures; JWT is not used on this path.
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+[functions.ai-optimize]
+verify_jwt = true
+
+[functions.export-pdf]
+verify_jwt = true

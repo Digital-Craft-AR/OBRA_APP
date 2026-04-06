@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-obra-blue-950: #0f2438;
+  --color-obra-blue-900: #204970;
+  --color-obra-blue-700: #2d6499;
+  --color-obra-blue-100: #e8f0f7;
+  --color-obra-blue-50: #f4f8fc;
+  --color-obra-green-400: #c8e62b;
+  --color-obra-neutral-900: #0f2438;
+  --color-obra-neutral-600: #5a7a94;
+  --color-obra-neutral-400: #9ca3af;
+  --color-obra-neutral-200: #dde8f0;
+  --color-obra-neutral-100: #f8fafb;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-white text-obra-neutral-900 antialiased text-[15px];
+    font-family: var(--font-body);
+  }
+}
