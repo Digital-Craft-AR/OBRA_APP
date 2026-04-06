@@ -6,7 +6,7 @@ export function HomePage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-obra-blue-50 px-6">
       <h1 className="font-display text-3xl font-bold text-obra-blue-950">
         {t("app.name")}
       </h1>

@@ -43,7 +43,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-obra-blue-50">
       <aside className="flex w-sidebar flex-col bg-obra-blue-900 px-4 py-6 text-white">
         <span className="font-display text-lg font-semibold">
           {t("app.name")}

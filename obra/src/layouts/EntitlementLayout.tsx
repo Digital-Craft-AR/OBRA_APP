@@ -9,7 +9,7 @@ function EntitlementGate() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white text-obra-neutral-600">
+      <div className="flex min-h-screen items-center justify-center bg-obra-blue-50 text-obra-neutral-600">
         {t("common.loading")}
       </div>
     );
@@ -17,7 +17,7 @@ function EntitlementGate() {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-6">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-obra-blue-50 px-6">
         <p className="max-w-md text-center text-sm text-red-600" role="alert">
           {t("entitlement.profileError")}
         </p>

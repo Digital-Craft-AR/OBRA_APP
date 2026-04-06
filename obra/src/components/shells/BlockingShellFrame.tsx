@@ -21,7 +21,7 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-obra-blue-50">
       <header className="border-b border-obra-blue-100 px-6 py-4">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">

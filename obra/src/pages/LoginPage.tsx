@@ -61,7 +61,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-obra-blue-50">
       <header className="border-b border-obra-blue-100 px-6 py-4">
         <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
           {t("app.name")}
@@ -86,7 +86,7 @@ export function LoginPage() {
               <span className="w-full border-t border-obra-neutral-200" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-white px-2 text-xs text-obra-neutral-600">{t("auth.orDivider")}</span>
+              <span className="bg-obra-blue-50 px-2 text-xs text-obra-neutral-600">{t("auth.orDivider")}</span>
             </div>
           </div>
           <label className="block space-y-1">
