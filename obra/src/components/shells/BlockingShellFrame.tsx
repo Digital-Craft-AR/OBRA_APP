@@ -11,7 +11,7 @@ type BlockingShellFrameProps = {
 };
 
 /**
- * Shared chrome for entitlement blocking shells (PRD: header, help hint, sign out).
+ * Shared chrome for entitlement blocking shells: single card on page background (sign out + title + body + help).
  */
 export function BlockingShellFrame({ titleKey, children }: BlockingShellFrameProps) {
   const { t } = useTranslation();
@@ -22,23 +22,21 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
 
   return (
     <div className="flex min-h-screen flex-col bg-obra-blue-50">
-      <header className="border-b border-obra-blue-100 px-6 py-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
-            {t("app.name")}
-          </Link>
-          <Button
-            type="button"
-            variant="ghost"
-            className="shrink-0 text-sm"
-            onClick={() => void signOut()}
-          >
-            {t("nav.logout")}
-          </Button>
-        </div>
-      </header>
-      <main className="flex flex-1 flex-col items-center px-6 py-12">
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className={shellPanelClass}>
+          <div className="flex items-center justify-between gap-4 border-b border-obra-blue-100 pb-4">
+            <Link to="/" className="font-display text-lg font-semibold text-obra-blue-900">
+              {t("app.name")}
+            </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              className="shrink-0 text-sm"
+              onClick={() => void signOut()}
+            >
+              {t("nav.logout")}
+            </Button>
+          </div>
           <h1 className="font-display text-2xl font-bold text-obra-blue-950">
             {t(titleKey)}
           </h1>
