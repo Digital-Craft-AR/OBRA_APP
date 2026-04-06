@@ -24,7 +24,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition ${buttonVariantClass[variant]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-full px-5 py-2.5 font-body text-sm font-medium transition ${buttonVariantClass[variant]} ${className}`}
       {...rest}
     />
   );
