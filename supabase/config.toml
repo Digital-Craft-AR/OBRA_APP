@@ -7,7 +7,8 @@ project_id = "obra_app"
 enabled = true
 
 [db]
-major_version = 15
+# Match linked project (see `supabase link` / `.temp/postgres-version` after link).
+major_version = 17
 
 # Webhooks must validate Mercado Pago signatures; JWT is not used on this path.
 [functions.mercadopago-webhook]
