@@ -98,6 +98,17 @@ Buckets (fill when defined):
 
 ---
 
+## Environment variable names (coordination with Vercel / obra)
+
+Issue **#27** calls out these **logical** names for documentation and non-Vite tooling (values only in secret stores):
+
+- `SUPABASE_URL` — project API URL  
+- `SUPABASE_ANON_KEY` — anon (public) key  
+
+The **Vite** app under `obra/` must use the **`VITE_` prefix** so the client bundle receives them: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (same values as above). See [`vercel.md`](vercel.md) for Preview vs Production on Vercel (issue **#30**).
+
+---
+
 ## Notes
 
 - If region choice changes before launch, update this file and the privacy / subprocessors list with legal review.
