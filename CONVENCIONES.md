@@ -43,19 +43,19 @@
 
 Los tokens se exponen como utilidades Tailwind via `@theme` en `index.css`. Usá siempre las clases Tailwind (`bg-obra-blue-900`, `text-obra-green-400`), nunca hex codes directos.
 
-### La regla sagrada: Sidebar dark / Main content white
+### La regla sagrada: Sidebar dark / Fondo de página `obra-blue-50` / Superficies blancas
 
 ```
 ┌──────────────┬────────────────────────────────────────────┐
 │              │                                            │
 │   SIDEBAR    │           MAIN CONTENT                     │
 │              │                                            │
-│  obra-blue   │    bg-white (#FFFFFF)                      │
-│  -900        │                                            │
-│  (#204970)   │    Blanco puro. Sin tinte.                 │
-│              │    Feel Notion/Canva.                       │
+│  obra-blue   │    Fondo: bg-obra-blue-50 (#F4F8FC)        │
+│  -900        │    Cards / paneles: bg-white               │
+│  (#204970)   │                                            │
+│              │    Sin gradientes.                         │
 │  FLAT.       │                                            │
-│  Sin         │    Si se ve oscuro, algo se rompió.         │
+│  Sin         │                                            │
 │  gradiente.  │                                            │
 │              │                                            │
 └──────────────┴────────────────────────────────────────────┘

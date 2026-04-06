@@ -8,7 +8,7 @@ export function ProtectedLayout() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white text-obra-neutral-600">
+      <div className="flex min-h-screen items-center justify-center bg-obra-blue-50 text-obra-neutral-600">
         {t("common.loading")}
       </div>
     );
