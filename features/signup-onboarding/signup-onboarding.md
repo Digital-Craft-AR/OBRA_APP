@@ -172,6 +172,7 @@ If subscription is **not valid** (e.g. renewal failed per product policy): user 
 ### OAuth and identity linking (engineering handoff)
 
 - **Google (or other OAuth):** when Supabase marks the provider email as verified, `email_confirmed_at` is set and the client **skips** the `verify_email` shell (issue #34).
+- **OAuth redirect errors:** map provider `error` query values to dedicated UX (e.g. `access_denied` → user-cancelled copy; `server_error` → retry-oriented copy) on `/auth/callback` so denied/cancel flows are not confused with generic failures.
 - **Link / unlink providers:** implemented with **Supabase Auth** (`linkIdentity`, dashboard settings). The **account settings** UI and detailed unlink rules live in the **profile** epic (#18 / #44). **Duplicate `user_ids`** for the same person stay **support-handled** in v1.0 (no self-serve merge).
 
 ### Security and abuse

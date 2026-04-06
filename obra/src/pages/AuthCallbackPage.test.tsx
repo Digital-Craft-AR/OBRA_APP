@@ -77,11 +77,25 @@ describe("AuthCallbackPage", () => {
     });
   });
 
-  it("shows provider error when OAuth returns error query params", async () => {
+  it("shows localized cancel copy when OAuth returns access_denied", async () => {
     renderCallback("/auth/callback?error=access_denied&error_description=User+cancelled");
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent(/User cancelled|Google|acceso|fall/i);
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        i18n.t("auth.oauthCancelled", { lng: "es" }),
+      );
+    });
+
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it("shows server error copy when OAuth returns server_error", async () => {
+    renderCallback("/auth/callback?error=server_error&error_description=Temporarily+down");
+
+    await waitFor(() => {
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(i18n.t("auth.oauthServerError", { lng: "es" }));
+      expect(alert).toHaveTextContent(/Temporarily down/i);
     });
 
     expect(exchangeCodeForSession).not.toHaveBeenCalled();

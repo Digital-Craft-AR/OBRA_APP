@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  classifyOAuthCallbackError,
+  formatOAuthCallbackUserMessage,
+} from "@/auth/oauthCallbackErrors";
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -21,11 +25,9 @@ export function AuthCallbackPage() {
       const providerDescription = params.get("error_description");
 
       if (providerError) {
-        const detail = providerDescription?.replace(/\+/g, " ") ?? "";
+        const kind = classifyOAuthCallbackError(providerError);
         if (!cancelled) {
-          setMessage(
-            detail ? `${t("auth.oauthProviderError")} ${detail}` : t("auth.oauthProviderError"),
-          );
+          setMessage(formatOAuthCallbackUserMessage((key) => t(key), kind, providerDescription));
         }
         return;
       }
