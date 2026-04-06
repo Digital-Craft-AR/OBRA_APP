@@ -8,9 +8,18 @@ This document describes how to connect **Vercel** to this repository, configure 
 
 ## Vercel project status
 
-**As of last MCP check:** Vercel **`list_projects`** for team **Digital Craft** (`digitalcraftprojects`) shows **no** project dedicated to Obra yet. **Next step:** in Vercel → **Add New… → Project**, import **`Digital-Craft-AR/OBRA_APP`**, set **Root Directory** to **`obra`**, then add env vars (`VITE_SUPABASE_*`) per below. Use a clear project name such as **`obra`** or **`obra-app`**.
+**Provisioned (MCP-verified):** Obra is linked on Vercel as project **`obra-app`**.
 
-After the project exists, you can re-check with Vercel MCP (`list_projects`, `get_project`, deployments tools) instead of hunting the dashboard.
+| Field | Value |
+| ----- | ----- |
+| **Vercel project name** | `obra-app` |
+| **Project ID** | `prj_IjtXjDUoRb2EdfsT2Lp4dq2f6r84` (use with Vercel MCP / API) |
+| **Team** | Digital Craft — slug `digitalcraftprojects`, id `team_4yfwtYp0kPLHXJ2QeZoQs551` |
+| **Default hostnames** | `obra-app-nu.vercel.app`, `obra-app-digitalcraftprojects.vercel.app`, `obra-app-git-main-digitalcraftprojects.vercel.app` |
+
+**Latest snapshot from `get_project`:** most recent **production** deployment **READY** (Vercel-assigned URL pattern `*.vercel.app`). **`live`** flag in API may still be `false` until a custom domain or go-live step is completed—check the dashboard for the canonical public URL.
+
+**Still validate in dashboard:** **Root Directory** = **`obra`**, framework / build commands, and **Environment Variables** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) on **Preview** and **Production**. Re-check anytime with Vercel MCP (`list_projects`, `get_project`, `list_deployments`).
 
 ---
 
@@ -33,7 +42,7 @@ Configure these in the Vercel project (**Settings → General → Build & Develo
 | **Build Command** | `pnpm run build` or `npm run build` (match the package manager used for install) |
 | **Output Directory** | `dist` (Vite default) |
 
-**Note:** Until `obra/` contains a Vite app (`package.json`, `vite.config.*`), the project cannot deploy successfully; use this doc when wiring the Vercel project so settings are correct on first green build.
+**Note:** If the Vercel project shows **READY** deployments but the repo’s `obra/` app is still minimal, confirm build settings match the real Vite layout (`package.json`, `vite.config.*`) so future commits do not fail unexpectedly.
 
 **Optional `vercel.json`:** If you need to pin settings in-repo, place a minimal `vercel.json` **inside `obra/`** (same folder as the Vercel root). Do **not** duplicate conflicting settings at the repository root when Root Directory is `obra` — Vercel reads config from the configured root. A root-level `vercel.json` is only useful if the Vercel **Root Directory** is the repository root (not recommended for this repo).
 
@@ -73,8 +82,8 @@ The Supabase JS client in the Vite app reads **`import.meta.env`**. Per `ARQUITE
 
 | Criterion | How to verify |
 | --------- | ------------- |
-| Production deploy succeeds | Vercel dashboard: latest Production deployment **Ready**; spot-check the live URL. |
-| Preview deploy succeeds | Create or use a PR; confirm **Preview** deployment **Ready** and URL works. |
+| Production deploy succeeds | Vercel dashboard: latest Production deployment **Ready**; spot-check the live URL. **MCP:** `get_project` on `obra-app` reported a **READY** production deployment (re-run after changes). |
+| Preview deploy succeeds | Create or use a PR; confirm **Preview** deployment **Ready** and URL works. **MCP:** `list_deployments` filtered by preview. |
 | Env vars documented (names only); secrets not committed | This file + `supabase.md`; repo has no real `.env` values. |
 
 ---
