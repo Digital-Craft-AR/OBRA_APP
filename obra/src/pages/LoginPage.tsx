@@ -74,7 +74,7 @@ export function LoginPage() {
           </h1>
           <Button
             type="button"
-            variant="primary"
+            variant="secondary"
             className="w-full"
             disabled={busy || oauthBusy}
             onClick={() => void onGoogleClick()}
