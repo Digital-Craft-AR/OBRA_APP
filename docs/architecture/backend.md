@@ -1,8 +1,16 @@
 # Backend architecture (Obra)
 
-**Version:** 1.0  
+**Version:** 1.2  
 **Last update:** April 2026  
-**Scope:** Supabase/Postgres/Storage, Edge Functions, backend operations.
+**Scope:** Supabase/Postgres/Storage, Edge Functions, backend operations, logging, and idempotency.
+
+## 0) Implementation work order
+
+- For any task that exposes or changes behavior consumed by the **frontend** (Edge Function payloads, RPC shapes, table contracts surfaced to the client, Storage flows), **define or update the API contract first**, then implement the function, migrations, or policies against that contract.
+- The contract must cover at minimum: **request/response (or event) shapes**, **error codes and HTTP semantics**, **auth/RLS expectations**, and **idempotency/retry** rules where applicable (see §6).
+- The artifact can be OpenAPI, shared typed schemas, a short spec in `docs/`, or a reviewed ticket/PR description — what matters is an **explicit, agreed contract** before production feature code is written.
+- Internal-only changes (purely DB internals, cron jobs with no client surface) still benefit from a short note of behavior, but do not require a client-facing API contract unless they later surface to the app.
+- For full-stack slices, align the same contract with [`frontend.md`](frontend.md) §0 before merging either side.
 
 ## 1) Backend system boundaries
 
@@ -21,7 +29,12 @@
 - Enable backup and recovery capability (PITR or equivalent by plan).
 - Keep an external encrypted backup path and restoration runbook.
 - Observability is split between Supabase and Vercel logs (no mandatory unified aggregator in MVP).
-- Logging policy: metadata/error codes only. Do not log prompts, ebook bodies, or raw PII.
+- Logging policy: **metadata and error codes only.** Expand explicitly as **never log** unless redacted or hashed:
+  - Chapter or ebook **body text**, user **prompts**, **assistant** outputs, **chat** messages
+  - **Parsed manuscript** or upload text payloads
+  - **Authorization** headers, cookies, session tokens, API keys
+- When debugging payloads is necessary, log **sizes**, **checksums** (e.g. SHA-256), and **opaque ids** only.
+- Align client-side error tracking constraints with [`frontend.md`](frontend.md) §9.
 
 ## 3) Database model ownership
 
@@ -87,7 +100,12 @@ Primary functions:
   - project duplication
   - webhook processing
   - expensive generation retries
+  - long-running flows initiated from the client (**exports**, **upload finalize**, **billable generation**) using a per-intent **`client_operation_id`** or **`Idempotency-Key`**; **network retries must reuse the same key**
+- **Replay semantics:** same key within an agreed TTL/window → same persisted outcome (idempotent replay). Distinct colliding operations → **explicit conflict** response (e.g. HTTP 409) with a stable error code.
+- **Exports:** idempotency scopes a **single export attempt** (new key per user click), not “any export for this project.”
+- **Multipart uploads:** treat idempotency at **session create / complete** boundaries; individual chunks are not separate idempotency units for business dedupe.
 - For Storage+DB multi-step flows, document operation order and retry/compensation strategy.
+- Client UX expectations for in-flight/duplicate operations: [`frontend.md`](frontend.md) §10.
 
 ## 7) Backend ops references
 
