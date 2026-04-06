@@ -1,0 +1,7 @@
+# Local overrides (secrets, machine-specific)
+.env.local
+.env.*.local
+
+# Dependencies and build
+node_modules
+dist
