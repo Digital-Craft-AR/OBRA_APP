@@ -1,6 +1,6 @@
 # Obra architecture (hub)
 
-**Version:** 2.0  
+**Version:** 2.1  
 **Date:** April 2026  
 **Stack:** React + Vite + TypeScript · Supabase · Claude API · Gemini API · Vercel
 
@@ -35,7 +35,7 @@ Read: [`docs/architecture/backend.md`](docs/architecture/backend.md)
 
 ### Frontend
 
-Owns route/module composition, state management, i18n rendering, wizard/editor/preview UX, and client-side quality constraints.
+Owns route/module composition, state management, i18n rendering, wizard/editor/preview UX, **PII-safe client observability**, **idempotency for long operations**, and quality constraints. URL shape, route guards, and phase derivation: [`docs/architecture/frontend.md`](docs/architecture/frontend.md) and [`docs/architecture/business_logic.md`](docs/architecture/business_logic.md) §9.
 
 Read: [`docs/architecture/frontend.md`](docs/architecture/frontend.md)
 

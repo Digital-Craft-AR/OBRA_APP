@@ -2,6 +2,8 @@
 
 Canonical SQL and field notes: [`backend.md`](backend.md) and [`business_logic.md`](business_logic.md).
 
+**Workspace routing:** how `projects.structure_completed_at` and `project_content_progress.current_phase` map to the global Structure / Content / Preview URL segments is defined in [`business_logic.md`](business_logic.md) §9 (not duplicated here).
+
 `content_locale`, `author`, `topic`, `problem`, and `target_avatar` live only on **Project**. **Ebook** rows do not duplicate them; consumers **join** `ebooks.project_id → projects.id` (or load the project once per request).
 
 **`ProjectContentProgress.current_phase`** is restricted in PostgreSQL to: `upload_alignment` | `main_index` | `main_chapter` | `bonus` | `order_bump` | `complete`. Initial phase: **`upload_alignment`** if `content_source = upload`, else **`main_index`**.
