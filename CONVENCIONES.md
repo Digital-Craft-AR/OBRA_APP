@@ -70,10 +70,13 @@ Los tokens se exponen como utilidades Tailwind via `@theme` en `index.css`. Usá
 
 | Variante | Background | Texto | Hover | Uso |
 |----------|-----------|-------|-------|-----|
-| `primary` | `obra-blue-700` | blanco | `obra-blue-900` | Acciones principales sobre fondo claro |
-| `cta` | `obra-green-400` | `obra-blue-950` | `brightness-105` | Call-to-action: "Crear", "Siguiente", "Generar" |
-| `ghost` | transparente | `obra-blue-700` | `obra-blue-50` | Acciones secundarias, cancelar |
+| `primary` | `obra-blue-700` | blanco | `obra-blue-900` | Acciones principales sobre fondo claro (equiv. Figma **secondary**) |
+| `cta` | `obra-green-400` | `obra-blue-950` | `brightness-105` | Call-to-action (equiv. Figma **primary**) |
+| `ghost` | transparente | `obra-blue-700` | `obra-blue-50` | Borde `obra-blue-700`; secundario / cancelar (equiv. Figma **tertiary**) |
+| `ghostDark` | transparente | blanco | `white/10` | Borde `white/20`; solo sobre `obra-blue-900` (sidebar) |
 | `destructive` | `red-500` | blanco | `red-600` | Acciones de eliminación/peligro |
+
+Altura estándar del botón: `h-10 px-5`, `font-semibold text-sm`, focus ring `obra-blue-700` + offset (paridad con `figma_make` ObraButton).
 
 ### Input (1 solo estilo en toda la app)
 

@@ -55,12 +55,7 @@ export function DashboardPage() {
           </Link>
         </nav>
         <div className="mt-auto pt-8">
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full border border-white/20 text-white hover:bg-white/10"
-            onClick={() => void signOut()}
-          >
+          <Button type="button" variant="ghostDark" className="w-full" onClick={() => void signOut()}>
             {t("nav.logout")}
           </Button>
         </div>
