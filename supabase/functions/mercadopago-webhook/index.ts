@@ -8,6 +8,12 @@ type MpPayment = {
   external_reference?: string | null;
 };
 
+type MpPreapproval = {
+  id?: string;
+  status?: string;
+  external_reference?: string | null;
+};
+
 type MpNotifyBody = {
   type?: string;
   action?: string;
@@ -68,17 +74,22 @@ Deno.serve(async (req: Request) => {
   const isPayment =
     body.type === "payment" ||
     (typeof body.action === "string" && body.action.startsWith("payment"));
+  const isSubscription =
+    body.type === "subscription_preapproval" ||
+    (typeof body.action === "string" && body.action.startsWith("subscription_preapproval"));
 
-  if (!isPayment || !dataId) {
+  if ((!isPayment && !isSubscription) || !dataId) {
     return jsonResponse({ ok: true, ignored: true });
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
 
+  const eventKey = `${isSubscription ? "subscription_preapproval" : "payment"}:${dataId}`;
+
   const { data: existing, error: selErr } = await admin
     .from("obra_mp_processed_webhooks")
-    .select("mp_payment_id")
-    .eq("mp_payment_id", dataId)
+    .select("event_key")
+    .eq("event_key", eventKey)
     .maybeSingle();
 
   if (selErr) {
@@ -90,23 +101,44 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, duplicate: true });
   }
 
-  const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
-    headers: { Authorization: `Bearer ${mpToken}` },
-  });
+  let ext: string | null = null;
+  let profileStatus: "active" | "past_due" = "active";
 
-  if (!payRes.ok) {
-    console.error("mp_payment_fetch_failed", payRes.status);
-    return jsonResponse({ error: "payment_fetch" }, 502);
+  if (isSubscription) {
+    const subRes = await fetch(`https://api.mercadopago.com/preapproval/${dataId}`, {
+      headers: { Authorization: `Bearer ${mpToken}` },
+    });
+    if (!subRes.ok) {
+      console.error("mp_subscription_fetch_failed", subRes.status);
+      return jsonResponse({ error: "subscription_fetch" }, 502);
+    }
+    const sub = (await subRes.json()) as MpPreapproval;
+    const st = sub.status ?? "unknown";
+    if (st !== "authorized" && st !== "paused" && st !== "cancelled") {
+      return jsonResponse({ ok: true, skipped_status: st });
+    }
+    ext = sub.external_reference?.trim() ?? null;
+    profileStatus = st === "authorized" ? "active" : "past_due";
+  } else {
+    const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
+      headers: { Authorization: `Bearer ${mpToken}` },
+    });
+
+    if (!payRes.ok) {
+      console.error("mp_payment_fetch_failed", payRes.status);
+      return jsonResponse({ error: "payment_fetch" }, 502);
+    }
+
+    const payment = (await payRes.json()) as MpPayment;
+    if (payment.status !== "approved") {
+      return jsonResponse({ ok: true, skipped_status: payment.status ?? "unknown" });
+    }
+    ext = payment.external_reference?.trim() ?? null;
+    profileStatus = "active";
   }
 
-  const payment = (await payRes.json()) as MpPayment;
-  if (payment.status !== "approved") {
-    return jsonResponse({ ok: true, skipped_status: payment.status ?? "unknown" });
-  }
-
-  const ext = payment.external_reference?.trim();
   if (!ext || !/^[0-9a-f-]{36}$/i.test(ext)) {
-    console.warn("payment_missing_external_reference", dataId);
+    console.warn("webhook_missing_external_reference", dataId);
     return jsonResponse({ ok: true, skipped: "no_external_reference" });
   }
 
@@ -131,7 +163,7 @@ Deno.serve(async (req: Request) => {
   const { error: upErr } = await admin
     .from("creator_profiles")
     .update({
-      subscription_status: "active",
+      subscription_status: profileStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("id", profileId);
@@ -142,7 +174,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const { error: insErr } = await admin.from("obra_mp_processed_webhooks").insert({
-    mp_payment_id: dataId,
+    event_key: eventKey,
     profile_id: profileId,
   });
 

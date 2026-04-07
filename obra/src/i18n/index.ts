@@ -12,6 +12,8 @@ const resources = {
       "home.lead": "Paquete digital con IA para infoproductos.",
       "home.ctaLogin": "Ir al inicio de sesión",
       "home.ctaRegister": "Crear cuenta",
+      "auth.fullName": "Nombre completo",
+      "auth.fullNamePlaceholder": "Tu nombre y apellido",
       "auth.email": "Correo",
       "auth.password": "Contraseña",
       "auth.emailPlaceholder": "tu@email.com",
@@ -40,7 +42,7 @@ const resources = {
       "auth.oauthPopupBlocked": "El navegador bloqueó la ventana de Google. Permití ventanas emergentes para este sitio e intentá de nuevo.",
       "auth.backToLogin": "Volver al inicio de sesión",
       "auth.registerTitle": "Crear cuenta",
-      "auth.registerSubmit": "Registrarme",
+      "auth.registerSubmit": "Crear mi cuenta",
       "auth.registerError": "No pudimos crear la cuenta. Probá de nuevo.",
       "auth.registerAlreadyExists": "Ese correo ya tiene cuenta. Iniciá sesión o usá recuperación de acceso.",
       "auth.registerPasswordWeak": "La contraseña no cumple los requisitos de seguridad. Usá al menos 8 caracteres.",
@@ -64,7 +66,7 @@ const resources = {
         "Obra funciona con una suscripción activa. El siguiente paso es abonar el plan con Mercado Pago.",
       "shell.pending.cta": "Ir al pago",
       "shell.pending.checkoutNote":
-        "Usás Mercado Pago en un entorno seguro. Si el pago queda pendiente de confirmación, te avisamos por correo según Mercado Pago.",
+        "Vas a iniciar una suscripción recurrente con Mercado Pago en un entorno seguro.",
       "shell.pending.checkoutStartError": "No pudimos abrir el pago. Probá de nuevo en unos minutos.",
       "shell.pending.checkoutUnavailable":
         "El pago no está disponible todavía: falta configurar Mercado Pago en el servidor (OBRA_APP_URL y credenciales).",
@@ -105,6 +107,8 @@ const resources = {
       "home.lead": "Pacote digital com IA para infoprodutos.",
       "home.ctaLogin": "Ir para o login",
       "home.ctaRegister": "Criar conta",
+      "auth.fullName": "Nome completo",
+      "auth.fullNamePlaceholder": "Seu nome e sobrenome",
       "auth.email": "E-mail",
       "auth.password": "Senha",
       "auth.emailPlaceholder": "seu@email.com",
@@ -133,7 +137,7 @@ const resources = {
       "auth.oauthPopupBlocked": "O navegador bloqueou a janela do Google. Permita pop-ups para este site e tente de novo.",
       "auth.backToLogin": "Voltar ao login",
       "auth.registerTitle": "Criar conta",
-      "auth.registerSubmit": "Cadastrar",
+      "auth.registerSubmit": "Criar minha conta",
       "auth.registerError": "Não foi possível criar a conta. Tente novamente.",
       "auth.registerAlreadyExists": "Esse e-mail já tem conta. Entre ou use a recuperação de acesso.",
       "auth.registerPasswordWeak": "A senha não atende aos requisitos de segurança. Use pelo menos 8 caracteres.",
@@ -158,7 +162,7 @@ const resources = {
         "A Obra funciona com uma assinatura ativa. O próximo passo é pagar o plano com o Mercado Pago.",
       "shell.pending.cta": "Ir para o pagamento",
       "shell.pending.checkoutNote":
-        "Você usa o Mercado Pago em ambiente seguro. Se o pagamento ficar pendente de confirmação, o Mercado Pago pode avisar por e-mail.",
+        "Você vai iniciar uma assinatura recorrente com o Mercado Pago em ambiente seguro.",
       "shell.pending.checkoutStartError": "Não foi possível abrir o pagamento. Tente novamente em alguns minutos.",
       "shell.pending.checkoutUnavailable":
         "O pagamento ainda não está disponível: falta configurar o Mercado Pago no servidor (OBRA_APP_URL e credenciais).",

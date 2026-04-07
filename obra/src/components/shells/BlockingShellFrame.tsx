@@ -24,24 +24,21 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
     <div className="flex min-h-screen flex-col bg-obra-blue-50">
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className={shellPanelClass}>
-          <div className="flex items-center justify-between gap-4 border-b border-obra-blue-100 pb-4">
-            <ObraLogoLink />
-            <Button
-              type="button"
-              variant="ghost"
-              className="shrink-0 text-sm"
-              onClick={() => void signOut()}
-            >
-              {t("nav.logout")}
-            </Button>
+          <div className="flex items-center justify-center pb-4">
+            <ObraLogoLink tone="solidBlue950" />
           </div>
           <h1 className="font-display text-2xl font-bold text-obra-blue-950">
             {t(titleKey)}
           </h1>
           {children}
-          <p className="border-t border-obra-blue-100 pt-4 text-sm text-obra-neutral-600">
+          <p className="pt-4 text-sm text-obra-neutral-600">
             {t("shell.supportHint")}
           </p>
+          <div className="pt-2">
+            <Button type="button" variant="ghost" className="text-sm" onClick={() => void signOut()}>
+              {t("nav.logout")}
+            </Button>
+          </div>
         </div>
       </main>
     </div>

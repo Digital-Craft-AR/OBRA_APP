@@ -70,7 +70,7 @@ export function LoginPage() {
     <main className="flex min-h-screen w-full flex-col items-center justify-center bg-obra-blue-50 p-6 font-body">
       <form onSubmit={(e) => void onSubmit(e)} className={authCardClass} noValidate>
         <div className="flex justify-center">
-          <ObraLogoLink to="/" imgClassName="h-10 w-auto max-w-[200px] object-contain" />
+          <ObraLogoLink to="/" tone="solidBlue950" imgClassName="h-10 w-auto max-w-[200px] object-contain" />
         </div>
 
         <div className="text-center">

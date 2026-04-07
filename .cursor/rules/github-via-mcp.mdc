@@ -1,0 +1,42 @@
+---
+description: "[OBRA_APP] Use GitHub MCP for GitHub platform work; avoid gh/curl/bash for API tasks"
+alwaysApply: true
+---
+
+# GitHub operations via MCP (OBRA_APP)
+
+When interacting with **GitHub as a platform** (issues, pull requests, reviews, comments, repository metadata, search, remote file contents, branches/tags/releases, Copilot review requests, etc.), use the **`user-github` MCP server** tools.
+
+## Do not use shell for GitHub API–style work
+
+Avoid:
+
+- `gh` CLI (e.g. `gh pr`, `gh issue`, `gh api`)
+- `curl` / `wget` against `api.github.com` or GitHub REST/GraphQL
+- Scripts whose main job is to read or change GitHub-hosted state outside local git objects
+
+If the GitHub MCP lacks a needed capability, say so and ask how to proceed instead of falling back to bash.
+
+## Local git is still fine
+
+Ordinary **local** git in the repo (status, add, commit, rebase, merge, checkout) does not need MCP. Prefer MCP when the task is clearly **remote GitHub** (open/update PR, comment, list issues, merge, request review, search org repos, etc.).
+
+## Quick mapping
+
+| Intent | Use |
+|--------|-----|
+| Create/update PR, review, merge | GitHub MCP (`pull_request_*`, `merge_pull_request`, etc.) |
+| Issues and comments | GitHub MCP (`issue_*`, `add_issue_comment`, etc.) |
+| Read/write files on default branch | GitHub MCP (`get_file_contents`, `create_or_update_file`, etc.) or local git + push policy per project |
+| Repo/search discovery | GitHub MCP (`search_*`, `list_*`, `get_*`) |
+| Local commits and history | `git` in terminal |
+
+```bash
+# BAD — use GitHub MCP instead for PR/issue/API tasks
+gh pr list
+gh api repos/owner/repo/issues
+
+# GOOD — local only
+git status
+git commit -m "fix: typo"
+```

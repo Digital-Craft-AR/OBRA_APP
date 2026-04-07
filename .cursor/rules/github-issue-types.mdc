@@ -1,0 +1,21 @@
+---
+description: "[OBRA_APP] GitHub issue types (Feature/Task). Use when creating/updating issues, epics, sub-issues, or using user-github MCP issue_write."
+alwaysApply: false
+---
+
+# GitHub issue types (OBRA_APP)
+
+**Scope:** Apply this rule only when the conversation or task is about **GitHub issues** (create, update, epics, sub-issues) or **`user-github`** MCP issue operations for this repo—not for general coding.
+
+**Feature** and **Task** are **issue types** (GitHub Issues types), not labels. Set them with the **`type`** argument on **`issue_write`**, not with **`labels`**.
+
+| Type | Use |
+|------|-----|
+| **Feature** | Parent / epic / high-level tracking issues that group multiple work items (product-facing scope). |
+| **Task** | Sub-issues or standalone implementation tickets under a feature (concrete deliverables). |
+
+## Conventions
+
+- Set **`type`** to **Feature** on the epic only; set **`type`** to **Task** on child / implementation issues.
+- For **Digital-Craft-AR**, configured issue types include **`Feature`**, **`Task`**, and **`Bug`** (use **`list_issue_types`** via GitHub MCP if GitHub’s API expects a different identifier in edge cases).
+- **Labels** are separate: use **`labels`** only for tags unrelated to this Feature/Task split. If you update **`labels`**, merge with existing labels so you do not drop unrelated tags.
