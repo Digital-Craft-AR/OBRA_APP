@@ -31,8 +31,13 @@ export function ActivatingShellPage() {
   return (
     <BlockingShellFrame titleKey="shell.activating.title">
       <p className="text-sm text-obra-neutral-600">{t("shell.activating.body")}</p>
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" variant="primary" onClick={() => void reconcileSubscription()}>
+      <div className="flex w-full flex-col gap-3">
+        <Button
+          type="button"
+          variant="primary"
+          className="w-full sm:w-auto"
+          onClick={() => void reconcileSubscription()}
+        >
           {t("shell.activating.refresh")}
         </Button>
         <Button type="button" variant="ghost" onClick={() => clearCheckoutReturn()}>

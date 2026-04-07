@@ -12,6 +12,7 @@ import { RegisterPage } from "@/pages/RegisterPage";
 import { SubscriptionErrorShellPage } from "@/pages/SubscriptionErrorShellPage";
 import { VerifyEmailShellPage } from "@/pages/VerifyEmailShellPage";
 import { CheckoutReturnPage } from "@/pages/CheckoutReturnPage";
+import { VerifyEmailPendingPage } from "@/pages/VerifyEmailPendingPage";
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPendingPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route element={<ProtectedLayout />}>
         <Route path="checkout/return" element={<CheckoutReturnPage />} />
