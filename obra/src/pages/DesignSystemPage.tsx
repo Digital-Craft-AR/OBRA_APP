@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button";
 import { ObraBadge } from "@/components/obra/ObraBadge";
+import { ObraCard } from "@/components/obra/ObraCard";
 import { ObraInput } from "@/components/obra/ObraInput";
 import { ObraTextarea } from "@/components/obra/ObraTextarea";
 
@@ -113,7 +114,7 @@ export function DesignSystemPage() {
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-obra-blue-950">Buttons</h2>
-          <article className="rounded-card border border-obra-blue-100 bg-white p-5 shadow-card">
+          <ObraCard className="p-5">
             <p className="mb-4 text-xs uppercase tracking-wide text-obra-neutral-600">Light mode</p>
             <div className="flex flex-wrap items-center gap-3">
               {variants.map((variant) => (
@@ -122,8 +123,8 @@ export function DesignSystemPage() {
                 </Button>
               ))}
             </div>
-          </article>
-          <article className="rounded-card border border-obra-blue-100 bg-white p-5 shadow-card">
+          </ObraCard>
+          <ObraCard className="p-5">
             <p className="mb-4 text-xs uppercase tracking-wide text-obra-neutral-600">Sizes</p>
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="primary" size="medium">
@@ -133,9 +134,9 @@ export function DesignSystemPage() {
                 Small (32px)
               </Button>
             </div>
-          </article>
+          </ObraCard>
 
-          <article className="rounded-card border border-obra-blue-100 bg-obra-blue-900 p-5 shadow-card">
+          <ObraCard className="bg-obra-blue-900 p-5">
             <p className="mb-4 text-xs uppercase tracking-wide text-white/80">Dark mode</p>
             <div className="flex flex-wrap items-center gap-3">
               {variants.map((variant) => (
@@ -144,14 +145,14 @@ export function DesignSystemPage() {
                 </Button>
               ))}
             </div>
-          </article>
+          </ObraCard>
         </section>
 
         <section className="flex flex-col gap-5">
           <h2 className="border-b border-obra-blue-100 pb-3 text-lg font-semibold text-obra-blue-950">
             Form
           </h2>
-          <article className="rounded-card border border-obra-blue-100 bg-white p-6 shadow-card">
+          <ObraCard className="p-6">
             <div className="grid gap-6 md:grid-cols-2">
               <ObraInput
                 label="Ebook topic"
@@ -181,14 +182,14 @@ export function DesignSystemPage() {
                 error="The avatar must contain at least 50 characters."
               />
             </div>
-          </article>
+          </ObraCard>
         </section>
 
         <section className="flex flex-col gap-5">
           <h2 className="border-b border-obra-blue-100 pb-3 text-lg font-semibold text-obra-blue-950">
             Badges
           </h2>
-          <article className="rounded-card border border-obra-blue-100 bg-white p-6 shadow-card">
+          <ObraCard className="p-6">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-obra-neutral-600">Base</p>
@@ -216,7 +217,18 @@ export function DesignSystemPage() {
                 </div>
               </div>
             </div>
-          </article>
+          </ObraCard>
+        </section>
+
+        <section className="flex flex-col gap-5">
+          <h2 className="border-b border-obra-blue-100 pb-3 text-lg font-semibold text-obra-blue-950">
+            Card
+          </h2>
+          <ObraCard className="p-6">
+            <p className="text-sm font-body text-obra-neutral-600">
+              Base card wrapper with unified Obra styles. Slot any content inside this component.
+            </p>
+          </ObraCard>
         </section>
       </div>
     </main>
