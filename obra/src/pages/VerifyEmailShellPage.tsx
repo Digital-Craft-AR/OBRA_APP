@@ -39,24 +39,6 @@ export function VerifyEmailShellPage() {
   return (
     <BlockingShellFrame titleKey="shell.verify.title">
       <div className="flex flex-col items-center gap-4 text-center">
-        <div className="flex size-20 items-center justify-center rounded-full bg-obra-blue-100">
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-obra-blue-900"
-            aria-hidden
-          >
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-          </svg>
-        </div>
-
         <p className="max-w-md text-sm leading-relaxed text-obra-neutral-600">{t("shell.verify.body")}</p>
 
         {email ? (
@@ -71,18 +53,27 @@ export function VerifyEmailShellPage() {
           </p>
         ) : null}
 
-        <Button type="button" variant="ghost" disabled={busy || !email} onClick={() => void onResend()}>
-          {busy ? t("auth.working") : t("shell.verify.resend")}
-        </Button>
+        <div className="flex w-full items-center justify-between gap-4">
+          <Button
+            type="button"
+            variant="tertiary"
+            className="w-auto"
+            disabled={busy || !email}
+            onClick={() => void onResend()}
+          >
+            {busy ? t("auth.working") : t("shell.verify.resend")}
+          </Button>
 
-        <button
-          type="button"
-          className="font-body text-sm text-obra-blue-700 underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={busy}
-          onClick={() => void refreshSession()}
-        >
-          {t("shell.verify.refreshedSession")}
-        </button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-auto"
+            disabled={busy}
+            onClick={() => void refreshSession()}
+          >
+            {t("shell.verify.refreshedSession")}
+          </Button>
+        </div>
       </div>
     </BlockingShellFrame>
   );

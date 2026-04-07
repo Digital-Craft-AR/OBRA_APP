@@ -56,7 +56,7 @@ const resources = {
       "auth.resendRateLimited": "Demasiados intentos. Esperá unos minutos antes de pedir otro correo.",
       "shell.supportHint":
         "Si necesitás ayuda, usá el canal de contacto indicado en tu correo de bienvenida o en la web de Obra.",
-      "shell.verify.title": "Confirmá tu correo",
+      "shell.verify.title": "Verificá tu email",
       "shell.verify.body":
         "Para continuar con el pago y el panel, necesitamos que confirmes tu dirección de correo.",
       "shell.verify.resend": "Reenviar correo",
