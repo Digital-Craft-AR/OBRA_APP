@@ -54,15 +54,29 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     }
     setProfileLoading(true);
     setLoadError(null);
-    const { data, error } = await supabase
+    const full = await supabase
       .from("creator_profiles")
       .select("subscription_status, ui_locale")
       .maybeSingle();
-    if (error) {
-      setLoadError(error.message);
-      setProfileRow(null);
+
+    if (full.error) {
+      // DB may not have `ui_locale` yet (migration not applied). Fall back to subscription status only.
+      const minimal = await supabase
+        .from("creator_profiles")
+        .select("subscription_status")
+        .maybeSingle();
+      if (minimal.error) {
+        setLoadError(minimal.error.message);
+        setProfileRow(null);
+      } else {
+        const row = minimal.data as { subscription_status?: string } | null;
+        setProfileRow({
+          subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+          ui_locale: normalizeUiLocale(undefined),
+        });
+      }
     } else {
-      const row = data as { subscription_status?: string; ui_locale?: string | null } | null;
+      const row = full.data as { subscription_status?: string; ui_locale?: string | null } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
         ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
