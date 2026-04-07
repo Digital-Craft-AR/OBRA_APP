@@ -72,6 +72,25 @@ Use the **minimum subset** agreed for the release if the full path is not yet av
 
 ---
 
+## 5. Auth transactional emails (Supabase Auth)
+
+**When:** any release that touches **Auth**, **email templates**, **SMTP/custom mailer**, or **send-email hooks**.  
+**Source of truth in repo:** `supabase/email-templates/` and `scripts/push-supabase-auth-email-templates.mjs`.  
+**Deliverability gate:** see [auth-email-deliverability.md](./auth-email-deliverability.md) (aligns with GitHub **#101**).
+
+| Step | Pass |
+| ---- | ---- |
+| **Confirm signup:** new email/password user receives confirmation; link opens correct environment (`Site URL` / redirect) | ☐ |
+| **Resend confirmation** (if exposed): second send uses updated template | ☐ |
+| **Password reset:** request reset; email arrives; link completes reset in app | ☐ |
+| **Change email** (when in scope): confirmation email to new address; old account state matches product rules | ☐ |
+| **OAuth control:** Google (or enabled provider) path still works; no duplicate broken templates | ☐ |
+| **Locales:** if still on single global template, confirm copy is acceptable; if **send-email hook** is enabled (#103), smoke both `es` and `pt-BR` paths | ☐ |
+| **Inbox vs spam:** at least one send lands in **Inbox** on Gmail (and note if promotional tab) | ☐ |
+| **Optional debug:** with `VITE_AUTH_EMAIL_INSTRUMENTATION=true`, confirm browser console shows `[obra][auth]` JSON for signup / resend / callback (no PII) | ☐ |
+
+---
+
 ## 6. Legal and account (when in scope)
 
 | Step | Pass |

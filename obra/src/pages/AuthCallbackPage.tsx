@@ -7,6 +7,7 @@ import {
 } from "@/auth/oauthCallbackErrors";
 import { AuthFlowHeader } from "@/components/obra/AuthFlowHeader";
 import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
+import { emitAuthInstrumentation } from "@/lib/authInstrumentation";
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -42,13 +43,19 @@ export function AuthCallbackPage() {
         if (exchangeError) {
           const { data: retry } = await supabase.auth.getSession();
           if (retry.session) {
+            emitAuthInstrumentation({
+              flow: "callback_exchange",
+              outcome: "recovered_existing_session",
+            });
             window.history.replaceState({}, document.title, "/auth/callback");
             navigate("/app", { replace: true });
             return;
           }
+          emitAuthInstrumentation({ flow: "callback_exchange", outcome: "error" });
           setMessage(t("auth.callbackError"));
           return;
         }
+        emitAuthInstrumentation({ flow: "callback_exchange", outcome: "success" });
       }
 
       const { data, error: sessionError } = await supabase.auth.getSession();

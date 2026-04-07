@@ -1,4 +1,4 @@
-import image_796f1aadc3f406b3bdc7cc3069a7e16e26beb8bf from 'figma:asset/796f1aadc3f406b3bdc7cc3069a7e16e26beb8bf.png'
+import image_796f1aadc3f406b3bdc7cc3069a7e16e26beb8bf from "figma:asset/796f1aadc3f406b3bdc7cc3069a7e16e26beb8bf.png";
 import * as React from "react";
 import { LogOut, ChevronRight, ChevronLeft } from "lucide-react";
 import { cn } from "../ui/utils";

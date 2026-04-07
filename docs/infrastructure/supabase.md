@@ -42,7 +42,7 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 - **API settings (URL, anon key reference — copy values only into secret stores):** Project → **Settings** → **API**
 - **Database:** Project → **Database**
 - **Edge Functions:** Project → **Edge Functions**
-- **Auth:** Project → **Authentication** (Google OAuth setup: [auth-google-oauth.md](../development/auth-google-oauth.md))
+- **Auth:** Project → **Authentication** (Google OAuth setup: [auth-google-oauth.md](../development/auth-google-oauth.md); transactional templates in repo: `supabase/email-templates/`; deliverability checklist: [auth-email-deliverability.md](../operations/auth-email-deliverability.md))
 - **Storage:** Project → **Storage**
 - **Status / incidents:** [Supabase status](https://status.supabase.com/)
 

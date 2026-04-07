@@ -9,6 +9,10 @@ These files are the **versioned** copies of Supabase **Auth → Email templates*
 - `templates/*.body.html` — HTML body. Use Supabase **Go template** variables (for example `{{ .ConfirmationURL }}`). See [Auth email templates](https://supabase.com/docs/guides/auth/auth-email-templates).
 - `locales/es/*` and `locales/pt-BR/*` — optional localized overrides for selected templates. If a localized file is missing, the script falls back to `templates/*`.
 
+## Deliverability and launch readiness
+
+For SPF/DKIM/DMARC and support runbook expectations, see [`docs/operations/auth-email-deliverability.md`](../../docs/operations/auth-email-deliverability.md) (tracks GitHub **#101**).
+
 ## Push to Supabase (Management API)
 
 1. Create a **personal access token** in the Supabase dashboard (Account → Access Tokens). It must be allowed to update auth config (`auth:write` / `auth_config_write` per API docs).
