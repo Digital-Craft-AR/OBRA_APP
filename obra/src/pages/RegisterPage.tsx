@@ -7,6 +7,7 @@ import { GoogleIcon } from "@/components/obra/GoogleIcon";
 import { ObraInput } from "@/components/obra/ObraInput";
 import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
 import { Button } from "@/components/ui/Button";
+import { emitAuthInstrumentation } from "@/lib/authInstrumentation";
 import { supabase } from "@/lib/supabaseClient";
 import { authCardClass } from "@/lib/uiClasses";
 
@@ -49,13 +50,16 @@ export function RegisterPage() {
     setBusy(false);
     if (signError) {
       const key = mapSignUpErrorToKey(signError.message);
+      emitAuthInstrumentation({ flow: "signup", outcome: "error", errorKey: key });
       setError(t(`auth.${key}`));
       return;
     }
     if (data.session) {
+      emitAuthInstrumentation({ flow: "signup", outcome: "session_created" });
       void navigate("/app", { replace: true });
       return;
     }
+    emitAuthInstrumentation({ flow: "signup", outcome: "email_pending" });
     setCheckEmailOnly(true);
   }
 
