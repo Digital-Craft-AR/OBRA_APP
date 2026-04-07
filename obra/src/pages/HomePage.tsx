@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { buttonBaseClass, buttonVariantClass } from "@/components/ui/Button";
+import { buttonBaseClass, buttonSizeClass, buttonVariantClass } from "@/components/ui/Button";
 
 export function HomePage() {
   const { t } = useTranslation();
@@ -12,12 +12,21 @@ export function HomePage() {
       </h1>
       <p className="max-w-md text-center text-obra-neutral-600">{t("home.lead")}</p>
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <Link to="/login" className={`${buttonBaseClass} ${buttonVariantClass.cta}`}>
+        <Link
+          to="/design-system"
+          className={`${buttonBaseClass} ${buttonSizeClass.medium} ${buttonVariantClass.light.tertiary}`}
+        >
+          Design system
+        </Link>
+        <Link
+          to="/login"
+          className={`${buttonBaseClass} ${buttonSizeClass.medium} ${buttonVariantClass.light.cta}`}
+        >
           {t("home.ctaLogin")}
         </Link>
         <Link
           to="/register"
-          className={`${buttonBaseClass} ${buttonVariantClass.secondary}`}
+          className={`${buttonBaseClass} ${buttonSizeClass.medium} ${buttonVariantClass.light.secondary}`}
         >
           {t("home.ctaRegister")}
         </Link>

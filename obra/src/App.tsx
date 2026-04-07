@@ -4,6 +4,7 @@ import { ProtectedLayout } from "@/layouts/ProtectedLayout";
 import { ActivatingShellPage } from "@/pages/ActivatingShellPage";
 import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { DesignSystemPage } from "@/pages/DesignSystemPage";
 import { HomePage } from "@/pages/HomePage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -18,6 +19,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/design-system" element={<DesignSystemPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/register" element={<RegisterPage />} />
