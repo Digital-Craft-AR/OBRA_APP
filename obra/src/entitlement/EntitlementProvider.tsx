@@ -17,6 +17,7 @@ export type EntitlementContextValue = {
   loadError: string | null;
   user: User | null;
   refetchProfile: () => Promise<void>;
+  reconcileSubscription: () => Promise<void>;
   refreshSession: () => Promise<void>;
   clearCheckoutReturn: () => void;
 };
@@ -71,6 +72,24 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     await supabase.auth.getSession();
   }, []);
 
+  const reconcileSubscription = useCallback(async () => {
+    if (!session?.user?.id) return;
+    const { data: fnData, error: fnError } = await supabase.functions.invoke<{
+      subscription_status?: SubscriptionStatus;
+      error?: string;
+    }>("reconcile-subscription-status", {
+      method: "POST",
+      body: {},
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (fnError || fnData?.error) {
+      // Reconciliation is best-effort; fallback to normal profile read for UX continuity.
+      await refetchProfile();
+      return;
+    }
+    await refetchProfile();
+  }, [refetchProfile, session?.access_token, session?.user?.id]);
+
   useEffect(() => {
     void refetchProfile();
   }, [refetchProfile]);
@@ -120,6 +139,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loadError,
       user,
       refetchProfile,
+      reconcileSubscription,
       refreshSession,
       clearCheckoutReturn,
     }),
@@ -130,6 +150,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loadError,
       user,
       refetchProfile,
+      reconcileSubscription,
       refreshSession,
       clearCheckoutReturn,
     ],
