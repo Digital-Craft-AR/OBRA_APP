@@ -1,10 +1,8 @@
 import type { User } from "@supabase/supabase-js";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
-import type { EntitlementOutcome } from "@/entitlement/types";
 
 type MinimalAccountSummaryProps = {
-  outcome: Extract<EntitlementOutcome, "pending_subscription" | "activating" | "subscription_error">;
   user: User | null;
   busy?: boolean;
   statusMessage?: string | null;
@@ -40,7 +38,6 @@ function getLinkedProviderNames(user: User | null): string[] {
 }
 
 export function MinimalAccountSummary({
-  outcome,
   user,
   busy = false,
   statusMessage,
@@ -54,13 +51,6 @@ export function MinimalAccountSummary({
   const providerText = providers.length
     ? providers.join(", ")
     : t("shell.account.providersNone");
-
-  const outcomeKey =
-    outcome === "subscription_error"
-      ? "shell.account.subscriptionState.subscription_error"
-      : outcome === "activating"
-        ? "shell.account.subscriptionState.activating"
-        : "shell.account.subscriptionState.pending_subscription";
 
   return (
     <section
@@ -79,7 +69,7 @@ export function MinimalAccountSummary({
         </div>
         <div className="flex flex-col gap-1">
           <dt className="font-semibold text-obra-neutral-900">{t("shell.account.subscriptionLabel")}</dt>
-          <dd className="text-obra-neutral-700">{t(outcomeKey)}</dd>
+          <dd className="text-obra-neutral-700">{t("shell.account.subscriptionState.subscription_error")}</dd>
         </div>
         <div className="flex flex-col gap-1">
           <dt className="font-semibold text-obra-neutral-900">{t("shell.account.creditsLabel")}</dt>
