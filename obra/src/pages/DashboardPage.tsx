@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
+import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 import { contentCardClass } from "@/lib/uiClasses";
@@ -17,6 +18,7 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const { session } = useAuth();
+  const { creditsBalance } = useEntitlement();
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -74,7 +76,7 @@ export function DashboardPage() {
           },
         ]}
         userName={profile?.display_name ?? session?.user?.email ?? t("sidebar.userFallback")}
-        credits={1240}
+        credits={creditsBalance}
         onLogout={() => void signOut()}
         logoutLabel={t("nav.logout")}
       />

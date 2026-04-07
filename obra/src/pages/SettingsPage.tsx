@@ -11,6 +11,10 @@ import { supabase } from "@/lib/supabaseClient";
 import type { UiLocale } from "@/lib/uiLocale";
 import { normalizeUiLocale } from "@/lib/uiLocale";
 import { inputFieldClass } from "@/lib/uiClasses";
+import { SettingsBillingPanel } from "@/pages/settings/SettingsBillingPanel";
+import { SettingsCreditsPanel } from "@/pages/settings/SettingsCreditsPanel";
+import { SettingsPrivacyPanel } from "@/pages/settings/SettingsPrivacyPanel";
+import { SettingsSecurityPanel } from "@/pages/settings/SettingsSecurityPanel";
 
 async function loadProfileRow() {
   const full = await supabase.from("creator_profiles").select("display_name, ui_locale").maybeSingle();
@@ -40,7 +44,7 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const { session } = useAuth();
-  const { refetchProfile } = useEntitlement();
+  const { refetchProfile, creditsBalance, subscriptionStatus, reconcileSubscription } = useEntitlement();
   const [section, setSection] = useState<AccountSection>("profile");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,11 +86,11 @@ export function SettingsPage() {
   const sectionNav = useMemo(
     () =>
       [
-        { id: "profile" as const, labelKey: "settings.section.profile", icon: User, disabled: false },
-        { id: "security" as const, labelKey: "settings.sectionNav.security", icon: Shield, disabled: true },
-        { id: "billing" as const, labelKey: "settings.sectionNav.billing", icon: CreditCard, disabled: true },
-        { id: "credits" as const, labelKey: "settings.sectionNav.credits", icon: Coins, disabled: true },
-        { id: "privacy" as const, labelKey: "settings.sectionNav.privacy", icon: Lock, disabled: true },
+        { id: "profile" as const, labelKey: "settings.section.profile", icon: User },
+        { id: "security" as const, labelKey: "settings.sectionNav.security", icon: Shield },
+        { id: "billing" as const, labelKey: "settings.sectionNav.billing", icon: CreditCard },
+        { id: "credits" as const, labelKey: "settings.sectionNav.credits", icon: Coins },
+        { id: "privacy" as const, labelKey: "settings.sectionNav.privacy", icon: Lock },
       ] as const,
     [],
   );
@@ -164,7 +168,7 @@ export function SettingsPage() {
           },
         ]}
         userName={userChipLabel}
-        credits={1240}
+        credits={creditsBalance}
         onLogout={() => void signOut()}
         logoutLabel={t("nav.logout")}
       />
@@ -189,21 +193,15 @@ export function SettingsPage() {
                   <button
                     key={item.id}
                     type="button"
-                    disabled={item.disabled}
-                    title={item.disabled ? t("common.comingSoon") : undefined}
-                    onClick={() => {
-                      if (!item.disabled) setSection(item.id);
-                    }}
+                    onClick={() => setSection(item.id)}
                     className={[
                       "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-body text-sm font-medium transition-all",
-                      item.disabled
-                        ? "cursor-not-allowed text-obra-neutral-400 opacity-60"
-                        : active
-                          ? "bg-obra-blue-100 text-obra-blue-900"
-                          : "text-obra-neutral-600 hover:bg-obra-blue-50 hover:text-obra-blue-900",
+                      active
+                        ? "bg-obra-blue-100 text-obra-blue-900"
+                        : "text-obra-neutral-600 hover:bg-obra-blue-50 hover:text-obra-blue-900",
                     ].join(" ")}
                   >
-                    <span className={active && !item.disabled ? "text-obra-blue-700" : "text-obra-neutral-400"}>
+                    <span className={active ? "text-obra-blue-700" : "text-obra-neutral-400"}>
                       <Icon className="size-4 shrink-0" aria-hidden />
                     </span>
                     {t(item.labelKey)}
@@ -286,6 +284,14 @@ export function SettingsPage() {
                 </div>
               )
             ) : null}
+            {section === "security" ? <SettingsSecurityPanel userEmail={session?.user?.email} /> : null}
+            {section === "billing" ? (
+              <SettingsBillingPanel subscriptionStatus={subscriptionStatus} onRefreshStatus={reconcileSubscription} />
+            ) : null}
+            {section === "credits" ? (
+              <SettingsCreditsPanel creditsBalance={creditsBalance} subscriptionStatus={subscriptionStatus} />
+            ) : null}
+            {section === "privacy" ? <SettingsPrivacyPanel /> : null}
           </div>
         </div>
       </main>
