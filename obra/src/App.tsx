@@ -5,6 +5,7 @@ import { ActivatingShellPage } from "@/pages/ActivatingShellPage";
 import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DesignSystemPage } from "@/pages/DesignSystemPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { HomePage } from "@/pages/HomePage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -33,6 +34,7 @@ export function App() {
           <Route path="activating" element={<ActivatingShellPage />} />
           <Route path="subscription-error" element={<SubscriptionErrorShellPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
