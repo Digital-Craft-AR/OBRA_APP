@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { outcomeToPath, parseDevEntitlementOverride, resolveEntitlement } from "./resolveEntitlement";
+import {
+  isPathAllowedForOutcome,
+  outcomeToPath,
+  parseDevEntitlementOverride,
+  resolveEntitlement,
+} from "./resolveEntitlement";
 
 describe("resolveEntitlement", () => {
   it("requires email verification before any subscription state", () => {
@@ -67,6 +72,22 @@ describe("outcomeToPath", () => {
   it("returns stable paths under /app", () => {
     expect(outcomeToPath("verify_email")).toBe("/app/verify-email");
     expect(outcomeToPath("full_app")).toBe("/app/dashboard");
+  });
+});
+
+describe("isPathAllowedForOutcome", () => {
+  it("allows full_app on dashboard and settings", () => {
+    expect(isPathAllowedForOutcome("full_app", "/app/dashboard")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings")).toBe(true);
+  });
+
+  it("redirects full_app away from blocking shell paths", () => {
+    expect(isPathAllowedForOutcome("full_app", "/app/pending-subscription")).toBe(false);
+  });
+
+  it("requires blocking outcomes to match their single shell path", () => {
+    expect(isPathAllowedForOutcome("verify_email", "/app/verify-email")).toBe(true);
+    expect(isPathAllowedForOutcome("verify_email", "/app/dashboard")).toBe(false);
   });
 });
 

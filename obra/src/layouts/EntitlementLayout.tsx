@@ -3,11 +3,12 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
 import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
 import { EntitlementProvider, useEntitlement } from "@/entitlement/EntitlementProvider";
+import { isPathAllowedForOutcome } from "@/entitlement/resolveEntitlement";
 
 function EntitlementGate() {
   const { t } = useTranslation();
   const location = useLocation();
-  const { targetPath, loading, loadError } = useEntitlement();
+  const { outcome, targetPath, loading, loadError } = useEntitlement();
 
   if (loading) {
     return <AuthFlowLoading variant="fullscreen" />;
@@ -25,7 +26,7 @@ function EntitlementGate() {
   }
 
   const path = location.pathname;
-  if (path !== targetPath) {
+  if (!isPathAllowedForOutcome(outcome, path)) {
     return <Navigate to={targetPath} replace state={{ from: path }} />;
   }
 

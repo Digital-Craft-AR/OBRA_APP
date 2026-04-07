@@ -42,6 +42,20 @@ export function outcomeToPath(outcome: EntitlementOutcome): string {
   }
 }
 
+/** Under `full_app`, users may visit more than `/app/dashboard` (e.g. account settings). */
+const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/settings"];
+
+/**
+ * Whether the current URL is allowed for this entitlement. Blocking shells use a single canonical path;
+ * full product access allows multiple routes under `/app`.
+ */
+export function isPathAllowedForOutcome(outcome: EntitlementOutcome, pathname: string): boolean {
+  if (outcome === "full_app") {
+    return FULL_APP_ALLOWED_PATHS.includes(pathname);
+  }
+  return pathname === outcomeToPath(outcome);
+}
+
 export function parseDevEntitlementOverride(raw: string | undefined): EntitlementOutcome | null {
   if (!raw) return null;
   const allowed: EntitlementOutcome[] = [
