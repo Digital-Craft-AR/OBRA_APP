@@ -54,11 +54,13 @@ const resources = {
       "auth.resendSent": "Te reenviamos el correo de confirmación.",
       "auth.resendError": "No pudimos reenviar el correo. Probá más tarde.",
       "auth.resendRateLimited": "Demasiados intentos. Esperá unos minutos antes de pedir otro correo.",
+      "auth.resendMissingEmail":
+        "No encontramos el correo para reenviar la confirmación. Volvé a iniciar sesión e intentá de nuevo.",
       "shell.supportHint":
         "Si necesitás ayuda, usá el canal de contacto indicado en tu correo de bienvenida o en la web de Obra.",
       "shell.verify.title": "Verificá tu email",
       "shell.verify.body":
-        "Para continuar con el pago y el panel, necesitamos que confirmes tu dirección de correo.",
+        "Para ingresar en el sistema necesitamos que confirmes tu direccion de correo",
       "shell.verify.resend": "Reenviar correo",
       "shell.verify.refreshedSession": "Ya confirmé — actualizar",
       "shell.pending.title": "Completá tu suscripción",
@@ -163,6 +165,8 @@ const resources = {
       "auth.resendSent": "Reenviamos o e-mail de confirmação.",
       "auth.resendError": "Não foi possível reenviar o e-mail. Tente mais tarde.",
       "auth.resendRateLimited": "Muitas tentativas. Aguarde alguns minutos antes de pedir outro e-mail.",
+      "auth.resendMissingEmail":
+        "Não encontramos o e-mail para reenviar a confirmação. Volte ao login e tente de novo.",
       "shell.supportHint":
         "Se precisar de ajuda, use o canal de contato indicado no e-mail de boas-vindas ou no site da Obra.",
       "shell.verify.title": "Confirme seu e-mail",

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
-import { shellPanelClass } from "@/lib/uiClasses";
+import { authChromeLogoImgClass, shellPanelClass } from "@/lib/uiClasses";
 
 type BlockingShellFrameProps = {
   titleKey: string;
@@ -21,20 +21,20 @@ export function BlockingShellFrame({ titleKey, children }: BlockingShellFramePro
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-obra-blue-50">
+    <div className="flex min-h-screen flex-col bg-obra-blue-50 font-body">
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className={`${shellPanelClass} text-center`}>
-          <div className="flex items-center justify-center pb-4">
-            <ObraLogoLink tone="solidBlue950" />
+          <div className="flex justify-center">
+            <ObraLogoLink tone="solidBlue950" imgClassName={authChromeLogoImgClass} />
           </div>
           <h1 className="font-display text-2xl font-bold text-obra-blue-950">
             {t(titleKey)}
           </h1>
           {children}
-          <p className="pt-4 text-sm text-obra-neutral-600">
+          <p className="text-sm text-obra-neutral-600">
             {t("shell.supportHint")}
           </p>
-          <div className="flex justify-center pt-2">
+          <div className="flex justify-center">
             <Button
               type="button"
               variant="ghost"

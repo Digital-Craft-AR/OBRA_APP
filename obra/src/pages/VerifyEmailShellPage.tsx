@@ -1,80 +1,29 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
+import { VerifyEmailPanel } from "@/components/verification/VerifyEmailPanel";
 import { Button } from "@/components/ui/Button";
+import { useEmailVerificationResend } from "@/auth/useEmailVerificationResend";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
-import { supabase } from "@/lib/supabaseClient";
 
 export function VerifyEmailShellPage() {
   const { t } = useTranslation();
   const { user, refreshSession } = useEntitlement();
-  const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
   const email = user?.email ?? "";
-
-  async function onResend() {
-    if (!email) return;
-    setMessage(null);
-    setBusy(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: { emailRedirectTo: redirectTo },
-    });
-    setBusy(false);
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes("rate") || msg.includes("429") || msg.includes("too many")) {
-        setMessage(t("auth.resendRateLimited"));
-        return;
-      }
-      setMessage(t("auth.resendError"));
-      return;
-    }
-    setMessage(t("auth.resendSent"));
-  }
+  const { busy, message, resend } = useEmailVerificationResend(email);
 
   return (
     <BlockingShellFrame titleKey="shell.verify.title">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <p className="max-w-md text-sm leading-relaxed text-obra-neutral-600">{t("shell.verify.body")}</p>
-
-        {email ? (
-          <p className="rounded-full bg-obra-neutral-100 px-4 py-2 font-mono text-sm text-obra-neutral-900">
-            {email}
-          </p>
-        ) : null}
-
-        {message ? (
-          <p className="text-sm text-obra-neutral-700" role="status">
-            {message}
-          </p>
-        ) : null}
-
-        <div className="flex w-full items-center justify-between gap-4">
-          <Button
-            type="button"
-            variant="tertiary"
-            className="w-auto"
-            disabled={busy || !email}
-            onClick={() => void onResend()}
-          >
-            {busy ? t("auth.working") : t("shell.verify.resend")}
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-auto"
-            disabled={busy}
-            onClick={() => void refreshSession()}
-          >
+      <VerifyEmailPanel
+        email={email}
+        message={message}
+        busy={busy}
+        onResend={resend}
+        secondaryAction={
+          <Button type="button" variant="ghost" className="w-auto" disabled={busy} onClick={() => void refreshSession()}>
             {t("shell.verify.refreshedSession")}
           </Button>
-        </div>
-      </div>
+        }
+      />
     </BlockingShellFrame>
   );
 }

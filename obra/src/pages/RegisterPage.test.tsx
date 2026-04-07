@@ -7,9 +7,10 @@ import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { RegisterPage } from "@/pages/RegisterPage";
 
-const { signUp, signInWithOAuth } = vi.hoisted(() => ({
+const { signUp, signInWithOAuth, resend } = vi.hoisted(() => ({
   signUp: vi.fn(),
   signInWithOAuth: vi.fn(),
+  resend: vi.fn(),
 }));
 
 vi.mock("@/lib/supabaseClient", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/lib/supabaseClient", () => ({
     auth: {
       signUp,
       signInWithOAuth,
+      resend,
     },
   },
 }));
@@ -41,8 +43,10 @@ describe("RegisterPage", () => {
   beforeEach(() => {
     signUp.mockReset();
     signInWithOAuth.mockReset();
+    resend.mockReset();
     signUp.mockResolvedValue({ data: { session: null }, error: null });
     signInWithOAuth.mockResolvedValue({ error: null });
+    resend.mockResolvedValue({ error: null });
   });
 
   it("submits signUp with emailRedirectTo pointing at auth callback", async () => {
@@ -104,6 +108,32 @@ describe("RegisterPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(i18n.t("auth.registerCheckEmail", { lng: "es" }))).toBeInTheDocument();
+    });
+  });
+
+  it("resends confirmation email from check-email state", async () => {
+    const user = userEvent.setup();
+    signUp.mockResolvedValue({ data: { session: null, user: null }, error: null });
+    renderRegister();
+    const main = screen.getByRole("main");
+
+    await user.type(within(main).getByLabelText(/correo/i), "x@y.co");
+    await user.type(within(main).getByLabelText(/contraseña/i), "password12");
+    await user.click(within(main).getByRole("button", { name: /crear mi cuenta/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(i18n.t("auth.registerCheckEmail", { lng: "es" }))).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: i18n.t("shell.verify.resend", { lng: "es" }) }));
+
+    await waitFor(() => {
+      expect(resend).toHaveBeenCalledTimes(1);
+    });
+    expect(resend).toHaveBeenCalledWith({
+      type: "signup",
+      email: "x@y.co",
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
   });
 
