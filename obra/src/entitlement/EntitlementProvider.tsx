@@ -1,7 +1,9 @@
 import type { User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/authContext";
+import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
+import { normalizeUiLocale } from "@/lib/uiLocale";
 import { clearCheckoutReturnPending, isCheckoutReturnPending } from "./checkoutReturn";
 import {
   outcomeToPath,
@@ -35,9 +37,10 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const { session, loading: authLoading } = useAuth();
   const user = session?.user ?? null;
 
-  const [profileRow, setProfileRow] = useState<{ subscription_status: SubscriptionStatus } | null>(
-    null,
-  );
+  const [profileRow, setProfileRow] = useState<{
+    subscription_status: SubscriptionStatus;
+    ui_locale: string;
+  } | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [checkoutBump, setCheckoutBump] = useState(0);
@@ -53,16 +56,16 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     setLoadError(null);
     const { data, error } = await supabase
       .from("creator_profiles")
-      .select("subscription_status")
+      .select("subscription_status, ui_locale")
       .maybeSingle();
     if (error) {
       setLoadError(error.message);
       setProfileRow(null);
     } else {
+      const row = data as { subscription_status?: string; ui_locale?: string | null } | null;
       setProfileRow({
-        subscription_status: normalizeSubscriptionStatus(
-          (data as { subscription_status?: string } | null)?.subscription_status,
-        ),
+        subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
       });
     }
     setProfileLoading(false);
@@ -93,6 +96,14 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     void refetchProfile();
   }, [refetchProfile]);
+
+  useEffect(() => {
+    if (!profileRow?.ui_locale) return;
+    const lang = normalizeUiLocale(profileRow.ui_locale);
+    if (i18n.language !== lang) {
+      void i18n.changeLanguage(lang);
+    }
+  }, [profileRow?.ui_locale]);
 
   const checkoutReturnPending = useMemo(() => {
     void checkoutBump;
