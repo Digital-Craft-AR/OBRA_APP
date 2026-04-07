@@ -50,7 +50,7 @@ Do not commit secrets (service role keys, connection strings with passwords, or 
 
 ## Environment variables (names only)
 
-**Convention (Obra frontend):** The stack is **React + Vite** (`CLAUDE.md`, `ARQUITECTURA_Obra.md` §9). Public client config uses the `**VITE_` prefix** so Vite exposes them to the browser build. Do **not** add a `VITE_` prefix to secrets that must never ship to the client.
+**Convention (Obra frontend):** The stack is **React + Vite** (`CLAUDE.md`, `ARQUITECTURA_Obra.md` §9). Public client config uses the `**VITE`_ prefix** so Vite exposes them to the browser build. Do **not** add a `VITE_` prefix to secrets that must never ship to the client.
 
 
 | Variable                 | Client (browser) | Purpose                                                              |

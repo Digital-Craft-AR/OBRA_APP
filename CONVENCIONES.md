@@ -43,19 +43,19 @@
 
 Los tokens se exponen como utilidades Tailwind via `@theme` en `index.css`. Usá siempre las clases Tailwind (`bg-obra-blue-900`, `text-obra-green-400`), nunca hex codes directos.
 
-### La regla sagrada: Sidebar dark / Main content white
+### La regla sagrada: Sidebar dark / Fondo de página `obra-blue-50` / Superficies blancas
 
 ```
 ┌──────────────┬────────────────────────────────────────────┐
 │              │                                            │
 │   SIDEBAR    │           MAIN CONTENT                     │
 │              │                                            │
-│  obra-blue   │    bg-white (#FFFFFF)                      │
-│  -900        │                                            │
-│  (#204970)   │    Blanco puro. Sin tinte.                 │
-│              │    Feel Notion/Canva.                       │
+│  obra-blue   │    Fondo: bg-obra-blue-50 (#F4F8FC)        │
+│  -900        │    Cards / paneles: bg-white               │
+│  (#204970)   │                                            │
+│              │    Sin gradientes.                         │
 │  FLAT.       │                                            │
-│  Sin         │    Si se ve oscuro, algo se rompió.         │
+│  Sin         │                                            │
 │  gradiente.  │                                            │
 │              │                                            │
 └──────────────┴────────────────────────────────────────────┘
@@ -63,17 +63,27 @@ Los tokens se exponen como utilidades Tailwind via `@theme` en `index.css`. Usá
 
 **Zero gradientes en toda la app.** El sidebar es un solo color flat `#204970`.
 
+### Logo contrast rules
+
+- On **white/light surfaces** (`bg-white`, `obra-blue-50`, auth cards, modals), always use the **blue logo variant** (`solidBlue950`).
+- On **dark blue surfaces** (for example `obra-blue-900` sidebar or dark headers), always use the **green logo variant** (default logo treatment).
+- Do not use the green logo on white backgrounds, and do not use the blue logo on dark blue backgrounds.
+
 ### Botones
 
 - **Forma:** Pill shape siempre (`rounded-full` / `border-radius: 9999px`)
-- **Solo 4 variantes — no se permiten otras:**
+- **Variantes permitidas (no inventar otras en componentes):**
 
 | Variante | Background | Texto | Hover | Uso |
 |----------|-----------|-------|-------|-----|
-| `primary` | `obra-blue-700` | blanco | `obra-blue-900` | Acciones principales sobre fondo claro |
-| `cta` | `obra-green-400` | `obra-blue-950` | `brightness-105` | Call-to-action: "Crear", "Siguiente", "Generar" |
-| `ghost` | transparente | `obra-blue-700` | `obra-blue-50` | Acciones secundarias, cancelar |
+| `primary` | `obra-green-400` | `obra-blue-950` | `brightness-105` | CTA principal (alias: `cta`) |
+| `cta` | igual que `primary` | — | — | Mismo estilo; nombre legado |
+| `secondary` | `obra-blue-700` | blanco | `obra-blue-900` | Acción alternativa (p. ej. OAuth sobre fondo claro) |
+| `ghost` | transparente | `obra-blue-700` | `obra-blue-50` | Borde `obra-blue-700`; secundario / cancelar (equiv. Figma **tertiary**) |
+| `ghostDark` | transparente | blanco | `white/10` | Borde `white/20`; solo sobre `obra-blue-900` (sidebar) |
 | `destructive` | `red-500` | blanco | `red-600` | Acciones de eliminación/peligro |
+
+Altura estándar del botón: `h-10 px-5`, `font-semibold text-sm`, focus ring `obra-blue-700` + offset (paridad con `figma_make` ObraButton).
 
 ### Input (1 solo estilo en toda la app)
 

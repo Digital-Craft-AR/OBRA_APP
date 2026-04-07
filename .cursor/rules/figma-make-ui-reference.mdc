@@ -1,0 +1,31 @@
+---
+description: "[OBRA_APP] Use figma_make/src as the UI reference when building frontend in obra/"
+globs: obra/src/**/*.tsx,obra/src/**/*.css
+alwaysApply: false
+---
+
+# Figma Make UI reference (`figma_make/src`)
+
+When adding or changing **frontend UI** in the production app under `obra/src/`, use **`figma_make/src/`** as the canonical example for layout, component composition, spacing, and visual hierarchy.
+
+## Where to look
+
+| Area | Reference path |
+|------|----------------|
+| Obra-specific components | `figma_make/src/app/components/obra/` |
+| Base shadcn-style primitives | `figma_make/src/app/components/ui/` |
+| Full screens / flows | `figma_make/src/app/pages/` |
+| Global styles & theme | `figma_make/src/styles/` (e.g. `theme.css`, `tailwind.css`) |
+| Design tokens (types/values) | `figma_make/src/app/lib/tokens.ts` |
+
+Before inventing a new pattern, **find the closest matching page or component** in `figma_make` and mirror its structure and Tailwind usage in `obra/`.
+
+## Relationship to project docs
+
+- **`CONVENCIONES.md`** (repo root) remains the written source of truth for tokens, button variants, sidebar/main contrast, and i18n.
+- If `figma_make` and `CONVENCIONES.md` disagree, **prefer `CONVENCIONES.md` and `obra/src/lib/tokens.ts`** for shipped code; use `figma_make` for composition and look-and-feel unless you are explicitly syncing the reference bundle.
+
+## Do not copy blindly
+
+- `figma_make/` is a **reference implementation**, not the deployed app. Implement features in **`obra/src/`**, reusing Obra’s real components, routing, and data layer.
+- Prefer aligning Obra components with the reference rather than diverging with one-off styles.
