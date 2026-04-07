@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
+import { MinimalAccountSummary } from "@/components/shells/MinimalAccountSummary";
 import { Button } from "@/components/ui/Button";
+import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { useAuth } from "@/auth/authContext";
 import { consumeCheckoutReturnMessageKey } from "@/entitlement/checkoutReturn";
 import { supabase } from "@/lib/supabaseClient";
@@ -15,6 +17,7 @@ type CheckoutFnResponse = {
 export function PendingSubscriptionShellPage() {
   const { t } = useTranslation();
   const { session } = useAuth();
+  const { user, reconcileSubscription } = useEntitlement();
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -82,14 +85,34 @@ export function PendingSubscriptionShellPage() {
     window.location.assign(data.redirect_url);
   }
 
+  async function onExportData() {
+    setBusy(true);
+    const { error } = await supabase.functions.invoke("export-user-data", { method: "POST", body: {} });
+    setBusy(false);
+    setMessage(error ? t("shell.account.exportUnavailable") : t("shell.account.exportStarted"));
+  }
+
+  async function onDeleteAccount() {
+    const confirmed = window.confirm(t("shell.account.deleteConfirm"));
+    if (!confirmed) return;
+    setBusy(true);
+    const { error } = await supabase.functions.invoke("delete-account", { method: "POST", body: {} });
+    setBusy(false);
+    setMessage(error ? t("shell.account.deleteUnavailable") : t("shell.account.deleteStarted"));
+  }
+
   return (
     <BlockingShellFrame titleKey="shell.pending.title">
       <p className="text-sm text-obra-neutral-600">{t("shell.pending.body")}</p>
-      {message ? (
-        <p className="text-sm text-obra-neutral-700" role="status">
-          {message}
-        </p>
-      ) : null}
+      <MinimalAccountSummary
+        outcome="pending_subscription"
+        user={user}
+        busy={busy}
+        statusMessage={message}
+        onRefreshStatus={() => reconcileSubscription()}
+        onExportData={() => onExportData()}
+        onDeleteAccount={() => onDeleteAccount()}
+      />
       <Button
         type="button"
         variant="cta"
