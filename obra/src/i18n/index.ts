@@ -99,6 +99,34 @@ const resources = {
         "Tu suscripción no está activa. Actualizá el medio de pago en Mercado Pago o contactá soporte.",
       "shell.subscriptionError.credits":
         "Los créditos que compraste no se pierden: volverán a estar disponibles cuando la suscripción esté activa.",
+      "shell.account.summaryTitle": "Resumen de tu cuenta",
+      "shell.account.emailLabel": "Email",
+      "shell.account.emailUnknown": "No disponible",
+      "shell.account.providersLabel": "Métodos vinculados",
+      "shell.account.providersNone": "Sin métodos vinculados",
+      "shell.account.subscriptionLabel": "Estado de suscripción",
+      "shell.account.subscriptionState.pending_subscription": "Pendiente de suscripción activa",
+      "shell.account.subscriptionState.activating": "Activando suscripción",
+      "shell.account.subscriptionState.subscription_error": "Suscripción con error de cobro",
+      "shell.account.creditsLabel": "Créditos",
+      "shell.account.creditsPolicy":
+        "Tus créditos se conservan, pero solo se pueden usar con una suscripción activa.",
+      "shell.account.refreshStatus": "Actualizar estado",
+      "shell.account.topUpDisabled": "Top-up deshabilitado",
+      "shell.account.topUpDisabledHint":
+        "Podrás comprar créditos extra cuando la suscripción esté activa.",
+      "shell.account.exportData": "Exportar mis datos",
+      "shell.account.deleteAccount": "Eliminar cuenta",
+      "shell.account.deleteConfirm":
+        "¿Querés eliminar tu cuenta? Esta acción es irreversible y puede requerir resolver la suscripción primero.",
+      "shell.account.exportStarted":
+        "Iniciamos la exportación de datos. Te avisaremos cuando esté disponible.",
+      "shell.account.exportUnavailable":
+        "La exportación todavía no está disponible en este entorno. Contactá soporte.",
+      "shell.account.deleteStarted":
+        "Iniciamos la eliminación de la cuenta. Si hay una suscripción activa, primero tendrás que resolverla.",
+      "shell.account.deleteUnavailable":
+        "No pudimos iniciar la eliminación. Revisá el estado de suscripción o contactá soporte.",
       "entitlement.profileError": "No pudimos cargar tu perfil. Recargá la página o probá más tarde.",
       "dashboard.title": "Panel",
       "dashboard.profileLoading": "Cargando perfil…",
@@ -218,6 +246,34 @@ const resources = {
         "Sua assinatura não está ativa. Atualize a forma de pagamento no Mercado Pago ou fale com o suporte.",
       "shell.subscriptionError.credits":
         "Os créditos que você comprou não são perdidos: voltam a ficar disponíveis quando a assinatura estiver ativa.",
+      "shell.account.summaryTitle": "Resumo da sua conta",
+      "shell.account.emailLabel": "E-mail",
+      "shell.account.emailUnknown": "Indisponível",
+      "shell.account.providersLabel": "Métodos vinculados",
+      "shell.account.providersNone": "Nenhum método vinculado",
+      "shell.account.subscriptionLabel": "Status da assinatura",
+      "shell.account.subscriptionState.pending_subscription": "Assinatura ativa pendente",
+      "shell.account.subscriptionState.activating": "Ativando assinatura",
+      "shell.account.subscriptionState.subscription_error": "Assinatura com erro de cobrança",
+      "shell.account.creditsLabel": "Créditos",
+      "shell.account.creditsPolicy":
+        "Seus créditos são mantidos, mas só podem ser usados com uma assinatura ativa.",
+      "shell.account.refreshStatus": "Atualizar status",
+      "shell.account.topUpDisabled": "Top-up desativado",
+      "shell.account.topUpDisabledHint":
+        "Você poderá comprar créditos extras quando a assinatura estiver ativa.",
+      "shell.account.exportData": "Exportar meus dados",
+      "shell.account.deleteAccount": "Excluir conta",
+      "shell.account.deleteConfirm":
+        "Deseja excluir sua conta? Esta ação é irreversível e pode exigir resolver a assinatura primeiro.",
+      "shell.account.exportStarted":
+        "Iniciamos a exportação dos dados. Avisaremos quando estiver disponível.",
+      "shell.account.exportUnavailable":
+        "A exportação ainda não está disponível neste ambiente. Fale com o suporte.",
+      "shell.account.deleteStarted":
+        "Iniciamos a exclusão da conta. Se houver assinatura ativa, você precisa resolvê-la antes.",
+      "shell.account.deleteUnavailable":
+        "Não foi possível iniciar a exclusão. Verifique o status da assinatura ou fale com o suporte.",
       "entitlement.profileError": "Não foi possível carregar seu perfil. Recarregue a página ou tente mais tarde.",
       "dashboard.title": "Painel",
       "dashboard.profileLoading": "Carregando perfil…",
