@@ -5,9 +5,9 @@
 | Secret / name | Consumers | Notes |
 | ------------- | --------- | ----- |
 | `SUPABASE_URL` | All functions (auto) | Project URL; often injected by the platform |
-| `SUPABASE_ANON_KEY` | `create-subscription-checkout` | Validates the caller JWT via `auth.getUser` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook` | Updates `creator_profiles` and idempotency table (RLS bypass) |
-| `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `mercadopago-webhook` | Private access token (production) or `TEST-…` for sandbox |
+| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `reconcile-subscription-status` | Validates caller session via `auth.getUser` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status` | Updates `creator_profiles` and idempotency table (RLS bypass) |
+| `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Private access token (production) or `TEST-…` for sandbox |
 | `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | **Your integrations** webhook signing secret (HMAC `x-signature`) |
 | `OBRA_APP_URL` | `create-subscription-checkout` | Public site origin **without** trailing slash (e.g. `https://obra-app-nu.vercel.app`) — used for subscription `back_url` |
 | `MERCADOPAGO_SUBSCRIPTION_REASON` | `create-subscription-checkout` | Optional; default `Obra recurring subscription` |
@@ -33,11 +33,12 @@ From repo root (with Supabase CLI linked to the Obra project):
 ```bash
 supabase functions deploy mercadopago-webhook
 supabase functions deploy create-subscription-checkout
+supabase functions deploy reconcile-subscription-status
 supabase functions deploy ai-optimize
 supabase functions deploy export-pdf
 ```
 
-`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout` uses **`verify_jwt = true`** (Supabase verifies the JWT before the function runs; the function also calls `auth.getUser`).
+`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout` and `reconcile-subscription-status` also run with `verify_jwt = false` and perform manual token validation with `auth.getUser` to avoid gateway JWT false-negatives seen during OAuth test flows.
 
 Apply DB migrations so `public.obra_mp_processed_webhooks` exists before relying on the webhook.
 

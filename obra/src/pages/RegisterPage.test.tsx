@@ -56,7 +56,7 @@ describe("RegisterPage", () => {
 
     await user.type(within(main).getByLabelText(/correo/i), "new@example.com");
     await user.type(within(main).getByLabelText(/contraseña/i), "password12");
-    await user.click(within(main).getByRole("button", { name: /registrarme/i }));
+    await user.click(within(main).getByRole("button", { name: /crear mi cuenta/i }));
 
     await waitFor(() => {
       expect(signUp).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ describe("RegisterPage", () => {
 
     await user.type(within(main).getByLabelText(/correo/i), "x@y.co");
     await user.type(within(main).getByLabelText(/contraseña/i), "password12");
-    await user.click(within(main).getByRole("button", { name: /registrarme/i }));
+    await user.click(within(main).getByRole("button", { name: /crear mi cuenta/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("app-landed")).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe("RegisterPage", () => {
 
     await user.type(within(main).getByLabelText(/correo/i), "x@y.co");
     await user.type(within(main).getByLabelText(/contraseña/i), "password12");
-    await user.click(within(main).getByRole("button", { name: /registrarme/i }));
+    await user.click(within(main).getByRole("button", { name: /crear mi cuenta/i }));
 
     await waitFor(() => {
       expect(screen.getByText(i18n.t("auth.registerCheckEmail", { lng: "es" }))).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe("RegisterPage", () => {
 
     await user.type(within(main).getByLabelText(/correo/i), "exists@example.com");
     await user.type(within(main).getByLabelText(/contraseña/i), "password12");
-    await user.click(within(main).getByRole("button", { name: /registrarme/i }));
+    await user.click(within(main).getByRole("button", { name: /crear mi cuenta/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent(

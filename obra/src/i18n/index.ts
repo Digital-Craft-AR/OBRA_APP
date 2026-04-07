@@ -82,6 +82,8 @@ const resources = {
       "shell.activating.clearReturn": "Salir de esta pantalla",
       "shell.activating.note":
         "Si ya pasaron varios minutos, usá “Actualizar estado” o contactá soporte con el comprobante de pago.",
+      "shell.activating.timeoutHint":
+        "La activación está tardando más de lo normal. Podés actualizar estado o salir de esta pantalla y volver más tarde.",
       "shell.subscriptionError.title": "Suscripción en pausa",
       "shell.subscriptionError.body":
         "Tu suscripción no está activa. Actualizá el medio de pago en Mercado Pago o contactá soporte.",
@@ -178,6 +180,8 @@ const resources = {
       "shell.activating.clearReturn": "Sair desta tela",
       "shell.activating.note":
         "Se já passaram vários minutos, use “Atualizar status” ou fale com o suporte com o comprovante.",
+      "shell.activating.timeoutHint":
+        "A ativação está demorando mais do que o normal. Você pode atualizar o status ou sair desta tela e voltar depois.",
       "shell.subscriptionError.title": "Assinatura pausada",
       "shell.subscriptionError.body":
         "Sua assinatura não está ativa. Atualize a forma de pagamento no Mercado Pago ou fale com o suporte.",
