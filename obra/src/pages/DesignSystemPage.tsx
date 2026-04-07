@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { ObraBadge } from "@/components/obra/ObraBadge";
 import { ObraInput } from "@/components/obra/ObraInput";
 import { ObraTextarea } from "@/components/obra/ObraTextarea";
 
@@ -179,6 +180,41 @@ export function DesignSystemPage() {
                 defaultValue="Very short description."
                 error="The avatar must contain at least 50 characters."
               />
+            </div>
+          </article>
+        </section>
+
+        <section className="flex flex-col gap-5">
+          <h2 className="border-b border-obra-blue-100 pb-3 text-lg font-semibold text-obra-blue-950">
+            Badges
+          </h2>
+          <article className="rounded-card border border-obra-blue-100 bg-white p-6 shadow-card">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-obra-neutral-600">Base</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <ObraBadge variant="default">Default</ObraBadge>
+                  <ObraBadge variant="warning">Warning</ObraBadge>
+                  <ObraBadge variant="credits">1,240 credits</ObraBadge>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-obra-neutral-600">
+                  Project states (with dot)
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <ObraBadge variant="draft" showDot>
+                    Draft
+                  </ObraBadge>
+                  <ObraBadge variant="published" showDot>
+                    Published
+                  </ObraBadge>
+                  <ObraBadge variant="modified" showDot>
+                    Modified
+                  </ObraBadge>
+                </div>
+              </div>
             </div>
           </article>
         </section>
