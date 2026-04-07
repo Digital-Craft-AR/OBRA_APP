@@ -64,7 +64,15 @@ const resources = {
         "Obra funciona con una suscripción activa. El siguiente paso es abonar el plan con Mercado Pago.",
       "shell.pending.cta": "Ir al pago",
       "shell.pending.checkoutNote":
-        "El checkout con Mercado Pago se conectará aquí en una entrega próxima (issue #35).",
+        "Usás Mercado Pago en un entorno seguro. Si el pago queda pendiente de confirmación, te avisamos por correo según Mercado Pago.",
+      "shell.pending.checkoutStartError": "No pudimos abrir el pago. Probá de nuevo en unos minutos.",
+      "shell.pending.checkoutUnavailable":
+        "El pago no está disponible todavía: falta configurar Mercado Pago en el servidor (OBRA_APP_URL y credenciales).",
+      "shell.pending.checkoutEmailNotVerified": "Tenés que confirmar el correo antes de pagar.",
+      "shell.pending.checkoutReturnedFailure":
+        "El pago no se completó o fue cancelado. Podés intentar de nuevo cuando quieras.",
+      "shell.pending.checkoutReturnedPending":
+        "Mercado Pago está procesando el pago. Cuando se acredite, actualizá el estado desde “Activando tu suscripción” o volvé a iniciar sesión.",
       "shell.activating.title": "Activando tu suscripción",
       "shell.activating.body":
         "Estamos confirmando el pago con tu banco y Mercado Pago. Suele tardar solo unos segundos.",
@@ -150,7 +158,15 @@ const resources = {
         "A Obra funciona com uma assinatura ativa. O próximo passo é pagar o plano com o Mercado Pago.",
       "shell.pending.cta": "Ir para o pagamento",
       "shell.pending.checkoutNote":
-        "O checkout com Mercado Pago será conectado aqui em uma próxima entrega (issue #35).",
+        "Você usa o Mercado Pago em ambiente seguro. Se o pagamento ficar pendente de confirmação, o Mercado Pago pode avisar por e-mail.",
+      "shell.pending.checkoutStartError": "Não foi possível abrir o pagamento. Tente novamente em alguns minutos.",
+      "shell.pending.checkoutUnavailable":
+        "O pagamento ainda não está disponível: falta configurar o Mercado Pago no servidor (OBRA_APP_URL e credenciais).",
+      "shell.pending.checkoutEmailNotVerified": "Você precisa confirmar o e-mail antes de pagar.",
+      "shell.pending.checkoutReturnedFailure":
+        "O pagamento não foi concluído ou foi cancelado. Você pode tentar de novo quando quiser.",
+      "shell.pending.checkoutReturnedPending":
+        "O Mercado Pago está processando o pagamento. Quando for aprovado, atualize o status em “Ativando sua assinatura” ou entre de novo.",
       "shell.activating.title": "Ativando sua assinatura",
       "shell.activating.body":
         "Estamos confirmando o pagamento com seu banco e o Mercado Pago. Geralmente leva só alguns segundos.",
