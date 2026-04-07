@@ -12,6 +12,15 @@ import type { UiLocale } from "@/lib/uiLocale";
 import { normalizeUiLocale } from "@/lib/uiLocale";
 import { contentCardClass, inputFieldClass } from "@/lib/uiClasses";
 
+async function loadProfileRow() {
+  const full = await supabase.from("creator_profiles").select("display_name, ui_locale").maybeSingle();
+  if (!full.error) {
+    return { data: full.data, hasUiLocaleColumn: true as const };
+  }
+  const minimal = await supabase.from("creator_profiles").select("display_name").maybeSingle();
+  return { data: minimal.data, error: minimal.error, hasUiLocaleColumn: false as const };
+}
+
 export function SettingsPage() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -24,23 +33,22 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hasUiLocaleColumn, setHasUiLocaleColumn] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { data, error: qError } = await supabase
-        .from("creator_profiles")
-        .select("display_name, ui_locale")
-        .maybeSingle();
+      const result = await loadProfileRow();
       if (cancelled) return;
-      if (qError) {
-        setError(qError.message);
+      if ("error" in result && result.error) {
+        setError(result.error.message);
         setLoading(false);
         return;
       }
-      const row = data as { display_name?: string | null; ui_locale?: string | null } | null;
+      const row = result.data as { display_name?: string | null; ui_locale?: string | null } | null;
       setDisplayName(row?.display_name ?? "");
       setLocale(normalizeUiLocale(row?.ui_locale));
+      setHasUiLocaleColumn(result.hasUiLocaleColumn);
       setLoading(false);
     })();
     return () => {
@@ -58,14 +66,32 @@ export function SettingsPage() {
     setError(null);
     setSaving(true);
     const nextLocale = normalizeUiLocale(locale);
-    const { error: uError } = await supabase
-      .from("creator_profiles")
-      .update({
-        display_name: displayName.trim() || null,
-        ui_locale: nextLocale,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.user.id);
+    const basePayload = {
+      display_name: displayName.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    const fullPayload = { ...basePayload, ui_locale: nextLocale };
+
+    let uError = null as { message: string } | null;
+    /** False when DB has no `ui_locale` column or update without it was used. */
+    let localePersistedInDb = hasUiLocaleColumn;
+
+    if (hasUiLocaleColumn) {
+      const first = await supabase.from("creator_profiles").update(fullPayload).eq("id", session.user.id);
+      if (first.error) {
+        const second = await supabase.from("creator_profiles").update(basePayload).eq("id", session.user.id);
+        uError = second.error;
+        if (!uError) {
+          localePersistedInDb = false;
+          setHasUiLocaleColumn(false);
+        }
+      }
+    } else {
+      const r = await supabase.from("creator_profiles").update(basePayload).eq("id", session.user.id);
+      uError = r.error;
+      localePersistedInDb = false;
+    }
+
     setSaving(false);
     if (uError) {
       setError(uError.message);
@@ -73,7 +99,7 @@ export function SettingsPage() {
     }
     await i18n.changeLanguage(nextLocale);
     await refetchProfile();
-    setMessage(t("settings.saved"));
+    setMessage(localePersistedInDb ? t("settings.saved") : t("settings.savedLocaleUntilMigration"));
   }
 
   return (

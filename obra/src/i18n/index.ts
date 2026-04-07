@@ -155,6 +155,8 @@ const resources = {
       "settings.locale.ptBR": "Português (Brasil)",
       "settings.save": "Guardar cambios",
       "settings.saved": "Cambios guardados.",
+      "settings.savedLocaleUntilMigration":
+        "Nombre guardado. El idioma se aplicó en este dispositivo; para guardarlo en la cuenta, aplicá la migración de base de datos (columna ui_locale) en Supabase.",
       "common.loading": "Cargando…",
     },
   },
@@ -312,6 +314,8 @@ const resources = {
       "settings.locale.ptBR": "Português (Brasil)",
       "settings.save": "Salvar alterações",
       "settings.saved": "Alterações salvas.",
+      "settings.savedLocaleUntilMigration":
+        "Nome salvo. O idioma foi aplicado neste dispositivo; para persistir na conta, aplique a migração do banco (coluna ui_locale) no Supabase.",
       "common.loading": "Carregando…",
     },
   },
