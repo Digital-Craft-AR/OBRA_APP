@@ -23,12 +23,12 @@ export const buttonVariantClass = {
   light: {
     primary: greenPrimary,
     cta: greenPrimary,
-    secondary: "bg-white text-obra-blue-700 hover:bg-obra-blue-50",
+    secondary: "bg-obra-blue-900 text-white hover:bg-obra-blue-950",
     tertiary:
       "bg-transparent border border-obra-blue-700 text-obra-blue-700 hover:bg-obra-blue-50",
     destructive: "bg-red-500 text-white hover:bg-red-600",
-    ghost: "bg-transparent border-0 p-0 h-auto text-white hover:opacity-90",
-    link: "bg-transparent border-0 p-0 h-auto text-white underline underline-offset-4 hover:opacity-90",
+    ghost: "bg-transparent border-0 p-0 h-auto text-obra-blue-900 hover:opacity-90",
+    link: "bg-transparent border-0 p-0 h-auto text-obra-blue-900 underline underline-offset-4 hover:opacity-90",
     /** Legacy alias kept for current call sites on dark surfaces. */
     ghostDark: "bg-transparent text-white border border-white/20 hover:bg-white/10",
   },
