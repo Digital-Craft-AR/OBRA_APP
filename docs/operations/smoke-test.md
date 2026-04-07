@@ -29,7 +29,20 @@
 
 ---
 
-## 2. Credits
+## 2. Auth transactional emails (verification/recovery/change-email)
+
+| Step | Pass |
+| ---- | ---- |
+| Verification email sent successfully from signup flow (email/password) | ☐ |
+| Recovery email sent successfully from forgot-password flow | ☐ |
+| Change-email confirmation email sent successfully from account settings | ☐ |
+| Localized content validated for `es` and `pt-BR` test users (`ui_locale`) | ☐ |
+| Callback links resolve to correct app route/environment (Preview vs Production) | ☐ |
+| If `hook_send_email` is enabled: hook function logs show success (no provider errors) | ☐ |
+
+---
+
+## 3. Credits
 
 | Step | Pass |
 | ---- | ---- |
@@ -38,7 +51,7 @@
 
 ---
 
-## 3. Core happy path
+## 4. Core happy path
 
 Use the **minimum subset** agreed for the release if the full path is not yet available.
 
@@ -51,7 +64,7 @@ Use the **minimum subset** agreed for the release if the full path is not yet av
 
 ---
 
-## 4. Accessibility — keyboard (PRD §4)
+## 5. Accessibility — keyboard (PRD §4)
 
 | Step | Pass |
 | ---- | ---- |
@@ -59,7 +72,7 @@ Use the **minimum subset** agreed for the release if the full path is not yet av
 
 ---
 
-## 5. Legal and account (when in scope)
+## 6. Legal and account (when in scope)
 
 | Step | Pass |
 | ---- | ---- |
@@ -68,7 +81,7 @@ Use the **minimum subset** agreed for the release if the full path is not yet av
 
 ---
 
-## 6. Performance spot check (model B — PRD §4 / §16)
+## 7. Performance spot check (model B — PRD §4 / §16)
 
 | Step | Pass |
 | ---- | ---- |
@@ -76,7 +89,7 @@ Use the **minimum subset** agreed for the release if the full path is not yet av
 
 ---
 
-## 7. Notes / failures
+## 8. Notes / failures
 
 Document failures, screenshots or log references, and whether the release was **blocked** or **rolled back**.
 
