@@ -6,6 +6,7 @@ import { ObraCard } from "@/components/obra/ObraCard";
 import { ObraInput } from "@/components/obra/ObraInput";
 import { ObraSidebar, ObraSidebarInset } from "@/components/obra/ObraSidebar";
 import { ObraTextarea } from "@/components/obra/ObraTextarea";
+import { ObraToast } from "@/components/obra/ObraToast";
 
 const colorTokens = [
   { name: "obra-blue-950", hex: "#0F2438", className: "bg-obra-blue-950" },
@@ -267,6 +268,31 @@ export function DesignSystemPage() {
               <ObraSidebarInset className="flex items-center justify-center p-6">
                 <p className="font-body text-sm text-obra-neutral-600">Main content area</p>
               </ObraSidebarInset>
+            </div>
+          </ObraCard>
+        </section>
+
+        <section className="flex flex-col gap-5">
+          <h2 className="border-b border-obra-blue-100 pb-3 text-lg font-semibold text-obra-blue-950">
+            Toast
+          </h2>
+          <ObraCard className="p-6">
+            <div className="flex flex-col gap-2">
+              <ObraToast
+                variant="success"
+                title="Project saved"
+                description="Your changes were saved successfully."
+              />
+              <ObraToast
+                variant="error"
+                title="Error exporting PDF"
+                description="Please try again in a few seconds."
+              />
+              <ObraToast
+                variant="info"
+                title="AI processing"
+                description="This action may take up to 30 seconds."
+              />
             </div>
           </ObraCard>
         </section>
