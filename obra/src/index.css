@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
+/* Design tokens mirror the published Figma design system (same palette / radii / shadows as figma_make). */
 @theme {
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-
+  /* Colors — Obra palette */
   --color-obra-blue-950: #0f2438;
   --color-obra-blue-900: #204970;
   --color-obra-blue-700: #2d6499;
@@ -15,11 +14,34 @@
   --color-obra-neutral-400: #9ca3af;
   --color-obra-neutral-200: #dde8f0;
   --color-obra-neutral-100: #f8fafb;
+
+  /* Typography */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --text-2xs: 0.6875rem;
+  --text-label: 0.8125rem;
+
+  /* Radius */
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-modal: 16px;
+
+  /* Shadows */
+  --shadow-card: 0px 1px 3px rgba(15, 36, 56, 0.08), 0px 1px 2px rgba(15, 36, 56, 0.04);
+  --shadow-card-hover: 0px 4px 12px rgba(15, 36, 56, 0.12), 0px 2px 4px rgba(15, 36, 56, 0.06);
+
+  /* Layout */
+  --width-sidebar: 280px;
+  --max-width-auth-card: 420px;
+  --max-width-wizard: 720px;
+  --max-width-content: 900px;
+  --max-width-toast: 360px;
+  --width-modal-full: calc(100vw - 2rem);
 }
 
 @layer base {
   body {
-    @apply min-h-screen bg-white text-obra-neutral-900 antialiased text-[15px];
-    font-family: var(--font-body);
+    @apply min-h-screen bg-obra-blue-50 font-body text-sm text-obra-neutral-900 antialiased;
   }
 }

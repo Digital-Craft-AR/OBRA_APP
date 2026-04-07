@@ -103,11 +103,11 @@ Typical tables: users/profiles, projects (`content_locale`, **`content_source`**
 **CRITICAL:** Import design tokens from `obra/src/lib/tokens.ts` once the app exists. Do not use ad-hoc colors for UI.
 
 - Navy base **#204970** — sidebar/nav **obra-blue-900**, flat, no gradient  
-- Main area: white; cards: white with **obra-blue-100** border  
+- Page background: **obra-blue-50**; cards/panels: white with **obra-blue-100** border  
 - CTA accent: **obra-green-400** `#C8E62B`  
 - Text: **obra-blue-950** primary, **obra-neutral-600** secondary  
 - **Display:** Fraunces · **Body:** Plus Jakarta Sans · **Minimum 14px** body  
-- Buttons: pill (`border-radius: 9999px`) — on dark: green fill + dark text; on light: blue fill + white text  
+- Buttons: pill (`border-radius: 9999px`) — **primary CTA:** green fill + dark text; **secondary** (e.g. OAuth): blue fill + white text; on dark sidebar: `ghostDark`  
 - **No gradients** in the app shell  
 
 Full token rules: `CONVENCIONES.md` and `obra/src/lib/tokens.ts`.
