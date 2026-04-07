@@ -63,6 +63,12 @@ Los tokens se exponen como utilidades Tailwind via `@theme` en `index.css`. Usá
 
 **Zero gradientes en toda la app.** El sidebar es un solo color flat `#204970`.
 
+### Logo contrast rules
+
+- On **white/light surfaces** (`bg-white`, `obra-blue-50`, auth cards, modals), always use the **blue logo variant** (`solidBlue950`).
+- On **dark blue surfaces** (for example `obra-blue-900` sidebar or dark headers), always use the **green logo variant** (default logo treatment).
+- Do not use the green logo on white backgrounds, and do not use the blue logo on dark blue backgrounds.
+
 ### Botones
 
 - **Forma:** Pill shape siempre (`rounded-full` / `border-radius: 9999px`)

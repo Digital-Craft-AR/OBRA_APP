@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/auth/authContext";
 import { consumeCheckoutReturnMessageKey } from "@/entitlement/checkoutReturn";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -13,6 +14,7 @@ type CheckoutFnResponse = {
 
 export function PendingSubscriptionShellPage() {
   const { t } = useTranslation();
+  const { session } = useAuth();
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,9 +26,7 @@ export function PendingSubscriptionShellPage() {
   async function startCheckout() {
     setMessage(null);
     setBusy(true);
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) {
+    if (!session?.access_token) {
       setBusy(false);
       setMessage(t("shell.pending.checkoutStartError"));
       return;
@@ -37,7 +37,9 @@ export function PendingSubscriptionShellPage() {
       {
         method: "POST",
         body: {},
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       },
     );
 
@@ -45,6 +47,11 @@ export function PendingSubscriptionShellPage() {
 
     if (error) {
       setMessage(t("shell.pending.checkoutStartError"));
+      return;
+    }
+
+    if (error?.message?.includes("401") || data?.error === "unauthorized") {
+      setMessage(t("auth.callbackError"));
       return;
     }
 

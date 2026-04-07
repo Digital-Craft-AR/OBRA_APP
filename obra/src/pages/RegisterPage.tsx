@@ -17,6 +17,7 @@ export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { session, loading } = useAuth();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,12 @@ export function RegisterPage() {
     const { data, error: signError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        emailRedirectTo: redirectTo,
+        data: {
+          display_name: fullName.trim(),
+        },
+      },
     });
     setBusy(false);
     if (signError) {
@@ -75,7 +81,11 @@ export function RegisterPage() {
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-obra-blue-50 p-6 font-body">
         <div className={authCardClass}>
           <div className="flex justify-center">
-            <ObraLogoLink to="/" imgClassName="h-10 w-auto max-w-[200px] object-contain" />
+            <ObraLogoLink
+              to="/"
+              tone="solidBlue950"
+              imgClassName="h-10 w-auto max-w-[200px] object-contain"
+            />
           </div>
           <div className="text-center">
             <h1 className="font-display text-xl text-obra-blue-950">{t("auth.checkEmailTitle")}</h1>
@@ -98,7 +108,11 @@ export function RegisterPage() {
     <main className="flex min-h-screen w-full flex-col items-center justify-center bg-obra-blue-50 p-6 font-body">
       <form onSubmit={(e) => void onSubmit(e)} className={authCardClass} noValidate>
         <div className="flex justify-center">
-          <ObraLogoLink to="/" imgClassName="h-10 w-auto max-w-[200px] object-contain" />
+          <ObraLogoLink
+            to="/"
+            tone="solidBlue950"
+            imgClassName="h-10 w-auto max-w-[200px] object-contain"
+          />
         </div>
 
         <div className="text-center">
@@ -107,6 +121,15 @@ export function RegisterPage() {
         </div>
 
         <div className="flex flex-col gap-4">
+          <ObraInput
+            label={t("auth.fullName")}
+            type="text"
+            autoComplete="name"
+            placeholder={t("auth.fullNamePlaceholder")}
+            value={fullName}
+            onChange={(ev) => setFullName(ev.target.value)}
+            required
+          />
           <ObraInput
             label={t("auth.email")}
             type="email"
