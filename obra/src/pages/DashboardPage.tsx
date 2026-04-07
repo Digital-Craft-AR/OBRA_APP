@@ -65,6 +65,64 @@ export function DashboardPage() {
           {t("dashboard.title")}
         </h1>
         <p className="text-obra-neutral-600">{t("dashboard.welcome")}</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 px-10 py-10">
+          <div className="relative w-full max-w-2xl aspect-video overflow-hidden rounded-card border border-obra-blue-100 bg-obra-blue-50 flex items-center justify-center">
+            <button
+              type="button"
+              className="size-14 rounded-full bg-obra-blue-900/80 flex items-center justify-center transition-colors hover:bg-obra-blue-900"
+              aria-label={t("dashboard.demo.play")}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-6 ml-0.5 text-white"
+                aria-hidden
+              >
+                <polygon points="6 3 20 12 6 21 6 3" />
+              </svg>
+            </button>
+            <span className="absolute bottom-3 left-4 text-xs text-obra-neutral-600 font-body">
+              {t("dashboard.demo.duration")}
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-5 text-center">
+            <h2 className="font-display text-2xl text-obra-blue-950">{t("dashboard.demo.heroTitle")}</h2>
+            <p className="max-w-md text-sm leading-relaxed text-obra-neutral-600 font-body">
+              {t("dashboard.demo.heroBody")}
+            </p>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="primary">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                  aria-hidden
+                >
+                  <path d="M5 12h14" />
+                  <path d="M12 5v14" />
+                </svg>
+                {t("dashboard.demo.cta")}
+              </Button>
+              <Button type="button" variant="tertiary">
+                {t("dashboard.demo.guided")}
+              </Button>
+            </div>
+          </div>
+        </div>
         {profile === undefined ? (
           <p className="text-obra-neutral-600">{t("dashboard.profileLoading")}</p>
         ) : error ? (
