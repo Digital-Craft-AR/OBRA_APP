@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { FolderOpen, Home } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
+import { ObraSidebar } from "@/components/obra/ObraSidebar";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 import { contentCardClass } from "@/lib/uiClasses";
@@ -16,6 +17,7 @@ export function DashboardPage() {
   const { session } = useAuth();
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,22 +46,30 @@ export function DashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-obra-blue-50">
-      <aside className="flex w-sidebar flex-col bg-obra-blue-900 px-4 py-6 text-white">
-        <span className="font-display text-lg font-semibold">
-          {t("app.name")}
-        </span>
-        <nav className="mt-8 flex flex-col gap-2 text-sm">
-          <span className="rounded-full bg-white/10 px-3 py-2">{t("dashboard.title")}</span>
-          <Link to="/" className="rounded-full px-3 py-2 hover:bg-white/10">
-            {t("nav.home")}
-          </Link>
-        </nav>
-        <div className="mt-auto pt-8">
-          <Button type="button" variant="ghostDark" className="w-full" onClick={() => void signOut()}>
-            {t("nav.logout")}
-          </Button>
-        </div>
-      </aside>
+      <ObraSidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+        navItems={[
+          {
+            id: "dashboard",
+            label: t("dashboard.title"),
+            to: "/app/dashboard",
+            active: true,
+            icon: <FolderOpen className="size-4" aria-hidden />,
+          },
+          {
+            id: "home",
+            label: t("nav.home"),
+            to: "/",
+            icon: <Home className="size-4" aria-hidden />,
+          },
+        ]}
+        userName={profile?.display_name ?? session?.user?.email ?? t("sidebar.userFallback")}
+        credits={1240}
+        onLogout={() => void signOut()}
+        logoutLabel={t("nav.logout")}
+      />
+
       <main className="flex flex-1 flex-col gap-6 p-10">
         <h1 className="font-display text-2xl font-bold text-obra-blue-950">
           {t("dashboard.title")}

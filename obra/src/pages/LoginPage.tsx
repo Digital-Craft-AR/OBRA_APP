@@ -121,7 +121,7 @@ export function LoginPage() {
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant="tertiary"
             className="w-full gap-2"
             disabled={busy || oauthBusy}
             onClick={() => void onGoogleClick()}

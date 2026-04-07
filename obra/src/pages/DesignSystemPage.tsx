@@ -1,7 +1,10 @@
+import { useState } from "react";
+import { FolderOpen, HelpCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ObraBadge } from "@/components/obra/ObraBadge";
 import { ObraCard } from "@/components/obra/ObraCard";
 import { ObraInput } from "@/components/obra/ObraInput";
+import { ObraSidebar, ObraSidebarInset } from "@/components/obra/ObraSidebar";
 import { ObraTextarea } from "@/components/obra/ObraTextarea";
 
 const colorTokens = [
@@ -20,6 +23,8 @@ const colorTokens = [
 const variants = ["primary", "secondary", "tertiary", "destructive", "ghost", "link"] as const;
 
 export function DesignSystemPage() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
     <main className="min-h-screen bg-obra-blue-50">
       <div className="mx-auto flex w-full max-w-content flex-col gap-12 px-10 py-10">
@@ -136,7 +141,7 @@ export function DesignSystemPage() {
             </div>
           </ObraCard>
 
-          <ObraCard className="bg-obra-blue-900 p-5">
+          <div className="rounded-card border border-obra-blue-100 bg-obra-blue-900 p-5 shadow-card">
             <p className="mb-4 text-xs uppercase tracking-wide text-white/80">Dark mode</p>
             <div className="flex flex-wrap items-center gap-3">
               {variants.map((variant) => (
@@ -145,7 +150,7 @@ export function DesignSystemPage() {
                 </Button>
               ))}
             </div>
-          </ObraCard>
+          </div>
         </section>
 
         <section className="flex flex-col gap-5">
@@ -216,6 +221,52 @@ export function DesignSystemPage() {
                   </ObraBadge>
                 </div>
               </div>
+            </div>
+          </ObraCard>
+        </section>
+
+        <section className="flex flex-col gap-5">
+          <h2 className="border-b border-obra-blue-100 pb-3 text-lg font-semibold text-obra-blue-950">
+            Sidebar
+          </h2>
+          <p className="text-sm text-obra-neutral-600">
+            Composed like shadcn <code className="text-obra-blue-700">Sidebar</code> primitives, styled for
+            Obra (<code className="text-obra-blue-700">obra-blue-900</code> shell).
+          </p>
+          <ObraCard className="overflow-hidden p-0">
+            <div className="flex h-96">
+              <ObraSidebar
+                className="h-full min-h-0"
+                collapsed={sidebarCollapsed}
+                onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+                navItems={[
+                  {
+                    id: "projects",
+                    label: "Projects",
+                    to: "/design-system",
+                    active: true,
+                    icon: <FolderOpen className="size-4" aria-hidden />,
+                  },
+                  {
+                    id: "help",
+                    label: "Help",
+                    to: "/design-system",
+                    icon: <HelpCircle className="size-4" aria-hidden />,
+                  },
+                  {
+                    id: "settings",
+                    label: "Settings",
+                    to: "/design-system",
+                    icon: <Settings className="size-4" aria-hidden />,
+                  },
+                ]}
+                userName="Demo user"
+                credits={1240}
+                logoutLabel="Log out"
+              />
+              <ObraSidebarInset className="flex items-center justify-center p-6">
+                <p className="font-body text-sm text-obra-neutral-600">Main content area</p>
+              </ObraSidebarInset>
             </div>
           </ObraCard>
         </section>
