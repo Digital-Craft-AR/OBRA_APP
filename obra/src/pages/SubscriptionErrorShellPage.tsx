@@ -32,7 +32,6 @@ export function SubscriptionErrorShellPage() {
       <p className="text-sm text-obra-neutral-600">{t("shell.subscriptionError.body")}</p>
       <p className="text-sm text-obra-neutral-600">{t("shell.subscriptionError.credits")}</p>
       <MinimalAccountSummary
-        outcome="subscription_error"
         user={user}
         busy={busy}
         statusMessage={message}

@@ -105,8 +105,6 @@ const resources = {
       "shell.account.providersLabel": "Métodos vinculados",
       "shell.account.providersNone": "Sin métodos vinculados",
       "shell.account.subscriptionLabel": "Estado de suscripción",
-      "shell.account.subscriptionState.pending_subscription": "Pendiente de suscripción activa",
-      "shell.account.subscriptionState.activating": "Activando suscripción",
       "shell.account.subscriptionState.subscription_error": "Suscripción con error de cobro",
       "shell.account.creditsLabel": "Créditos",
       "shell.account.creditsPolicy":
@@ -252,8 +250,6 @@ const resources = {
       "shell.account.providersLabel": "Métodos vinculados",
       "shell.account.providersNone": "Nenhum método vinculado",
       "shell.account.subscriptionLabel": "Status da assinatura",
-      "shell.account.subscriptionState.pending_subscription": "Assinatura ativa pendente",
-      "shell.account.subscriptionState.activating": "Ativando assinatura",
       "shell.account.subscriptionState.subscription_error": "Assinatura com erro de cobrança",
       "shell.account.creditsLabel": "Créditos",
       "shell.account.creditsPolicy":
