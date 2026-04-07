@@ -24,6 +24,8 @@ export function RegisterPage() {
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState(false);
   const [checkEmailOnly, setCheckEmailOnly] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   if (!loading && session) {
     return <Navigate to="/app" replace />;
@@ -76,6 +78,29 @@ export function RegisterPage() {
     }
   }
 
+  async function onResendConfirmation() {
+    if (!email) return;
+    setResendMessage(null);
+    setResendBusy(true);
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
+    setResendBusy(false);
+    if (resendError) {
+      const msg = resendError.message.toLowerCase();
+      if (msg.includes("rate") || msg.includes("429") || msg.includes("too many")) {
+        setResendMessage(t("auth.resendRateLimited"));
+        return;
+      }
+      setResendMessage(t("auth.resendError"));
+      return;
+    }
+    setResendMessage(t("auth.resendSent"));
+  }
+
   if (checkEmailOnly) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-obra-blue-50 p-6 font-body">
@@ -91,6 +116,22 @@ export function RegisterPage() {
             <h1 className="font-display text-xl text-obra-blue-950">{t("auth.checkEmailTitle")}</h1>
           </div>
           <p className="text-center text-sm text-obra-neutral-600">{t("auth.registerCheckEmail")}</p>
+          {resendMessage ? (
+            <p className="text-center text-sm text-obra-neutral-700" role="status">
+              {resendMessage}
+            </p>
+          ) : null}
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="tertiary"
+              className="w-auto"
+              disabled={resendBusy || !email}
+              onClick={() => void onResendConfirmation()}
+            >
+              {resendBusy ? t("auth.working") : t("shell.verify.resend")}
+            </Button>
+          </div>
           <p className="text-center">
             <Link
               to="/login"

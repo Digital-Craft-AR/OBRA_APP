@@ -38,7 +38,10 @@ export function LoginPage() {
     if (signError) {
       const msg = signError.message.toLowerCase();
       if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
-        setError(t("auth.emailNotConfirmed"));
+        void navigate("/verify-email", {
+          replace: true,
+          state: { email },
+        });
         return;
       }
       setError(t("auth.error"));

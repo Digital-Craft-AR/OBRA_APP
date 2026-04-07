@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { LoginPage } from "@/pages/LoginPage";
+import { VerifyEmailPendingPage } from "@/pages/VerifyEmailPendingPage";
 
 const { signInWithOAuth, signInWithPassword } = vi.hoisted(() => ({
   signInWithOAuth: vi.fn(),
@@ -29,6 +30,7 @@ function renderLogin(options: { session?: unknown; loading?: boolean } = {}) {
         <AuthContext.Provider value={{ session: session as never, loading }}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPendingPage />} />
             <Route path="/app" element={<Outlet />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<div data-testid="app-landed">app</div>} />
@@ -125,5 +127,21 @@ describe("LoginPage", () => {
       loading: false,
     });
     expect(screen.getByTestId("app-landed")).toBeInTheDocument();
+  });
+
+  it("redirects to verify-email screen when password login reports unconfirmed email", async () => {
+    signInWithPassword.mockResolvedValue({ error: { message: "Email not confirmed" } });
+    const user = userEvent.setup();
+    renderLogin();
+    const main = screen.getByRole("main");
+
+    await user.type(within(main).getByLabelText(/correo/i), "pending@example.com");
+    await user.type(within(main).getByLabelText(/contraseña/i), "secretpass");
+    await user.click(within(main).getByRole("button", { name: /iniciar sesión/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: i18n.t("shell.verify.title", { lng: "es" }) })).toBeInTheDocument();
+    });
+    expect(screen.getByText("pending@example.com")).toBeInTheDocument();
   });
 });
