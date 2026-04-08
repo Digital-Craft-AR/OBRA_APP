@@ -1,5 +1,23 @@
 import type { EntitlementOutcome, SubscriptionStatus } from "./types";
 
+/** Shared minimal account / privacy path for blocking shells (profile PRD #39). */
+export const MINIMAL_ACCOUNT_PATH = "/app/account";
+
+export type MinimalAccountEntitlementOutcome =
+  | "pending_subscription"
+  | "activating"
+  | "subscription_error";
+
+export function isMinimalAccountEntitlementOutcome(
+  outcome: EntitlementOutcome,
+): outcome is MinimalAccountEntitlementOutcome {
+  return (
+    outcome === "pending_subscription" ||
+    outcome === "activating" ||
+    outcome === "subscription_error"
+  );
+}
+
 export type ResolveEntitlementInput = {
   emailVerified: boolean;
   subscriptionStatus: SubscriptionStatus;
@@ -69,6 +87,9 @@ export function isFullAppSettingsPath(pathname: string): boolean {
 export function isPathAllowedForOutcome(outcome: EntitlementOutcome, pathname: string): boolean {
   if (outcome === "full_app") {
     return FULL_APP_ALLOWED_PATHS.includes(pathname) || isFullAppSettingsPath(pathname);
+  }
+  if (isMinimalAccountEntitlementOutcome(outcome)) {
+    return pathname === outcomeToPath(outcome) || pathname === MINIMAL_ACCOUNT_PATH;
   }
   return pathname === outcomeToPath(outcome);
 }

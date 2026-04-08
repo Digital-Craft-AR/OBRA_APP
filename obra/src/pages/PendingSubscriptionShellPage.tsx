@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/auth/authContext";
@@ -100,6 +101,14 @@ export function PendingSubscriptionShellPage() {
         </p>
       ) : null}
       <p className="text-xs text-obra-neutral-600">{t("shell.pending.checkoutNote")}</p>
+      <div className="mt-4">
+        <Link
+          to="/app/account"
+          className="text-sm font-semibold text-obra-blue-700 underline-offset-2 hover:underline"
+        >
+          {t("shell.account.openMinimalPath")}
+        </Link>
+      </div>
     </BlockingShellFrame>
   );
 }
