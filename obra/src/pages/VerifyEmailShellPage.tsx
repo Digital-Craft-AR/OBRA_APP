@@ -6,6 +6,7 @@ import { useEmailVerificationResend } from "@/auth/useEmailVerificationResend";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { emitAuthInstrumentation } from "@/lib/authInstrumentation";
 import { supabase } from "@/lib/supabaseClient";
+import { useState } from "react";
 
 export function VerifyEmailShellPage() {
   const { t } = useTranslation();
@@ -16,8 +17,6 @@ export function VerifyEmailShellPage() {
   const { busy, message, resend } = useEmailVerificationResend(resendTarget, {
     mode: pendingEmailChange ? "email_change" : "signup",
   });
-  const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const email = user?.email ?? "";
 
