@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useAuth } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
+import { isEmailVerifiedForEntitlement } from "@/lib/authEmailEntitlement";
 import { normalizeUiLocale } from "@/lib/uiLocale";
 import { clearCheckoutReturnPending, isCheckoutReturnPending } from "./checkoutReturn";
 import {
@@ -159,7 +160,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     }
   }, [checkoutBump, session?.user?.id]);
 
-  const emailVerified = Boolean(user?.email_confirmed_at);
+  const emailVerified = isEmailVerifiedForEntitlement(user);
   const subscriptionStatus = profileRow?.subscription_status ?? "none";
   const creditsBalance = profileRow?.credits_balance ?? 0;
 
