@@ -138,12 +138,15 @@ const resources = {
       "shell.account.deleteEmailMissing": "No pudimos confirmar el correo de la sesión. Cerrá sesión y volvé a entrar, o contactá soporte.",
       "shell.account.exportStarted":
         "Iniciamos la exportación de datos. Te avisaremos cuando esté disponible.",
+      "shell.account.exportDownloaded": "Descargamos un archivo JSON con tu exportación.",
       "shell.account.exportUnavailable":
         "La exportación todavía no está disponible en este entorno. Contactá soporte.",
       "shell.account.deleteStarted":
-        "Iniciamos la eliminación de la cuenta. Si hay una suscripción activa, primero tendrás que resolverla.",
+        "Tu cuenta fue eliminada. Si la sesión sigue abierta, cerrá sesión.",
+      "shell.account.deleteSubscriptionActive":
+        "No podemos eliminar la cuenta mientras la suscripción está activa en Obra. Cancelá o pausá el plan en Mercado Pago, esperá a que el estado se actualice y probá de nuevo.",
       "shell.account.deleteUnavailable":
-        "No pudimos iniciar la eliminación. Revisá el estado de suscripción o contactá soporte.",
+        "No pudimos eliminar la cuenta. Revisá el estado de suscripción o contactá soporte.",
       "entitlement.profileError": "No pudimos cargar tu perfil. Recargá la página o probá más tarde.",
       "dashboard.title": "Panel",
       "dashboard.profileLoading": "Cargando perfil…",
@@ -407,12 +410,15 @@ const resources = {
         "Não foi possível confirmar o e-mail da sessão. Saia e entre de novo ou fale com o suporte.",
       "shell.account.exportStarted":
         "Iniciamos a exportação dos dados. Avisaremos quando estiver disponível.",
+      "shell.account.exportDownloaded": "Baixamos um arquivo JSON com sua exportação.",
       "shell.account.exportUnavailable":
         "A exportação ainda não está disponível neste ambiente. Fale com o suporte.",
       "shell.account.deleteStarted":
-        "Iniciamos a exclusão da conta. Se houver assinatura ativa, você precisa resolvê-la antes.",
+        "Sua conta foi excluída. Se a sessão ainda estiver aberta, saia da conta.",
+      "shell.account.deleteSubscriptionActive":
+        "Não podemos excluir a conta enquanto a assinatura estiver ativa na Obra. Cancele ou pause o plano no Mercado Pago, aguarde a atualização do status e tente de novo.",
       "shell.account.deleteUnavailable":
-        "Não foi possível iniciar a exclusão. Verifique o status da assinatura ou fale com o suporte.",
+        "Não foi possível excluir a conta. Verifique o status da assinatura ou fale com o suporte.",
       "entitlement.profileError": "Não foi possível carregar seu perfil. Recarregue a página ou tente mais tarde.",
       "dashboard.title": "Painel",
       "dashboard.profileLoading": "Carregando perfil…",

@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
 import { confirmAccountDeletionInBrowser } from "@/lib/accountDeletionConfirm";
+import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import { supabase } from "@/lib/supabaseClient";
 
 export function SettingsPrivacyPanel() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -14,9 +17,27 @@ export function SettingsPrivacyPanel() {
   async function onExportData() {
     setMessage(null);
     setBusy(true);
-    const { error } = await supabase.functions.invoke("export-user-data", { method: "POST", body: {} });
+    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; data?: unknown }>("export-user-data", {
+      method: "POST",
+      body: {},
+    });
     setBusy(false);
-    setMessage(error ? t("shell.account.exportUnavailable") : t("shell.account.exportStarted"));
+    if (error) {
+      setMessage(t("shell.account.exportUnavailable"));
+      return;
+    }
+    if (data?.ok && data.data != null) {
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `obra-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMessage(t("shell.account.exportDownloaded"));
+      return;
+    }
+    setMessage(t("shell.account.exportUnavailable"));
   }
 
   async function onDeleteAccount() {
@@ -25,7 +46,17 @@ export function SettingsPrivacyPanel() {
     setBusy(true);
     const { error } = await supabase.functions.invoke("delete-account", { method: "POST", body: {} });
     setBusy(false);
-    setMessage(error ? t("shell.account.deleteUnavailable") : t("shell.account.deleteStarted"));
+    if (error) {
+      const code = await getFunctionsInvokeErrorCode(error);
+      if (code === "subscription_blocks_delete") {
+        setMessage(t("shell.account.deleteSubscriptionActive"));
+        return;
+      }
+      setMessage(t("shell.account.deleteUnavailable"));
+      return;
+    }
+    await supabase.auth.signOut();
+    void navigate("/", { replace: true });
   }
 
   return (

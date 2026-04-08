@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
 import { MinimalAccountSummary } from "@/components/shells/MinimalAccountSummary";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
@@ -9,11 +9,13 @@ import {
   outcomeToPath,
 } from "@/entitlement/resolveEntitlement";
 import { confirmAccountDeletionInBrowser } from "@/lib/accountDeletionConfirm";
+import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import { supabase } from "@/lib/supabaseClient";
 
 /** Minimal account / privacy path for `pending_subscription`, `activating`, `subscription_error` (#39). */
 export function MinimalAccountPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { outcome, user, creditsBalance, reconcileSubscription } = useEntitlement();
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,9 +29,27 @@ export function MinimalAccountPage() {
   async function onExportData() {
     setBusy(true);
     setMessage(null);
-    const { error } = await supabase.functions.invoke("export-user-data", { method: "POST", body: {} });
+    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; data?: unknown }>("export-user-data", {
+      method: "POST",
+      body: {},
+    });
     setBusy(false);
-    setMessage(error ? t("shell.account.exportUnavailable") : t("shell.account.exportStarted"));
+    if (error) {
+      setMessage(t("shell.account.exportUnavailable"));
+      return;
+    }
+    if (data?.ok && data.data != null) {
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `obra-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMessage(t("shell.account.exportDownloaded"));
+      return;
+    }
+    setMessage(t("shell.account.exportUnavailable"));
   }
 
   async function onDeleteAccount() {
@@ -38,7 +58,17 @@ export function MinimalAccountPage() {
     setBusy(true);
     const { error } = await supabase.functions.invoke("delete-account", { method: "POST", body: {} });
     setBusy(false);
-    setMessage(error ? t("shell.account.deleteUnavailable") : t("shell.account.deleteStarted"));
+    if (error) {
+      const code = await getFunctionsInvokeErrorCode(error);
+      if (code === "subscription_blocks_delete") {
+        setMessage(t("shell.account.deleteSubscriptionActive"));
+        return;
+      }
+      setMessage(t("shell.account.deleteUnavailable"));
+      return;
+    }
+    await supabase.auth.signOut();
+    void navigate("/", { replace: true });
   }
 
   return (
