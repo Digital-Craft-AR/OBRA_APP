@@ -33,6 +33,17 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized", detail: "missing_bearer" }, 401);
   }
   const jwt = authHeader.slice(7);
+  const payload = await req.json().catch(() => null);
+  const field = typeof payload?.field === "string" ? payload.field : "unknown";
+  const contentPart =
+    typeof payload?.content_part === "string" ? payload.content_part : null;
+  const intent =
+    typeof payload?.intent === "string"
+      ? payload.intent
+      : contentPart?.includes("suggestions")
+        ? "suggest"
+        : "improve";
+  // TODO: remove content_part fallback once all clients send `intent`.
 
   const pub = createClient(supabaseUrl, anonKey);
   const {
@@ -75,6 +86,8 @@ Deno.serve(async (req: Request) => {
   return json({
     ok: true,
     stub: true,
+    field,
+    intent,
     credits_balance_after: balanceAfter,
   });
 });
