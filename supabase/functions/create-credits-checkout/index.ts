@@ -1,7 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { buildCreditTopUpExternalReference } from "../_shared/payment/creditTopUpRef.ts";
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
-import { loadMercadoPagoAccessToken, loadRecurringPlanFromEnv } from "../_shared/payment/mercadopago/loadEnv.ts";
+import {
+  loadCreditsPackFromEnv,
+  loadMercadoPagoAccessToken,
+} from "../_shared/payment/mercadopago/loadEnv.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +33,11 @@ Deno.serve(async (req: Request) => {
   const appUrl = Deno.env.get("OBRA_APP_URL")?.replace(/\/$/, "");
   const accessToken = loadMercadoPagoAccessToken();
 
+  const pack = loadCreditsPackFromEnv();
+  if ("error" in pack) {
+    return json({ error: "server_misconfigured", detail: pack.error }, 500);
+  }
+
   if (!supabaseUrl || !anonKey) {
     return json({ error: "server_misconfigured", detail: "supabase_auth" }, 500);
   }
@@ -48,46 +57,64 @@ Deno.serve(async (req: Request) => {
     return json({ error: "checkout_unavailable", detail: "invalid_app_url_scheme" });
   }
 
-  const plan = loadRecurringPlanFromEnv();
-  if ("error" in plan) {
-    return json({ error: "server_misconfigured", detail: plan.error }, 500);
-  }
-
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return json({ error: "unauthorized", detail: "missing_bearer" }, 401);
   }
-  const jwt = authHeader.slice(7);
-  const supabase = createClient(supabaseUrl, anonKey);
+  // Forward the caller JWT on every request so PostgREST RLS sees `auth.uid()` (getUser(jwt) alone does not attach it).
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser(jwt);
+  } = await supabase.auth.getUser();
   if (userError || !user) {
     return json({ error: "unauthorized", detail: "invalid_or_expired_session" }, 401);
   }
-  const claims = readJwtClaims(jwt);
-  const userId = typeof claims.sub === "string" ? claims.sub : null;
-  const userEmail = user.email ?? (typeof claims.email === "string" ? claims.email : undefined);
-  if (!userId) {
-    return json({ error: "unauthorized", detail: "missing_sub" }, 401);
+
+  const userId = user.id;
+
+  const { data: profile, error: profErr } = await supabase
+    .from("creator_profiles")
+    .select("id, subscription_status")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profErr) {
+    console.error("creator_profiles_select", profErr.message);
+    return json({ error: "db_profile" }, 500);
+  }
+  if (!profile || profile.subscription_status !== "active") {
+    return json({ error: "subscription_required" }, 403);
   }
 
   const notificationUrl = billing.webhookUrlForSupabaseProject(supabaseUrl);
-  // Include `status=success` so returns match `CheckoutReturnPage` even if the PSP lands on path-only URLs.
-  const backUrl = `${appUrl}/checkout/return?status=success`;
+  const backUrl = `${appUrl}/checkout/return`;
+  const externalReference = buildCreditTopUpExternalReference(userId, pack.packCredits);
 
-  const result = await billing.createSubscriptionCheckout(accessToken, {
+  const result = await billing.createCreditsPackCheckout(accessToken, {
     creatorUserId: userId,
-    payerEmail: userEmail,
+    payerEmail: user.email ?? undefined,
     notificationUrl,
     returnUrl: backUrl,
-    plan,
+    externalReference,
+    metadata: {
+      obra_kind: "credits_topup",
+      obra_user_id: userId,
+      obra_credits: String(pack.packCredits),
+    },
+    lineItem: {
+      title: pack.itemTitle,
+      quantity: 1,
+      unitPrice: pack.unitPrice,
+      currencyId: pack.currencyId,
+    },
   });
 
   if (!result.ok) {
     if (result.error.code === "provider_http_error") {
-      console.error("billing_subscription_http", result.error.status, result.error.detail);
+      console.error("billing_credits_http", result.error.status, result.error.detail);
       return json({ error: "mercadopago_error", status: result.error.status, detail: result.error.detail });
     }
     if (result.error.code === "provider_no_redirect") {
@@ -98,27 +125,6 @@ Deno.serve(async (req: Request) => {
 
   return json({
     redirect_url: result.redirectUrl,
-    subscription_id: result.providerCheckoutId,
+    preference_id: result.providerCheckoutId,
   });
 });
-
-function readJwtClaims(token: string): Record<string, unknown> {
-  const parts = token.split(".");
-  if (parts.length < 2) return {};
-  try {
-    const jsonPayload = base64UrlDecode(parts[1]);
-    const parsed = JSON.parse(jsonPayload);
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function base64UrlDecode(input: string): string {
-  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
-  const padLength = (4 - (normalized.length % 4)) % 4;
-  const padded = normalized + "=".repeat(padLength);
-  const binary = atob(padded);
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}

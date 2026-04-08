@@ -45,13 +45,30 @@ export function outcomeToPath(outcome: EntitlementOutcome): string {
 /** Under `full_app`, users may visit more than `/app/dashboard` (e.g. account settings). */
 const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/settings"];
 
+/** URL segment after `/app/settings/` for each settings subpage. */
+export const SETTINGS_ROUTE_SECTIONS = ["profile", "security", "billing", "credits", "privacy"] as const;
+export type SettingsRouteSection = (typeof SETTINGS_ROUTE_SECTIONS)[number];
+
+export function parseSettingsRouteSection(raw: string | undefined): SettingsRouteSection | null {
+  if (!raw) return null;
+  return (SETTINGS_ROUTE_SECTIONS as readonly string[]).includes(raw) ? (raw as SettingsRouteSection) : null;
+}
+
+/** `/app/settings`, `/app/settings/profile`, etc. */
+export function isFullAppSettingsPath(pathname: string): boolean {
+  if (pathname === "/app/settings") return true;
+  const m = /^\/app\/settings\/([^/]+)\/?$/.exec(pathname);
+  if (!m) return false;
+  return parseSettingsRouteSection(m[1]) !== null;
+}
+
 /**
  * Whether the current URL is allowed for this entitlement. Blocking shells use a single canonical path;
  * full product access allows multiple routes under `/app`.
  */
 export function isPathAllowedForOutcome(outcome: EntitlementOutcome, pathname: string): boolean {
   if (outcome === "full_app") {
-    return FULL_APP_ALLOWED_PATHS.includes(pathname);
+    return FULL_APP_ALLOWED_PATHS.includes(pathname) || isFullAppSettingsPath(pathname);
   }
   return pathname === outcomeToPath(outcome);
 }

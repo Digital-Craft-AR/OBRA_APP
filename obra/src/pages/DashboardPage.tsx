@@ -64,8 +64,8 @@ export function DashboardPage() {
           {
             id: "settings",
             label: t("nav.settings"),
-            to: "/app/settings",
-            active: location.pathname === "/app/settings",
+            to: "/app/settings/profile",
+            active: location.pathname.startsWith("/app/settings"),
             icon: <Settings className="size-4" aria-hidden />,
           },
           {

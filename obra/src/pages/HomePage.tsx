@@ -1,9 +1,21 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { buttonBaseClass, buttonSizeClass, buttonVariantClass } from "@/components/ui/Button";
+import { looksLikePaymentReturnQuery } from "@/lib/paymentReturnParams";
 
 export function HomePage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+    if (!looksLikePaymentReturnQuery(searchParams)) return;
+    const q = searchParams.toString();
+    void navigate(q ? `/checkout/return?${q}` : "/checkout/return", { replace: true });
+  }, [location.pathname, navigate, searchParams]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-obra-blue-50 px-6">
