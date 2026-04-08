@@ -10,7 +10,7 @@ Canonical SQL and field notes: [`backend.md`](backend.md) and [`business_logic.m
 
 **Main ebook TOC:** stored as **`chapters`** on the main ebook (titles + order); **`main_index_frozen_at`** marks index freeze. **`chapters.approved_at`** applies to **body** approval per chapter, not TOC confirmation.
 
-**Contenido chat:** **`content_chat_threads`** — `chapter_id` null = one **index** thread per project; `chapter_id` set = one thread per chapter. Messages in **`content_chat_messages`**. **MVP:** persist **`user`** server-side with `client_message_id` idempotency (unique per thread) and persist **`assistant`** only when the streamed reply **finishes** (no per-chunk rows).
+**Contenido chat:** **`content_chat_threads`** — `chapter_id` set = one thread per **chapter / bonus / bump** artifact in MVP. **`chapter_id` null** slot (historically “main index / TOC” chat): **post-MVP** if conversational index refinement is enabled; **MVP** uses explicit generate/regenerate outline actions **without** an index chat transcript. Messages in **`content_chat_messages`**. **MVP:** persist **`user`** server-side with `client_message_id` idempotency (unique per thread) and persist **`assistant`** only when the streamed reply **finishes** (no per-chunk rows).
 
 ---
 

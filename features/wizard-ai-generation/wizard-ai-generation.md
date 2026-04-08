@@ -44,7 +44,7 @@ Step 3 **Vista previa** means **seeing** the product with **design tokens alread
 **Phases (strict order):**
 
 1. **Table of contents (index) — main ebook chapter definition**  
-   - **AI path:** AI proposes a **table of contents** that **defines** chapter count and titles (within product limits — see master PRD); the user edits manually or uses a **dedicated index chat** to request another AI pass. The user **confirms** the index before continuing — this is the **lock-in** for main ebook structure.  
+   - **AI path:** AI proposes a **table of contents** that **defines** chapter count and titles (within product limits — see master PRD); the user edits manually and uses explicit **generate / regenerate outline** actions for another AI pass. **Conversational index chat (chatbot scoped to the index step) is post-MVP** — see *Chat model* below. The user **confirms** the index before continuing — this is the **lock-in** for main ebook structure.  
    - **Upload path:** After parse + IA, the user **aligns** the extracted material to Obra’s **index + chapters** (edit titles, merge/split sections as needed) and **approves**; persisted chapter count reflects the **aligned** outline (may differ from the raw section count of the file). **Then** the same **index freeze** rules apply as the AI path.
 2. **Main ebook** — **Chapter by chapter**: for each chapter, the user edits manually or uses a **chapter-scoped chat** to request AI changes (**AI path:** generation/refinement; **upload path:** refinement of prefill). The user **approves** the chapter before moving on. The UI allows **returning to earlier chapters** to keep editing.
 3. **Bonuses** — Same pattern (**per-bonus chat**, manual edit, approve); **skipped** if the project has **zero** bonuses.
@@ -96,7 +96,7 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 
 9. As a creator, I want the AI to generate a **table of contents / index** for the **main ebook** that fits my topic and wizard package (**main title**, avatar, problem), so that I **confirm** chapter boundaries before writing bodies (**chapter count is not fixed in the shared wizard**).
 10. As a creator, I want to **edit the index manually** in the editor, so that I can fix wording without calling the AI.
-11. As a creator, I want a **chat thread scoped to the index** (AI path), so that I can describe changes and ask the AI for **another pass** on the index only.
+11. **(Post-MVP.)** As a creator, I want a **chat thread scoped to the index** (AI path), so that I can describe changes and ask the AI for **another pass** on the index only. **MVP:** **Regenerate outline** (or equivalent) covers another AI pass without a chat transcript.
 12. As a creator, I want the **“Confirm index”** (or equivalent) action to be **explicit**, so that I do not drift into chapter generation by accident.
 13. As a creator, after I confirm the index, I want the index to be **frozen** until I use a clear **“Edit index”** (or reopen) action, so that I do not accidentally change the outline while writing chapters.
 14. As a creator, when I **reopen and change** the index, I want a **confirmation** that asks whether **specific chapter(s)** need updating to match, so that I control what gets regenerated.
@@ -162,8 +162,9 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 
 ### Chat model
 
-- **Separate chat threads:** one for **index** (AI path), one for **each chapter**, one for **each bonus**, one for **each bump**. **Upload alignment** (before handoff) is specified in **`wizard-upload`** — no global project chat for this MVP scope.
-- Each chat invokes backend **generation** with **scoped context** (artifact id + frozen wizard + relevant prior art as needed by prompts).
+- **Index / TOC milestone:** **no chatbot UI in MVP.** Use **manual editing** plus explicit **generate / regenerate outline** API calls. **Conversational index chat** (dedicated thread for natural-language changes to the TOC) is **post-MVP**.
+- **Chapter, bonus, and bump milestones:** **separate chat threads** remain in scope for MVP (one per artifact), per user stories in those sections. **Upload alignment** (before handoff) is specified in **`wizard-upload`** — no global project chat for this MVP scope.
+- Each chat (where enabled) invokes backend **generation** with **scoped context** (artifact id + frozen wizard + relevant prior art as needed by prompts).
 
 ### Persistence and failure
 
@@ -182,7 +183,7 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 ### Deep modules (preferred)
 
 - **Content orchestration service** — hides state transitions, milestone order, skip logic for zero bonuses/bumps, and “freeze index” rules; exposes a narrow API to the UI (e.g. current step, allowed actions).
-- **Artifact-scoped chat + generation adapter** — hides provider/model details; callers pass **artifact id** and **intent** (e.g. regenerate with user message).
+- **Artifact-scoped chat + generation adapter** — hides provider/model details; callers pass **artifact id** and **intent** (e.g. regenerate with user message). **Index milestone** uses **non-chat** generation calls in MVP; chat adapter applies from **chapter loop** onward.
 - **Credit usage presenter** — maps ledger events to **human-readable** lines in the UI.
 
 ### Integration with later phases
@@ -203,7 +204,7 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 ## Frontend Tasks
 
 1. **Flow shell** for the post-design **content** phase (**AI and upload** paths): **global stepper** (step 1 complete, 2 current, 3 upcoming) matching `wizard-shared`, plus optional **dismissible banner**; **inner** milestone header (index/alignment → main ebook → bonuses → bumps), **skip** empty bonus/bump lanes, clear **current artifact** (chapter index, bonus index, bump index).
-2. **Index milestone (AI path):** editor surface for table of contents; **artifact-scoped chat** for index; **Confirm index** primary action; **Edit index** / reopen when frozen; **confirmation dialog** when index changes after chapters exist (which chapters to refresh). **Upload path** alignment UI **before** handoff: **`features/wizard-upload/wizard-upload.md`** (Frontend Tasks there).
+2. **Index milestone (AI path):** **two-column layout:** left **package navigation** (main ebook, each bonus, each order bump); right **TOC editor** for the **selected** ebook. **No index chatbot in MVP** — use **Regenerate outline** / **Generate outline** actions only. **Confirm index** primary action; **Edit index** / reopen when frozen; **confirmation dialog** when index changes after chapters exist (which chapters to refresh). **Upload path** alignment UI **before** handoff: **`features/wizard-upload/wizard-upload.md`** (Frontend Tasks there).
 3. **Chapter loop:** one **main ebook chapter** at a time; rich text or long-text editor per product choice; **per-chapter chat**; **Approve chapter** to advance; **navigate back** to prior chapters without losing later drafts; **soft coherence notice** when editing upstream. **Upload path:** **weak-prefill** warnings (C2) and **all-empty** blocking modal per Implementation Decisions.
 4. **Bonus and bump milestones:** same pattern as chapters (editor + per-artifact chat + approve); **skip** UI when count is zero.
 5. **Autosave** UX: debounced save indicators, **dirty** state, **retry** on failed save; disable **double-submit** on AI actions while pending.
@@ -216,10 +217,10 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 ## Backend Tasks
 
 1. **Persistence** for milestone state: current milestone, index draft, frozen flag, per-chapter draft **and** approval status, per-bonus and per-bump drafts; **read-only** references to frozen **wizard package + design**; **main ebook chapter list** stored as part of index/alignment completion.
-2. **APIs** for: generate index; regenerate index from chat; **confirm** index (transition); **reopen** index; on index change, optional **queue** chapter refresh jobs per user selection. **Upload path** (parse, split, persist alignment, storage): **`features/wizard-upload/wizard-upload.md`** (Backend Tasks there).
+2. **APIs** for: generate index; regenerate index (**MVP:** explicit action payload, **not** chat-turn based; **post-MVP:** optional chat-driven regenerate); **confirm** index (transition); **reopen** index; on index change, optional **queue** chapter refresh jobs per user selection. **Upload path** (parse, split, persist alignment, storage): **`features/wizard-upload/wizard-upload.md`** (Backend Tasks there).
 3. **APIs** for: generate chapter *n*; chat-driven **regenerate** chapter *n*; **approve** chapter; list/navigate artifacts without losing ordering.
 4. **APIs** for bonuses and bumps mirroring chapter semantics (scoped context, **skip** when count zero).
-5. **Chat threads** stored **per artifact** (index, chapter, bonus, bump) with message history; each **invoke** calls the AI with **scoped context** + `content_locale` + frozen wizard payload.
+5. **Chat threads** stored **per artifact** with message history for **chapter, bonus, and bump** milestones in MVP. **Index milestone:** no persistent chat thread required for MVP; **optional** `chapter_id IS NULL` thread reserved for **post-MVP** index chat if product enables it. Each **invoke** calls the AI with **scoped context** + `content_locale` + frozen wizard payload.
 6. **Credit ledger:** record consumption **per successful API call**; **no charge** on failure; **idempotency** keys for retries (align with master PRD).
 7. **Authorization:** all operations scoped to **project owner** + **RLS**; validate **bonus/bump** artifact indices against **wizard** counts; validate **main ebook chapters** against the **confirmed index** / chapter list from this flow (not from `wizard-shared`).
 8. **Rate limiting** on generation endpoints per user/project.
