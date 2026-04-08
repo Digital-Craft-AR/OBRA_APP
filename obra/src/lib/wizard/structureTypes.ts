@@ -10,16 +10,72 @@ export type ProjectRow = {
   bump_count: number;
   main_title: string | null;
   author: string | null;
+  bonus_items: WizardTitleItem[];
+  bump_items: WizardTitleItem[];
+  design_config: WizardDesignConfig;
   structure_completed_at: string | null;
 };
 
-export type BaseProjectRow = Omit<ProjectRow, "bonus_count" | "bump_count" | "main_title" | "author">;
+export type BaseProjectRow = Omit<
+  ProjectRow,
+  "bonus_count" | "bump_count" | "main_title" | "author" | "bonus_items" | "bump_items" | "design_config"
+>;
+
+export type WizardTitleItem = {
+  title: string;
+  locked: boolean;
+};
+
+export type WizardDesignConfig = {
+  preset: "starter" | "minimal" | "bold" | "custom";
+  palette: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+  fonts: {
+    heading: string;
+    body: string;
+  };
+  page: {
+    size: "a4" | "letter";
+    orientation: "portrait" | "landscape";
+  };
+  image: {
+    mode: "ai" | "stock";
+    style: "editorial" | "realistic" | "flat";
+  };
+};
+
+export const DEFAULT_DESIGN_CONFIG: WizardDesignConfig = {
+  preset: "starter",
+  palette: {
+    primary: "#1D4ED8",
+    secondary: "#0F172A",
+    accent: "#E2E8F0",
+  },
+  fonts: {
+    heading: "Poppins",
+    body: "Inter",
+  },
+  page: {
+    size: "a4",
+    orientation: "portrait",
+  },
+  image: {
+    mode: "ai",
+    style: "editorial",
+  },
+};
 
 export const INNER_STEPS = [
   "wizard.structure.inner.topic",
   "wizard.structure.inner.avatarProblem",
   "wizard.structure.inner.package",
-  "wizard.structure.inner.design",
+  "wizard.structure.inner.mainTitle",
+  "wizard.structure.inner.bonusTitles",
+  "wizard.structure.inner.bumpTitles",
+  "wizard.structure.inner.designConfig",
 ] as const;
 
 export const FALLBACK_MAIN_TITLE_SUGGESTIONS = [

@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
-import { improveWizardText, suggestWizardTitles } from "@/lib/wizard/aiOptimize";
 import {
+  improveWizardText,
+  suggestSingleWizardTitle,
+  suggestWizardTitles,
+} from "@/lib/wizard/aiOptimize";
+import {
+  DEFAULT_DESIGN_CONFIG,
   INNER_STEPS,
   type ProjectRow,
+  type WizardDesignConfig,
+  type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
 import {
   saveWizardAvatarProblem,
+  saveWizardBonusBumpItems,
+  saveWizardDesignConfig,
   saveWizardMainTitle,
   saveWizardPackageCounts,
   saveWizardTopic,
@@ -19,6 +28,21 @@ type FlowArgs = {
   t: TFunction;
   language: string;
 };
+
+function normalizeItems(items: WizardTitleItem[] | null | undefined, count: number, kind: "bonus" | "bump") {
+  const base = Array.isArray(items) ? items : [];
+  const normalized = Array.from({ length: count }).map((_, index) => {
+    const current = base[index];
+    if (current && typeof current.title === "string") {
+      return { title: current.title, locked: Boolean(current.locked) };
+    }
+    return {
+      title: `${kind === "bonus" ? "Bonus" : "Order bump"} ${index + 1}`,
+      locked: false,
+    };
+  });
+  return normalized;
+}
 
 export function useWizardStructureFlow({ project, setProject, t, language }: FlowArgs) {
   const [innerStepIndex, setInnerStepIndex] = useState(0);
@@ -51,6 +75,16 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [mainTitleSaving, setMainTitleSaving] = useState(false);
   const [mainTitleMessage, setMainTitleMessage] = useState<string | null>(null);
 
+  const [bonusItems, setBonusItems] = useState<WizardTitleItem[]>([]);
+  const [bumpItems, setBumpItems] = useState<WizardTitleItem[]>([]);
+  const [itemsSaving, setItemsSaving] = useState(false);
+  const [itemsMessage, setItemsMessage] = useState<string | null>(null);
+  const [itemRegeneratingKey, setItemRegeneratingKey] = useState<string | null>(null);
+
+  const [designConfig, setDesignConfig] = useState<WizardDesignConfig>(DEFAULT_DESIGN_CONFIG);
+  const [designSaving, setDesignSaving] = useState(false);
+  const [designMessage, setDesignMessage] = useState<string | null>(null);
+
   useEffect(() => {
     if (!project) return;
     setTopicDraft(project.topic ?? "");
@@ -59,6 +93,10 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setBonusCount(project.bonus_count ?? 0);
     setBumpCount(project.bump_count ?? 0);
     setAuthorDraft(project.author ?? "");
+    setBonusItems(normalizeItems(project.bonus_items, project.bonus_count ?? 0, "bonus"));
+    setBumpItems(normalizeItems(project.bump_items, project.bump_count ?? 0, "bump"));
+    setDesignConfig(project.design_config ?? DEFAULT_DESIGN_CONFIG);
+
     if (project.main_title) {
       const matchingIndex = titleSuggestions.findIndex((title) => title === project.main_title);
       if (matchingIndex >= 0) {
@@ -72,6 +110,14 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   }, [project, titleSuggestions]);
 
   useEffect(() => {
+    setBonusItems((current) => normalizeItems(current, bonusCount, "bonus"));
+  }, [bonusCount]);
+
+  useEffect(() => {
+    setBumpItems((current) => normalizeItems(current, bumpCount, "bump"));
+  }, [bumpCount]);
+
+  useEffect(() => {
     if (innerStepIndex !== 3) return;
     if (titleSuggestionsLoading) return;
     void generateMainTitleSuggestions();
@@ -82,6 +128,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     if (innerStepIndex === 1) return t("wizard.structure.step2.title");
     if (innerStepIndex === 2) return t("wizard.structure.step3.title");
     if (innerStepIndex === 3) return t("wizard.structure.step4.title");
+    if (innerStepIndex === 4) return t("wizard.structure.step5.title");
+    if (innerStepIndex === 5) return t("wizard.structure.step6.title");
+    if (innerStepIndex === 6) return t("wizard.structure.step7.title");
     return t("wizard.structure.title");
   }, [innerStepIndex, t]);
 
@@ -90,6 +139,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     if (innerStepIndex === 1) return t("wizard.structure.step2.subtitle");
     if (innerStepIndex === 2) return t("wizard.structure.step3.subtitle");
     if (innerStepIndex === 3) return t("wizard.structure.step4.subtitle");
+    if (innerStepIndex === 4) return t("wizard.structure.step5.subtitle");
+    if (innerStepIndex === 5) return t("wizard.structure.step6.subtitle");
+    if (innerStepIndex === 6) return t("wizard.structure.step7.subtitle");
     return t("wizard.structure.subtitle");
   }, [innerStepIndex, t]);
 
@@ -274,6 +326,129 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     return true;
   }
 
+  async function persistBonusBumpItems(): Promise<boolean> {
+    if (!project?.id || itemsSaving) return false;
+    setItemsSaving(true);
+    setItemsMessage(null);
+    const result = await saveWizardBonusBumpItems(project.id, bonusItems, bumpItems);
+    setItemsSaving(false);
+    if (!result.ok) {
+      setItemsMessage(t("wizard.structure.step5.saveError"));
+      return false;
+    }
+    setProject((current) =>
+      current
+        ? {
+            ...current,
+            bonus_items: bonusItems,
+            bump_items: bumpItems,
+          }
+        : current,
+    );
+    setItemsMessage(t("wizard.structure.step5.saved"));
+    return true;
+  }
+
+  async function regenerateItem(kind: "bonus" | "bump", index: number) {
+    const items = kind === "bonus" ? bonusItems : bumpItems;
+    if (!items[index] || items[index].locked) return;
+    const key = `${kind}-${index}`;
+    setItemRegeneratingKey(key);
+    setItemsMessage(null);
+    const result = await suggestSingleWizardTitle({
+      field: kind === "bonus" ? "bonus_title" : "bump_title",
+      topic: topicDraft,
+      problem: problemDraft,
+      avatar: avatarDraft,
+      language,
+    });
+    setItemRegeneratingKey(null);
+    if (!result.ok || !result.suggestion) {
+      setItemsMessage(t("wizard.structure.step5.regenerateError"));
+      return;
+    }
+    if (kind === "bonus") {
+      setBonusItems((current) =>
+        current.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, title: result.suggestion ?? item.title } : item,
+        ),
+      );
+    } else {
+      setBumpItems((current) =>
+        current.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, title: result.suggestion ?? item.title } : item,
+        ),
+      );
+    }
+  }
+
+  async function regenerateAllItems(kind: "bonus" | "bump") {
+    const sourceItems = kind === "bonus" ? bonusItems : bumpItems;
+    const unlockedIndexes = sourceItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => !item.locked)
+      .map(({ index }) => index);
+
+    if (unlockedIndexes.length === 0) return;
+
+    setItemRegeneratingKey(`${kind}-all`);
+    setItemsMessage(null);
+
+    let hadError = false;
+    const updates: Record<number, string> = {};
+    for (const index of unlockedIndexes) {
+      const result = await suggestSingleWizardTitle({
+        field: kind === "bonus" ? "bonus_title" : "bump_title",
+        topic: topicDraft,
+        problem: problemDraft,
+        avatar: avatarDraft,
+        language,
+      });
+      if (!result.ok || !result.suggestion) {
+        hadError = true;
+        continue;
+      }
+      updates[index] = result.suggestion;
+    }
+
+    if (kind === "bonus") {
+      setBonusItems((current) =>
+        current.map((item, index) => (updates[index] ? { ...item, title: updates[index] } : item)),
+      );
+    } else {
+      setBumpItems((current) =>
+        current.map((item, index) => (updates[index] ? { ...item, title: updates[index] } : item)),
+      );
+    }
+
+    setItemRegeneratingKey(null);
+    if (hadError) {
+      setItemsMessage(t("wizard.structure.step5.regenerateError"));
+    }
+  }
+
+  async function persistDesignConfig(): Promise<boolean> {
+    if (!project?.id || designSaving) return false;
+    setDesignSaving(true);
+    setDesignMessage(null);
+    const result = await saveWizardDesignConfig(project.id, designConfig);
+    setDesignSaving(false);
+    if (!result.ok) {
+      setDesignMessage(t("wizard.structure.step7.saveError"));
+      return false;
+    }
+    setProject((current) =>
+      current
+        ? {
+            ...current,
+            design_config: designConfig,
+          }
+        : current,
+    );
+    setDesignMessage(t("wizard.structure.step7.saved"));
+    return true;
+  }
+
   async function handleNextStep() {
     if (innerStepIndex === 0) {
       if (!topicDraft.trim()) {
@@ -281,8 +456,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
         return;
       }
       setTopicError(null);
-      const saved = await persistTopic();
-      if (!saved) return;
+      if (!(await persistTopic())) return;
     }
 
     if (innerStepIndex === 1) {
@@ -298,17 +472,23 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       }
       setAvatarError(null);
       setProblemError(null);
-      const saved = await persistAvatarProblem();
-      if (!saved) return;
+      if (!(await persistAvatarProblem())) return;
     }
 
     if (innerStepIndex === 2) {
-      const saved = await persistPackageCounts();
-      if (!saved) return;
+      if (!(await persistPackageCounts())) return;
     }
 
     if (innerStepIndex === 3) {
-      await persistMainTitleAndAuthor();
+      if (!(await persistMainTitleAndAuthor())) return;
+    }
+
+    if (innerStepIndex === 4 || innerStepIndex === 5) {
+      if (!(await persistBonusBumpItems())) return;
+    }
+
+    if (innerStepIndex === 6) {
+      await persistDesignConfig();
       return;
     }
 
@@ -361,6 +541,19 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setAuthorDraft,
     setMainTitleError,
     generateMainTitleSuggestions,
+    bonusItems,
+    bumpItems,
+    itemsSaving,
+    itemsMessage,
+    itemRegeneratingKey,
+    setBonusItems,
+    setBumpItems,
+    regenerateItem,
+    regenerateAllItems,
+    designConfig,
+    setDesignConfig,
+    designSaving,
+    designMessage,
     handleNextStep,
   };
 }
