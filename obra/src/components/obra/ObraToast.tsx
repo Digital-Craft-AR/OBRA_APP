@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
-import { CheckCircle2, Info, XCircle } from "lucide-react";
+import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 
 export type ObraToastVariant = "success" | "error" | "info";
 
@@ -10,6 +10,8 @@ type ObraToastProps = HTMLAttributes<HTMLDivElement> & {
   description: string;
   timeoutMs?: number;
   onTimeout?: () => void;
+  /** Accessible label for the close control (default: English "Close"). */
+  closeLabel?: string;
 };
 
 const variantStyles: Record<
@@ -42,21 +44,24 @@ export function ObraToast({
   description,
   timeoutMs = 15_000,
   onTimeout,
+  closeLabel = "Close",
   className = "",
   ...props
 }: ObraToastProps) {
   const style = variantStyles[variant];
   const [remainingMs, setRemainingMs] = useState(timeoutMs);
   const [paused, setPaused] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const timeoutHandledRef = useRef(false);
 
   useEffect(() => {
+    setDismissed(false);
     setRemainingMs(timeoutMs);
     timeoutHandledRef.current = false;
   }, [timeoutMs, title, description, variant]);
 
   useEffect(() => {
-    if (paused || remainingMs <= 0) return;
+    if (dismissed || paused || remainingMs <= 0) return;
     const tickMs = 100;
     const timer = window.setInterval(() => {
       setRemainingMs((prev) => {
@@ -68,13 +73,23 @@ export function ObraToast({
       });
     }, tickMs);
     return () => window.clearInterval(timer);
-  }, [paused, remainingMs]);
+  }, [dismissed, paused, remainingMs]);
 
   useEffect(() => {
     if (remainingMs > 0 || timeoutHandledRef.current) return;
     timeoutHandledRef.current = true;
     onTimeout?.();
   }, [remainingMs, onTimeout]);
+
+  function handleDismiss() {
+    if (timeoutHandledRef.current) return;
+    timeoutHandledRef.current = true;
+    if (onTimeout) {
+      onTimeout();
+    } else {
+      setDismissed(true);
+    }
+  }
 
   const progress = useMemo(() => {
     if (timeoutMs <= 0) return 0;
@@ -84,15 +99,27 @@ export function ObraToast({
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringDashOffset = ringCircumference * (1 - progress);
 
+  if (dismissed) {
+    return null;
+  }
+
   return (
     <div
       role="status"
       aria-live="polite"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className={`w-full max-w-toast rounded-card px-4 py-3 shadow-card-hover ${style.background} ${style.border} ${className}`.trim()}
+      className={`relative w-full max-w-toast rounded-card py-3 pl-4 pr-10 shadow-card-hover ${style.background} ${style.border} ${className}`.trim()}
       {...props}
     >
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="absolute right-2 top-2 rounded-md p-1 text-obra-neutral-600 transition-colors hover:bg-black/5 hover:text-obra-blue-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-obra-blue-700"
+        aria-label={closeLabel}
+      >
+        <X className="size-4" aria-hidden />
+      </button>
       <div className="flex items-start gap-3">
         <span className="relative mt-0.5 inline-flex size-10 shrink-0 items-center justify-center p-[5px]">
           <svg viewBox="0 0 40 40" className="absolute inset-0 -rotate-90" aria-hidden>
@@ -109,7 +136,7 @@ export function ObraToast({
           </svg>
           <span className={style.iconClassName}>{style.icon}</span>
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pr-1">
           <p className="font-body text-sm font-semibold text-obra-blue-950">{title}</p>
           <p className="mt-0.5 font-body text-xs text-obra-neutral-600">{description}</p>
         </div>

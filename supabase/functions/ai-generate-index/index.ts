@@ -2,8 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 /**
- * Proposes main-ebook chapter titles (TOC) for the AI path. Validates JWT.
- * Deducts credits via `obra_credit_ledger_apply`; Claude integration is still pending (#26 / #29).
+ * Proposes chapter titles (TOC) for the AI path: main ebook or an order-bump ebook.
+ * Validates JWT. Deducts credits via `obra_credit_ledger_apply`; Claude integration is still pending (#26 / #29).
  */
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -18,12 +18,21 @@ function stubChapterTitles(
   topic: string | null,
 ): string[] {
   const base = mainTitle.trim() || topic?.trim() || "Your ebook";
-  if (contentLocale.toLowerCase().startsWith("pt")) {
+  const loc = contentLocale.toLowerCase();
+  if (loc.startsWith("pt")) {
     return [
       `Introdução — ${base}`,
       "Desenvolvimento do conteúdo",
       "Exemplo prático",
       "Conclusão e próximos passos",
+    ];
+  }
+  if (loc.startsWith("en")) {
+    return [
+      `Introduction — ${base}`,
+      "Core content",
+      "Practical example",
+      "Conclusion and next steps",
     ];
   }
   return [
@@ -59,6 +68,7 @@ Deno.serve(async (req: Request) => {
   const payload = await req.json().catch(() => null);
   const projectId = typeof payload?.project_id === "string" ? payload.project_id : null;
   const clientRequestId = typeof payload?.client_request_id === "string" ? payload.client_request_id : null;
+  const targetEbookId = typeof payload?.target_ebook_id === "string" ? payload.target_ebook_id : null;
 
   if (!projectId) {
     return json({ error: "invalid_payload", detail: "project_id" }, 400);
@@ -95,16 +105,38 @@ Deno.serve(async (req: Request) => {
     return json({ error: "wrong_content_source", detail: "ai_path_only" }, 400);
   }
 
+  let seedTitle = project.main_title ?? "";
+  if (targetEbookId !== null && targetEbookId !== "") {
+    const { data: targetEbook, error: ebookErr } = await admin
+      .from("ebooks")
+      .select("id, type, title, index_frozen_at")
+      .eq("id", targetEbookId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+
+    if (ebookErr || !targetEbook) {
+      return json({ error: "invalid_payload", detail: "target_ebook_not_found" }, 400);
+    }
+    if (targetEbook.type !== "order_bump") {
+      return json({ error: "invalid_payload", detail: "target_ebook_not_order_bump" }, 400);
+    }
+    if (targetEbook.index_frozen_at != null) {
+      return json({ error: "index_already_frozen", detail: "order_bump" }, 400);
+    }
+    seedTitle = typeof targetEbook.title === "string" ? targetEbook.title : "";
+  }
+
   const rawCost = Deno.env.get("AI_GENERATE_INDEX_CREDIT_COST");
   const cost = rawCost !== undefined && rawCost !== "" ? Number(rawCost) : 2;
   if (!Number.isFinite(cost) || cost <= 0) {
     return json({ error: "server_misconfigured", detail: "credit_cost" }, 500);
   }
 
+  const targetKey = targetEbookId && targetEbookId !== "" ? targetEbookId : "main";
   const idempotencyKey =
     clientRequestId !== null && clientRequestId !== ""
-      ? `ai-gen-index:${user.id}:${projectId}:${clientRequestId}`
-      : `ai-gen-index:${user.id}:${projectId}:${crypto.randomUUID()}`;
+      ? `ai-gen-index:${user.id}:${projectId}:${targetKey}:${clientRequestId}`
+      : `ai-gen-index:${user.id}:${projectId}:${targetKey}:${crypto.randomUUID()}`;
 
   const delta = -Math.floor(cost);
   const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
@@ -129,7 +161,7 @@ Deno.serve(async (req: Request) => {
 
   const titles = stubChapterTitles(
     project.content_locale ?? "es",
-    project.main_title ?? "",
+    seedTitle,
     project.topic,
   );
 

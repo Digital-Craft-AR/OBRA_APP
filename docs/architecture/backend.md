@@ -81,7 +81,7 @@ All functions live under `supabase/functions/` (repo root) and return:
 Primary functions:
 
 - `ai-optimize`: optimize short wizard inputs
-- `ai-generate-index`: main ebook TOC proposal (shipped as **stub titles** + credit debit; Claude wiring pending #29; **post-MVP:** optional chat-turn wrapper)
+- `ai-generate-index`: TOC proposal for **main** or **`order_bump`** ebook (`target_ebook_id` optional in body; **stub titles** + credit debit; Claude wiring pending #29; **post-MVP:** optional chat-turn wrapper)
 - `ai-generate-content`: chapter body generation
 - `ai-generate-html`: design-aware HTML composition/generation
 - `image-generate`: Gemini image generation, then Storage persist + `images` row

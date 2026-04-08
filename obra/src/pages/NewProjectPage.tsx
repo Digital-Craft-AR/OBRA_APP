@@ -7,6 +7,7 @@ import { useAuth } from "@/auth/authContext";
 import { supabase } from "@/lib/supabaseClient";
 import type { ContentLocale, ContentSource } from "@/lib/projects";
 import { CONTENT_LOCALE_OPTIONS } from "@/lib/projects";
+import { DEFAULT_DESIGN_CONFIG } from "@/lib/wizard/structureTypes";
 
 const SOURCE_OPTIONS: ContentSource[] = ["ai", "upload"];
 
@@ -42,6 +43,7 @@ export function NewProjectPage() {
         name: projectName,
         content_locale: contentLocale,
         content_source: contentSource,
+        design_config: DEFAULT_DESIGN_CONFIG,
       })
       .select("id")
       .single();
@@ -49,6 +51,9 @@ export function NewProjectPage() {
     setIsSubmitting(false);
 
     if (error || !data?.id) {
+      if (import.meta.env.DEV && error) {
+        console.error("[createProject]", error);
+      }
       setErrorMessage(t("wizard.create.error"));
       return;
     }

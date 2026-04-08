@@ -48,7 +48,7 @@ Step 3 **Vista previa** means **seeing** the product with **design tokens alread
    - **Upload path:** After parse + IA, the user **aligns** the extracted material to Obra’s **index + chapters** (edit titles, merge/split sections as needed) and **approves**; persisted chapter count reflects the **aligned** outline (may differ from the raw section count of the file). **Then** the same **index freeze** rules apply as the AI path.
 2. **Main ebook** — **Chapter by chapter**: for each chapter, the user edits manually or uses a **chapter-scoped chat** to request AI changes (**AI path:** generation/refinement; **upload path:** refinement of prefill). The user **approves** the chapter before moving on. The UI allows **returning to earlier chapters** to keep editing.
 3. **Bonuses** — Same pattern (**per-bonus chat**, manual edit, approve); **skipped** if the project has **zero** bonuses.
-4. **Order bumps** — Same pattern (**per-bump chat**); **skipped** if **zero** bumps.
+4. **Order bumps** — Same **index / TOC** pattern as the main ebook (multi-chapter outline, confirm, freeze per bump via `ebooks.index_frozen_at`), then body milestones (**per-bump chat** when implemented); **skipped** if **zero** bumps.
 
 **Upload branch — preamble (ordering and rules):** upload → parse (no LLM) → IA split proposal → **alignment** → **Approve alignment** → **this** flow’s chapter loop with prefill. **Canonical spec:** **`features/wizard-upload/wizard-upload.md`**. Master **file** rules: **`PRD_Obra.md` §4**.
 

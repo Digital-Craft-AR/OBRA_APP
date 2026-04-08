@@ -323,13 +323,21 @@ const resources = {
       "wizard.structure.step7.continueToContent": "Ir a Contenido",
       "wizard.structure.step7.structureMarkError":
         "El diseño se guardó, pero no pudimos marcar la estructura como completa. Probá de nuevo o recargá la página.",
+      "wizard.content.footer.backToStructure": "Volver a estructura",
+      "wizard.content.footer.back": "Volver",
       "wizard.content.milestone.index": "Índice — tabla de contenidos",
       "wizard.content.banner.regionAria": "Aviso sobre la fase de contenido",
       "wizard.content.banner.body":
         "En esta fase solo trabajás el texto. La vista previa con diseño aplicado viene en el paso siguiente (Vista previa).",
       "wizard.content.banner.dismiss": "No volver a mostrar",
       "wizard.content.workspace.ensureError":
-        "No pudimos preparar el espacio de contenido. Verificá que la migración de base de datos esté aplicada.",
+        "No pudimos preparar el espacio de contenido. Si acabás de desplegar cambios, verificá que la migración de base de datos esté aplicada.",
+      "wizard.content.workspace.ensureErrorStructure":
+        "La estructura del proyecto aún no está completa. Volvé al paso Estructura del wizard.",
+      "wizard.content.workspace.ensureErrorForbidden":
+        "No tenés acceso a este proyecto o no existe.",
+      "wizard.content.workspace.ensureErrorDb":
+        "No pudimos cargar el espacio de contenido. Probá de nuevo; si sigue fallando, puede ser un problema de permisos o de tablas en el servidor.",
       "wizard.content.uploadGate.title": "Manuscrito y alineación",
       "wizard.content.uploadGate.subtitle": "Rama de carga de archivos",
       "wizard.content.uploadGate.body":
@@ -339,8 +347,13 @@ const resources = {
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
       "wizard.content.nav.bonusFallback": "Bonus {{n}}",
       "wizard.content.nav.bumpFallback": "Bump {{n}}",
+      "wizard.content.index.packageTocConfirmedAria": "Índice confirmado",
       "wizard.content.index.packageNavAria": "Contenido del paquete",
-      "wizard.content.index.packageNavHeading": "Tu paquete",
+      "wizard.content.index.emptyTocPrompt":
+        "Todavía no hay capítulos en el índice. Elegí cómo querés empezar.",
+      "wizard.content.index.emptyTocGenerate": "Generar esquema",
+      "wizard.content.index.emptyTocManual": "Cargarlo manual",
+      "wizard.content.index.dragChapterAria": "Arrastrar para reordenar el capítulo",
       "wizard.content.index.panelTitleMain": "Tabla de contenidos — {{title}}",
       "wizard.content.index.panelSubtitleMain":
         "Editá los capítulos o usá Regenerar esquema (consume créditos). La integración con Claude en el servidor es un stub hasta el epic de IA.",
@@ -351,14 +364,18 @@ const resources = {
         "Los bonuses suelen ser un solo cuerpo; podés ajustar el título de sección aquí.",
       "wizard.content.index.panelTitleBump": "Estructura — {{title}}",
       "wizard.content.index.panelSubtitleBump":
-        "Los order bumps suelen ser un solo bloque; podés ajustar el título de sección aquí.",
+        "Cada order bump tiene su propia tabla de capítulos, con el mismo flujo que el ebook principal.",
+      "wizard.content.index.panelSubtitleBumpChapters":
+        "Generá o editá el índice como en el ebook principal: Regenerar esquema propone capítulos con IA y consume créditos; podés reordenar con el asa, añadir o quitar filas. Cuando confirmés el índice, los títulos quedan fijos hasta el editor de cuerpo.",
+      "wizard.content.index.panelSubtitleBumpChaptersFrozen":
+        "Índice confirmado para este order bump. Los capítulos siguen en solo lectura hasta que exista el editor de cuerpo (#55).",
       "wizard.content.index.mainTitleFallback": "tu ebook",
       "wizard.content.index.regenerateOutline": "Regenerar esquema",
       "wizard.content.index.regenerateLoading": "Generando…",
       "wizard.content.index.regenerateOutlineHint":
         "Rellena un esquema de ejemplo para empezar; podés editarlo a mano.",
       "wizard.content.index.singleArtifactTocHint":
-        "Este artefacto usa una sola sección de contenido; el índice detallado aplica al ebook principal.",
+        "Los bonuses suelen ser un solo bloque; el índice por capítulos aplica al ebook principal y a los order bumps.",
       "wizard.content.index.chapterTitleLabel": "Capítulo {{index}}",
       "wizard.content.index.chapterTitlePlaceholder": "Título del capítulo",
       "wizard.content.index.moveUpAria": "Mover capítulo arriba",
@@ -373,6 +390,7 @@ const resources = {
         "Al confirmar se congelan los capítulos del ebook principal y pasás al bucle de redacción.",
       "wizard.content.index.regenerateSuccess": "Esquema actualizado.",
       "wizard.content.index.confirmSuccess": "Índice confirmado. Podés continuar cuando el paso de capítulos esté listo.",
+      "wizard.content.index.toastInsufficientCreditsTitle": "Sin créditos",
       "wizard.content.index.errorInsufficientCredits": "No tenés créditos suficientes para regenerar el esquema.",
       "wizard.content.index.errorWrongSource": "Esta acción solo aplica a proyectos con fuente de contenido por IA.",
       "wizard.content.index.errorGenerateGeneric": "No pudimos generar el esquema. Probá de nuevo.",
@@ -908,13 +926,21 @@ const resources = {
       "wizard.structure.step7.continueToContent": "Ir para Conteúdo",
       "wizard.structure.step7.structureMarkError":
         "O design foi salvo, mas não foi possível marcar a estrutura como concluída. Tente de novo ou recarregue a página.",
+      "wizard.content.footer.backToStructure": "Voltar para a estrutura",
+      "wizard.content.footer.back": "Voltar",
       "wizard.content.milestone.index": "Índice — sumário",
       "wizard.content.banner.regionAria": "Aviso sobre a fase de conteúdo",
       "wizard.content.banner.body":
         "Nesta fase você trabalha só o texto. A prévia com design aplicado vem no próximo passo (Prévia).",
       "wizard.content.banner.dismiss": "Não mostrar de novo",
       "wizard.content.workspace.ensureError":
-        "Não foi possível preparar o espaço de conteúdo. Verifique se a migração do banco foi aplicada.",
+        "Não foi possível preparar o espaço de conteúdo. Se você acabou de publicar mudanças, verifique se a migração do banco foi aplicada.",
+      "wizard.content.workspace.ensureErrorStructure":
+        "A estrutura do projeto ainda não está concluída. Volte ao passo Estrutura do wizard.",
+      "wizard.content.workspace.ensureErrorForbidden":
+        "Você não tem acesso a este projeto ou ele não existe.",
+      "wizard.content.workspace.ensureErrorDb":
+        "Não foi possível carregar o espaço de conteúdo. Tente de novo; se continuar falhando, pode ser permissão ou tabelas no servidor.",
       "wizard.content.uploadGate.title": "Manuscrito e alinhamento",
       "wizard.content.uploadGate.subtitle": "Fluxo de upload",
       "wizard.content.uploadGate.body":
@@ -924,8 +950,13 @@ const resources = {
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
       "wizard.content.nav.bonusFallback": "Bônus {{n}}",
       "wizard.content.nav.bumpFallback": "Bump {{n}}",
+      "wizard.content.index.packageTocConfirmedAria": "Sumário confirmado",
       "wizard.content.index.packageNavAria": "Conteúdo do pacote",
-      "wizard.content.index.packageNavHeading": "Seu pacote",
+      "wizard.content.index.emptyTocPrompt":
+        "Ainda não há capítulos no sumário. Escolha como quer começar.",
+      "wizard.content.index.emptyTocGenerate": "Gerar esquema",
+      "wizard.content.index.emptyTocManual": "Carregar manualmente",
+      "wizard.content.index.dragChapterAria": "Arrastar para reordenar o capítulo",
       "wizard.content.index.panelTitleMain": "Sumário — {{title}}",
       "wizard.content.index.panelSubtitleMain":
         "Edite os capítulos ou use Regenerar esquema (consome créditos). A integração com Claude no servidor ainda é stub até o epic de IA.",
@@ -936,14 +967,18 @@ const resources = {
         "Os bônus costumam ter um único corpo; ajuste o título da seção aqui.",
       "wizard.content.index.panelTitleBump": "Estrutura — {{title}}",
       "wizard.content.index.panelSubtitleBump":
-        "Os order bumps costumam ser um único bloco; ajuste o título da seção aqui.",
+        "Cada order bump tem sua própria tabela de capítulos, com o mesmo fluxo do ebook principal.",
+      "wizard.content.index.panelSubtitleBumpChapters":
+        "Gere ou edite o sumário como no ebook principal: Regenerar esquema sugere capítulos com IA e consome créditos; você pode reordenar pelo ícone, adicionar ou remover linhas. Ao confirmar o sumário, os títulos ficam fixos até o editor de corpo.",
+      "wizard.content.index.panelSubtitleBumpChaptersFrozen":
+        "Sumário confirmado para este order bump. Os capítulos ficam somente leitura até existir o editor de corpo (#55).",
       "wizard.content.index.mainTitleFallback": "seu ebook",
       "wizard.content.index.regenerateOutline": "Regenerar esquema",
       "wizard.content.index.regenerateLoading": "Gerando…",
       "wizard.content.index.regenerateOutlineHint":
         "Preenche um esquema de exemplo para começar; você pode editar manualmente.",
       "wizard.content.index.singleArtifactTocHint":
-        "Este artefato usa uma única seção de conteúdo; o índice detalhado vale para o ebook principal.",
+        "Os bônus costumam ser um único bloco; o índice por capítulos vale para o ebook principal e para os order bumps.",
       "wizard.content.index.chapterTitleLabel": "Capítulo {{index}}",
       "wizard.content.index.chapterTitlePlaceholder": "Título do capítulo",
       "wizard.content.index.moveUpAria": "Mover capítulo para cima",
@@ -958,6 +993,7 @@ const resources = {
         "Ao confirmar, os capítulos do ebook principal ficam congelados e você avança para o loop de redação.",
       "wizard.content.index.regenerateSuccess": "Esquema atualizado.",
       "wizard.content.index.confirmSuccess": "Sumário confirmado. Você poderá continuar quando a etapa de capítulos estiver pronta.",
+      "wizard.content.index.toastInsufficientCreditsTitle": "Sem créditos",
       "wizard.content.index.errorInsufficientCredits": "Créditos insuficientes para regenerar o esquema.",
       "wizard.content.index.errorWrongSource": "Esta ação vale só para projetos com fonte de conteúdo por IA.",
       "wizard.content.index.errorGenerateGeneric": "Não foi possível gerar o esquema. Tente de novo.",

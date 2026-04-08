@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:test-users": "node ./scripts/seed-test-users.mjs"
+    "seed": "node ./scripts/seed-test-users.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

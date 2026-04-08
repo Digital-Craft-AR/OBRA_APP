@@ -35,3 +35,8 @@ export function buildContentPackageNavTargets(bonusCount: number, bumpCount: num
   for (let i = 0; i < bumps; i++) out.push({ kind: "bump", index: i });
   return out;
 }
+
+/** Main ebook and order bumps use a multi-chapter TOC; bonuses use a single section. */
+export function usesMultiChapterContentNavTarget(target: ContentPackageNavTarget): boolean {
+  return target.kind === "main" || target.kind === "bump";
+}

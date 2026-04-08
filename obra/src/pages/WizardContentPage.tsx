@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
+import { ObraToast } from "@/components/obra/ObraToast";
 import {
   ContentIndexMilestone,
   type ContentNavItem,
@@ -16,11 +17,13 @@ import {
 } from "@/lib/wizard/contentNav";
 import {
   confirmMainIndex,
+  confirmOrderBumpIndex,
   ensureContentWorkspace,
+  fetchPackageEbookIdMap,
   invokeGenerateIndex,
-  loadMainEbookChapters,
-  replaceMainEbookDraftChapters,
-  upsertMainEbookDraftChaptersFromRows,
+  loadEbookChapters,
+  replaceEbookDraftChapters,
+  upsertEbookDraftChaptersFromRows,
   validateMainTocForConfirm,
 } from "@/lib/wizard/contentIndexApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
@@ -42,6 +45,19 @@ function defaultSingleRows(): TocChapterRow[] {
   return [{ id: newRowId(), title: "" }];
 }
 
+async function loadOrSeedPackageToc(
+  ebookId: string,
+  defaultFactory: () => TocChapterRow[],
+): Promise<TocChapterRow[]> {
+  const loaded = await loadEbookChapters(ebookId);
+  if (!loaded.ok) return defaultFactory();
+  if (loaded.rows.length > 0) return loaded.rows;
+  const seed = defaultFactory();
+  const persisted = await upsertEbookDraftChaptersFromRows(ebookId, seed);
+  if (!persisted.ok) return seed;
+  return persisted.rows;
+}
+
 export function WizardContentPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -56,14 +72,29 @@ export function WizardContentPage() {
   const [bonusBumpToc, setBonusBumpToc] = useState<Record<string, TocChapterRow[]>>({});
   const [mainTocRows, setMainTocRows] = useState<TocChapterRow[]>([]);
   const [mainEbookId, setMainEbookId] = useState<string | null>(null);
+  const [packageEbookIds, setPackageEbookIds] = useState<Record<string, string>>({});
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
   const [mainIndexFrozenAt, setMainIndexFrozenAt] = useState<string | null>(null);
+  /** Per `bump:n` nav key: `ebooks.index_frozen_at` for that order bump. */
+  const [bumpIndexFrozenAt, setBumpIndexFrozenAt] = useState<Record<string, string | null>>({});
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [actionAnnouncement, setActionAnnouncement] = useState<string | null>(null);
   const [workspaceReady, setWorkspaceReady] = useState(false);
+  /** False until DB had chapters or user chose manual / succeeded at generate. */
+  const [tocEntryResolved, setTocEntryResolved] = useState(false);
+  /** Per `bump:n` key: false until DB had chapters or user chose manual / succeeded at generate. */
+  const [bumpTocEntryResolved, setBumpTocEntryResolved] = useState<Record<string, boolean>>({});
+  const [insufficientCreditsToastOpen, setInsufficientCreditsToastOpen] = useState(false);
+
+  const bonusBumpTocRef = useRef(bonusBumpToc);
+  bonusBumpTocRef.current = bonusBumpToc;
+  const packageEbookIdsRef = useRef(packageEbookIds);
+  packageEbookIdsRef.current = packageEbookIds;
+  const persistTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const prevSelectedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!params.projectId) return;
@@ -83,83 +114,163 @@ export function WizardContentPage() {
 
   useEffect(() => {
     if (!project?.id || loading) return;
+    if (!project.structure_completed_at) return;
     let cancelled = false;
     setWorkspaceError(null);
     setWorkspaceReady(false);
+    setTocEntryResolved(false);
+    setBumpTocEntryResolved({});
+    setBumpIndexFrozenAt({});
+    setPackageEbookIds({});
+    setBonusBumpToc({});
 
     void (async () => {
       const ensured = await ensureContentWorkspace(project.id);
       if (cancelled) return;
       if (!ensured.ok) {
-        setWorkspaceError(t("wizard.content.workspace.ensureError"));
+        const key =
+          ensured.code === "structure_not_complete"
+            ? "wizard.content.workspace.ensureErrorStructure"
+            : ensured.code === "forbidden"
+              ? "wizard.content.workspace.ensureErrorForbidden"
+              : ensured.code === "db_error"
+                ? "wizard.content.workspace.ensureErrorDb"
+                : "wizard.content.workspace.ensureError";
+        setWorkspaceError(t(key));
         return;
       }
       setMainEbookId(ensured.data.main_ebook_id);
       setCurrentPhase(ensured.data.current_phase);
       setMainIndexFrozenAt(ensured.data.main_index_frozen_at);
 
-      const chapters = await loadMainEbookChapters(ensured.data.main_ebook_id);
+      const chapters = await loadEbookChapters(ensured.data.main_ebook_id);
       if (cancelled) return;
       if (chapters.ok && chapters.rows.length > 0) {
         setMainTocRows(chapters.rows);
+        setTocEntryResolved(true);
       } else {
-        setMainTocRows(defaultMainRows());
+        setMainTocRows([]);
+        setTocEntryResolved(false);
       }
+
+      const pkgMap = await fetchPackageEbookIdMap(project.id);
+      if (cancelled) return;
+      if (!pkgMap.ok) {
+        setWorkspaceError(t("wizard.content.workspace.ensureErrorDb"));
+        return;
+      }
+      setPackageEbookIds(pkgMap.map);
+      setBumpIndexFrozenAt(pkgMap.bumpIndexFrozenAt);
+
+      const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
+      const tocUpdates: Record<string, TocChapterRow[]> = {};
+      const bumpResolved: Record<string, boolean> = {};
+      for (const target of targets) {
+        if (target.kind === "main") continue;
+        const key = contentNavTargetToKey(target);
+        const ebookId = pkgMap.map[key];
+        if (!ebookId) continue;
+        if (target.kind === "bump") {
+          const bumpFrozen = Boolean(pkgMap.bumpIndexFrozenAt[key]);
+          const loaded = await loadEbookChapters(ebookId);
+          if (cancelled) return;
+          if (!loaded.ok) {
+            tocUpdates[key] = [];
+            bumpResolved[key] = bumpFrozen;
+          } else if (loaded.rows.length > 0 || bumpFrozen) {
+            tocUpdates[key] = loaded.rows;
+            bumpResolved[key] = true;
+          } else {
+            tocUpdates[key] = [];
+            bumpResolved[key] = false;
+          }
+        } else {
+          tocUpdates[key] = await loadOrSeedPackageToc(ebookId, defaultSingleRows);
+          if (cancelled) return;
+        }
+      }
+      setBumpTocEntryResolved(bumpResolved);
+      setBonusBumpToc(tocUpdates);
+
       setWorkspaceReady(true);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [project?.id, loading, project?.structure_completed_at, t]);
+  }, [
+    project?.id,
+    loading,
+    project?.structure_completed_at,
+    project?.bonus_count,
+    project?.bump_count,
+    t,
+  ]);
 
   useEffect(() => {
-    if (!project) return;
-    const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
-    setBonusBumpToc((prev) => {
-      const next = { ...prev };
-      for (const target of targets) {
-        if (target.kind === "main") continue;
-        const key = contentNavTargetToKey(target);
-        if (!next[key]) next[key] = defaultSingleRows();
+    const prev = prevSelectedKeyRef.current;
+    prevSelectedKeyRef.current = selectedKey;
+    if (prev === null) return;
+    if (prev === selectedKey) return;
+    if (prev === "main") return;
+
+    const tid = persistTimersRef.current[prev];
+    if (tid) {
+      clearTimeout(tid);
+      delete persistTimersRef.current[prev];
+    }
+    const ebookId = packageEbookIdsRef.current[prev];
+    const rows = bonusBumpTocRef.current[prev];
+    if (ebookId && rows) {
+      void upsertEbookDraftChaptersFromRows(ebookId, rows);
+    }
+  }, [selectedKey]);
+
+  useEffect(() => {
+    return () => {
+      for (const tid of Object.values(persistTimersRef.current)) {
+        clearTimeout(tid);
       }
-      return next;
-    });
-  }, [project]);
+      persistTimersRef.current = {};
+      const toc = bonusBumpTocRef.current;
+      const ids = packageEbookIdsRef.current;
+      for (const [key, rows] of Object.entries(toc)) {
+        const ebookId = ids[key];
+        if (ebookId && rows?.length) {
+          void upsertEbookDraftChaptersFromRows(ebookId, rows);
+        }
+      }
+    };
+  }, []);
 
   const needsUploadAlignment =
     project?.content_source === "upload" && currentPhase === "upload_alignment";
 
   const indexFrozen = Boolean(mainIndexFrozenAt);
 
-  useEffect(() => {
-    if (!indexFrozen && currentPhase === "main_index" && project?.content_source === "ai") {
-      setSelectedKey("main");
-    }
-  }, [indexFrozen, currentPhase, project?.content_source]);
-
   const navItems: ContentNavItem[] = useMemo(() => {
     if (!project) return [];
     const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
     return targets.map((target) => {
       const key = contentNavTargetToKey(target);
-      let label: string;
+      let navTitle: string;
       if (target.kind === "main") {
-        label = t("wizard.content.nav.mainEbook");
+        navTitle = project.main_title?.trim() || t("wizard.content.index.mainTitleFallback");
       } else if (target.kind === "bonus") {
-        const title =
+        navTitle =
           project.bonus_items[target.index]?.title?.trim() ||
           t("wizard.content.nav.bonusFallback", { n: target.index + 1 });
-        label = t("wizard.content.nav.bonus", { n: target.index + 1, title });
       } else {
-        const title =
+        navTitle =
           project.bump_items[target.index]?.title?.trim() ||
           t("wizard.content.nav.bumpFallback", { n: target.index + 1 });
-        label = t("wizard.content.nav.orderBump", { n: target.index + 1, title });
       }
-      return { key, label, target };
+      const tocConfirmed =
+        (target.kind === "main" && indexFrozen) ||
+        (target.kind === "bump" && Boolean(bumpIndexFrozenAt[key]));
+      return { key, navTitle, target, tocConfirmed };
     });
-  }, [project, t]);
+  }, [project, t, indexFrozen, bumpIndexFrozenAt]);
 
   const selectedTarget = parseContentNavKey(selectedKey) ?? { kind: "main" as const };
 
@@ -194,16 +305,20 @@ export function WizardContentPage() {
     const title =
       project.bump_items[selectedTarget.index]?.title?.trim() ||
       t("wizard.content.nav.bumpFallback", { n: selectedTarget.index + 1 });
+    const bumpFrozen = Boolean(bumpIndexFrozenAt[selectedKey]);
     return {
-      title: t("wizard.content.index.panelTitleBump", { title }),
-      subtitle: t("wizard.content.index.panelSubtitleBump"),
+      title: t("wizard.content.index.panelTitleMain", { title }),
+      subtitle: bumpFrozen
+        ? t("wizard.content.index.panelSubtitleBumpChaptersFrozen")
+        : t("wizard.content.index.panelSubtitleBumpChapters"),
     };
-  }, [project, selectedTarget, t, needsUploadAlignment, indexFrozen]);
+  }, [project, selectedTarget, selectedKey, t, needsUploadAlignment, indexFrozen, bumpIndexFrozenAt]);
 
   const currentTocRows: TocChapterRow[] =
     selectedTarget.kind === "main"
       ? mainTocRows
-      : bonusBumpToc[selectedKey] ?? defaultSingleRows();
+      : bonusBumpToc[selectedKey] ??
+          (selectedTarget.kind === "bump" ? defaultMainRows() : defaultSingleRows());
 
   const setCurrentToc = useCallback(
     (rows: TocChapterRow[]) => {
@@ -211,26 +326,38 @@ export function WizardContentPage() {
         setMainTocRows(rows);
         return;
       }
+      if (selectedTarget.kind === "bump" && bumpIndexFrozenAt[selectedKey]) {
+        return;
+      }
+      const ebookId = packageEbookIds[selectedKey];
       setBonusBumpToc((prev) => ({ ...prev, [selectedKey]: rows }));
+      if (!ebookId) return;
+
+      const key = selectedKey;
+      const existingTimer = persistTimersRef.current[key];
+      if (existingTimer) clearTimeout(existingTimer);
+      persistTimersRef.current[key] = setTimeout(() => {
+        void upsertEbookDraftChaptersFromRows(ebookId, rows).then((res) => {
+          if (res.ok) {
+            setBonusBumpToc((p) => ({ ...p, [key]: res.rows }));
+          }
+        });
+        delete persistTimersRef.current[key];
+      }, 550);
     },
-    [selectedKey, selectedTarget.kind],
+    [selectedKey, selectedTarget.kind, packageEbookIds, bumpIndexFrozenAt],
   );
 
   const navItemDisabled = useCallback(
-    (key: string) => {
-      if (needsUploadAlignment) return key !== "main";
-      if (!indexFrozen && project?.content_source === "ai" && currentPhase === "main_index") {
-        return key !== "main";
-      }
-      return false;
-    },
-    [needsUploadAlignment, indexFrozen, project?.content_source, currentPhase],
+    (key: string) => needsUploadAlignment && key !== "main",
+    [needsUploadAlignment],
   );
 
-  const handleRegenerateOutline = useCallback(async () => {
+  const handleRegenerateMainOutline = useCallback(async () => {
     if (selectedTarget.kind !== "main" || !project?.id || !mainEbookId) return;
     if (needsUploadAlignment || indexFrozen) return;
     setActionAnnouncement(null);
+    setInsufficientCreditsToastOpen(false);
     const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
     setGenerateLoading(true);
     const result = await invokeGenerateIndex(project.id, clientRequestId);
@@ -238,7 +365,7 @@ export function WizardContentPage() {
     if (!result.ok) {
       const code = result.code;
       if (code === "insufficient_credits") {
-        setActionAnnouncement(t("wizard.content.index.errorInsufficientCredits"));
+        setInsufficientCreditsToastOpen(true);
       } else if (code === "wrong_content_source") {
         setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
       } else {
@@ -246,61 +373,156 @@ export function WizardContentPage() {
       }
       return;
     }
-    const saved = await replaceMainEbookDraftChapters(mainEbookId, result.titles);
+    const saved = await replaceEbookDraftChapters(mainEbookId, result.titles);
     if (!saved.ok) {
       setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
       return;
     }
-    const loaded = await loadMainEbookChapters(mainEbookId);
+    const loaded = await loadEbookChapters(mainEbookId);
     if (loaded.ok) setMainTocRows(loaded.rows);
+    setTocEntryResolved(true);
     setActionAnnouncement(t("wizard.content.index.regenerateSuccess"));
   }, [selectedTarget.kind, project?.id, mainEbookId, needsUploadAlignment, indexFrozen, t]);
 
-  const handleRegenerateBonusBumpPlaceholder = useCallback(() => {
-    if (selectedTarget.kind === "main") return;
-    if (selectedTarget.kind === "bonus") {
-      const title =
-        project?.bonus_items[selectedTarget.index]?.title?.trim() ||
-        t("wizard.content.nav.bonusFallback", { n: selectedTarget.index + 1 });
-      setCurrentToc([{ id: newRowId(), title: t("wizard.content.index.singleSectionTitle", { title }) }]);
+  const handleRegenerateBumpOutline = useCallback(async () => {
+    if (selectedTarget.kind !== "bump" || !project?.id) return;
+    const ebookId = packageEbookIds[selectedKey];
+    if (!ebookId) return;
+    if (needsUploadAlignment || bumpIndexFrozenAt[selectedKey]) return;
+    const pending = persistTimersRef.current[selectedKey];
+    if (pending) {
+      clearTimeout(pending);
+      delete persistTimersRef.current[selectedKey];
+    }
+    setActionAnnouncement(null);
+    setInsufficientCreditsToastOpen(false);
+    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    setGenerateLoading(true);
+    const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
+    setGenerateLoading(false);
+    if (!result.ok) {
+      const code = result.code;
+      if (code === "insufficient_credits") {
+        setInsufficientCreditsToastOpen(true);
+      } else if (code === "wrong_content_source") {
+        setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
+      } else {
+        setActionAnnouncement(t("wizard.content.index.errorGenerateGeneric"));
+      }
       return;
     }
-    const title =
-      project?.bump_items[selectedTarget.index]?.title?.trim() ||
-      t("wizard.content.nav.bumpFallback", { n: selectedTarget.index + 1 });
-    setCurrentToc([{ id: newRowId(), title: t("wizard.content.index.singleSectionTitle", { title }) }]);
-  }, [selectedTarget, project, setCurrentToc, t]);
-
-  const onRegenerateOutline =
-    selectedTarget.kind === "main" ? handleRegenerateOutline : handleRegenerateBonusBumpPlaceholder;
-
-  const handleConfirmIndex = useCallback(async () => {
-    if (!project?.id || !mainEbookId) return;
-    const validation = validateMainTocForConfirm(mainTocRows);
-    if (validation !== "ok") {
-      if (validation === "empty_title") setActionAnnouncement(t("wizard.content.index.errorEmptyTitle"));
-      else if (validation === "too_many") setActionAnnouncement(t("wizard.content.index.errorTooManyChapters"));
-      else setActionAnnouncement(t("wizard.content.index.errorTooFewChapters"));
-      return;
-    }
-    setConfirmLoading(true);
-    const persist = await upsertMainEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
-    if (!persist.ok) {
-      setConfirmLoading(false);
+    const saved = await replaceEbookDraftChapters(ebookId, result.titles);
+    if (!saved.ok) {
       setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
       return;
     }
-    setMainTocRows(persist.rows);
-    const confirmed = await confirmMainIndex(project.id);
-    setConfirmLoading(false);
-    if (!confirmed.ok) {
-      setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+    const loaded = await loadEbookChapters(ebookId);
+    if (loaded.ok) {
+      setBonusBumpToc((p) => ({ ...p, [selectedKey]: loaded.rows }));
+      setBumpTocEntryResolved((p) => ({ ...p, [selectedKey]: true }));
+    }
+    setActionAnnouncement(t("wizard.content.index.regenerateSuccess"));
+  }, [
+    selectedTarget.kind,
+    project?.id,
+    packageEbookIds,
+    selectedKey,
+    needsUploadAlignment,
+    bumpIndexFrozenAt,
+    t,
+  ]);
+
+  const handleRegenerateBonusBumpPlaceholder = useCallback(async () => {
+    if (selectedTarget.kind === "main" || selectedTarget.kind === "bump") return;
+    if (selectedTarget.kind !== "bonus") return;
+    const ebookId = packageEbookIds[selectedKey];
+    const pending = persistTimersRef.current[selectedKey];
+    if (pending) {
+      clearTimeout(pending);
+      delete persistTimersRef.current[selectedKey];
+    }
+    const title =
+      project?.bonus_items[selectedTarget.index]?.title?.trim() ||
+      t("wizard.content.nav.bonusFallback", { n: selectedTarget.index + 1 });
+    const rows = [{ id: newRowId(), title: t("wizard.content.index.singleSectionTitle", { title }) }];
+    setBonusBumpToc((prev) => ({ ...prev, [selectedKey]: rows }));
+    if (!ebookId) return;
+    const persisted = await upsertEbookDraftChaptersFromRows(ebookId, rows);
+    if (persisted.ok) {
+      setBonusBumpToc((p) => ({ ...p, [selectedKey]: persisted.rows }));
+    }
+  }, [selectedTarget, project, packageEbookIds, selectedKey, t]);
+
+  const handleConfirmPackageIndex = useCallback(async () => {
+    if (!project?.id) return;
+
+    if (selectedTarget.kind === "main") {
+      if (!mainEbookId) return;
+      const validation = validateMainTocForConfirm(mainTocRows);
+      if (validation !== "ok") {
+        if (validation === "empty_title") setActionAnnouncement(t("wizard.content.index.errorEmptyTitle"));
+        else if (validation === "too_many") setActionAnnouncement(t("wizard.content.index.errorTooManyChapters"));
+        else setActionAnnouncement(t("wizard.content.index.errorTooFewChapters"));
+        return;
+      }
+      setConfirmLoading(true);
+      const persist = await upsertEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
+      if (!persist.ok) {
+        setConfirmLoading(false);
+        setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+        return;
+      }
+      setMainTocRows(persist.rows);
+      const confirmed = await confirmMainIndex(project.id);
+      setConfirmLoading(false);
+      if (!confirmed.ok) {
+        setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+        return;
+      }
+      setMainIndexFrozenAt(new Date().toISOString());
+      setCurrentPhase("main_chapter");
+      setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
       return;
     }
-    setMainIndexFrozenAt(new Date().toISOString());
-    setCurrentPhase("main_chapter");
-    setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
-  }, [project?.id, mainEbookId, mainTocRows, t]);
+
+    if (selectedTarget.kind === "bump") {
+      const ebookId = packageEbookIds[selectedKey];
+      if (!ebookId) return;
+      const rows = bonusBumpToc[selectedKey] ?? [];
+      const validation = validateMainTocForConfirm(rows);
+      if (validation !== "ok") {
+        if (validation === "empty_title") setActionAnnouncement(t("wizard.content.index.errorEmptyTitle"));
+        else if (validation === "too_many") setActionAnnouncement(t("wizard.content.index.errorTooManyChapters"));
+        else setActionAnnouncement(t("wizard.content.index.errorTooFewChapters"));
+        return;
+      }
+      setConfirmLoading(true);
+      const persist = await upsertEbookDraftChaptersFromRows(ebookId, rows);
+      if (!persist.ok) {
+        setConfirmLoading(false);
+        setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+        return;
+      }
+      setBonusBumpToc((p) => ({ ...p, [selectedKey]: persist.rows }));
+      const confirmed = await confirmOrderBumpIndex(ebookId);
+      setConfirmLoading(false);
+      if (!confirmed.ok) {
+        setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+        return;
+      }
+      setBumpIndexFrozenAt((p) => ({ ...p, [selectedKey]: confirmed.frozen_at }));
+      setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
+    }
+  }, [
+    project?.id,
+    selectedTarget.kind,
+    mainEbookId,
+    mainTocRows,
+    bonusBumpToc,
+    selectedKey,
+    packageEbookIds,
+    t,
+  ]);
 
   function dismissBanner() {
     if (!params.projectId) return;
@@ -321,18 +543,47 @@ export function WizardContentPage() {
     [t],
   );
 
-  const confirmVisible =
-    selectedTarget.kind === "main" &&
-    !needsUploadAlignment &&
-    !indexFrozen &&
-    currentPhase === "main_index" &&
-    project?.content_source === "ai";
+  const mainTocValidation = validateMainTocForConfirm(mainTocRows);
+  const bumpRowsForConfirm = bonusBumpToc[selectedKey] ?? [];
+  const bumpTocValidation = validateMainTocForConfirm(bumpRowsForConfirm);
+  const confirmDisabled =
+    selectedTarget.kind === "main"
+      ? mainTocValidation !== "ok"
+      : selectedTarget.kind === "bump"
+        ? bumpTocValidation !== "ok"
+        : true;
 
-  const validation = validateMainTocForConfirm(mainTocRows);
-  const confirmDisabled = validation !== "ok";
+  const confirmVisible =
+    (selectedTarget.kind === "main" &&
+      !needsUploadAlignment &&
+      !indexFrozen &&
+      currentPhase === "main_index" &&
+      project?.content_source === "ai" &&
+      tocEntryResolved) ||
+    (selectedTarget.kind === "bump" &&
+      !needsUploadAlignment &&
+      !Boolean(bumpIndexFrozenAt[selectedKey]) &&
+      project?.content_source === "ai" &&
+      bumpTocEntryResolved[selectedKey] === true);
 
   const tocReadOnly =
-    selectedTarget.kind === "main" && (needsUploadAlignment || indexFrozen || !workspaceReady);
+    (selectedTarget.kind === "main" && (needsUploadAlignment || indexFrozen || !workspaceReady)) ||
+    (selectedTarget.kind === "bump" &&
+      (needsUploadAlignment || Boolean(bumpIndexFrozenAt[selectedKey]) || !workspaceReady));
+
+  const showMainTocEmptyChoice =
+    (selectedTarget.kind === "main" &&
+      !needsUploadAlignment &&
+      !indexFrozen &&
+      currentPhase === "main_index" &&
+      workspaceReady &&
+      !tocReadOnly &&
+      !tocEntryResolved) ||
+    (selectedTarget.kind === "bump" &&
+      !needsUploadAlignment &&
+      workspaceReady &&
+      !Boolean(bumpIndexFrozenAt[selectedKey]) &&
+      bumpTocEntryResolved[selectedKey] === false);
 
   const regenerateDisabledMain =
     needsUploadAlignment ||
@@ -340,6 +591,62 @@ export function WizardContentPage() {
     !workspaceReady ||
     generateLoading ||
     project?.content_source !== "ai";
+
+  const regenerateDisabledBump =
+    needsUploadAlignment ||
+    Boolean(bumpIndexFrozenAt[selectedKey]) ||
+    !workspaceReady ||
+    generateLoading ||
+    project?.content_source !== "ai";
+
+  const handleEmptyTocChooseManual = useCallback(() => {
+    if (selectedTarget.kind === "main") {
+      setMainTocRows(defaultMainRows());
+      setTocEntryResolved(true);
+      return;
+    }
+    if (selectedTarget.kind !== "bump") return;
+    const ebookId = packageEbookIds[selectedKey];
+    const pending = persistTimersRef.current[selectedKey];
+    if (pending) {
+      clearTimeout(pending);
+      delete persistTimersRef.current[selectedKey];
+    }
+    const rows = defaultMainRows();
+    setBonusBumpToc((prev) => ({ ...prev, [selectedKey]: rows }));
+    setBumpTocEntryResolved((prev) => ({ ...prev, [selectedKey]: true }));
+    if (ebookId) {
+      void upsertEbookDraftChaptersFromRows(ebookId, rows).then((res) => {
+        if (res.ok) {
+          setBonusBumpToc((p) => ({ ...p, [selectedKey]: res.rows }));
+        }
+      });
+    }
+  }, [selectedTarget.kind, selectedKey, packageEbookIds]);
+
+  const selectedNavIndex = useMemo(() => {
+    const i = navItems.findIndex((item) => item.key === selectedKey);
+    return i >= 0 ? i : 0;
+  }, [navItems, selectedKey]);
+
+  const isFirstContentPackage = selectedNavIndex === 0;
+  const isLastContentPackage = navItems.length > 0 && selectedNavIndex >= navItems.length - 1;
+
+  const handleFooterBack = useCallback(() => {
+    if (!params.projectId) return;
+    if (isFirstContentPackage) {
+      navigate(`/app/projects/${params.projectId}/wizard`);
+      return;
+    }
+    const prev = navItems[selectedNavIndex - 1];
+    if (prev) setSelectedKey(prev.key);
+  }, [isFirstContentPackage, navigate, navItems, params.projectId, selectedNavIndex]);
+
+  const handleFooterNext = useCallback(() => {
+    if (isLastContentPackage) return;
+    const next = navItems[selectedNavIndex + 1];
+    if (next) setSelectedKey(next.key);
+  }, [isLastContentPackage, navItems, selectedNavIndex]);
 
   if (!params.projectId) {
     return null;
@@ -414,20 +721,71 @@ export function WizardContentPage() {
               panelSubtitle={panelCopy.subtitle}
               tocRows={currentTocRows}
               onChangeToc={setCurrentToc}
-              onRegenerateOutline={() => void onRegenerateOutline()}
-              regenerateDisabled={selectedTarget.kind === "main" ? regenerateDisabledMain : false}
-              regenerateLoading={selectedTarget.kind === "main" ? generateLoading : false}
-              tocReadOnly={selectedTarget.kind === "main" ? tocReadOnly : false}
+              onRegenerateOutline={() => {
+                if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
+                else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
+                else void handleRegenerateBonusBumpPlaceholder();
+              }}
+              regenerateDisabled={
+                selectedTarget.kind === "main"
+                  ? regenerateDisabledMain
+                  : selectedTarget.kind === "bump"
+                    ? regenerateDisabledBump
+                    : false
+              }
+              regenerateLoading={generateLoading}
+              tocReadOnly={tocReadOnly}
               confirmVisible={confirmVisible}
-              onConfirmIndex={() => void handleConfirmIndex()}
+              onConfirmIndex={() => void handleConfirmPackageIndex()}
               confirmDisabled={confirmDisabled}
               confirmLoading={confirmLoading}
               actionAnnouncement={actionAnnouncement}
+              showMainTocEmptyChoice={showMainTocEmptyChoice}
+              mainTocEmptyShowGenerate={project?.content_source === "ai"}
+              onMainTocChooseManual={handleEmptyTocChooseManual}
+              onMainTocChooseGenerate={() => {
+                if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
+                else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
+                else void handleRegenerateBonusBumpPlaceholder();
+              }}
             />
           ) : null}
 
         </div>
       </main>
+
+      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
+        <div className="flex w-full min-w-0 items-center justify-between">
+          <Button type="button" variant="tertiary" onClick={handleFooterBack}>
+            <ChevronLeft className="size-4" aria-hidden />
+            {isFirstContentPackage
+              ? t("wizard.content.footer.backToStructure")
+              : t("wizard.content.footer.back")}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={navItems.length === 0 || isLastContentPackage}
+            onClick={handleFooterNext}
+          >
+            {t("wizard.structure.next")}
+            <ChevronRight className="size-4" aria-hidden />
+          </Button>
+        </div>
+      </div>
+
+      {insufficientCreditsToastOpen ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[200] flex justify-center px-4 sm:bottom-8">
+          <div className="pointer-events-auto w-full max-w-toast">
+            <ObraToast
+              variant="error"
+              title={t("wizard.content.index.toastInsufficientCreditsTitle")}
+              description={t("wizard.content.index.errorInsufficientCredits")}
+              onTimeout={() => setInsufficientCreditsToastOpen(false)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
