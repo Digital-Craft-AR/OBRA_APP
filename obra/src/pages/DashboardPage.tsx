@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FolderOpen, HelpCircle, Home, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
@@ -17,6 +17,7 @@ type ProfileRow = {
 export function DashboardPage() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { session } = useAuth();
   const { creditsBalance } = useEntitlement();
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined);
@@ -126,7 +127,7 @@ export function DashboardPage() {
               {t("dashboard.demo.heroBody")}
             </p>
             <div className="flex items-center gap-3">
-              <Button type="button" variant="primary">
+              <Button type="button" variant="primary" onClick={() => navigate("/app/projects/new")}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -145,7 +146,7 @@ export function DashboardPage() {
                 </svg>
                 {t("dashboard.demo.cta")}
               </Button>
-              <Button type="button" variant="tertiary">
+              <Button type="button" variant="tertiary" onClick={() => navigate("/app/projects/new")}>
                 {t("dashboard.demo.guided")}
               </Button>
             </div>

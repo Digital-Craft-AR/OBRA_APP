@@ -17,6 +17,8 @@ import { SubscriptionErrorShellPage } from "@/pages/SubscriptionErrorShellPage";
 import { VerifyEmailShellPage } from "@/pages/VerifyEmailShellPage";
 import { CheckoutReturnPage } from "@/pages/CheckoutReturnPage";
 import { VerifyEmailPendingPage } from "@/pages/VerifyEmailPendingPage";
+import { NewProjectPage } from "@/pages/NewProjectPage";
+import { WizardStructurePage } from "@/pages/WizardStructurePage";
 
 export function App() {
   return (
@@ -38,6 +40,8 @@ export function App() {
           <Route path="account" element={<MinimalAccountPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="help" element={<HelpPage />} />
+          <Route path="projects/new" element={<NewProjectPage />} />
+          <Route path="projects/:projectId/wizard" element={<WizardStructurePage />} />
           <Route path="settings" element={<Navigate to="/app/settings/profile" replace />} />
           <Route path="settings/:section" element={<SettingsPage />} />
         </Route>
