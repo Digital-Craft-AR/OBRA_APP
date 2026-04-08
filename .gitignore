@@ -3,3 +3,6 @@
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Local secrets for email template push script (see supabase/email-templates/README.md)
+supabase/email-templates/.env.local

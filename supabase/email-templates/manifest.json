@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "description": "Maps local files to Supabase Auth mailer config fields (Management API PATCH /v1/projects/{ref}/config/auth).",
+  "templates": {
+    "confirmation": {
+      "subjectField": "mailer_subjects_confirmation",
+      "contentField": "mailer_templates_confirmation_content",
+      "subjectFile": "templates/confirmation.subject.txt",
+      "contentFile": "templates/confirmation.body.html"
+    },
+    "recovery": {
+      "subjectField": "mailer_subjects_recovery",
+      "contentField": "mailer_templates_recovery_content",
+      "subjectFile": "templates/recovery.subject.txt",
+      "contentFile": "templates/recovery.body.html"
+    },
+    "email_change": {
+      "subjectField": "mailer_subjects_email_change",
+      "contentField": "mailer_templates_email_change_content",
+      "subjectFile": "templates/email_change.subject.txt",
+      "contentFile": "templates/email_change.body.html"
+    },
+    "magic_link": {
+      "subjectField": "mailer_subjects_magic_link",
+      "contentField": "mailer_templates_magic_link_content",
+      "subjectFile": "templates/magic_link.subject.txt",
+      "contentFile": "templates/magic_link.body.html"
+    },
+    "invite": {
+      "subjectField": "mailer_subjects_invite",
+      "contentField": "mailer_templates_invite_content",
+      "subjectFile": "templates/invite.subject.txt",
+      "contentFile": "templates/invite.body.html"
+    },
+    "reauthentication": {
+      "subjectField": "mailer_subjects_reauthentication",
+      "contentField": "mailer_templates_reauthentication_content",
+      "subjectFile": "templates/reauthentication.subject.txt",
+      "contentFile": "templates/reauthentication.body.html"
+    }
+  }
+}
