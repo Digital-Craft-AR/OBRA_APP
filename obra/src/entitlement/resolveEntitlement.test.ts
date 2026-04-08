@@ -79,6 +79,13 @@ describe("isPathAllowedForOutcome", () => {
   it("allows full_app on dashboard and settings", () => {
     expect(isPathAllowedForOutcome("full_app", "/app/dashboard")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/profile")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/billing")).toBe(true);
+  });
+
+  it("rejects unknown settings subpaths for full_app", () => {
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/unknown")).toBe(false);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/profile/extra")).toBe(false);
   });
 
   it("redirects full_app away from blocking shell paths", () => {

@@ -34,7 +34,8 @@ export function App() {
           <Route path="activating" element={<ActivatingShellPage />} />
           <Route path="subscription-error" element={<SubscriptionErrorShellPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings" element={<Navigate to="/app/settings/profile" replace />} />
+          <Route path="settings/:section" element={<SettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -17,6 +17,9 @@ verify_jwt = false
 [functions.create-subscription-checkout]
 verify_jwt = false
 
+[functions.create-credits-checkout]
+verify_jwt = false
+
 [functions.reconcile-subscription-status]
 verify_jwt = false
 

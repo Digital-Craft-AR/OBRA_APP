@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { CreditCard, Coins, FolderOpen, Home, Lock, Settings, Shield, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
 import { Button } from "@/components/ui/Button";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
+import { parseSettingsRouteSection, type SettingsRouteSection } from "@/entitlement/resolveEntitlement";
 import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
 import type { UiLocale } from "@/lib/uiLocale";
@@ -25,8 +26,6 @@ async function loadProfileRow() {
   return { data: minimal.data, error: minimal.error, hasUiLocaleColumn: false as const };
 }
 
-type AccountSection = "profile" | "security" | "billing" | "credits" | "privacy";
-
 function initialsFromDisplay(label: string): string {
   const s = label.trim();
   if (!s) return "?";
@@ -43,9 +42,20 @@ function initialsFromDisplay(label: string): string {
 export function SettingsPage() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { section: sectionParam } = useParams<{ section: string }>();
   const { session } = useAuth();
   const { refetchProfile, creditsBalance, subscriptionStatus, reconcileSubscription } = useEntitlement();
-  const [section, setSection] = useState<AccountSection>("profile");
+
+  const section = useMemo((): SettingsRouteSection => {
+    return parseSettingsRouteSection(sectionParam) ?? "profile";
+  }, [sectionParam]);
+
+  useEffect(() => {
+    if (sectionParam != null && parseSettingsRouteSection(sectionParam) === null) {
+      navigate("/app/settings/profile", { replace: true });
+    }
+  }, [sectionParam, navigate]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -156,8 +166,8 @@ export function SettingsPage() {
           {
             id: "settings",
             label: t("nav.settings"),
-            to: "/app/settings",
-            active: location.pathname === "/app/settings",
+            to: "/app/settings/profile",
+            active: location.pathname.startsWith("/app/settings"),
             icon: <Settings className="size-4" aria-hidden />,
           },
           {
@@ -193,7 +203,7 @@ export function SettingsPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSection(item.id)}
+                    onClick={() => navigate(`/app/settings/${item.id}`)}
                     className={[
                       "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-body text-sm font-medium transition-all",
                       active
