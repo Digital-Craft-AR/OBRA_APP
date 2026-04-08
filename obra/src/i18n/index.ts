@@ -239,6 +239,20 @@ const resources = {
       "wizard.structure.topic.saving": "Guardando…",
       "wizard.structure.topic.saved": "Tema guardado.",
       "wizard.structure.topic.saveError": "No pudimos guardar el tema.",
+      "wizard.tour.stepLabel": "Recorrido {{current}} de {{total}}",
+      "wizard.tour.skip": "Omitir",
+      "wizard.tour.previous": "Anterior",
+      "wizard.tour.next": "Siguiente",
+      "wizard.tour.finish": "Finalizar",
+      "wizard.tour.step1.title": "Este es el wizard de Estructura",
+      "wizard.tour.step1.body":
+        "Acá definís tema, avatar/problema, paquete y diseño antes de generar contenido.",
+      "wizard.tour.step2.title": "Usá IA para acelerar",
+      "wizard.tour.step2.body":
+        "Cada paso incluye acciones con IA para mejorar texto y completar decisiones más rápido.",
+      "wizard.tour.step3.title": "Podés avanzar sin perder contexto",
+      "wizard.tour.step3.body":
+        "Tu progreso se guarda por proyecto y después seguís con Contenido y Vista previa.",
       "dashboard.field.id": "Identificador",
       "dashboard.field.displayName": "Nombre para mostrar",
       "settings.title": "Cuenta y preferencias",
@@ -630,6 +644,20 @@ const resources = {
       "wizard.structure.topic.saving": "Salvando…",
       "wizard.structure.topic.saved": "Tema salvo.",
       "wizard.structure.topic.saveError": "Não foi possível salvar o tema.",
+      "wizard.tour.stepLabel": "Tour {{current}} de {{total}}",
+      "wizard.tour.skip": "Pular",
+      "wizard.tour.previous": "Anterior",
+      "wizard.tour.next": "Próximo",
+      "wizard.tour.finish": "Finalizar",
+      "wizard.tour.step1.title": "Este é o wizard de Estrutura",
+      "wizard.tour.step1.body":
+        "Aqui você define tema, avatar/problema, pacote e design antes de gerar conteúdo.",
+      "wizard.tour.step2.title": "Use IA para acelerar",
+      "wizard.tour.step2.body":
+        "Cada etapa inclui ações com IA para melhorar texto e completar decisões com mais rapidez.",
+      "wizard.tour.step3.title": "Você pode avançar sem perder contexto",
+      "wizard.tour.step3.body":
+        "Seu progresso fica salvo por projeto e depois você segue para Conteúdo e Prévia.",
       "dashboard.field.id": "Identificador",
       "dashboard.field.displayName": "Nome de exibição",
       "settings.title": "Conta e preferências",

@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/auth/authContext";
 import { ObraTextarea } from "@/components/obra/ObraTextarea";
 import { Button } from "@/components/ui/Button";
+import { WizardGuidedTour } from "@/components/wizard/WizardGuidedTour";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
@@ -26,6 +28,7 @@ const INNER_STEPS = [
 
 export function WizardStructurePage() {
   const { t } = useTranslation();
+  const { session } = useAuth();
   const navigate = useNavigate();
   const params = useParams<{ projectId: string }>();
   const [project, setProject] = useState<ProjectRow | null>(null);
@@ -36,6 +39,8 @@ export function WizardStructurePage() {
   const [topicSaving, setTopicSaving] = useState(false);
   const [topicImproving, setTopicImproving] = useState(false);
   const [topicMessage, setTopicMessage] = useState<string | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +70,25 @@ export function WizardStructurePage() {
     };
   }, [params.projectId, t]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTourState() {
+      if (!session?.user?.id) return;
+      const { data, error } = await supabase
+        .from("creator_profiles")
+        .select("tour_dismissed_at")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (cancelled || error) return;
+      const dismissedAt = (data as { tour_dismissed_at?: string | null } | null)?.tour_dismissed_at;
+      setTourOpen(!dismissedAt);
+    }
+    void loadTourState();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
   const globalSteps = useMemo(
     () => [
       { id: 1, label: t("wizard.stepper.structure"), status: "active" as const },
@@ -73,6 +97,33 @@ export function WizardStructurePage() {
     ],
     [t],
   );
+
+  const tourSteps = useMemo(
+    () => [
+      {
+        title: t("wizard.tour.step1.title"),
+        body: t("wizard.tour.step1.body"),
+      },
+      {
+        title: t("wizard.tour.step2.title"),
+        body: t("wizard.tour.step2.body"),
+      },
+      {
+        title: t("wizard.tour.step3.title"),
+        body: t("wizard.tour.step3.body"),
+      },
+    ],
+    [t],
+  );
+
+  async function dismissTour() {
+    setTourOpen(false);
+    if (!session?.user?.id) return;
+    await supabase
+      .from("creator_profiles")
+      .update({ tour_dismissed_at: new Date().toISOString() })
+      .eq("id", session.user.id);
+  }
 
   async function persistTopic(): Promise<boolean> {
     if (!project?.id || topicSaving) return false;
@@ -240,6 +291,23 @@ export function WizardStructurePage() {
           </Button>
         </div>
       </div>
+
+      <WizardGuidedTour
+        open={tourOpen}
+        title={tourSteps[tourStep]?.title ?? ""}
+        body={tourSteps[tourStep]?.body ?? ""}
+        stepLabel={t("wizard.tour.stepLabel", { current: tourStep + 1, total: tourSteps.length })}
+        skipLabel={t("wizard.tour.skip")}
+        previousLabel={t("wizard.tour.previous")}
+        nextLabel={t("wizard.tour.next")}
+        finishLabel={t("wizard.tour.finish")}
+        canGoBack={tourStep > 0}
+        canGoNext={tourStep < tourSteps.length - 1}
+        onBack={() => setTourStep((current) => Math.max(0, current - 1))}
+        onNext={() => setTourStep((current) => Math.min(tourSteps.length - 1, current + 1))}
+        onSkip={() => void dismissTour()}
+        onFinish={() => void dismissTour()}
+      />
     </div>
   );
 }
