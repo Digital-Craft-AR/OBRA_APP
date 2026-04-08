@@ -60,8 +60,8 @@ export function outcomeToPath(outcome: EntitlementOutcome): string {
   }
 }
 
-/** Under `full_app`, users may visit more than `/app/dashboard` (e.g. account settings). */
-const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/help", "/app/settings"];
+/** Under `full_app`, users may visit more than `/app/dashboard` (e.g. help, settings, wizard routes). */
+const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/help", "/app/settings", "/app/projects/new"];
 
 /** URL segment after `/app/settings/` for each settings subpage. */
 export const SETTINGS_ROUTE_SECTIONS = ["profile", "security", "billing", "credits", "privacy"] as const;
@@ -80,13 +80,22 @@ export function isFullAppSettingsPath(pathname: string): boolean {
   return parseSettingsRouteSection(m[1]) !== null;
 }
 
+/** `/app/projects/:projectId/wizard` for structure wizard shell and upcoming steps. */
+export function isFullAppWizardPath(pathname: string): boolean {
+  return /^\/app\/projects\/[^/]+\/wizard\/?$/.test(pathname);
+}
+
 /**
  * Whether the current URL is allowed for this entitlement. Blocking shells use a single canonical path;
  * full product access allows multiple routes under `/app`.
  */
 export function isPathAllowedForOutcome(outcome: EntitlementOutcome, pathname: string): boolean {
   if (outcome === "full_app") {
-    return FULL_APP_ALLOWED_PATHS.includes(pathname) || isFullAppSettingsPath(pathname);
+    return (
+      FULL_APP_ALLOWED_PATHS.includes(pathname) ||
+      isFullAppSettingsPath(pathname) ||
+      isFullAppWizardPath(pathname)
+    );
   }
   if (isMinimalAccountEntitlementOutcome(outcome)) {
     return pathname === outcomeToPath(outcome) || pathname === MINIMAL_ACCOUNT_PATH;

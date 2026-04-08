@@ -32,7 +32,7 @@ classDiagram
     +string author
     +string topic
     +string problem
-    +JSON target_avatar
+    +string target_avatar
     +datetime structure_completed_at
     +datetime archived_at
     +datetime deleted_at
@@ -144,7 +144,7 @@ class Project {
   author : string <<optional>>
   topic : string
   problem : string
-  target_avatar : JSON
+  target_avatar : string
   structure_completed_at : timestamptz <<optional>>
   archived_at : timestamptz <<optional>>
   deleted_at : timestamptz <<optional>>
