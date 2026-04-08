@@ -10,9 +10,9 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | ------------- | --------- | ----- |
 | `PAYMENT_PROVIDER` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Optional; default `mercadopago` — selects `BillingAdapter` implementation |
 | `SUPABASE_URL` | All functions (auto) | Project URL; often injected by the platform |
-| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `ai-optimize` | Validates caller session via `auth.getUser` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `ai-optimize` | RLS bypass for webhooks / ledger RPC (`obra_credit_ledger_apply`) |
-| `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Production token or `TEST-…` for sandbox |
+| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize` | Validates caller session via `auth.getUser` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize` | RLS bypass for webhooks / ledger RPC / account deletion |
+| `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Production token or `TEST-…` for sandbox (`delete-account` uses it to reconcile before delete) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | **Your integrations** webhook signing secret (HMAC `x-signature`) |
 | `OBRA_APP_URL` | `create-subscription-checkout`, `create-credits-checkout` | Public site origin **without** trailing slash (e.g. `https://obra-app-nu.vercel.app`) — used for MP `back_urls` |
 | `MERCADOPAGO_SUBSCRIPTION_REASON` | `create-subscription-checkout` | Optional; default `Obra recurring subscription` |
@@ -66,6 +66,15 @@ supabase secrets set MERCADOPAGO_CREDITS_PACK_TITLE="Obra credits (100)"
    - Copy the integration **webhook signing secret** into Supabase **`MERCADOPAGO_WEBHOOK_SECRET`** (the function validates `x-signature` + `x-request-id` and rejects unsigned calls).
 3. Use **test** credentials (`TEST-` access token) against sandbox checkout; the function picks `sandbox_init_point` when the token starts with `TEST-`.
 
+## Data export and account deletion (#44)
+
+| Function | Auth | Behavior |
+| -------- | ---- | -------- |
+| `export-user-data` | `Authorization: Bearer <user JWT>` | Returns JSON `{ ok, data }` with `creator_profiles` row, credit ledger slice (max 1000 rows), and non-sensitive subject fields. Client downloads a `.json` file. |
+| `delete-account` | Same | Reconciles subscription via `BillingAdapter` when `MERCADOPAGO_ACCESS_TOKEN` is set, then **rejects with HTTP 409** `subscription_blocks_delete` if `creator_profiles.subscription_status` is **`active`**. Otherwise calls `auth.admin.deleteUser` (cascades profile + ledger per FKs). Logs structured events **without PII** (`user_id_prefix` only). |
+
+Both use **`verify_jwt = false`** and validate the JWT with `auth.getUser`, like `reconcile-subscription-status`.
+
 ## Deploy
 
 From repo root (with Supabase CLI linked to the Obra project):
@@ -75,11 +84,13 @@ supabase functions deploy mercadopago-webhook
 supabase functions deploy create-subscription-checkout
 supabase functions deploy reconcile-subscription-status
 supabase functions deploy create-credits-checkout
+supabase functions deploy export-user-data
+supabase functions deploy delete-account
 supabase functions deploy ai-optimize
 supabase functions deploy export-pdf
 ```
 
-`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout` and `reconcile-subscription-status` also run with `verify_jwt = false` and perform manual token validation with `auth.getUser` to avoid gateway JWT false-negatives seen during OAuth test flows.
+`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout`, `reconcile-subscription-status`, `export-user-data`, and `delete-account` also run with `verify_jwt = false` and perform manual token validation with `auth.getUser` to avoid gateway JWT false-negatives seen during OAuth test flows.
 
 Apply DB migrations so `public.obra_mp_processed_webhooks` exists before relying on the webhook.
 
