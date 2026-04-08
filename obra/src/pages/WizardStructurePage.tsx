@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
+import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
 
 type ProjectRow = {
@@ -11,6 +12,7 @@ type ProjectRow = {
   name: string;
   content_locale: string;
   content_source: "ai" | "upload";
+  topic: string | null;
   structure_completed_at: string | null;
 };
 
@@ -29,6 +31,10 @@ export function WizardStructurePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [innerStepIndex, setInnerStepIndex] = useState(0);
+  const [topicDraft, setTopicDraft] = useState("");
+  const [topicSaving, setTopicSaving] = useState(false);
+  const [topicImproving, setTopicImproving] = useState(false);
+  const [topicMessage, setTopicMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +44,7 @@ export function WizardStructurePage() {
       setError(null);
       const { data, error: queryError } = await supabase
         .from("projects")
-        .select("id, name, content_locale, content_source, structure_completed_at")
+        .select("id, name, content_locale, content_source, topic, structure_completed_at")
         .eq("id", params.projectId)
         .single();
       if (cancelled) return;
@@ -46,7 +52,9 @@ export function WizardStructurePage() {
         setError(t("wizard.structure.loadError"));
         setProject(null);
       } else {
-        setProject(data as ProjectRow);
+        const row = data as ProjectRow;
+        setProject(row);
+        setTopicDraft(row.topic ?? "");
       }
       setLoading(false);
     }
@@ -65,6 +73,57 @@ export function WizardStructurePage() {
     ],
     [t],
   );
+
+  async function handleSaveTopic() {
+    if (!project?.id || topicSaving) return;
+    setTopicSaving(true);
+    setTopicMessage(null);
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({ topic: topicDraft })
+      .eq("id", project.id);
+    setTopicSaving(false);
+    if (updateError) {
+      setTopicMessage(t("wizard.structure.topic.saveError"));
+      return;
+    }
+    setProject((current) => (current ? { ...current, topic: topicDraft } : current));
+    setTopicMessage(t("wizard.structure.topic.saved"));
+  }
+
+  async function handleImproveTopic() {
+    if (!topicDraft.trim() || topicImproving) return;
+    setTopicImproving(true);
+    setTopicMessage(null);
+    const { data, error: invokeError } = await supabase.functions.invoke<{
+      ok?: boolean;
+      optimized?: string;
+      stub?: boolean;
+      error?: string;
+    }>("ai-optimize", {
+      method: "POST",
+      body: {
+        field: "topic",
+        raw_text: topicDraft,
+        language: i18n.language,
+      },
+    });
+    setTopicImproving(false);
+
+    if (invokeError || data?.error) {
+      setTopicMessage(t("wizard.structure.topic.improveError"));
+      return;
+    }
+
+    if (data?.optimized && typeof data.optimized === "string") {
+      setTopicDraft(data.optimized);
+      setTopicMessage(t("wizard.structure.topic.improved"));
+      return;
+    }
+
+    // Current edge function is a billing/proxy stub and does not return edited copy yet.
+    setTopicMessage(t("wizard.structure.topic.improvePending"));
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -143,6 +202,42 @@ export function WizardStructurePage() {
             </div>
 
             <p className="text-sm text-obra-neutral-600">{t("wizard.structure.waveAStub")}</p>
+            {innerStepIndex === 0 ? (
+              <section className="space-y-3 rounded-card border border-obra-blue-100 bg-white p-5">
+                <label htmlFor="wizard-topic" className="block text-sm font-semibold text-obra-blue-950">
+                  {t("wizard.structure.topic.label")}
+                </label>
+                <textarea
+                  id="wizard-topic"
+                  value={topicDraft}
+                  onChange={(event) => setTopicDraft(event.target.value)}
+                  placeholder={t("wizard.structure.topic.placeholder")}
+                  className="min-h-36 w-full rounded-input border border-obra-neutral-200 bg-obra-neutral-100 px-3 py-2 text-sm text-obra-neutral-900 outline-none focus:border-obra-blue-700 focus:ring-2 focus:ring-obra-blue-700"
+                />
+                <p className="text-xs text-obra-neutral-600">{t("wizard.structure.topic.hint")}</p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="tertiary"
+                    onClick={() => void handleImproveTopic()}
+                    disabled={topicImproving || topicSaving || !topicDraft.trim()}
+                  >
+                    {topicImproving
+                      ? t("wizard.structure.topic.improving")
+                      : t("wizard.structure.topic.improve")}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => void handleSaveTopic()}
+                    disabled={topicSaving || topicImproving}
+                  >
+                    {topicSaving ? t("wizard.structure.topic.saving") : t("wizard.structure.topic.save")}
+                  </Button>
+                </div>
+                <div aria-live="polite" className="text-xs text-obra-neutral-600">
+                  {topicMessage}
+                </div>
+              </section>
+            ) : null}
           </div>
         ) : null}
       </div>
