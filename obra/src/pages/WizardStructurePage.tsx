@@ -316,9 +316,7 @@ export function WizardStructurePage() {
             disabled={flow.mainTitleSaving}
             onClick={() => void flow.handleNextStep()}
           >
-            {flow.innerStepIndex === INNER_STEPS.length - 1
-              ? t("wizard.structure.finish")
-              : t("wizard.structure.next")}
+            {t("wizard.structure.next")}
             <ChevronRight className="size-4" aria-hidden />
           </Button>
         </div>
