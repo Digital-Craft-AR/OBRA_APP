@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   DEFAULT_DESIGN_CONFIG,
+  normalizeDesignConfig,
   type BaseProjectRow,
   type ProjectRow,
   type WizardTitleItem,
@@ -73,12 +74,7 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
           bump_items: Array.isArray(row.bump_items)
             ? (row.bump_items as WizardTitleItem[])
             : [],
-          design_config:
-            row.design_config &&
-            typeof row.design_config === "object" &&
-            !Array.isArray(row.design_config)
-              ? row.design_config
-              : DEFAULT_DESIGN_CONFIG,
+          design_config: normalizeDesignConfig(row.design_config ?? DEFAULT_DESIGN_CONFIG),
         };
         setProject(normalizedRow);
       }

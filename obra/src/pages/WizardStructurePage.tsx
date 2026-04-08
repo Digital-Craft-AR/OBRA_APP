@@ -8,7 +8,10 @@ import { StructureStepAvatarProblem } from "@/components/wizard/structure/Struct
 import { StructureStepBonusBumpTitles } from "@/components/wizard/structure/StructureStepBonusBumpTitles";
 import { StructureStepDesign } from "@/components/wizard/structure/StructureStepDesign";
 import { StructureStepDesignConfig } from "@/components/wizard/structure/StructureStepDesignConfig";
-import { StructureStepHeader } from "@/components/wizard/structure/StructureStepHeader";
+import {
+  StructureStepInnerProgress,
+  StructureStepTitleBlock,
+} from "@/components/wizard/structure/StructureStepHeader";
 import { StructureStepPackage } from "@/components/wizard/structure/StructureStepPackage";
 import { StructureStepTopic } from "@/components/wizard/structure/StructureStepTopic";
 import { WizardGuidedTour } from "@/components/wizard/WizardGuidedTour";
@@ -73,7 +76,7 @@ export function WizardStructurePage() {
         <WizardGlobalStepper steps={globalSteps} />
       </div>
 
-      <StructureStepHeader
+      <StructureStepInnerProgress
         stepCounterLabel={t("wizard.structure.stepCounter", {
           current: flow.innerStepIndex + 1,
           total: INNER_STEPS.length,
@@ -81,12 +84,11 @@ export function WizardStructurePage() {
         })}
         currentStep={flow.innerStepIndex}
         totalSteps={INNER_STEPS.length}
-        title={flow.stepTitle}
-        subtitle={flow.stepSubtitle}
       />
 
-      <main className="flex flex-1 min-h-0 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-8 py-10">
+      <main className="flex flex-1 min-h-0 flex-col overflow-y-auto">
+        <StructureStepTitleBlock title={flow.stepTitle} subtitle={flow.stepSubtitle} />
+        <div className="mx-auto w-full max-w-3xl px-8 pb-10">
           {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
           {error ? (
             <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

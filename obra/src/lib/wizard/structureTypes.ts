@@ -27,7 +27,9 @@ export type WizardTitleItem = {
 };
 
 export type WizardDesignConfig = {
-  preset: "starter" | "minimal" | "bold" | "custom";
+  /** Palette only — independent from typography. */
+  paletteMode: "preset" | "custom";
+  palettePresetId: DesignPresetId | null;
   palette: {
     primary: string;
     secondary: string;
@@ -42,20 +44,167 @@ export type WizardDesignConfig = {
     orientation: "portrait" | "landscape";
   };
   image: {
-    mode: "ai" | "stock";
-    style: "editorial" | "realistic" | "flat";
+    mode: "ai" | "upload";
+    style: "illustration" | "photography" | "isometric" | "minimalist" | "watercolor";
   };
 };
 
+export type DesignPresetId = "oceanic" | "terracotta" | "minimal" | "vibrant" | "elegant";
+
+export type DesignPreset = {
+  id: DesignPresetId;
+  palette: WizardDesignConfig["palette"];
+  fonts: WizardDesignConfig["fonts"];
+};
+
+export const DESIGN_PRESETS: DesignPreset[] = [
+  {
+    id: "oceanic",
+    palette: { primary: "#F4F8FC", secondary: "#2D6499", accent: "#5A7A94" },
+    fonts: { heading: "Playfair Display", body: "Inter" },
+  },
+  {
+    id: "terracotta",
+    palette: { primary: "#FFF7F2", secondary: "#B66A3C", accent: "#7A3F1E" },
+    fonts: { heading: "Lora", body: "Inter" },
+  },
+  {
+    id: "minimal",
+    palette: { primary: "#F9FAFB", secondary: "#111827", accent: "#DC2626" },
+    fonts: { heading: "Fraunces", body: "Inter" },
+  },
+  {
+    id: "vibrant",
+    palette: { primary: "#F5F3FF", secondary: "#7C3AED", accent: "#F59E0B" },
+    fonts: { heading: "Poppins", body: "Inter" },
+  },
+  {
+    id: "elegant",
+    palette: { primary: "#FAF7F2", secondary: "#2B2B2B", accent: "#B7791F" },
+    fonts: { heading: "Cormorant Garamond", body: "Inter" },
+  },
+];
+
+export function getDesignPresetById(id: DesignPresetId | null) {
+  if (!id) return null;
+  return DESIGN_PRESETS.find((preset) => preset.id === id) ?? null;
+}
+
+/** Hex (#rgb / #rrggbb) or existing `rgb()` string → `rgb(r, g, b)` for inline styles. */
+export function colorToRgbStyleValue(color: string): string {
+  const trimmed = color.trim();
+  if (trimmed.startsWith("rgb")) return trimmed;
+  const hex = trimmed.replace("#", "");
+  if (hex.length !== 3 && hex.length !== 6) return "rgb(0, 0, 0)";
+  const full =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : hex;
+  const n = Number.parseInt(full, 16);
+  if (!Number.isFinite(n)) return "rgb(0, 0, 0)";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function normalizeDesignConfig(value: unknown): WizardDesignConfig {
+  if (!isObject(value)) return DEFAULT_DESIGN_CONFIG;
+
+  const paletteModeRaw =
+    typeof value.paletteMode === "string"
+      ? value.paletteMode
+      : typeof value.mode === "string"
+        ? value.mode
+        : "preset";
+  const paletteMode = paletteModeRaw === "custom" ? "custom" : "preset";
+
+  const legacyPreset = typeof value.preset === "string" ? value.preset : null;
+  const palettePresetIdRaw =
+    typeof value.palettePresetId === "string"
+      ? (value.palettePresetId as DesignPresetId)
+      : typeof value.presetId === "string"
+        ? (value.presetId as DesignPresetId)
+        : legacyPreset === "minimal"
+          ? "minimal"
+          : legacyPreset === "bold"
+            ? "vibrant"
+            : "oceanic";
+
+  const palettePresetId: DesignPresetId | null =
+    paletteMode === "custom"
+      ? null
+      : getDesignPresetById(palettePresetIdRaw)
+        ? palettePresetIdRaw
+        : "oceanic";
+  const palettePreset = getDesignPresetById(palettePresetId) ?? getDesignPresetById("oceanic");
+  const paletteInput = isObject(value.palette) ? value.palette : {};
+  const fontsInput = isObject(value.fonts) ? value.fonts : {};
+  const pageInput = isObject(value.page) ? value.page : {};
+  const imageInput = isObject(value.image) ? value.image : {};
+
+  return {
+    paletteMode,
+    palettePresetId,
+    palette: {
+      primary:
+        typeof paletteInput.primary === "string"
+          ? paletteInput.primary
+          : (palettePreset?.palette.primary ?? DEFAULT_DESIGN_CONFIG.palette.primary),
+      secondary:
+        typeof paletteInput.secondary === "string"
+          ? paletteInput.secondary
+          : (palettePreset?.palette.secondary ?? DEFAULT_DESIGN_CONFIG.palette.secondary),
+      accent:
+        typeof paletteInput.accent === "string"
+          ? paletteInput.accent
+          : (palettePreset?.palette.accent ?? DEFAULT_DESIGN_CONFIG.palette.accent),
+    },
+    fonts: {
+      heading:
+        typeof fontsInput.heading === "string"
+          ? fontsInput.heading
+          : DEFAULT_DESIGN_CONFIG.fonts.heading,
+      body: typeof fontsInput.body === "string" ? fontsInput.body : DEFAULT_DESIGN_CONFIG.fonts.body,
+    },
+    page: {
+      size: pageInput.size === "letter" ? "letter" : "a4",
+      orientation: pageInput.orientation === "landscape" ? "landscape" : "portrait",
+    },
+    image: {
+      mode: imageInput.mode === "upload" || imageInput.mode === "stock" ? "upload" : "ai",
+      style:
+        imageInput.style === "photography" ||
+        imageInput.style === "isometric" ||
+        imageInput.style === "minimalist" ||
+        imageInput.style === "watercolor"
+          ? imageInput.style
+          : imageInput.style === "realistic"
+            ? "photography"
+            : imageInput.style === "flat"
+              ? "minimalist"
+              : "illustration",
+    },
+  };
+}
+
 export const DEFAULT_DESIGN_CONFIG: WizardDesignConfig = {
-  preset: "starter",
+  paletteMode: "preset",
+  palettePresetId: "oceanic",
   palette: {
-    primary: "#1D4ED8",
-    secondary: "#0F172A",
-    accent: "#E2E8F0",
+    primary: "#F4F8FC",
+    secondary: "#2D6499",
+    accent: "#5A7A94",
   },
   fonts: {
-    heading: "Poppins",
+    heading: "Playfair Display",
     body: "Inter",
   },
   page: {
@@ -64,7 +213,7 @@ export const DEFAULT_DESIGN_CONFIG: WizardDesignConfig = {
   },
   image: {
     mode: "ai",
-    style: "editorial",
+    style: "illustration",
   },
 };
 
