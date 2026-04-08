@@ -189,10 +189,29 @@ const resources = {
       "wizard.create.creating": "Creando…",
       "wizard.create.error":
         "No pudimos crear el proyecto. Revisá que la migración de projects esté aplicada.",
+      "wizard.modal.title": "Nuevo proyecto",
+      "wizard.modal.stepName": "Paso 1 de 2 — Nombre",
+      "wizard.modal.stepLocale": "Paso 2 de 2 — Idioma del contenido",
+      "wizard.modal.close": "Cerrar",
+      "wizard.modal.nameLabel": "Nombre del proyecto",
+      "wizard.modal.namePlaceholder": "Ej: Guía completa de velas aromáticas",
+      "wizard.modal.nameHint": "Podés cambiarlo en cualquier momento.",
+      "wizard.modal.nameRequired": "Ingresá un nombre de proyecto para continuar.",
+      "wizard.modal.localeHint":
+        "El idioma del contenido generado es permanente. Si necesitás otro idioma, creá un proyecto separado.",
+      "wizard.modal.cancel": "Cancelar",
+      "wizard.modal.back": "← Anterior",
+      "wizard.modal.next": "Siguiente →",
+      "wizard.modal.create": "Crear proyecto →",
+      "wizard.modal.creating": "Creando…",
+      "wizard.modal.createError": "No pudimos crear el proyecto. Intentá de nuevo.",
       "wizard.structure.back": "Volver al panel",
       "wizard.structure.title": "Wizard compartido — Estructura",
       "wizard.structure.subtitle":
         "Este shell define el paso global 1 y prepara Topic, Avatar/Problem, Package y Design.",
+      "wizard.structure.step1.title": "¿Sobre qué es tu infoproducto?",
+      "wizard.structure.step1.subtitle":
+        "Describí el tema central de tu ebook con el mayor detalle posible. Cuanto más específico, mejores resultados obtendrás de la IA.",
       "wizard.structure.projectName": "Proyecto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fuente",
@@ -210,7 +229,7 @@ const resources = {
       "wizard.structure.topic.placeholder": "Describí tu nicho y el resultado que busca tu cliente ideal.",
       "wizard.structure.topic.hint":
         "Usá Improve text para refinar este campo con IA. Se persiste en projects.topic.",
-      "wizard.structure.topic.improve": "Improve text",
+      "wizard.structure.topic.improve": "Mejorar con IA",
       "wizard.structure.topic.improving": "Improving…",
       "wizard.structure.topic.improved": "El texto fue optimizado con IA.",
       "wizard.structure.topic.improvePending":
@@ -561,10 +580,29 @@ const resources = {
       "wizard.create.creating": "Criando…",
       "wizard.create.error":
         "Não foi possível criar o projeto. Verifique se a migration de projects foi aplicada.",
+      "wizard.modal.title": "Novo projeto",
+      "wizard.modal.stepName": "Passo 1 de 2 — Nome",
+      "wizard.modal.stepLocale": "Passo 2 de 2 — Idioma do conteúdo",
+      "wizard.modal.close": "Fechar",
+      "wizard.modal.nameLabel": "Nome do projeto",
+      "wizard.modal.namePlaceholder": "Ex: Guia completo de velas aromáticas",
+      "wizard.modal.nameHint": "Você pode alterar isso a qualquer momento.",
+      "wizard.modal.nameRequired": "Informe um nome de projeto para continuar.",
+      "wizard.modal.localeHint":
+        "O idioma do conteúdo gerado é permanente. Se precisar de outro idioma, crie um projeto separado.",
+      "wizard.modal.cancel": "Cancelar",
+      "wizard.modal.back": "← Anterior",
+      "wizard.modal.next": "Próximo →",
+      "wizard.modal.create": "Criar projeto →",
+      "wizard.modal.creating": "Criando…",
+      "wizard.modal.createError": "Não foi possível criar o projeto. Tente novamente.",
       "wizard.structure.back": "Voltar ao painel",
       "wizard.structure.title": "Wizard compartilhado — Estrutura",
       "wizard.structure.subtitle":
         "Este shell define o passo global 1 e prepara Topic, Avatar/Problem, Package e Design.",
+      "wizard.structure.step1.title": "Sobre o que é o seu infoproduto?",
+      "wizard.structure.step1.subtitle":
+        "Descreva o tema central do seu ebook com o maior nível de detalhe possível. Quanto mais específico, melhores resultados você terá com a IA.",
       "wizard.structure.projectName": "Projeto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fonte",
@@ -582,7 +620,7 @@ const resources = {
       "wizard.structure.topic.placeholder": "Descreva seu nicho e o resultado buscado pelo cliente ideal.",
       "wizard.structure.topic.hint":
         "Use Improve text para refinar este campo com IA. O valor é persistido em projects.topic.",
-      "wizard.structure.topic.improve": "Improve text",
+      "wizard.structure.topic.improve": "Melhorar com IA",
       "wizard.structure.topic.improving": "Improving…",
       "wizard.structure.topic.improved": "O texto foi otimizado com IA.",
       "wizard.structure.topic.improvePending":

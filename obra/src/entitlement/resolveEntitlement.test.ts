@@ -77,12 +77,14 @@ describe("outcomeToPath", () => {
 });
 
 describe("isPathAllowedForOutcome", () => {
-  it("allows full_app on dashboard and settings", () => {
+  it("allows full_app on dashboard, settings, and wizard entry routes", () => {
     expect(isPathAllowedForOutcome("full_app", "/app/dashboard")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/help")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings/profile")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings/billing")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/projects/new")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/projects/project-1/wizard")).toBe(true);
   });
 
   it("rejects unknown settings subpaths for full_app", () => {

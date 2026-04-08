@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, HelpCircle, Home, Settings } from "lucide-react";
+import { Check, HelpCircle, FolderOpen, Home, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
+import { ObraInput } from "@/components/obra/ObraInput";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { Button } from "@/components/ui/Button";
+import {
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHead,
+  ModalSubtitle,
+  ModalTitle,
+} from "@/components/ui/Modal";
+import type { ContentLocale } from "@/lib/projects";
 import { supabase } from "@/lib/supabaseClient";
 import { contentCardClass } from "@/lib/uiClasses";
 
@@ -23,6 +33,12 @@ export function DashboardPage() {
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [projectStep, setProjectStep] = useState<1 | 2>(1);
+  const [projectName, setProjectName] = useState("");
+  const [projectLocale, setProjectLocale] = useState<ContentLocale>("es");
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +63,45 @@ export function DashboardPage() {
 
   async function signOut() {
     await supabase.auth.signOut();
+  }
+
+  function openNewProjectModal() {
+    setProjectCreateError(null);
+    setProjectName("");
+    setProjectLocale("es");
+    setProjectStep(1);
+    setShowNewProjectModal(true);
+  }
+
+  async function createProjectFromModal() {
+    if (!session?.user?.id || creatingProject) return;
+    const trimmedName = projectName.trim();
+    if (!trimmedName) {
+      setProjectCreateError(t("wizard.modal.nameRequired"));
+      return;
+    }
+
+    setProjectCreateError(null);
+    setCreatingProject(true);
+    const { data, error: insertError } = await supabase
+      .from("projects")
+      .insert({
+        user_id: session.user.id,
+        name: trimmedName,
+        content_locale: projectLocale,
+        content_source: "ai",
+      })
+      .select("id")
+      .single();
+    setCreatingProject(false);
+
+    if (insertError || !data?.id) {
+      setProjectCreateError(t("wizard.modal.createError"));
+      return;
+    }
+
+    setShowNewProjectModal(false);
+    navigate(`/app/projects/${data.id}/wizard`);
   }
 
   return (
@@ -127,7 +182,7 @@ export function DashboardPage() {
               {t("dashboard.demo.heroBody")}
             </p>
             <div className="flex items-center gap-3">
-              <Button type="button" variant="primary" onClick={() => navigate("/app/projects/new")}>
+              <Button type="button" variant="primary" onClick={openNewProjectModal}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -146,7 +201,7 @@ export function DashboardPage() {
                 </svg>
                 {t("dashboard.demo.cta")}
               </Button>
-              <Button type="button" variant="tertiary" onClick={() => navigate("/app/projects/new")}>
+              <Button type="button" variant="tertiary" onClick={openNewProjectModal}>
                 {t("dashboard.demo.guided")}
               </Button>
             </div>
@@ -169,6 +224,108 @@ export function DashboardPage() {
           <p className="text-obra-neutral-600">{t("dashboard.profileEmpty")}</p>
         )}
       </main>
+
+      <Modal
+        open={showNewProjectModal}
+        onClose={() => setShowNewProjectModal(false)}
+        closeLabel={t("wizard.modal.close")}
+      >
+        <ModalHead>
+          <div>
+            <ModalTitle>{t("wizard.modal.title")}</ModalTitle>
+            <ModalSubtitle>
+              {projectStep === 1 ? t("wizard.modal.stepName") : t("wizard.modal.stepLocale")}
+            </ModalSubtitle>
+          </div>
+        </ModalHead>
+
+        <ModalContent>
+            {projectStep === 1 ? (
+              <div className="flex flex-col gap-1">
+                <ObraInput
+                  id="project-name"
+                  label={t("wizard.modal.nameLabel")}
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  placeholder={t("wizard.modal.namePlaceholder")}
+                  hint={t("wizard.modal.nameHint")}
+                />
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <p className="text-xs text-obra-neutral-600">{t("wizard.modal.localeHint")}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(
+                    [
+                      { id: "es", flag: "🇦🇷", label: t("wizard.create.locale.es"), subtitle: "Argentina / España" },
+                      { id: "pt-BR", flag: "🇧🇷", label: t("wizard.create.locale.ptBR"), subtitle: "Brasil" },
+                      { id: "en-US", flag: "🇺🇸", label: t("wizard.create.locale.enUS"), subtitle: "United States" },
+                      { id: "en-GB", flag: "🇬🇧", label: t("wizard.create.locale.enGB"), subtitle: "United Kingdom" },
+                    ] as const
+                  ).map((localeOption) => {
+                    const selected = projectLocale === localeOption.id;
+                    return (
+                      <button
+                        key={localeOption.id}
+                        type="button"
+                        onClick={() => setProjectLocale(localeOption.id)}
+                        className={`flex items-center justify-between rounded-card border p-4 text-left transition-all ${
+                          selected
+                            ? "border-obra-blue-700 bg-obra-blue-50"
+                            : "border-obra-blue-100 bg-white hover:border-obra-blue-700/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span aria-hidden className="text-2xl">
+                            {localeOption.flag}
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-obra-blue-950">{localeOption.label}</p>
+                            <p className="text-xs text-obra-neutral-600">{localeOption.subtitle}</p>
+                          </div>
+                        </div>
+                        <Check className={`size-3.5 ${selected ? "text-obra-blue-700" : "text-transparent"}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {projectCreateError ? (
+              <p role="alert" className="mt-4 text-sm text-red-600">
+                {projectCreateError}
+              </p>
+            ) : null}
+        </ModalContent>
+
+        <ModalFooter className="justify-between">
+              {projectStep === 1 ? (
+                <Button type="button" variant="tertiary" onClick={() => setShowNewProjectModal(false)}>
+                  {t("wizard.modal.cancel")}
+                </Button>
+              ) : (
+                <Button type="button" variant="tertiary" onClick={() => setProjectStep(1)} disabled={creatingProject}>
+                  {t("wizard.modal.back")}
+                </Button>
+              )}
+
+              {projectStep === 1 ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setProjectStep(2)}
+                  disabled={!projectName.trim()}
+                >
+                  {t("wizard.modal.next")}
+                </Button>
+              ) : (
+                <Button type="button" variant="primary" onClick={() => void createProjectFromModal()} disabled={creatingProject}>
+                  {creatingProject ? t("wizard.modal.creating") : t("wizard.modal.create")}
+                </Button>
+              )}
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
