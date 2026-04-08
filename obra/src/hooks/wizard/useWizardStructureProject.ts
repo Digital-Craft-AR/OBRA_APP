@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { BaseProjectRow, ProjectRow } from "@/lib/wizard/structureTypes";
+import {
+  DEFAULT_DESIGN_CONFIG,
+  type BaseProjectRow,
+  type ProjectRow,
+  type WizardTitleItem,
+} from "@/lib/wizard/structureTypes";
 
 export function useWizardStructureProject(projectId: string | undefined, loadErrorMessage: string) {
   const [project, setProject] = useState<ProjectRow | null>(null);
@@ -18,7 +23,7 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
       const { data, error: queryError } = await supabase
         .from("projects")
         .select(
-          "id, name, content_locale, content_source, topic, problem, target_avatar, bonus_count, bump_count, main_title, author, structure_completed_at",
+          "id, name, content_locale, content_source, topic, problem, target_avatar, bonus_count, bump_count, main_title, author, bonus_items, bump_items, design_config, structure_completed_at",
         )
         .eq("id", projectId)
         .single();
@@ -44,6 +49,9 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
             bump_count: 0,
             main_title: null,
             author: null,
+            bonus_items: [],
+            bump_items: [],
+            design_config: DEFAULT_DESIGN_CONFIG,
           };
           loadError = null;
         } else {
@@ -57,7 +65,22 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
         setError(loadErrorMessage);
         setProject(null);
       } else {
-        setProject(row);
+        const normalizedRow: ProjectRow = {
+          ...row,
+          bonus_items: Array.isArray(row.bonus_items)
+            ? (row.bonus_items as WizardTitleItem[])
+            : [],
+          bump_items: Array.isArray(row.bump_items)
+            ? (row.bump_items as WizardTitleItem[])
+            : [],
+          design_config:
+            row.design_config &&
+            typeof row.design_config === "object" &&
+            !Array.isArray(row.design_config)
+              ? row.design_config
+              : DEFAULT_DESIGN_CONFIG,
+        };
+        setProject(normalizedRow);
       }
 
       setLoading(false);

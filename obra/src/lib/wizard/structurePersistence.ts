@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import type { WizardDesignConfig, WizardTitleItem } from "@/lib/wizard/structureTypes";
 
 export async function saveWizardTopic(projectId: string, topic: string) {
   const { error } = await supabase.from("projects").update({ topic }).eq("id", projectId);
@@ -33,6 +34,31 @@ export async function saveWizardMainTitle(projectId: string, mainTitle: string, 
     .update({
       main_title: mainTitle,
       author: author || null,
+    })
+    .eq("id", projectId);
+  return { ok: !error };
+}
+
+export async function saveWizardBonusBumpItems(
+  projectId: string,
+  bonusItems: WizardTitleItem[],
+  bumpItems: WizardTitleItem[],
+) {
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      bonus_items: bonusItems,
+      bump_items: bumpItems,
+    })
+    .eq("id", projectId);
+  return { ok: !error };
+}
+
+export async function saveWizardDesignConfig(projectId: string, designConfig: WizardDesignConfig) {
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      design_config: designConfig,
     })
     .eq("id", projectId);
   return { ok: !error };

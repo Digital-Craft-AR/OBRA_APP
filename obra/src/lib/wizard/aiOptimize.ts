@@ -84,3 +84,39 @@ export async function suggestWizardTitles(args: {
 
   return { ok: true as const, suggestions };
 }
+
+export async function suggestSingleWizardTitle(args: {
+  field: "bonus_title" | "bump_title";
+  topic: string;
+  problem: string;
+  avatar: string;
+  language: string;
+}) {
+  const { data, error } = await supabase.functions.invoke<AiSuggestResponse>("ai-optimize", {
+    method: "POST",
+    body: {
+      field: args.field,
+      intent: "suggest",
+      topic: args.topic,
+      problem: args.problem,
+      avatar: args.avatar,
+      language: args.language,
+      count: 1,
+    },
+  });
+
+  if (error || data?.error) {
+    return { ok: false as const, suggestion: null as string | null };
+  }
+
+  const incoming =
+    (Array.isArray(data?.suggestions) ? data.suggestions : undefined) ??
+    (Array.isArray(data?.titles) ? data.titles : undefined) ??
+    (Array.isArray(data?.options) ? data.options : undefined) ??
+    [];
+  const suggestion = incoming
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .find(Boolean);
+
+  return { ok: true as const, suggestion: suggestion ?? null };
+}

@@ -5,7 +5,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
 import { StructureStepAvatarProblem } from "@/components/wizard/structure/StructureStepAvatarProblem";
+import { StructureStepBonusBumpTitles } from "@/components/wizard/structure/StructureStepBonusBumpTitles";
 import { StructureStepDesign } from "@/components/wizard/structure/StructureStepDesign";
+import { StructureStepDesignConfig } from "@/components/wizard/structure/StructureStepDesignConfig";
 import { StructureStepHeader } from "@/components/wizard/structure/StructureStepHeader";
 import { StructureStepPackage } from "@/components/wizard/structure/StructureStepPackage";
 import { StructureStepTopic } from "@/components/wizard/structure/StructureStepTopic";
@@ -190,6 +192,106 @@ export function WizardStructurePage() {
                     if (value.trim()) flow.setMainTitleError(null);
                   }}
                   onAuthorChange={flow.setAuthorDraft}
+                />
+              ) : null}
+
+              {flow.innerStepIndex === 4 ? (
+                <StructureStepBonusBumpTitles
+                  bonusItems={flow.bonusItems}
+                  bumpItems={flow.bumpItems}
+                  showBonus
+                  showBump={false}
+                  loadingKey={flow.itemRegeneratingKey}
+                  message={flow.itemsMessage}
+                  bonusSectionLabel={t("wizard.structure.step5.bonusSection")}
+                  bumpSectionLabel={t("wizard.structure.step5.bumpSection")}
+                  regenerateAllLabel={t("wizard.structure.step5.regenerateAll")}
+                  onChangeBonusTitle={(index, title) =>
+                    flow.setBonusItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, title } : item,
+                      ),
+                    )
+                  }
+                  onChangeBumpTitle={(index, title) =>
+                    flow.setBumpItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, title } : item,
+                      ),
+                    )
+                  }
+                  onToggleBonusLock={(index) =>
+                    flow.setBonusItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, locked: !item.locked } : item,
+                      ),
+                    )
+                  }
+                  onToggleBumpLock={(index) =>
+                    flow.setBumpItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, locked: !item.locked } : item,
+                      ),
+                    )
+                  }
+                  onRegenerateBonus={(index) => void flow.regenerateItem("bonus", index)}
+                  onRegenerateBump={(index) => void flow.regenerateItem("bump", index)}
+                  onRegenerateAllBonus={() => void flow.regenerateAllItems("bonus")}
+                  onRegenerateAllBump={() => void flow.regenerateAllItems("bump")}
+                />
+              ) : null}
+
+              {flow.innerStepIndex === 5 ? (
+                <StructureStepBonusBumpTitles
+                  bonusItems={flow.bonusItems}
+                  bumpItems={flow.bumpItems}
+                  showBonus={false}
+                  showBump
+                  loadingKey={flow.itemRegeneratingKey}
+                  message={flow.itemsMessage}
+                  bonusSectionLabel={t("wizard.structure.step5.bonusSection")}
+                  bumpSectionLabel={t("wizard.structure.step6.bumpSection")}
+                  regenerateAllLabel={t("wizard.structure.step5.regenerateAll")}
+                  onChangeBonusTitle={(index, title) =>
+                    flow.setBonusItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, title } : item,
+                      ),
+                    )
+                  }
+                  onChangeBumpTitle={(index, title) =>
+                    flow.setBumpItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, title } : item,
+                      ),
+                    )
+                  }
+                  onToggleBonusLock={(index) =>
+                    flow.setBonusItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, locked: !item.locked } : item,
+                      ),
+                    )
+                  }
+                  onToggleBumpLock={(index) =>
+                    flow.setBumpItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, locked: !item.locked } : item,
+                      ),
+                    )
+                  }
+                  onRegenerateBonus={(index) => void flow.regenerateItem("bonus", index)}
+                  onRegenerateBump={(index) => void flow.regenerateItem("bump", index)}
+                  onRegenerateAllBonus={() => void flow.regenerateAllItems("bonus")}
+                  onRegenerateAllBump={() => void flow.regenerateAllItems("bump")}
+                />
+              ) : null}
+
+              {flow.innerStepIndex === 6 ? (
+                <StructureStepDesignConfig
+                  config={flow.designConfig}
+                  message={flow.designMessage}
+                  onChange={flow.setDesignConfig}
                 />
               ) : null}
             </div>
