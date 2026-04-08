@@ -4,8 +4,6 @@ import { VerifyEmailPanel } from "@/components/verification/VerifyEmailPanel";
 import { Button } from "@/components/ui/Button";
 import { useEmailVerificationResend } from "@/auth/useEmailVerificationResend";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
-import { emitAuthInstrumentation } from "@/lib/authInstrumentation";
-import { supabase } from "@/lib/supabaseClient";
 
 export function VerifyEmailShellPage() {
   const { t } = useTranslation();
@@ -16,8 +14,6 @@ export function VerifyEmailShellPage() {
   const { busy, message, resend } = useEmailVerificationResend(resendTarget, {
     mode: pendingEmailChange ? "email_change" : "signup",
   });
-
-  const email = user?.email ?? "";
 
   return (
     <BlockingShellFrame titleKey="shell.verify.title">
