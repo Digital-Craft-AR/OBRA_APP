@@ -1,7 +1,10 @@
 import type { User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/authContext";
+import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
+import { isEmailVerifiedForEntitlement } from "@/lib/authEmailEntitlement";
+import { normalizeUiLocale } from "@/lib/uiLocale";
 import { clearCheckoutReturnPending, isCheckoutReturnPending } from "./checkoutReturn";
 import {
   outcomeToPath,
@@ -16,6 +19,8 @@ export type EntitlementContextValue = {
   loading: boolean;
   loadError: string | null;
   user: User | null;
+  subscriptionStatus: SubscriptionStatus;
+  creditsBalance: number;
   refetchProfile: () => Promise<void>;
   reconcileSubscription: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -31,13 +36,23 @@ function normalizeSubscriptionStatus(raw: string | null | undefined): Subscripti
   return "none";
 }
 
+function normalizeCreditsBalance(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
+
+type ProfileRowState = {
+  subscription_status: SubscriptionStatus;
+  ui_locale: string;
+  credits_balance: number;
+};
+
 export function EntitlementProvider({ children }: { children: React.ReactNode }) {
   const { session, loading: authLoading } = useAuth();
   const user = session?.user ?? null;
 
-  const [profileRow, setProfileRow] = useState<{ subscription_status: SubscriptionStatus } | null>(
-    null,
-  );
+  const [profileRow, setProfileRow] = useState<ProfileRowState | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [checkoutBump, setCheckoutBump] = useState(0);
@@ -51,18 +66,53 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     }
     setProfileLoading(true);
     setLoadError(null);
-    const { data, error } = await supabase
+
+    const withCredits = await supabase
       .from("creator_profiles")
-      .select("subscription_status")
+      .select("subscription_status, ui_locale, credits_balance")
       .maybeSingle();
-    if (error) {
-      setLoadError(error.message);
+
+    if (!withCredits.error) {
+      const row = withCredits.data as {
+        subscription_status?: string;
+        ui_locale?: string | null;
+        credits_balance?: number | null;
+      } | null;
+      setProfileRow({
+        subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
+        credits_balance: normalizeCreditsBalance(row?.credits_balance),
+      });
+      setProfileLoading(false);
+      return;
+    }
+
+    const withLocale = await supabase
+      .from("creator_profiles")
+      .select("subscription_status, ui_locale")
+      .maybeSingle();
+
+    if (!withLocale.error) {
+      const row = withLocale.data as { subscription_status?: string; ui_locale?: string | null } | null;
+      setProfileRow({
+        subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
+        credits_balance: 0,
+      });
+      setProfileLoading(false);
+      return;
+    }
+
+    const minimal = await supabase.from("creator_profiles").select("subscription_status").maybeSingle();
+    if (minimal.error) {
+      setLoadError(minimal.error.message);
       setProfileRow(null);
     } else {
+      const row = minimal.data as { subscription_status?: string } | null;
       setProfileRow({
-        subscription_status: normalizeSubscriptionStatus(
-          (data as { subscription_status?: string } | null)?.subscription_status,
-        ),
+        subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        ui_locale: normalizeUiLocale(undefined),
+        credits_balance: 0,
       });
     }
     setProfileLoading(false);
@@ -83,7 +133,6 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     if (fnError || fnData?.error) {
-      // Reconciliation is best-effort; fallback to normal profile read for UX continuity.
       await refetchProfile();
       return;
     }
@@ -94,6 +143,14 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     void refetchProfile();
   }, [refetchProfile]);
 
+  useEffect(() => {
+    if (!profileRow?.ui_locale) return;
+    const lang = normalizeUiLocale(profileRow.ui_locale);
+    if (i18n.language !== lang) {
+      void i18n.changeLanguage(lang);
+    }
+  }, [profileRow?.ui_locale]);
+
   const checkoutReturnPending = useMemo(() => {
     void checkoutBump;
     try {
@@ -103,8 +160,9 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     }
   }, [checkoutBump, session?.user?.id]);
 
-  const emailVerified = Boolean(user?.email_confirmed_at);
+  const emailVerified = isEmailVerifiedForEntitlement(user);
   const subscriptionStatus = profileRow?.subscription_status ?? "none";
+  const creditsBalance = profileRow?.credits_balance ?? 0;
 
   let outcome = resolveEntitlement({
     emailVerified,
@@ -138,6 +196,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loading: authLoading || profileLoading,
       loadError,
       user,
+      subscriptionStatus,
+      creditsBalance,
       refetchProfile,
       reconcileSubscription,
       refreshSession,
@@ -149,6 +209,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       profileLoading,
       loadError,
       user,
+      subscriptionStatus,
+      creditsBalance,
       refetchProfile,
       reconcileSubscription,
       refreshSession,

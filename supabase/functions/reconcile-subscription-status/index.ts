@@ -1,27 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { getBillingAdapter } from "../_shared/payment/factory.ts";
+import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadEnv.ts";
 
 type SubscriptionStatus = "none" | "active" | "past_due";
-
-type MpPreapproval = {
-  id?: string;
-  status?: string;
-  external_reference?: string | null;
-};
-
-type MpPreapprovalSearch = {
-  results?: MpPreapproval[];
-};
-
-type MpPayment = {
-  id?: number | string;
-  status?: string;
-  external_reference?: string | null;
-};
-
-type MpPaymentSearch = {
-  results?: MpPayment[];
-};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -41,10 +23,18 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const mpToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+  const accessToken = loadMercadoPagoAccessToken();
 
-  if (!supabaseUrl || !anonKey || !serviceRole || !mpToken) {
+  if (!supabaseUrl || !anonKey || !serviceRole || !accessToken) {
     return json({ error: "misconfigured" }, 500);
+  }
+
+  let billing;
+  try {
+    billing = getBillingAdapter();
+  } catch (e) {
+    console.error("billing_adapter", e);
+    return json({ error: "misconfigured", detail: "payment_provider" }, 500);
   }
 
   const authHeader = req.headers.get("Authorization");
@@ -70,36 +60,10 @@ Deno.serve(async (req: Request) => {
   let reconciledFrom: "subscription_preapproval" | "payment" | "profile" = "profile";
   let nextStatus = currentStatus;
 
-  const subSearch = await fetch(
-    `https://api.mercadopago.com/preapproval/search?external_reference=${encodeURIComponent(userId)}&limit=1&offset=0`,
-    { headers: { Authorization: `Bearer ${mpToken}` } },
-  );
-
-  if (subSearch.ok) {
-    const subData = (await subSearch.json()) as MpPreapprovalSearch;
-    const latest = subData.results?.[0];
-    if (latest?.status) {
-      const mapped = mapPreapprovalStatus(latest.status);
-      if (mapped) {
-        reconciledFrom = "subscription_preapproval";
-        nextStatus = mapped;
-      }
-    }
-  }
-
-  if (reconciledFrom === "profile") {
-    const paySearch = await fetch(
-      `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(userId)}&sort=date_created&criteria=desc&limit=1`,
-      { headers: { Authorization: `Bearer ${mpToken}` } },
-    );
-    if (paySearch.ok) {
-      const payData = (await paySearch.json()) as MpPaymentSearch;
-      const latest = payData.results?.[0];
-      if (latest?.status === "approved") {
-        reconciledFrom = "payment";
-        nextStatus = "active";
-      }
-    }
+  const remote = await billing.reconcileSubscriptionStatusForUser(accessToken, userId);
+  if (remote.found) {
+    reconciledFrom = remote.source === "subscription" ? "subscription_preapproval" : "payment";
+    nextStatus = remote.subscriptionStatus;
   }
 
   if (nextStatus !== currentStatus) {
@@ -121,12 +85,4 @@ Deno.serve(async (req: Request) => {
 function normalizeStatus(raw: string | undefined): SubscriptionStatus {
   if (raw === "active" || raw === "past_due" || raw === "none") return raw;
   return "none";
-}
-
-function mapPreapprovalStatus(status: string): SubscriptionStatus | null {
-  const st = status.toLowerCase();
-  if (st === "authorized") return "active";
-  if (st === "paused" || st === "cancelled") return "past_due";
-  if (st === "pending" || st === "init") return "none";
-  return null;
 }

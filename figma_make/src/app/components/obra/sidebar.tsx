@@ -100,7 +100,8 @@ export function ObraSidebar({
         onClick={onToggleCollapsed}
         title={collapsed ? "Expandir menú" : "Contraer menú"}
         className={cn(
-          "absolute right-0 translate-x-1/2 top-7 -translate-y-1/2 z-20",
+          /* Vertically center on logo row — must match `h-18` header band */
+          "absolute right-0 top-9 z-20 translate-x-1/2 -translate-y-1/2",
           "size-6 rounded-full flex items-center justify-center",
           "bg-obra-blue-700 border border-white/20 shadow-lg",
           "text-white hover:bg-obra-blue-700",
