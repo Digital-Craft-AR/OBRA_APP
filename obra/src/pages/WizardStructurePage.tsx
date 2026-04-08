@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
@@ -16,6 +16,8 @@ type ProjectRow = {
   content_locale: string;
   content_source: "ai" | "upload";
   topic: string | null;
+  problem: string | null;
+  target_avatar: string | null;
   structure_completed_at: string | null;
 };
 
@@ -39,6 +41,12 @@ export function WizardStructurePage() {
   const [topicSaving, setTopicSaving] = useState(false);
   const [topicImproving, setTopicImproving] = useState(false);
   const [topicMessage, setTopicMessage] = useState<string | null>(null);
+  const [avatarDraft, setAvatarDraft] = useState("");
+  const [problemDraft, setProblemDraft] = useState("");
+  const [avatarProblemSaving, setAvatarProblemSaving] = useState(false);
+  const [avatarImproving, setAvatarImproving] = useState(false);
+  const [problemImproving, setProblemImproving] = useState(false);
+  const [avatarProblemMessage, setAvatarProblemMessage] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
@@ -50,7 +58,7 @@ export function WizardStructurePage() {
       setError(null);
       const { data, error: queryError } = await supabase
         .from("projects")
-        .select("id, name, content_locale, content_source, topic, structure_completed_at")
+        .select("id, name, content_locale, content_source, topic, problem, target_avatar, structure_completed_at")
         .eq("id", params.projectId)
         .single();
       if (cancelled) return;
@@ -61,6 +69,8 @@ export function WizardStructurePage() {
         const row = data as ProjectRow;
         setProject(row);
         setTopicDraft(row.topic ?? "");
+        setAvatarDraft(row.target_avatar ?? "");
+        setProblemDraft(row.problem ?? "");
       }
       setLoading(false);
     }
@@ -176,9 +186,103 @@ export function WizardStructurePage() {
     setTopicMessage(t("wizard.structure.topic.improvePending"));
   }
 
+  async function persistAvatarProblem(): Promise<boolean> {
+    if (!project?.id || avatarProblemSaving) return false;
+    setAvatarProblemSaving(true);
+    setAvatarProblemMessage(null);
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({
+        target_avatar: avatarDraft || null,
+        problem: problemDraft || null,
+      })
+      .eq("id", project.id);
+    setAvatarProblemSaving(false);
+    if (updateError) {
+      setAvatarProblemMessage(t("wizard.structure.avatarProblem.saveError"));
+      return false;
+    }
+    setProject((current) =>
+      current
+        ? {
+            ...current,
+            target_avatar: avatarDraft || null,
+            problem: problemDraft || null,
+          }
+        : current,
+    );
+    return true;
+  }
+
+  async function improveAvatarText() {
+    if (!avatarDraft.trim() || avatarImproving) return;
+    setAvatarImproving(true);
+    setAvatarProblemMessage(null);
+    const { data, error: invokeError } = await supabase.functions.invoke<{
+      ok?: boolean;
+      optimized?: string;
+      error?: string;
+    }>("ai-optimize", {
+      method: "POST",
+      body: {
+        field: "avatar",
+        raw_text: avatarDraft,
+        language: i18n.language,
+      },
+    });
+    setAvatarImproving(false);
+
+    if (invokeError || data?.error) {
+      setAvatarProblemMessage(t("wizard.structure.avatarProblem.improveError"));
+      return;
+    }
+
+    if (data?.optimized && typeof data.optimized === "string") {
+      setAvatarDraft(data.optimized);
+      return;
+    }
+
+    setAvatarProblemMessage(t("wizard.structure.avatarProblem.improvePending"));
+  }
+
+  async function improveProblemText() {
+    if (!problemDraft.trim() || problemImproving) return;
+    setProblemImproving(true);
+    setAvatarProblemMessage(null);
+    const { data, error: invokeError } = await supabase.functions.invoke<{
+      ok?: boolean;
+      optimized?: string;
+      error?: string;
+    }>("ai-optimize", {
+      method: "POST",
+      body: {
+        field: "problem",
+        raw_text: problemDraft,
+        language: i18n.language,
+      },
+    });
+    setProblemImproving(false);
+
+    if (invokeError || data?.error) {
+      setAvatarProblemMessage(t("wizard.structure.avatarProblem.improveError"));
+      return;
+    }
+
+    if (data?.optimized && typeof data.optimized === "string") {
+      setProblemDraft(data.optimized);
+      return;
+    }
+
+    setAvatarProblemMessage(t("wizard.structure.avatarProblem.improvePending"));
+  }
+
   async function handleNextStep() {
     if (innerStepIndex === 0) {
       const saved = await persistTopic();
+      if (!saved) return;
+    }
+    if (innerStepIndex === 1) {
+      const saved = await persistAvatarProblem();
       if (!saved) return;
     }
     setInnerStepIndex((current) => Math.min(INNER_STEPS.length - 1, current + 1));
@@ -235,11 +339,17 @@ export function WizardStructurePage() {
             <div className="space-y-5">
             <header className="space-y-2">
               <h1 className="font-display text-2xl text-obra-blue-950">
-                {innerStepIndex === 0 ? t("wizard.structure.step1.title") : t("wizard.structure.title")}
+                {innerStepIndex === 0
+                  ? t("wizard.structure.step1.title")
+                  : innerStepIndex === 1
+                    ? t("wizard.structure.step2.title")
+                    : t("wizard.structure.title")}
               </h1>
               <p className="text-sm text-obra-neutral-600">
                 {innerStepIndex === 0
                   ? t("wizard.structure.step1.subtitle")
+                  : innerStepIndex === 1
+                    ? t("wizard.structure.step2.subtitle")
                   : t("wizard.structure.subtitle")}
               </p>
             </header>
@@ -265,6 +375,39 @@ export function WizardStructurePage() {
                   {topicMessage}
                 </div>
               </section>
+            ) : innerStepIndex === 1 ? (
+              <section className="space-y-4">
+                <ObraTextarea
+                  id="wizard-avatar"
+                  label={t("wizard.structure.step2.avatarLabel")}
+                  value={avatarDraft}
+                  onChange={(event) => setAvatarDraft(event.target.value)}
+                  placeholder={t("wizard.structure.step2.avatarPlaceholder")}
+                  assisted
+                  onAssist={() => void improveAvatarText()}
+                  assistLabel={t("wizard.structure.topic.improve")}
+                  aiStatus={avatarImproving ? "loading" : "idle"}
+                  disabled={avatarProblemSaving}
+                />
+                <ObraTextarea
+                  id="wizard-problem"
+                  label={t("wizard.structure.step2.problemLabel")}
+                  value={problemDraft}
+                  onChange={(event) => setProblemDraft(event.target.value)}
+                  placeholder={t("wizard.structure.step2.problemPlaceholder")}
+                  assisted
+                  onAssist={() => void improveProblemText()}
+                  assistLabel={t("wizard.structure.topic.improve")}
+                  aiStatus={problemImproving ? "loading" : "idle"}
+                  disabled={avatarProblemSaving}
+                />
+                {avatarProblemSaving ? (
+                  <span className="text-xs text-obra-neutral-600">{t("wizard.structure.avatarProblem.saving")}</span>
+                ) : null}
+                <div aria-live="polite" className="text-xs text-obra-neutral-600">
+                  {avatarProblemMessage}
+                </div>
+              </section>
             ) : (
               <p className="text-sm text-obra-neutral-600">{t("wizard.structure.waveAStub")}</p>
             )}
@@ -280,6 +423,7 @@ export function WizardStructurePage() {
             disabled={innerStepIndex === 0}
             onClick={() => setInnerStepIndex((current) => Math.max(0, current - 1))}
           >
+            <ChevronLeft className="size-4" aria-hidden />
             {t("wizard.structure.previous")}
           </Button>
           <Button
@@ -288,6 +432,7 @@ export function WizardStructurePage() {
             onClick={() => void handleNextStep()}
           >
             {t("wizard.structure.next")}
+            <ChevronRight className="size-4" aria-hidden />
           </Button>
         </div>
       </div>

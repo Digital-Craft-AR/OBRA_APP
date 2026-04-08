@@ -212,6 +212,13 @@ const resources = {
       "wizard.structure.step1.title": "¿Sobre qué es tu infoproducto?",
       "wizard.structure.step1.subtitle":
         "Describí el tema central de tu ebook con el mayor detalle posible. Cuanto más específico, mejores resultados obtendrás de la IA.",
+      "wizard.structure.step2.title": "Avatar y problema",
+      "wizard.structure.step2.subtitle":
+        "Definí a quién le hablás y qué problema resuelve tu infoproducto.",
+      "wizard.structure.step2.avatarLabel": "¿Quién es tu cliente ideal?",
+      "wizard.structure.step2.avatarPlaceholder": "Describí a tu cliente ideal...",
+      "wizard.structure.step2.problemLabel": "¿Qué problema resuelve tu infoproducto?",
+      "wizard.structure.step2.problemPlaceholder": "Describí el problema principal que resolvés...",
       "wizard.structure.projectName": "Proyecto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fuente",
@@ -239,6 +246,11 @@ const resources = {
       "wizard.structure.topic.saving": "Guardando…",
       "wizard.structure.topic.saved": "Tema guardado.",
       "wizard.structure.topic.saveError": "No pudimos guardar el tema.",
+      "wizard.structure.avatarProblem.saving": "Guardando avatar y problema…",
+      "wizard.structure.avatarProblem.saveError": "No pudimos guardar avatar y problema.",
+      "wizard.structure.avatarProblem.improveError": "No pudimos optimizar este texto en este momento.",
+      "wizard.structure.avatarProblem.improvePending":
+        "La optimización se procesó, pero la respuesta textual aún está en modo stub.",
       "wizard.tour.stepLabel": "Recorrido {{current}} de {{total}}",
       "wizard.tour.skip": "Omitir",
       "wizard.tour.previous": "Anterior",
@@ -617,6 +629,13 @@ const resources = {
       "wizard.structure.step1.title": "Sobre o que é o seu infoproduto?",
       "wizard.structure.step1.subtitle":
         "Descreva o tema central do seu ebook com o maior nível de detalhe possível. Quanto mais específico, melhores resultados você terá com a IA.",
+      "wizard.structure.step2.title": "Avatar e problema",
+      "wizard.structure.step2.subtitle":
+        "Defina com quem você fala e qual problema seu infoproduto resolve.",
+      "wizard.structure.step2.avatarLabel": "Quem é o seu cliente ideal?",
+      "wizard.structure.step2.avatarPlaceholder": "Descreva seu cliente ideal...",
+      "wizard.structure.step2.problemLabel": "Que problema seu infoproduto resolve?",
+      "wizard.structure.step2.problemPlaceholder": "Descreva o principal problema que você resolve...",
       "wizard.structure.projectName": "Projeto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fonte",
@@ -644,6 +663,12 @@ const resources = {
       "wizard.structure.topic.saving": "Salvando…",
       "wizard.structure.topic.saved": "Tema salvo.",
       "wizard.structure.topic.saveError": "Não foi possível salvar o tema.",
+      "wizard.structure.avatarProblem.saving": "Salvando avatar e problema…",
+      "wizard.structure.avatarProblem.saveError": "Não foi possível salvar avatar e problema.",
+      "wizard.structure.avatarProblem.improveError":
+        "Não foi possível otimizar este texto no momento.",
+      "wizard.structure.avatarProblem.improvePending":
+        "A otimização foi processada, mas a resposta textual ainda está em modo stub.",
       "wizard.tour.stepLabel": "Tour {{current}} de {{total}}",
       "wizard.tour.skip": "Pular",
       "wizard.tour.previous": "Anterior",

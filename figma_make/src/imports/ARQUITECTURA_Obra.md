@@ -279,7 +279,7 @@ CREATE TABLE ebooks (
   type          TEXT NOT NULL CHECK (type IN ('main', 'bonus', 'order_bump')),
   title         TEXT,
   subtitle      TEXT,
-  target_avatar JSONB,                -- { description, age, pains, desires }
+  target_avatar TEXT,                 -- audience persona summary
   html_content  TEXT,                 -- HTML generado final
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW()
