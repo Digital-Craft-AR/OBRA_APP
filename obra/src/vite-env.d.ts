@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_DEV_ENTITLEMENT_OUTCOME?: string;
   /** Optional: Mercado Pago subscriber/management URL opened from billing settings (#43). */
   readonly VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL?: string;
+  /** Optional: support contact email shown in /app/help. */
+  readonly VITE_SUPPORT_EMAIL?: string;
 }
 
 interface ImportMeta {

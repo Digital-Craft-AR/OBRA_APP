@@ -65,6 +65,7 @@ The Supabase JS client in the Vite app reads `**import.meta.env`**. Per `ARQUITE
 | ------------------------ | ------------------------------------------- | ------------------------------------------------------------------------- |
 | `VITE_SUPABASE_URL`      | Production, Preview, Development (optional) | Public Supabase project URL                                               |
 | `VITE_SUPABASE_ANON_KEY` | Production, Preview, Development (optional) | **Anon** key only — safe to expose to the browser; never commit the value |
+| `VITE_SUPPORT_EMAIL`     | Production, Preview, Development (optional) | Support inbox shown on `/app/help` and used in `mailto:` links            |
 
 
 **Coordination with issue #27 / `docs/infrastructure/supabase.md`:** Issue #27 documents generic names `SUPABASE_URL` and `SUPABASE_ANON_KEY` for project reference and non-Vite contexts. Those refer to the **same logical** URL and anon key as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; the `**VITE_` prefix** is **required** for Vite so variables are included in the client bundle. Set the Vercel entries to the same values you use for the Supabase project described in `supabase.md`.

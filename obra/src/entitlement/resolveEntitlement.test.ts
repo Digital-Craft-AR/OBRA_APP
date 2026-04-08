@@ -79,6 +79,7 @@ describe("outcomeToPath", () => {
 describe("isPathAllowedForOutcome", () => {
   it("allows full_app on dashboard and settings", () => {
     expect(isPathAllowedForOutcome("full_app", "/app/dashboard")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/help")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings/profile")).toBe(true);
     expect(isPathAllowedForOutcome("full_app", "/app/settings/billing")).toBe(true);

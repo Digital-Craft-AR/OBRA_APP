@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, Coins, FolderOpen, Home, Lock, Settings, Shield, User } from "lucide-react";
+import { CreditCard, Coins, FolderOpen, HelpCircle, Home, Lock, Settings, Shield, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
@@ -171,6 +171,13 @@ export function SettingsPage() {
             icon: <Settings className="size-4" aria-hidden />,
           },
           {
+            id: "help",
+            label: t("nav.help"),
+            to: "/app/help",
+            active: location.pathname === "/app/help",
+            icon: <HelpCircle className="size-4" aria-hidden />,
+          },
+          {
             id: "home",
             label: t("nav.home"),
             to: "/",
@@ -218,6 +225,16 @@ export function SettingsPage() {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => navigate("/app/help")}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-body text-sm font-medium text-obra-neutral-600 transition-all hover:bg-obra-blue-50 hover:text-obra-blue-900"
+              >
+                <span className="text-obra-neutral-400">
+                  <HelpCircle className="size-4 shrink-0" aria-hidden />
+                </span>
+                {t("settings.sectionNav.help")}
+              </button>
             </nav>
           </aside>
 
