@@ -328,6 +328,12 @@ const resources = {
       "wizard.content.banner.body":
         "En esta fase solo trabajás el texto. La vista previa con diseño aplicado viene en el paso siguiente (Vista previa).",
       "wizard.content.banner.dismiss": "No volver a mostrar",
+      "wizard.content.workspace.ensureError":
+        "No pudimos preparar el espacio de contenido. Verificá que la migración de base de datos esté aplicada.",
+      "wizard.content.uploadGate.title": "Manuscrito y alineación",
+      "wizard.content.uploadGate.subtitle": "Rama de carga de archivos",
+      "wizard.content.uploadGate.body":
+        "Tu proyecto usa carga de manuscrito. Completá la subida, el parseo y la alineación en el flujo de carga (wizard-upload) antes de editar el índice aquí.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bonus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
@@ -337,7 +343,9 @@ const resources = {
       "wizard.content.index.packageNavHeading": "Tu paquete",
       "wizard.content.index.panelTitleMain": "Tabla de contenidos — {{title}}",
       "wizard.content.index.panelSubtitleMain":
-        "Editá los capítulos o usá Regenerar esquema para una propuesta de ejemplo (la generación con IA por API se conecta después).",
+        "Editá los capítulos o usá Regenerar esquema (consume créditos). La integración con Claude en el servidor es un stub hasta el epic de IA.",
+      "wizard.content.index.panelSubtitleMainFrozen":
+        "El índice está confirmado. Los capítulos siguen en solo lectura hasta que exista el editor de cuerpo (#55).",
       "wizard.content.index.panelTitleBonus": "Estructura — {{title}}",
       "wizard.content.index.panelSubtitleBonus":
         "Los bonuses suelen ser un solo cuerpo; podés ajustar el título de sección aquí.",
@@ -346,6 +354,7 @@ const resources = {
         "Los order bumps suelen ser un solo bloque; podés ajustar el título de sección aquí.",
       "wizard.content.index.mainTitleFallback": "tu ebook",
       "wizard.content.index.regenerateOutline": "Regenerar esquema",
+      "wizard.content.index.regenerateLoading": "Generando…",
       "wizard.content.index.regenerateOutlineHint":
         "Rellena un esquema de ejemplo para empezar; podés editarlo a mano.",
       "wizard.content.index.singleArtifactTocHint":
@@ -359,8 +368,19 @@ const resources = {
       "wizard.content.index.sampleChapterTitle": "Capítulo {{n}}",
       "wizard.content.index.singleSectionTitle": "{{title}}",
       "wizard.content.index.confirmIndex": "Confirmar índice",
-      "wizard.content.index.confirmIndexStub":
-        "La confirmación y persistencia en base se implementan con el milestone #54.",
+      "wizard.content.index.confirmLoading": "Guardando…",
+      "wizard.content.index.confirmIndexHint":
+        "Al confirmar se congelan los capítulos del ebook principal y pasás al bucle de redacción.",
+      "wizard.content.index.regenerateSuccess": "Esquema actualizado.",
+      "wizard.content.index.confirmSuccess": "Índice confirmado. Podés continuar cuando el paso de capítulos esté listo.",
+      "wizard.content.index.errorInsufficientCredits": "No tenés créditos suficientes para regenerar el esquema.",
+      "wizard.content.index.errorWrongSource": "Esta acción solo aplica a proyectos con fuente de contenido por IA.",
+      "wizard.content.index.errorGenerateGeneric": "No pudimos generar el esquema. Probá de nuevo.",
+      "wizard.content.index.errorSaveToc": "No pudimos guardar la tabla de contenidos.",
+      "wizard.content.index.errorConfirmPhase": "No pudimos confirmar el índice (fase incorrecta o ya confirmado). Recargá la página.",
+      "wizard.content.index.errorEmptyTitle": "Todos los capítulos necesitan un título antes de confirmar.",
+      "wizard.content.index.errorTooManyChapters": "Demasiados capítulos para el límite del producto.",
+      "wizard.content.index.errorTooFewChapters": "Añadí al menos un capítulo antes de confirmar.",
       "wizard.structure.projectName": "Proyecto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fuente",
@@ -893,6 +913,12 @@ const resources = {
       "wizard.content.banner.body":
         "Nesta fase você trabalha só o texto. A prévia com design aplicado vem no próximo passo (Prévia).",
       "wizard.content.banner.dismiss": "Não mostrar de novo",
+      "wizard.content.workspace.ensureError":
+        "Não foi possível preparar o espaço de conteúdo. Verifique se a migração do banco foi aplicada.",
+      "wizard.content.uploadGate.title": "Manuscrito e alinhamento",
+      "wizard.content.uploadGate.subtitle": "Fluxo de upload",
+      "wizard.content.uploadGate.body":
+        "Seu projeto usa upload de manuscrito. Conclua o envio, o parse e o alinhamento no fluxo de upload (wizard-upload) antes de editar o sumário aqui.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bônus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
@@ -902,7 +928,9 @@ const resources = {
       "wizard.content.index.packageNavHeading": "Seu pacote",
       "wizard.content.index.panelTitleMain": "Sumário — {{title}}",
       "wizard.content.index.panelSubtitleMain":
-        "Edite os capítulos ou use Regenerar esquema para uma proposta de exemplo (a geração com IA via API será conectada depois).",
+        "Edite os capítulos ou use Regenerar esquema (consome créditos). A integração com Claude no servidor ainda é stub até o epic de IA.",
+      "wizard.content.index.panelSubtitleMainFrozen":
+        "O sumário está confirmado. Os capítulos ficam somente leitura até existir o editor de corpo (#55).",
       "wizard.content.index.panelTitleBonus": "Estrutura — {{title}}",
       "wizard.content.index.panelSubtitleBonus":
         "Os bônus costumam ter um único corpo; ajuste o título da seção aqui.",
@@ -911,6 +939,7 @@ const resources = {
         "Os order bumps costumam ser um único bloco; ajuste o título da seção aqui.",
       "wizard.content.index.mainTitleFallback": "seu ebook",
       "wizard.content.index.regenerateOutline": "Regenerar esquema",
+      "wizard.content.index.regenerateLoading": "Gerando…",
       "wizard.content.index.regenerateOutlineHint":
         "Preenche um esquema de exemplo para começar; você pode editar manualmente.",
       "wizard.content.index.singleArtifactTocHint":
@@ -924,8 +953,19 @@ const resources = {
       "wizard.content.index.sampleChapterTitle": "Capítulo {{n}}",
       "wizard.content.index.singleSectionTitle": "{{title}}",
       "wizard.content.index.confirmIndex": "Confirmar índice",
-      "wizard.content.index.confirmIndexStub":
-        "A confirmação e persistência no banco serão implementadas no milestone #54.",
+      "wizard.content.index.confirmLoading": "Salvando…",
+      "wizard.content.index.confirmIndexHint":
+        "Ao confirmar, os capítulos do ebook principal ficam congelados e você avança para o loop de redação.",
+      "wizard.content.index.regenerateSuccess": "Esquema atualizado.",
+      "wizard.content.index.confirmSuccess": "Sumário confirmado. Você poderá continuar quando a etapa de capítulos estiver pronta.",
+      "wizard.content.index.errorInsufficientCredits": "Créditos insuficientes para regenerar o esquema.",
+      "wizard.content.index.errorWrongSource": "Esta ação vale só para projetos com fonte de conteúdo por IA.",
+      "wizard.content.index.errorGenerateGeneric": "Não foi possível gerar o esquema. Tente de novo.",
+      "wizard.content.index.errorSaveToc": "Não foi possível salvar o sumário.",
+      "wizard.content.index.errorConfirmPhase": "Não foi possível confirmar o sumário (fase incorreta ou já confirmado). Recarregue a página.",
+      "wizard.content.index.errorEmptyTitle": "Todos os capítulos precisam de título antes de confirmar.",
+      "wizard.content.index.errorTooManyChapters": "Capítulos demais para o limite do produto.",
+      "wizard.content.index.errorTooFewChapters": "Adicione pelo menos um capítulo antes de confirmar.",
       "wizard.structure.projectName": "Projeto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fonte",

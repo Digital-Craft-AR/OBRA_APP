@@ -3,11 +3,9 @@ import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/Button";
 import { ObraInput } from "@/components/obra/ObraInput";
 import type { ContentPackageNavTarget } from "@/lib/wizard/contentNav";
+import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 
-export type TocChapterRow = {
-  id: string;
-  title: string;
-};
+export type { TocChapterRow } from "@/lib/wizard/tocTypes";
 
 export type ContentNavItem = {
   key: string;
@@ -20,12 +18,20 @@ type ContentIndexMilestoneProps = {
   navItems: ContentNavItem[];
   selectedKey: string;
   onSelectKey: (key: string) => void;
+  navItemDisabled?: (key: string) => boolean;
   panelTitle: string;
   panelSubtitle: string;
   tocRows: TocChapterRow[];
   onChangeToc: (rows: TocChapterRow[]) => void;
   onRegenerateOutline: () => void;
   regenerateDisabled?: boolean;
+  regenerateLoading?: boolean;
+  tocReadOnly?: boolean;
+  confirmVisible?: boolean;
+  onConfirmIndex?: () => void;
+  confirmDisabled?: boolean;
+  confirmLoading?: boolean;
+  actionAnnouncement?: string | null;
 };
 
 function newRowId() {
@@ -37,15 +43,24 @@ export function ContentIndexMilestone({
   navItems,
   selectedKey,
   onSelectKey,
+  navItemDisabled,
   panelTitle,
   panelSubtitle,
   tocRows,
   onChangeToc,
   onRegenerateOutline,
   regenerateDisabled,
+  regenerateLoading,
+  tocReadOnly,
+  confirmVisible,
+  onConfirmIndex,
+  confirmDisabled,
+  confirmLoading,
+  actionAnnouncement,
 }: ContentIndexMilestoneProps) {
   const selected = navItems.find((item) => item.key === selectedKey) ?? navItems[0];
   const isMainToc = selected?.target.kind === "main";
+  const readOnly = Boolean(tocReadOnly);
 
   function updateRow(id: string, title: string) {
     onChangeToc(tocRows.map((row) => (row.id === id ? { ...row, title } : row)));
@@ -84,14 +99,19 @@ export function ContentIndexMilestone({
         <ul className="flex flex-col gap-1">
           {navItems.map((item) => {
             const isCurrent = item.key === selectedKey;
+            const disabled = navItemDisabled?.(item.key) ?? false;
             return (
               <li key={item.key}>
                 <button
                   type="button"
-                  onClick={() => onSelectKey(item.key)}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (!disabled) onSelectKey(item.key);
+                  }}
                   aria-current={isCurrent ? "page" : undefined}
                   className={[
                     "w-full rounded-input border px-3 py-2.5 text-left font-body text-sm transition-colors",
+                    disabled ? "cursor-not-allowed opacity-50" : "",
                     isCurrent
                       ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
                       : "border-transparent bg-white text-obra-neutral-600 hover:border-obra-blue-100 hover:bg-obra-blue-50/60",
@@ -116,15 +136,21 @@ export function ContentIndexMilestone({
           <p className="font-body text-sm text-obra-neutral-600">{panelSubtitle}</p>
         </div>
 
+        {actionAnnouncement ? (
+          <p role="status" aria-live="polite" className="font-body text-sm text-obra-blue-950">
+            {actionAnnouncement}
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-3">
           <Button
             type="button"
             variant="secondary"
             size="medium"
             onClick={onRegenerateOutline}
-            disabled={regenerateDisabled}
+            disabled={regenerateDisabled || regenerateLoading}
           >
-            {t("wizard.content.index.regenerateOutline")}
+            {regenerateLoading ? t("wizard.content.index.regenerateLoading") : t("wizard.content.index.regenerateOutline")}
           </Button>
           <p className="font-body text-xs text-obra-neutral-600">
             {t("wizard.content.index.regenerateOutlineHint")}
@@ -151,9 +177,10 @@ export function ContentIndexMilestone({
                     value={row.title}
                     onChange={(event) => updateRow(row.id, event.target.value)}
                     placeholder={t("wizard.content.index.chapterTitlePlaceholder")}
+                    disabled={readOnly}
                   />
                 </div>
-                {isMainToc ? (
+                {isMainToc && !readOnly ? (
                   <div className="flex shrink-0 gap-1 sm:pt-7">
                     <button
                       type="button"
@@ -189,7 +216,7 @@ export function ContentIndexMilestone({
           ))}
         </ol>
 
-        {isMainToc ? (
+        {isMainToc && !readOnly ? (
           <div>
             <Button type="button" variant="tertiary" size="medium" onClick={addRow}>
               <Plus className="size-4" aria-hidden />
@@ -198,12 +225,20 @@ export function ContentIndexMilestone({
           </div>
         ) : null}
 
-        <div className="border-t border-obra-blue-100 pt-4">
-          <Button type="button" variant="primary" size="medium" disabled>
-            {t("wizard.content.index.confirmIndex")}
-          </Button>
-          <p className="mt-2 font-body text-xs text-obra-neutral-600">{t("wizard.content.index.confirmIndexStub")}</p>
-        </div>
+        {confirmVisible && isMainToc ? (
+          <div className="border-t border-obra-blue-100 pt-4">
+            <Button
+              type="button"
+              variant="primary"
+              size="medium"
+              disabled={confirmDisabled || confirmLoading}
+              onClick={() => onConfirmIndex?.()}
+            >
+              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
+            </Button>
+            <p className="mt-2 font-body text-xs text-obra-neutral-600">{t("wizard.content.index.confirmIndexHint")}</p>
+          </div>
+        ) : null}
       </section>
     </div>
   );
