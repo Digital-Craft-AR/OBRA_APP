@@ -3,6 +3,7 @@ import {
   buildContentPackageNavTargets,
   contentNavTargetToKey,
   parseContentNavKey,
+  usesMultiChapterContentNavTarget,
 } from "@/lib/wizard/contentNav";
 
 describe("contentNavTargetToKey", () => {
@@ -48,5 +49,13 @@ describe("buildContentPackageNavTargets", () => {
       { kind: "main" },
       { kind: "bump", index: 0 },
     ]);
+  });
+});
+
+describe("usesMultiChapterContentNavTarget", () => {
+  it("is true for main and bumps, false for bonuses", () => {
+    expect(usesMultiChapterContentNavTarget({ kind: "main" })).toBe(true);
+    expect(usesMultiChapterContentNavTarget({ kind: "bump", index: 0 })).toBe(true);
+    expect(usesMultiChapterContentNavTarget({ kind: "bonus", index: 0 })).toBe(false);
   });
 });

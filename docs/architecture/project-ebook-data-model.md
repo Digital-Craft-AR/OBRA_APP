@@ -8,7 +8,13 @@ Canonical SQL and field notes: [`backend.md`](backend.md) and [`business_logic.m
 
 **`ProjectContentProgress.current_phase`** is restricted in PostgreSQL to: `upload_alignment` | `main_index` | `main_chapter` | `bonus` | `order_bump` | `complete`. Initial phase: **`upload_alignment`** if `content_source = upload`, else **`main_index`**.
 
-**Main ebook TOC:** stored as **`chapters`** on the main ebook (titles + order); **`main_index_frozen_at`** marks index freeze. **`chapters.approved_at`** applies to **body** approval per chapter, not TOC confirmation.
+**Main ebook TOC:** stored as **`chapters`** on the main ebook (titles + order); **`project_content_progress.main_index_frozen_at`** marks **main** index freeze (not `ebooks.index_frozen_at` on the main row today).
+
+**Order bump TOC:** same persistence pattern as the main ebook — multiple **`chapters`** rows on each **`ebooks`** row with `type = order_bump` (scoped by `package_ordinal`). **`ebooks.index_frozen_at`** on that row marks when the user **confirmed** that bump’s index in Content.
+
+**Bonus ebooks:** usually **one** chapter row for the single-section deliverable.
+
+**`chapters.approved_at`** applies to **body** approval per chapter, not TOC confirmation, for all types above.
 
 **Contenido chat:** **`content_chat_threads`** — `chapter_id` set = one thread per **chapter / bonus / bump** artifact in MVP. **`chapter_id` null** slot (historically “main index / TOC” chat): **post-MVP** if conversational index refinement is enabled; **MVP** uses explicit generate/regenerate outline actions **without** an index chat transcript. Messages in **`content_chat_messages`**. **MVP:** persist **`user`** server-side with `client_message_id` idempotency (unique per thread) and persist **`assistant`** only when the streamed reply **finishes** (no per-chunk rows).
 
@@ -69,9 +75,11 @@ classDiagram
     +UUID id
     +UUID project_id
     +string type
+    +int package_ordinal
     +string title
     +string subtitle
     +string layout_template_html
+    +datetime index_frozen_at
     +datetime created_at
     +datetime updated_at
   }
@@ -120,7 +128,7 @@ classDiagram
 
   note for ProjectManuscript "At most one row with\nsuperseded_at null per project"
 
-  note for Ebook "Locale, author, persona, problem:\nread via Project (JOIN)"
+  note for Ebook "Locale, author, persona, problem:\nread via Project (JOIN).\nindex_frozen_at: order_bump TOC confirm.\npackage_ordinal: slot per type."
 ```
 
 ---
@@ -186,9 +194,11 @@ class Ebook {
   id : UUID <<PK>>
   project_id : UUID <<FK>>
   type : string <<main | bonus | order_bump>>
+  package_ordinal : smallint
   title : string <<optional>>
   subtitle : string <<optional>>
   layout_template_html : string <<optional>>
+  index_frozen_at : timestamptz <<optional; order_bump TOC confirm>>
   created_at : timestamptz
   updated_at : timestamptz
 }
@@ -237,6 +247,8 @@ note right of Ebook
   No duplicate of content_locale,
   author, problem, target_avatar.
   Join Project for IA / export context.
+  Unique (project_id, type, package_ordinal).
+  index_frozen_at: bump index freeze only (MVP).
 end note
 
 @enduml
