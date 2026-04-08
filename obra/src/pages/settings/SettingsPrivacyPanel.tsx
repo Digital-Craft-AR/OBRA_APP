@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
+import { confirmAccountDeletionInBrowser } from "@/lib/accountDeletionConfirm";
 import { supabase } from "@/lib/supabaseClient";
 
 export function SettingsPrivacyPanel() {
   const { t } = useTranslation();
+  const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -18,8 +21,7 @@ export function SettingsPrivacyPanel() {
 
   async function onDeleteAccount() {
     setMessage(null);
-    const confirmed = window.confirm(t("shell.account.deleteConfirm"));
-    if (!confirmed) return;
+    if (!confirmAccountDeletionInBrowser(session?.user?.email ?? null, t)) return;
     setBusy(true);
     const { error } = await supabase.functions.invoke("delete-account", { method: "POST", body: {} });
     setBusy(false);

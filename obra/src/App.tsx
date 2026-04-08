@@ -9,6 +9,7 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { HomePage } from "@/pages/HomePage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { LoginPage } from "@/pages/LoginPage";
+import { MinimalAccountPage } from "@/pages/MinimalAccountPage";
 import { PendingSubscriptionShellPage } from "@/pages/PendingSubscriptionShellPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { SubscriptionErrorShellPage } from "@/pages/SubscriptionErrorShellPage";
@@ -33,6 +34,7 @@ export function App() {
           <Route path="pending-subscription" element={<PendingSubscriptionShellPage />} />
           <Route path="activating" element={<ActivatingShellPage />} />
           <Route path="subscription-error" element={<SubscriptionErrorShellPage />} />
+          <Route path="account" element={<MinimalAccountPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="settings" element={<Navigate to="/app/settings/profile" replace />} />
           <Route path="settings/:section" element={<SettingsPage />} />

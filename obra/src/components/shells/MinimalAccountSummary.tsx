@@ -1,9 +1,12 @@
 import type { User } from "@supabase/supabase-js";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
+import type { MinimalAccountEntitlementOutcome } from "@/entitlement/resolveEntitlement";
 
 type MinimalAccountSummaryProps = {
   user: User | null;
+  shellOutcome: MinimalAccountEntitlementOutcome;
+  creditsBalance: number;
   busy?: boolean;
   statusMessage?: string | null;
   onRefreshStatus: () => void | Promise<void>;
@@ -39,6 +42,8 @@ function getLinkedProviderNames(user: User | null): string[] {
 
 export function MinimalAccountSummary({
   user,
+  shellOutcome,
+  creditsBalance,
   busy = false,
   statusMessage,
   onRefreshStatus,
@@ -51,6 +56,8 @@ export function MinimalAccountSummary({
   const providerText = providers.length
     ? providers.join(", ")
     : t("shell.account.providersNone");
+  const subscriptionKey = `shell.account.subscriptionState.${shellOutcome}` as const;
+  const creditsPolicyKey = `shell.account.creditsPolicy.${shellOutcome}` as const;
 
   return (
     <section
@@ -69,11 +76,14 @@ export function MinimalAccountSummary({
         </div>
         <div className="flex flex-col gap-1">
           <dt className="font-semibold text-obra-neutral-900">{t("shell.account.subscriptionLabel")}</dt>
-          <dd className="text-obra-neutral-700">{t("shell.account.subscriptionState.subscription_error")}</dd>
+          <dd className="text-obra-neutral-700">{t(subscriptionKey)}</dd>
         </div>
         <div className="flex flex-col gap-1">
           <dt className="font-semibold text-obra-neutral-900">{t("shell.account.creditsLabel")}</dt>
-          <dd className="text-obra-neutral-700">{t("shell.account.creditsPolicy")}</dd>
+          <dd className="text-obra-neutral-700">
+            <span className="font-medium text-obra-blue-950">{t("shell.account.creditsBalanceCount", { count: creditsBalance })}</span>
+            <p className="mt-1 text-sm text-obra-neutral-600">{t(creditsPolicyKey)}</p>
+          </dd>
         </div>
       </dl>
 

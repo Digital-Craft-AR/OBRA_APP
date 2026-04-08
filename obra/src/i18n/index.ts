@@ -101,14 +101,26 @@ const resources = {
       "shell.subscriptionError.credits":
         "Los créditos que compraste no se pierden: volverán a estar disponibles cuando la suscripción esté activa.",
       "shell.account.summaryTitle": "Resumen de tu cuenta",
+      "shell.account.pageTitle": "Cuenta y privacidad",
+      "shell.account.pageIntro":
+        "Resumen de solo lectura, exportación de datos y eliminación de cuenta. No podés cambiar la suscripción desde aquí.",
+      "shell.account.backToShell": "Volver al estado de la cuenta",
+      "shell.account.openMinimalPath": "Cuenta, datos y privacidad",
       "shell.account.emailLabel": "Email",
       "shell.account.emailUnknown": "No disponible",
       "shell.account.providersLabel": "Métodos vinculados",
       "shell.account.providersNone": "Sin métodos vinculados",
       "shell.account.subscriptionLabel": "Estado de suscripción",
+      "shell.account.subscriptionState.pending_subscription": "Sin suscripción activa todavía",
+      "shell.account.subscriptionState.activating": "Suscripción en proceso de activación",
       "shell.account.subscriptionState.subscription_error": "Suscripción con error de cobro",
       "shell.account.creditsLabel": "Créditos",
-      "shell.account.creditsPolicy":
+      "shell.account.creditsBalanceCount": "{{count}} créditos",
+      "shell.account.creditsPolicy.pending_subscription":
+        "Tus créditos se conservan, pero solo podés usarlos cuando la suscripción esté activa.",
+      "shell.account.creditsPolicy.activating":
+        "Si el pago se acredita, tu suscripción y los créditos quedarán disponibles en breve.",
+      "shell.account.creditsPolicy.subscription_error":
         "Tus créditos se conservan, pero solo se pueden usar con una suscripción activa.",
       "shell.account.refreshStatus": "Actualizar estado",
       "shell.account.topUpDisabled": "Top-up deshabilitado",
@@ -118,6 +130,9 @@ const resources = {
       "shell.account.deleteAccount": "Eliminar cuenta",
       "shell.account.deleteConfirm":
         "¿Querés eliminar tu cuenta? Esta acción es irreversible y puede requerir resolver la suscripción primero.",
+      "shell.account.deleteTypeEmailHint": "Escribí tu correo completo para confirmar la eliminación.",
+      "shell.account.deleteEmailMismatch": "El correo no coincide. No se eliminó la cuenta.",
+      "shell.account.deleteEmailMissing": "No pudimos confirmar el correo de la sesión. Cerrá sesión y volvé a entrar, o contactá soporte.",
       "shell.account.exportStarted":
         "Iniciamos la exportación de datos. Te avisaremos cuando esté disponible.",
       "shell.account.exportUnavailable":
@@ -335,14 +350,26 @@ const resources = {
       "shell.subscriptionError.credits":
         "Os créditos que você comprou não são perdidos: voltam a ficar disponíveis quando a assinatura estiver ativa.",
       "shell.account.summaryTitle": "Resumo da sua conta",
+      "shell.account.pageTitle": "Conta e privacidade",
+      "shell.account.pageIntro":
+        "Resumo somente leitura, exportação de dados e exclusão de conta. Você não pode alterar a assinatura aqui.",
+      "shell.account.backToShell": "Voltar ao status da conta",
+      "shell.account.openMinimalPath": "Conta, dados e privacidade",
       "shell.account.emailLabel": "E-mail",
       "shell.account.emailUnknown": "Indisponível",
       "shell.account.providersLabel": "Métodos vinculados",
       "shell.account.providersNone": "Nenhum método vinculado",
       "shell.account.subscriptionLabel": "Status da assinatura",
+      "shell.account.subscriptionState.pending_subscription": "Sem assinatura ativa ainda",
+      "shell.account.subscriptionState.activating": "Assinatura em processo de ativação",
       "shell.account.subscriptionState.subscription_error": "Assinatura com erro de cobrança",
       "shell.account.creditsLabel": "Créditos",
-      "shell.account.creditsPolicy":
+      "shell.account.creditsBalanceCount": "{{count}} créditos",
+      "shell.account.creditsPolicy.pending_subscription":
+        "Seus créditos são mantidos, mas só podem ser usados quando a assinatura estiver ativa.",
+      "shell.account.creditsPolicy.activating":
+        "Se o pagamento for aprovado, sua assinatura e os créditos ficarão disponíveis em breve.",
+      "shell.account.creditsPolicy.subscription_error":
         "Seus créditos são mantidos, mas só podem ser usados com uma assinatura ativa.",
       "shell.account.refreshStatus": "Atualizar status",
       "shell.account.topUpDisabled": "Top-up desativado",
@@ -352,6 +379,10 @@ const resources = {
       "shell.account.deleteAccount": "Excluir conta",
       "shell.account.deleteConfirm":
         "Deseja excluir sua conta? Esta ação é irreversível e pode exigir resolver a assinatura primeiro.",
+      "shell.account.deleteTypeEmailHint": "Digite seu e-mail completo para confirmar a exclusão.",
+      "shell.account.deleteEmailMismatch": "O e-mail não confere. A conta não foi excluída.",
+      "shell.account.deleteEmailMissing":
+        "Não foi possível confirmar o e-mail da sessão. Saia e entre de novo ou fale com o suporte.",
       "shell.account.exportStarted":
         "Iniciamos a exportação dos dados. Avisaremos quando estiver disponível.",
       "shell.account.exportUnavailable":
