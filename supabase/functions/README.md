@@ -29,6 +29,8 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-*` (future) | Claude text |
 | `GOOGLE_GENERATIVE_AI_API_KEY` / Gemini secrets | `image-generate`, Gemini calls (future) | Images |
 | `PUPPETEER_*` / PDF runtime secrets | `export-pdf` (future) | Server-side PDF |
+| `RESEND_API_KEY` | `send-auth-email` | Resend API key for localized auth email hook delivery |
+| `RESEND_FROM_EMAIL` | `send-auth-email` | Verified sender address/domain in Resend |
 
 ## Credit pack secrets (`create-credits-checkout`)
 
@@ -86,12 +88,23 @@ supabase functions deploy reconcile-subscription-status
 supabase functions deploy create-credits-checkout
 supabase functions deploy export-user-data
 supabase functions deploy delete-account
+supabase functions deploy send-auth-email
 supabase functions deploy ai-optimize
 supabase functions deploy export-pdf
 ```
 
-`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout`, `reconcile-subscription-status`, `export-user-data`, and `delete-account` also run with `verify_jwt = false` and perform manual token validation with `auth.getUser` to avoid gateway JWT false-negatives seen during OAuth test flows.
+`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout`, `reconcile-subscription-status`, and `send-auth-email` also run with `verify_jwt = false` because they are server-to-server entry points.
 
 Apply DB migrations so `public.obra_mp_processed_webhooks` exists before relying on the webhook.
 
 Use `supabase/.env.example` as a template for local secret names/values.
+
+## Auth email hook (localized)
+
+`send-auth-email` is intended to back Supabase Auth `hook_send_email` and send localized (`es`, `pt-BR`) transactional emails based on `user_metadata.ui_locale`.
+
+Manual setup (Management API or Dashboard):
+
+- Enable `hook_send_email_enabled`
+- Set `hook_send_email_uri` to `https://<project-ref>.supabase.co/functions/v1/send-auth-email`
+- Keep fallback templates in Auth config for outage scenarios
