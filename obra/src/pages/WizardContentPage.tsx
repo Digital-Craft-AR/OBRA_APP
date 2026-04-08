@@ -8,6 +8,7 @@ import {
   ContentIndexMilestone,
   type ContentNavItem,
 } from "@/components/wizard/content/ContentIndexMilestone";
+import { ContentChapterMilestone } from "@/components/wizard/content/ContentChapterMilestone";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
@@ -16,15 +17,20 @@ import {
   parseContentNavKey,
 } from "@/lib/wizard/contentNav";
 import {
+  approveChapterBody,
   confirmMainIndex,
   confirmOrderBumpIndex,
   ensureContentWorkspace,
   fetchPackageEbookIdMap,
+  invokeGenerateChapterContent,
   invokeGenerateIndex,
   loadEbookChapters,
+  loadEbookChaptersDraft,
   replaceEbookDraftChapters,
+  updateChapterDraftContent,
   upsertEbookDraftChaptersFromRows,
   validateMainTocForConfirm,
+  type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 
@@ -88,6 +94,13 @@ export function WizardContentPage() {
   /** Per `bump:n` key: false until DB had chapters or user chose manual / succeeded at generate. */
   const [bumpTocEntryResolved, setBumpTocEntryResolved] = useState<Record<string, boolean>>({});
   const [insufficientCreditsToastOpen, setInsufficientCreditsToastOpen] = useState(false);
+  const [insufficientCreditsSource, setInsufficientCreditsSource] = useState<"index" | "chapter">("index");
+  const [mainChapterRows, setMainChapterRows] = useState<ChapterDraftRow[]>([]);
+  const [mainChapterIdx, setMainChapterIdx] = useState(0);
+  const [mainChapterBodyDraft, setMainChapterBodyDraft] = useState("");
+  const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
+  const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
+  const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -208,6 +221,20 @@ export function WizardContentPage() {
   ]);
 
   useEffect(() => {
+    if (!mainEbookId || currentPhase !== "main_chapter") return;
+    let cancelled = false;
+    void loadEbookChaptersDraft(mainEbookId).then((r) => {
+      if (cancelled || !r.ok) return;
+      setMainChapterRows(r.rows);
+      setMainChapterIdx(0);
+      setMainChapterBodyDraft(r.rows[0]?.content ?? "");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mainEbookId, currentPhase]);
+
+  useEffect(() => {
     const prev = prevSelectedKeyRef.current;
     prevSelectedKeyRef.current = selectedKey;
     if (prev === null) return;
@@ -274,6 +301,54 @@ export function WizardContentPage() {
 
   const selectedTarget = parseContentNavKey(selectedKey) ?? { kind: "main" as const };
 
+  const showMainChapterLoop =
+    Boolean(project) &&
+    !loading &&
+    workspaceReady &&
+    !needsUploadAlignment &&
+    selectedTarget.kind === "main" &&
+    currentPhase === "main_chapter" &&
+    project?.content_source === "ai";
+
+  const handleSelectPackageKey = useCallback(
+    async (key: string) => {
+      if (key === selectedKey) return;
+      const leavingMainChapterEditor =
+        selectedTarget.kind === "main" &&
+        currentPhase === "main_chapter" &&
+        project?.content_source === "ai" &&
+        !needsUploadAlignment;
+
+      if (leavingMainChapterEditor) {
+        const prev = mainChapterRows[mainChapterIdx];
+        if (prev && mainChapterBodyDraft !== (prev.content ?? "")) {
+          setChapterSaveLoading(true);
+          const res = await updateChapterDraftContent(prev.id, mainChapterBodyDraft);
+          setChapterSaveLoading(false);
+          if (!res.ok) {
+            setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+            return;
+          }
+          setMainChapterRows((rows) =>
+            rows.map((r) => (r.id === prev.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r)),
+          );
+        }
+      }
+      setSelectedKey(key);
+    },
+    [
+      selectedKey,
+      selectedTarget.kind,
+      currentPhase,
+      project?.content_source,
+      needsUploadAlignment,
+      mainChapterRows,
+      mainChapterIdx,
+      mainChapterBodyDraft,
+      t,
+    ],
+  );
+
   const panelCopy = useMemo(() => {
     if (!project) {
       return { title: "", subtitle: "" };
@@ -313,6 +388,17 @@ export function WizardContentPage() {
         : t("wizard.content.index.panelSubtitleBumpChapters"),
     };
   }, [project, selectedTarget, selectedKey, t, needsUploadAlignment, indexFrozen, bumpIndexFrozenAt]);
+
+  const chapterPanelCopy = useMemo(() => {
+    if (!project) {
+      return { title: "", subtitle: "" };
+    }
+    const mainTitle = project.main_title?.trim() || t("wizard.content.index.mainTitleFallback");
+    return {
+      title: t("wizard.content.chapters.panelTitle", { title: mainTitle }),
+      subtitle: t("wizard.content.chapters.panelSubtitle"),
+    };
+  }, [project, t]);
 
   const currentTocRows: TocChapterRow[] =
     selectedTarget.kind === "main"
@@ -358,6 +444,7 @@ export function WizardContentPage() {
     if (needsUploadAlignment || indexFrozen) return;
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
+    setInsufficientCreditsSource("index");
     const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
     setGenerateLoading(true);
     const result = await invokeGenerateIndex(project.id, clientRequestId);
@@ -396,6 +483,7 @@ export function WizardContentPage() {
     }
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
+    setInsufficientCreditsSource("index");
     const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
     setGenerateLoading(true);
     const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
@@ -524,6 +612,99 @@ export function WizardContentPage() {
     t,
   ]);
 
+  const handleSelectMainChapterIndex = useCallback(
+    async (nextIdx: number) => {
+      if (nextIdx === mainChapterIdx || !mainEbookId) return;
+      const prev = mainChapterRows[mainChapterIdx];
+      let rows = mainChapterRows;
+
+      if (prev && mainChapterBodyDraft !== (prev.content ?? "")) {
+        setChapterSaveLoading(true);
+        const res = await updateChapterDraftContent(prev.id, mainChapterBodyDraft);
+        setChapterSaveLoading(false);
+        if (!res.ok) {
+          setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+          return;
+        }
+        rows = rows.map((r) =>
+          r.id === prev.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r,
+        );
+        setMainChapterRows(rows);
+      }
+
+      setMainChapterIdx(nextIdx);
+      setMainChapterBodyDraft(rows[nextIdx]?.content ?? "");
+    },
+    [mainChapterIdx, mainChapterRows, mainChapterBodyDraft, mainEbookId, t],
+  );
+
+  const handleSaveMainChapterBody = useCallback(async () => {
+    const current = mainChapterRows[mainChapterIdx];
+    if (!current) return;
+    setActionAnnouncement(null);
+    setChapterSaveLoading(true);
+    const res = await updateChapterDraftContent(current.id, mainChapterBodyDraft);
+    setChapterSaveLoading(false);
+    if (!res.ok) {
+      setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+      return;
+    }
+    setMainChapterRows((rows) =>
+      rows.map((r) => (r.id === current.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r)),
+    );
+    setActionAnnouncement(t("wizard.content.chapters.saveSuccess"));
+  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t]);
+
+  const handleGenerateMainChapter = useCallback(async () => {
+    const current = mainChapterRows[mainChapterIdx];
+    if (!current || !project?.id) return;
+    setActionAnnouncement(null);
+    setInsufficientCreditsToastOpen(false);
+    setInsufficientCreditsSource("chapter");
+    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    setChapterGenerateLoading(true);
+    const result = await invokeGenerateChapterContent(project.id, current.id, clientRequestId);
+    setChapterGenerateLoading(false);
+    if (!result.ok) {
+      if (result.code === "insufficient_credits") {
+        setInsufficientCreditsToastOpen(true);
+      } else if (result.code === "wrong_content_source") {
+        setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
+      } else {
+        setActionAnnouncement(t("wizard.content.chapters.errorGenerateGeneric"));
+      }
+      return;
+    }
+    const saved = await updateChapterDraftContent(current.id, result.content);
+    if (!saved.ok) {
+      setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+      return;
+    }
+    setMainChapterBodyDraft(result.content);
+    setMainChapterRows((rows) =>
+      rows.map((r) => (r.id === current.id ? { ...r, content: result.content, approved_at: null } : r)),
+    );
+    setActionAnnouncement(t("wizard.content.chapters.generateSuccess"));
+  }, [mainChapterRows, mainChapterIdx, project?.id, t]);
+
+  const handleApproveMainChapter = useCallback(async () => {
+    const current = mainChapterRows[mainChapterIdx];
+    if (!current || mainChapterBodyDraft !== (current.content ?? "")) return;
+    setActionAnnouncement(null);
+    setChapterApproveLoading(true);
+    const res = await approveChapterBody(current.id);
+    setChapterApproveLoading(false);
+    if (!res.ok) {
+      setActionAnnouncement(t("wizard.content.chapters.errorApprove"));
+      return;
+    }
+    const now = new Date().toISOString();
+    setMainChapterRows((rows) =>
+      rows.map((r) => (r.id === current.id ? { ...r, approved_at: now } : r)),
+    );
+    setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
+  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t]);
+
   function dismissBanner() {
     if (!params.projectId) return;
     try {
@@ -632,21 +813,50 @@ export function WizardContentPage() {
   const isFirstContentPackage = selectedNavIndex === 0;
   const isLastContentPackage = navItems.length > 0 && selectedNavIndex >= navItems.length - 1;
 
-  const handleFooterBack = useCallback(() => {
+  const handleFooterBack = useCallback(async () => {
     if (!params.projectId) return;
     if (isFirstContentPackage) {
+      if (showMainChapterLoop) {
+        const row = mainChapterRows[mainChapterIdx];
+        if (row && mainChapterBodyDraft !== (row.content ?? "")) {
+          setChapterSaveLoading(true);
+          const res = await updateChapterDraftContent(row.id, mainChapterBodyDraft);
+          setChapterSaveLoading(false);
+          if (!res.ok) {
+            setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+            return;
+          }
+          setMainChapterRows((rows) =>
+            rows.map((r) =>
+              r.id === row.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r,
+            ),
+          );
+        }
+      }
       navigate(`/app/projects/${params.projectId}/wizard`);
       return;
     }
-    const prev = navItems[selectedNavIndex - 1];
-    if (prev) setSelectedKey(prev.key);
-  }, [isFirstContentPackage, navigate, navItems, params.projectId, selectedNavIndex]);
+    const prevNav = navItems[selectedNavIndex - 1];
+    if (prevNav) void handleSelectPackageKey(prevNav.key);
+  }, [
+    isFirstContentPackage,
+    showMainChapterLoop,
+    mainChapterRows,
+    mainChapterIdx,
+    mainChapterBodyDraft,
+    handleSelectPackageKey,
+    navigate,
+    navItems,
+    params.projectId,
+    selectedNavIndex,
+    t,
+  ]);
 
   const handleFooterNext = useCallback(() => {
     if (isLastContentPackage) return;
     const next = navItems[selectedNavIndex + 1];
-    if (next) setSelectedKey(next.key);
-  }, [isLastContentPackage, navItems, selectedNavIndex]);
+    if (next) void handleSelectPackageKey(next.key);
+  }, [isLastContentPackage, handleSelectPackageKey, navItems, selectedNavIndex]);
 
   if (!params.projectId) {
     return null;
@@ -671,7 +881,7 @@ export function WizardContentPage() {
 
       <div className="border-b border-obra-blue-100 px-8 py-3">
         <p className="font-body text-xs font-semibold uppercase tracking-wide text-obra-neutral-600">
-          {t("wizard.content.milestone.index")}
+          {showMainChapterLoop ? t("wizard.content.milestone.chapters") : t("wizard.content.milestone.index")}
         </p>
       </div>
 
@@ -710,12 +920,12 @@ export function WizardContentPage() {
             </div>
           ) : null}
 
-          {project && !loading && workspaceReady && !needsUploadAlignment ? (
+          {project && !loading && workspaceReady && !needsUploadAlignment && !showMainChapterLoop ? (
             <ContentIndexMilestone
               t={t}
               navItems={navItems}
               selectedKey={selectedKey}
-              onSelectKey={setSelectedKey}
+              onSelectKey={handleSelectPackageKey}
               navItemDisabled={navItemDisabled}
               panelTitle={panelCopy.title}
               panelSubtitle={panelCopy.subtitle}
@@ -751,12 +961,36 @@ export function WizardContentPage() {
             />
           ) : null}
 
+          {showMainChapterLoop ? (
+            <ContentChapterMilestone
+              t={t}
+              navItems={navItems}
+              selectedKey={selectedKey}
+              onSelectKey={handleSelectPackageKey}
+              navItemDisabled={navItemDisabled}
+              panelTitle={chapterPanelCopy.title}
+              panelSubtitle={chapterPanelCopy.subtitle}
+              chapters={mainChapterRows}
+              selectedIndex={mainChapterIdx}
+              onSelectChapterIndex={(i) => void handleSelectMainChapterIndex(i)}
+              bodyValue={mainChapterBodyDraft}
+              onBodyChange={setMainChapterBodyDraft}
+              onSave={() => void handleSaveMainChapterBody()}
+              onGenerate={() => void handleGenerateMainChapter()}
+              onApprove={() => void handleApproveMainChapter()}
+              saveLoading={chapterSaveLoading}
+              generateLoading={chapterGenerateLoading}
+              approveLoading={chapterApproveLoading}
+              actionAnnouncement={actionAnnouncement}
+            />
+          ) : null}
+
         </div>
       </main>
 
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
         <div className="flex w-full min-w-0 items-center justify-between">
-          <Button type="button" variant="tertiary" onClick={handleFooterBack}>
+          <Button type="button" variant="tertiary" onClick={() => void handleFooterBack()}>
             <ChevronLeft className="size-4" aria-hidden />
             {isFirstContentPackage
               ? t("wizard.content.footer.backToStructure")
@@ -780,7 +1014,11 @@ export function WizardContentPage() {
             <ObraToast
               variant="error"
               title={t("wizard.content.index.toastInsufficientCreditsTitle")}
-              description={t("wizard.content.index.errorInsufficientCredits")}
+              description={
+                insufficientCreditsSource === "chapter"
+                  ? t("wizard.content.chapters.errorInsufficientCredits")
+                  : t("wizard.content.index.errorInsufficientCredits")
+              }
               onTimeout={() => setInsufficientCreditsToastOpen(false)}
             />
           </div>

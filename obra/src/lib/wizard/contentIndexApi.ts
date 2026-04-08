@@ -21,6 +21,22 @@ export type GenerateIndexResponse = {
   error?: string;
 };
 
+export type ChapterDraftRow = {
+  id: string;
+  title: string;
+  sort_order: number;
+  content: string | null;
+  approved_at: string | null;
+};
+
+export type GenerateChapterContentResponse = {
+  ok?: boolean;
+  stub?: boolean;
+  content?: string;
+  credits_balance_after?: number;
+  error?: string;
+};
+
 export function validateMainTocForConfirm(rows: { title: string }[]): "ok" | "too_few" | "too_many" | "empty_title" {
   if (rows.length < MAIN_TOC_MIN_CHAPTERS) return "too_few";
   if (rows.length > MAIN_TOC_MAX_CHAPTERS) return "too_many";
@@ -211,6 +227,50 @@ export async function loadEbookChapters(
   return { ok: true, rows };
 }
 
+export async function loadEbookChaptersDraft(
+  ebookId: string,
+): Promise<{ ok: true; rows: ChapterDraftRow[] } | { ok: false }> {
+  const { data, error } = await supabase
+    .from("chapters")
+    .select("id, title, sort_order, content, approved_at")
+    .eq("ebook_id", ebookId)
+    .order("sort_order", { ascending: true });
+
+  if (error || !data) return { ok: false };
+  const rows: ChapterDraftRow[] = data.map((row) => ({
+    id: row.id as string,
+    title: row.title as string,
+    sort_order: Number(row.sort_order) || 0,
+    content: (row.content as string | null) ?? null,
+    approved_at: (row.approved_at as string | null) ?? null,
+  }));
+  return { ok: true, rows };
+}
+
+export async function updateChapterDraftContent(
+  chapterId: string,
+  content: string,
+): Promise<{ ok: true } | { ok: false }> {
+  const { error } = await supabase
+    .from("chapters")
+    .update({ content, approved_at: null })
+    .eq("id", chapterId);
+
+  if (error) return { ok: false };
+  return { ok: true };
+}
+
+export async function approveChapterBody(chapterId: string): Promise<{ ok: true } | { ok: false }> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("chapters")
+    .update({ approved_at: now })
+    .eq("id", chapterId);
+
+  if (error) return { ok: false };
+  return { ok: true };
+}
+
 /** @deprecated Use `loadEbookChapters` */
 export const loadMainEbookChapters = loadEbookChapters;
 
@@ -330,6 +390,37 @@ export async function invokeGenerateIndex(
   return {
     ok: true,
     titles,
+    creditsBalanceAfter: data.credits_balance_after,
+  };
+}
+
+export async function invokeGenerateChapterContent(
+  projectId: string,
+  chapterId: string,
+  clientRequestId: string,
+): Promise<
+  | { ok: true; content: string; creditsBalanceAfter?: number }
+  | { ok: false; code: string }
+> {
+  const { data, error } = await supabase.functions.invoke<GenerateChapterContentResponse>("ai-generate-content", {
+    body: {
+      project_id: projectId,
+      chapter_id: chapterId,
+      client_request_id: clientRequestId,
+    },
+  });
+
+  if (error) {
+    const code = await getFunctionsInvokeErrorCode(error);
+    return { ok: false, code: code ?? "invoke_failed" };
+  }
+  if (!data?.ok || typeof data.content !== "string" || !data.content.trim()) {
+    const err = typeof data?.error === "string" ? data.error : "bad_response";
+    return { ok: false, code: err };
+  }
+  return {
+    ok: true,
+    content: data.content,
     creditsBalanceAfter: data.credits_balance_after,
   };
 }
