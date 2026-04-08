@@ -60,7 +60,7 @@ export function outcomeToPath(outcome: EntitlementOutcome): string {
   }
 }
 
-/** Under `full_app`, users may visit more than `/app/dashboard` (e.g. help, settings, wizard routes). */
+/** Under `full_app`, users may visit more than `/app/dashboard` (e.g. help, settings, project wizard/content/preview). */
 const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/help", "/app/settings", "/app/projects/new"];
 
 /** URL segment after `/app/settings/` for each settings subpage. */
@@ -80,9 +80,17 @@ export function isFullAppSettingsPath(pathname: string): boolean {
   return parseSettingsRouteSection(m[1]) !== null;
 }
 
-/** `/app/projects/:projectId/wizard` for structure wizard shell and upcoming steps. */
+/** `/app/projects/:projectId/wizard` — structure step only. */
 export function isFullAppWizardPath(pathname: string): boolean {
   return /^\/app\/projects\/[^/]+\/wizard\/?$/.test(pathname);
+}
+
+/**
+ * `/app/projects/:projectId/(wizard|content|preview)` — global journey shells per project
+ * (structure, contenido, vista previa).
+ */
+export function isFullAppProjectWorkspacePath(pathname: string): boolean {
+  return /^\/app\/projects\/[^/]+\/(wizard|content|preview)\/?$/.test(pathname);
 }
 
 /**
@@ -94,7 +102,7 @@ export function isPathAllowedForOutcome(outcome: EntitlementOutcome, pathname: s
     return (
       FULL_APP_ALLOWED_PATHS.includes(pathname) ||
       isFullAppSettingsPath(pathname) ||
-      isFullAppWizardPath(pathname)
+      isFullAppProjectWorkspacePath(pathname)
     );
   }
   if (isMinimalAccountEntitlementOutcome(outcome)) {
