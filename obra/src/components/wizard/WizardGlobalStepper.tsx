@@ -12,32 +12,41 @@ type Props = {
 
 export function WizardGlobalStepper({ steps }: Props) {
   return (
-    <ol className="flex items-center gap-3" aria-label="Global wizard progress">
+    <ol className="flex w-full items-center" aria-label="Global wizard progress">
       {steps.map((step, index) => {
         const isCompleted = step.status === "completed";
         const isActive = step.status === "active";
+        const isLast = index === steps.length - 1;
         return (
-          <li key={step.id} className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+          <li key={step.id} className={`flex items-center ${isLast ? "" : "flex-1"} gap-3`}>
+            <div
+              className="flex flex-col items-center gap-1 rounded-card px-2 py-1"
+            >
               <span
-                className={`flex size-6 items-center justify-center rounded-full border text-xs font-semibold font-body ${
+                className={`flex size-9 items-center justify-center rounded-full text-sm font-semibold font-body ${
                   isCompleted
-                    ? "border-obra-blue-700 bg-obra-blue-700 text-white"
+                    ? "border-2 border-obra-blue-700 bg-obra-blue-700 text-white"
                     : isActive
-                      ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-700"
-                      : "border-obra-blue-100 bg-white text-obra-neutral-400"
+                      ? "bg-obra-blue-900 text-white"
+                      : "border-2 border-obra-neutral-900 bg-white text-obra-neutral-400"
                 }`}
                 aria-hidden
               >
                 {step.id}
               </span>
               <span
-                className={`text-sm font-body ${isCompleted || isActive ? "text-obra-blue-950" : "text-obra-neutral-400"}`}
+                className={`text-sm font-body ${
+                  isActive
+                    ? "font-bold text-obra-blue-900"
+                    : isCompleted
+                      ? "font-normal text-obra-blue-950"
+                      : "font-normal text-obra-neutral-400"
+                }`}
               >
                 {step.label}
               </span>
             </div>
-            {index < steps.length - 1 ? <span className="h-px w-10 bg-obra-blue-100" aria-hidden /> : null}
+            {!isLast ? <span className="h-px flex-1 bg-obra-blue-100" aria-hidden /> : null}
           </li>
         );
       })}

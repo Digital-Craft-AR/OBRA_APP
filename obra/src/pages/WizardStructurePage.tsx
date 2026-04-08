@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import { ObraTextarea } from "@/components/obra/ObraTextarea";
 import { Button } from "@/components/ui/Button";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { i18n } from "@/i18n";
@@ -64,7 +65,6 @@ export function WizardStructurePage() {
     };
   }, [params.projectId, t]);
 
-  const progressPercent = Math.round(((innerStepIndex + 1) / INNER_STEPS.length) * 100);
   const globalSteps = useMemo(
     () => [
       { id: 1, label: t("wizard.stepper.structure"), status: "active" as const },
@@ -74,8 +74,8 @@ export function WizardStructurePage() {
     [t],
   );
 
-  async function handleSaveTopic() {
-    if (!project?.id || topicSaving) return;
+  async function persistTopic(): Promise<boolean> {
+    if (!project?.id || topicSaving) return false;
     setTopicSaving(true);
     setTopicMessage(null);
     const { error: updateError } = await supabase
@@ -85,10 +85,10 @@ export function WizardStructurePage() {
     setTopicSaving(false);
     if (updateError) {
       setTopicMessage(t("wizard.structure.topic.saveError"));
-      return;
+      return false;
     }
     setProject((current) => (current ? { ...current, topic: topicDraft } : current));
-    setTopicMessage(t("wizard.structure.topic.saved"));
+    return true;
   }
 
   async function handleImproveTopic() {
@@ -125,8 +125,16 @@ export function WizardStructurePage() {
     setTopicMessage(t("wizard.structure.topic.improvePending"));
   }
 
+  async function handleNextStep() {
+    if (innerStepIndex === 0) {
+      const saved = await persistTopic();
+      if (!saved) return;
+    }
+    setInnerStepIndex((current) => Math.min(INNER_STEPS.length - 1, current + 1));
+  }
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex min-h-screen flex-col bg-white">
       <div className="px-6 py-3 bg-obra-blue-950">
         <button
           type="button"
@@ -151,99 +159,71 @@ export function WizardStructurePage() {
               step: t(INNER_STEPS[innerStepIndex]),
             })}
           </span>
-          <div className="h-1.5 w-40 overflow-hidden rounded-full bg-obra-blue-100">
-            <div
-              className="h-full rounded-full bg-obra-blue-700 transition-all"
-              style={{ width: `${progressPercent}%` }}
-            />
+          <div className="flex items-center gap-1">
+            {INNER_STEPS.map((_, index) => (
+              <div
+                key={index}
+                className={`h-1.5 w-9 rounded-full transition-all ${
+                  index <= innerStepIndex ? "bg-obra-blue-700" : "bg-obra-blue-100"
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-8 py-10">
-        {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
-        {error ? (
-          <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
-        {project && !loading ? (
-          <div className="space-y-5">
+      <main className="flex flex-1">
+        <div className="mx-auto w-full max-w-3xl px-8 py-10">
+          {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
+          {error ? (
+            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+          {project && !loading ? (
+            <div className="space-y-5">
             <header className="space-y-2">
-              <h1 className="font-display text-2xl text-obra-blue-950">{t("wizard.structure.title")}</h1>
-              <p className="text-sm text-obra-neutral-600">{t("wizard.structure.subtitle")}</p>
+              <h1 className="font-display text-2xl text-obra-blue-950">
+                {innerStepIndex === 0 ? t("wizard.structure.step1.title") : t("wizard.structure.title")}
+              </h1>
+              <p className="text-sm text-obra-neutral-600">
+                {innerStepIndex === 0
+                  ? t("wizard.structure.step1.subtitle")
+                  : t("wizard.structure.subtitle")}
+              </p>
             </header>
 
-            <div className="rounded-card border border-obra-blue-100 bg-obra-blue-50 p-5">
-              <dl className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-obra-neutral-600">
-                    {t("wizard.structure.projectName")}
-                  </dt>
-                  <dd className="mt-1 text-obra-blue-950">{project.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-obra-neutral-600">
-                    {t("wizard.structure.contentLocale")}
-                  </dt>
-                  <dd className="mt-1 text-obra-blue-950">{project.content_locale}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-obra-neutral-600">
-                    {t("wizard.structure.contentSource")}
-                  </dt>
-                  <dd className="mt-1 text-obra-blue-950">
-                    {project.content_source === "upload"
-                      ? t("wizard.create.source.upload.label")
-                      : t("wizard.create.source.ai.label")}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            <p className="text-sm text-obra-neutral-600">{t("wizard.structure.waveAStub")}</p>
             {innerStepIndex === 0 ? (
-              <section className="space-y-3 rounded-card border border-obra-blue-100 bg-white p-5">
-                <label htmlFor="wizard-topic" className="block text-sm font-semibold text-obra-blue-950">
-                  {t("wizard.structure.topic.label")}
-                </label>
-                <textarea
+              <section className="space-y-3">
+                <ObraTextarea
                   id="wizard-topic"
+                  label={t("wizard.structure.topic.label")}
                   value={topicDraft}
                   onChange={(event) => setTopicDraft(event.target.value)}
                   placeholder={t("wizard.structure.topic.placeholder")}
-                  className="min-h-36 w-full rounded-input border border-obra-neutral-200 bg-obra-neutral-100 px-3 py-2 text-sm text-obra-neutral-900 outline-none focus:border-obra-blue-700 focus:ring-2 focus:ring-obra-blue-700"
+                  assisted
+                  onAssist={() => void handleImproveTopic()}
+                  assistLabel={t("wizard.structure.topic.improve")}
+                  aiStatus={topicImproving ? "loading" : "idle"}
+                  disabled={topicSaving}
                 />
-                <p className="text-xs text-obra-neutral-600">{t("wizard.structure.topic.hint")}</p>
                 <div className="flex items-center gap-3">
-                  <Button
-                    variant="tertiary"
-                    onClick={() => void handleImproveTopic()}
-                    disabled={topicImproving || topicSaving || !topicDraft.trim()}
-                  >
-                    {topicImproving
-                      ? t("wizard.structure.topic.improving")
-                      : t("wizard.structure.topic.improve")}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => void handleSaveTopic()}
-                    disabled={topicSaving || topicImproving}
-                  >
-                    {topicSaving ? t("wizard.structure.topic.saving") : t("wizard.structure.topic.save")}
-                  </Button>
+                  {topicSaving ? <span className="text-xs text-obra-neutral-600">{t("wizard.structure.topic.saving")}</span> : null}
                 </div>
                 <div aria-live="polite" className="text-xs text-obra-neutral-600">
                   {topicMessage}
                 </div>
               </section>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+            ) : (
+              <p className="text-sm text-obra-neutral-600">{t("wizard.structure.waveAStub")}</p>
+            )}
+            </div>
+          ) : null}
+        </div>
+      </main>
 
       <div className="border-t border-obra-blue-100 px-8 py-5">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
+        <div className="mx-auto flex w-full items-center justify-between">
           <Button
             variant="tertiary"
             disabled={innerStepIndex === 0}
@@ -254,9 +234,7 @@ export function WizardStructurePage() {
           <Button
             variant="primary"
             disabled={innerStepIndex === INNER_STEPS.length - 1}
-            onClick={() =>
-              setInnerStepIndex((current) => Math.min(INNER_STEPS.length - 1, current + 1))
-            }
+            onClick={() => void handleNextStep()}
           >
             {t("wizard.structure.next")}
           </Button>
