@@ -6,7 +6,6 @@ import { useEmailVerificationResend } from "@/auth/useEmailVerificationResend";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { emitAuthInstrumentation } from "@/lib/authInstrumentation";
 import { supabase } from "@/lib/supabaseClient";
-import { useState } from "react";
 
 export function VerifyEmailShellPage() {
   const { t } = useTranslation();
@@ -19,32 +18,6 @@ export function VerifyEmailShellPage() {
   });
 
   const email = user?.email ?? "";
-
-  async function onResend() {
-    if (!email) return;
-    setMessage(null);
-    setBusy(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: { emailRedirectTo: redirectTo },
-    });
-    setBusy(false);
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes("rate") || msg.includes("429") || msg.includes("too many")) {
-        emitAuthInstrumentation({ flow: "resend_confirmation", outcome: "rate_limited" });
-        setMessage(t("auth.resendRateLimited"));
-        return;
-      }
-      emitAuthInstrumentation({ flow: "resend_confirmation", outcome: "error" });
-      setMessage(t("auth.resendError"));
-      return;
-    }
-    emitAuthInstrumentation({ flow: "resend_confirmation", outcome: "success" });
-    setMessage(t("auth.resendSent"));
-  }
 
   return (
     <BlockingShellFrame titleKey="shell.verify.title">
