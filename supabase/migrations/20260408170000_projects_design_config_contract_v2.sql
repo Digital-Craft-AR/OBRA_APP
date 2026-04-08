@@ -13,9 +13,11 @@ begin
   set design_config = v_default
   where design_config is null or jsonb_typeof(design_config) <> 'object';
 
-  alter table public.projects
-  alter column design_config
-  set default v_default;
+  -- PL/pgSQL variables are not allowed in plain ALTER SET DEFAULT (parsed as column refs).
+  execute format(
+    'alter table public.projects alter column design_config set default %L::jsonb',
+    v_default::text
+  );
 
   alter table public.projects
   drop constraint if exists projects_design_config_contract_check;
