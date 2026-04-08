@@ -217,8 +217,10 @@ const resources = {
         "Definí a quién le hablás y qué problema resuelve tu infoproducto.",
       "wizard.structure.step2.avatarLabel": "¿Quién es tu cliente ideal?",
       "wizard.structure.step2.avatarPlaceholder": "Describí a tu cliente ideal...",
+      "wizard.structure.step2.avatarRequired": "El avatar es obligatorio para continuar.",
       "wizard.structure.step2.problemLabel": "¿Qué problema resuelve tu infoproducto?",
       "wizard.structure.step2.problemPlaceholder": "Describí el problema principal que resolvés...",
+      "wizard.structure.step2.problemRequired": "El problema es obligatorio para continuar.",
       "wizard.structure.step3.title": "Cantidades del paquete",
       "wizard.structure.step3.subtitle":
         "Definí cuántos bonuses y order bumps querés incluir en este proyecto.",
@@ -239,6 +241,11 @@ const resources = {
       "wizard.structure.step4.saved": "Título principal guardado.",
       "wizard.structure.step4.saveError": "No pudimos guardar el título principal.",
       "wizard.structure.step4.titleRequired": "Elegí o escribí un título principal para continuar.",
+      "wizard.structure.step4.suggestionsLoading": "Generando sugerencias de título…",
+      "wizard.structure.step4.suggestionsPending":
+        "La IA está en modo stub por ahora. Mostramos sugerencias mock.",
+      "wizard.structure.step4.suggestionsError":
+        "No pudimos generar sugerencias ahora. Podés continuar con título personalizado.",
       "wizard.structure.projectName": "Proyecto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fuente",
@@ -267,6 +274,7 @@ const resources = {
       "wizard.structure.topic.saving": "Guardando…",
       "wizard.structure.topic.saved": "Tema guardado.",
       "wizard.structure.topic.saveError": "No pudimos guardar el tema.",
+      "wizard.structure.topic.required": "El tema del proyecto es obligatorio para continuar.",
       "wizard.structure.avatarProblem.saving": "Guardando avatar y problema…",
       "wizard.structure.avatarProblem.saveError": "No pudimos guardar avatar y problema.",
       "wizard.structure.avatarProblem.improveError": "No pudimos optimizar este texto en este momento.",
@@ -657,8 +665,10 @@ const resources = {
         "Defina com quem você fala e qual problema seu infoproduto resolve.",
       "wizard.structure.step2.avatarLabel": "Quem é o seu cliente ideal?",
       "wizard.structure.step2.avatarPlaceholder": "Descreva seu cliente ideal...",
+      "wizard.structure.step2.avatarRequired": "O avatar é obrigatório para continuar.",
       "wizard.structure.step2.problemLabel": "Que problema seu infoproduto resolve?",
       "wizard.structure.step2.problemPlaceholder": "Descreva o principal problema que você resolve...",
+      "wizard.structure.step2.problemRequired": "O problema é obrigatório para continuar.",
       "wizard.structure.step3.title": "Quantidades do pacote",
       "wizard.structure.step3.subtitle":
         "Defina quantos bônus e order bumps você quer incluir neste projeto.",
@@ -679,6 +689,11 @@ const resources = {
       "wizard.structure.step4.saved": "Título principal salvo.",
       "wizard.structure.step4.saveError": "Não foi possível salvar o título principal.",
       "wizard.structure.step4.titleRequired": "Escolha ou escreva um título principal para continuar.",
+      "wizard.structure.step4.suggestionsLoading": "Gerando sugestões de título…",
+      "wizard.structure.step4.suggestionsPending":
+        "A IA ainda está em modo stub. Exibimos sugestões mock por enquanto.",
+      "wizard.structure.step4.suggestionsError":
+        "Não foi possível gerar sugestões agora. Você pode continuar com título personalizado.",
       "wizard.structure.projectName": "Projeto",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fonte",
@@ -707,6 +722,7 @@ const resources = {
       "wizard.structure.topic.saving": "Salvando…",
       "wizard.structure.topic.saved": "Tema salvo.",
       "wizard.structure.topic.saveError": "Não foi possível salvar o tema.",
+      "wizard.structure.topic.required": "O tema do projeto é obrigatório para continuar.",
       "wizard.structure.avatarProblem.saving": "Salvando avatar e problema…",
       "wizard.structure.avatarProblem.saveError": "Não foi possível salvar avatar e problema.",
       "wizard.structure.avatarProblem.improveError":
