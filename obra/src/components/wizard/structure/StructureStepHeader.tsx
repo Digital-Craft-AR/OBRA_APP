@@ -31,10 +31,12 @@ export function StructureStepHeader({
         </div>
       </div>
 
-      <header className="space-y-2">
-        <h1 className="font-display text-2xl text-obra-blue-950">{title}</h1>
-        <p className="text-sm text-obra-neutral-600">{subtitle}</p>
-      </header>
+      <div className="mx-auto w-full max-w-3xl px-8 pt-10">
+        <header className="space-y-2">
+          <h1 className="font-display text-2xl text-obra-blue-950">{title}</h1>
+          <p className="text-sm text-obra-neutral-600">{subtitle}</p>
+        </header>
+      </div>
     </>
   );
 }
