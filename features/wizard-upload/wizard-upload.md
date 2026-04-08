@@ -39,7 +39,7 @@ Without a dedicated spec, teams mix concerns: file ingestion, extraction, LLM-as
 | Global stepper, dismissible “content vs preview” banner                     | Shared component; copy may name **upload** where helpful | Owns shell for **entire** Contenido phase |
 | Per-chapter editor, chat, approve, weak-prefill C2 **after** prefill exists | Surfaces warnings only                                   | Yes                                       |
 | Bonuses / order bumps                                                       | No                                                       | Yes                                       |
-| Index chat (AI path)                                                        | No                                                       | Yes                                       |
+| Index chatbot (AI path)                                                     | No                                                       | **Post-MVP** (MVP: explicit regenerate outline only) |
 
 
 ---
@@ -108,7 +108,7 @@ Without a dedicated spec, teams mix concerns: file ingestion, extraction, LLM-as
 
 ## Out of Scope
 
-- **Chapter-by-chapter loop**, per-chapter chat, bonuses, bumps, index chat (AI path), global banner/stepper shell ownership beyond upload-specific copy — see `**wizard-ai-generation`**.
+- **Chapter-by-chapter loop**, per-chapter chat, bonuses, bumps, index milestone (no index chatbot in MVP), global banner/stepper shell ownership beyond upload-specific copy — see `**wizard-ai-generation`**.
 - **OCR** and non-selectable PDF as primary path — post-MVP unless master PRD changes.
 - **Exact** credit table per action — master PRD §11 / product research.
 - **Implementation paths** for Edge Functions, bucket names, and library versions — architecture docs; behavior stays defined here.
