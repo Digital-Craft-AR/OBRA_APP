@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { outcomeToPath, parseDevEntitlementOverride, resolveEntitlement } from "./resolveEntitlement";
+import {
+  isPathAllowedForOutcome,
+  MINIMAL_ACCOUNT_PATH,
+  outcomeToPath,
+  parseDevEntitlementOverride,
+  resolveEntitlement,
+} from "./resolveEntitlement";
 
 describe("resolveEntitlement", () => {
   it("requires email verification before any subscription state", () => {
@@ -67,6 +73,48 @@ describe("outcomeToPath", () => {
   it("returns stable paths under /app", () => {
     expect(outcomeToPath("verify_email")).toBe("/app/verify-email");
     expect(outcomeToPath("full_app")).toBe("/app/dashboard");
+  });
+});
+
+describe("isPathAllowedForOutcome", () => {
+  it("allows full_app on dashboard and settings", () => {
+    expect(isPathAllowedForOutcome("full_app", "/app/dashboard")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/profile")).toBe(true);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/billing")).toBe(true);
+  });
+
+  it("rejects unknown settings subpaths for full_app", () => {
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/unknown")).toBe(false);
+    expect(isPathAllowedForOutcome("full_app", "/app/settings/profile/extra")).toBe(false);
+  });
+
+  it("redirects full_app away from blocking shell paths", () => {
+    expect(isPathAllowedForOutcome("full_app", "/app/pending-subscription")).toBe(false);
+  });
+
+  it("requires blocking outcomes to match their single shell path", () => {
+    expect(isPathAllowedForOutcome("verify_email", "/app/verify-email")).toBe(true);
+    expect(isPathAllowedForOutcome("verify_email", "/app/dashboard")).toBe(false);
+  });
+
+  it("allows minimal shells on canonical path and shared /app/account", () => {
+    expect(isPathAllowedForOutcome("pending_subscription", "/app/pending-subscription")).toBe(true);
+    expect(isPathAllowedForOutcome("pending_subscription", MINIMAL_ACCOUNT_PATH)).toBe(true);
+    expect(isPathAllowedForOutcome("activating", "/app/activating")).toBe(true);
+    expect(isPathAllowedForOutcome("activating", MINIMAL_ACCOUNT_PATH)).toBe(true);
+    expect(isPathAllowedForOutcome("subscription_error", "/app/subscription-error")).toBe(true);
+    expect(isPathAllowedForOutcome("subscription_error", MINIMAL_ACCOUNT_PATH)).toBe(true);
+  });
+
+  it("rejects cross-shell paths for minimal entitlements", () => {
+    expect(isPathAllowedForOutcome("pending_subscription", "/app/activating")).toBe(false);
+    expect(isPathAllowedForOutcome("activating", "/app/pending-subscription")).toBe(false);
+  });
+
+  it("rejects /app/account for verify_email and full_app", () => {
+    expect(isPathAllowedForOutcome("verify_email", MINIMAL_ACCOUNT_PATH)).toBe(false);
+    expect(isPathAllowedForOutcome("full_app", MINIMAL_ACCOUNT_PATH)).toBe(false);
   });
 });
 

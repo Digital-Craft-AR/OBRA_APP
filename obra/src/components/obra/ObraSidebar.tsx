@@ -99,13 +99,13 @@ export function ObraSidebar({
           aria-expanded={!collapsed}
           aria-controls={navigationId}
           title={collapsed ? expandLabel : collapseLabel}
-          className="absolute right-0 top-7 z-20 flex size-6 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-obra-blue-700 text-white shadow-lg transition-all"
+          className="absolute right-0 top-9 z-20 flex size-6 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-obra-blue-700 text-white shadow-lg transition-all"
         >
           {collapsed ? <ChevronRight className="size-3" aria-hidden /> : <ChevronLeft className="size-3" aria-hidden />}
         </button>
       ) : null}
 
-      <div className="flex min-h-18 items-center border-b border-white/10 px-4">
+      <div className="flex h-18 shrink-0 items-center border-b border-white/10 px-4">
         <img
           src={collapsed ? collapsedLogoSrc : expandedLogoSrc}
           alt={t("sidebar.logoAlt")}

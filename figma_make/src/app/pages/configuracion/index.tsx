@@ -26,51 +26,60 @@ const TRANSACTIONS = [
   { id: 6, date: "25/03/2026", op: "Generación de portada",       credits: "−20",   project: "Marketing para coaches"    },
 ];
 
-/* ── Perfil ─────────────────────────────────────────────────────────────── */
+/* ── Perfil (prototype — matches configuración screen layout reference) ─ */
 function Perfil() {
-  const [name,   setName]   = useState("Valentina García");
+  const [displayName, setDisplayName] = useState("Valentina García");
   const [locale, setLocale] = useState<"es" | "pt-br">("es");
-  const [saved,  setSaved]  = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "VG";
 
   const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setMessage(null);
+    setError(null);
+    setSaving(true);
+    window.setTimeout(() => {
+      setSaving(false);
+      setMessage("Cambios guardados.");
+    }, 500);
   };
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h2 className="font-display text-lg text-obra-blue-950">Perfil</h2>
-        <p className="text-sm text-obra-neutral-600 font-body mt-1">Gestioná tu información personal.</p>
+        <h2 className="font-display text-lg font-semibold text-obra-blue-950">Perfil</h2>
+        <p className="mt-1 text-sm text-obra-neutral-600 font-body">Gestioná tu información personal.</p>
       </div>
 
-      {/* Avatar */}
       <div className="flex items-center gap-5">
-        <div className="size-16 rounded-full bg-obra-blue-700 flex items-center justify-center shrink-0">
-          <span className="text-xl font-bold text-white font-body">VG</span>
+        <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-obra-blue-700">
+          <span className="font-body text-xl font-bold text-white">{initials}</span>
         </div>
       </div>
 
-      {/* Name */}
-      <ObraInput
-        label="Nombre de display"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
+      <ObraInput label="Nombre de display" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
 
-      {/* Locale */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium font-body text-obra-blue-950">Idioma de la interfaz</label>
-        <div className="flex gap-2">
-          {(["es","pt-br"] as const).map((l) => (
+        <span className="font-body text-sm font-medium text-obra-blue-950">Idioma de la interfaz</span>
+        <div className="flex flex-wrap gap-2">
+          {(["es", "pt-br"] as const).map((l) => (
             <button
               key={l}
+              type="button"
               onClick={() => setLocale(l)}
               className={cn(
-                "px-4 py-2 rounded-full border text-sm font-body font-medium transition-all",
+                "rounded-full border px-4 py-2 font-body text-sm font-medium transition-all",
                 locale === l
                   ? "border-obra-blue-700 bg-obra-blue-700 text-white"
-                  : "border-obra-blue-100 text-obra-neutral-600 hover:border-obra-blue-700/50"
+                  : "border-obra-blue-100 text-obra-neutral-600 hover:border-obra-blue-700/50",
               )}
             >
               {l === "es" ? "Español" : "Português Brasil"}
@@ -79,9 +88,20 @@ function Perfil() {
         </div>
       </div>
 
+      {error ? (
+        <p className="text-sm text-red-600 font-body" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {message ? (
+        <p className="text-sm text-obra-neutral-700 font-body" role="status">
+          {message}
+        </p>
+      ) : null}
+
       <div>
-        <ObraButton variant="secondary" onClick={save}>
-          {saved ? "¡Guardado!" : "Guardar cambios"}
+        <ObraButton type="button" variant="secondary" disabled={saving} onClick={save}>
+          {saving ? "Guardando…" : "Guardar cambios"}
         </ObraButton>
       </div>
     </div>
@@ -431,36 +451,43 @@ export function Configuracion() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Page header */}
-      <div className="px-10 py-6 border-b border-obra-blue-100">
-        <h1 className="font-display text-xl text-obra-blue-950">Configuración</h1>
-      </div>
+    <div className="flex h-full flex-col">
+      {/*
+        Same height as ObraSidebar logo band (`h-18` in sidebar.tsx) so the top
+        chrome rows align across the split layout.
+      */}
+      <header className="flex h-18 shrink-0 items-center border-b border-obra-blue-100 px-10">
+        <h1 className="font-display text-xl font-normal leading-none text-obra-blue-950">Configuración</h1>
+      </header>
 
-      <div className="flex-1 overflow-hidden flex">
-        {/* Secondary left nav */}
-        <nav className="w-52 shrink-0 border-r border-obra-blue-100 overflow-y-auto py-4 px-3">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm font-body font-medium transition-all text-left",
-                tab === t.id
-                  ? "bg-obra-blue-100 text-obra-blue-900"
-                  : "text-obra-neutral-600 hover:bg-obra-blue-50 hover:text-obra-blue-900"
-              )}
-            >
-              <span className={tab === t.id ? "text-obra-blue-700" : "text-obra-neutral-400"}>
-                {t.icon}
-              </span>
-              {t.label}
-            </button>
-          ))}
-        </nav>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Section rail: label + nav (one level below page title “Configuración”) */}
+        <aside
+          className="flex w-52 shrink-0 flex-col border-r border-obra-blue-100 bg-white"
+          aria-label="Secciones de configuración"
+        >
+          <nav className="flex flex-col gap-1 overflow-y-auto p-3 pt-4">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-body text-sm font-medium transition-all",
+                  tab === t.id
+                    ? "bg-obra-blue-100 text-obra-blue-900"
+                    : "text-obra-neutral-600 hover:bg-obra-blue-50 hover:text-obra-blue-900",
+                )}
+              >
+                <span className={tab === t.id ? "text-obra-blue-700" : "text-obra-neutral-400"}>{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-        {/* Content area */}
-        <div className="flex-1 overflow-y-auto px-10 py-8 max-w-2xl">
+        {/* Content area — obra settings main uses p-10 + gap-6 rhythm */}
+        <div className="flex-1 overflow-y-auto p-10 max-w-2xl">
           {CONTENT[tab]}
         </div>
       </div>

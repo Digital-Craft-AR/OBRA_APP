@@ -4,7 +4,7 @@ import {
   buildMpSignatureManifest,
   computeMpSignatureHmacHex,
   verifyMercadoPagoWebhookSignature,
-} from "../../../supabase/functions/_shared/mpSignature.ts";
+} from "../../../supabase/functions/_shared/payment/mercadopago/signature.ts";
 
 describe("Mercado Pago webhook signature helpers", () => {
   it("builds manifest in id / request-id / ts order", () => {

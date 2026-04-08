@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, Home } from "lucide-react";
+import { FolderOpen, Home, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
+import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 import { contentCardClass } from "@/lib/uiClasses";
@@ -14,7 +16,9 @@ type ProfileRow = {
 
 export function DashboardPage() {
   const { t } = useTranslation();
+  const location = useLocation();
   const { session } = useAuth();
+  const { creditsBalance } = useEntitlement();
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -54,8 +58,15 @@ export function DashboardPage() {
             id: "dashboard",
             label: t("dashboard.title"),
             to: "/app/dashboard",
-            active: true,
+            active: location.pathname === "/app/dashboard",
             icon: <FolderOpen className="size-4" aria-hidden />,
+          },
+          {
+            id: "settings",
+            label: t("nav.settings"),
+            to: "/app/settings/profile",
+            active: location.pathname.startsWith("/app/settings"),
+            icon: <Settings className="size-4" aria-hidden />,
           },
           {
             id: "home",
@@ -65,7 +76,7 @@ export function DashboardPage() {
           },
         ]}
         userName={profile?.display_name ?? session?.user?.email ?? t("sidebar.userFallback")}
-        credits={1240}
+        credits={creditsBalance}
         onLogout={() => void signOut()}
         logoutLabel={t("nav.logout")}
       />
@@ -75,11 +86,11 @@ export function DashboardPage() {
           {t("dashboard.title")}
         </h1>
         <p className="text-obra-neutral-600">{t("dashboard.welcome")}</p>
-        <div className="flex-1 flex flex-col items-center justify-center gap-8 px-10 py-10">
-          <div className="relative w-full max-w-2xl aspect-video overflow-hidden rounded-card border border-obra-blue-100 bg-obra-blue-50 flex items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-8 px-10 py-10">
+          <div className="relative flex aspect-video w-full max-w-2xl items-center justify-center overflow-hidden rounded-card border border-obra-blue-100 bg-obra-blue-50">
             <button
               type="button"
-              className="size-14 rounded-full bg-obra-blue-900/80 flex items-center justify-center transition-colors hover:bg-obra-blue-900"
+              className="flex size-14 items-center justify-center rounded-full bg-obra-blue-900/80 transition-colors hover:bg-obra-blue-900"
               aria-label={t("dashboard.demo.play")}
             >
               <svg
@@ -92,19 +103,19 @@ export function DashboardPage() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="size-6 ml-0.5 text-white"
+                className="ml-0.5 size-6 text-white"
                 aria-hidden
               >
                 <polygon points="6 3 20 12 6 21 6 3" />
               </svg>
             </button>
-            <span className="absolute bottom-3 left-4 text-xs text-obra-neutral-600 font-body">
+            <span className="absolute bottom-3 left-4 font-body text-xs text-obra-neutral-600">
               {t("dashboard.demo.duration")}
             </span>
           </div>
           <div className="flex flex-col items-center gap-5 text-center">
             <h2 className="font-display text-2xl text-obra-blue-950">{t("dashboard.demo.heroTitle")}</h2>
-            <p className="max-w-md text-sm leading-relaxed text-obra-neutral-600 font-body">
+            <p className="max-w-md font-body text-sm leading-relaxed text-obra-neutral-600">
               {t("dashboard.demo.heroBody")}
             </p>
             <div className="flex items-center gap-3">
@@ -143,9 +154,7 @@ export function DashboardPage() {
           <div className={contentCardClass}>
             <p className="text-sm text-obra-neutral-600">{t("dashboard.field.id")}</p>
             <p className="font-mono text-sm text-obra-neutral-900">{profile.id}</p>
-            <p className="mt-4 text-sm text-obra-neutral-600">
-              {t("dashboard.field.displayName")}
-            </p>
+            <p className="mt-4 text-sm text-obra-neutral-600">{t("dashboard.field.displayName")}</p>
             <p className="text-obra-neutral-900">{profile.display_name ?? "—"}</p>
           </div>
         ) : (

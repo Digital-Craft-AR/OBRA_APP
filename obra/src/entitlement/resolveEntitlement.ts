@@ -1,5 +1,23 @@
 import type { EntitlementOutcome, SubscriptionStatus } from "./types";
 
+/** Shared minimal account / privacy path for blocking shells (profile PRD #39). */
+export const MINIMAL_ACCOUNT_PATH = "/app/account";
+
+export type MinimalAccountEntitlementOutcome =
+  | "pending_subscription"
+  | "activating"
+  | "subscription_error";
+
+export function isMinimalAccountEntitlementOutcome(
+  outcome: EntitlementOutcome,
+): outcome is MinimalAccountEntitlementOutcome {
+  return (
+    outcome === "pending_subscription" ||
+    outcome === "activating" ||
+    outcome === "subscription_error"
+  );
+}
+
 export type ResolveEntitlementInput = {
   emailVerified: boolean;
   subscriptionStatus: SubscriptionStatus;
@@ -40,6 +58,40 @@ export function outcomeToPath(outcome: EntitlementOutcome): string {
     case "full_app":
       return "/app/dashboard";
   }
+}
+
+/** Under `full_app`, users may visit more than `/app/dashboard` (e.g. account settings). */
+const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/settings"];
+
+/** URL segment after `/app/settings/` for each settings subpage. */
+export const SETTINGS_ROUTE_SECTIONS = ["profile", "security", "billing", "credits", "privacy"] as const;
+export type SettingsRouteSection = (typeof SETTINGS_ROUTE_SECTIONS)[number];
+
+export function parseSettingsRouteSection(raw: string | undefined): SettingsRouteSection | null {
+  if (!raw) return null;
+  return (SETTINGS_ROUTE_SECTIONS as readonly string[]).includes(raw) ? (raw as SettingsRouteSection) : null;
+}
+
+/** `/app/settings`, `/app/settings/profile`, etc. */
+export function isFullAppSettingsPath(pathname: string): boolean {
+  if (pathname === "/app/settings") return true;
+  const m = /^\/app\/settings\/([^/]+)\/?$/.exec(pathname);
+  if (!m) return false;
+  return parseSettingsRouteSection(m[1]) !== null;
+}
+
+/**
+ * Whether the current URL is allowed for this entitlement. Blocking shells use a single canonical path;
+ * full product access allows multiple routes under `/app`.
+ */
+export function isPathAllowedForOutcome(outcome: EntitlementOutcome, pathname: string): boolean {
+  if (outcome === "full_app") {
+    return FULL_APP_ALLOWED_PATHS.includes(pathname) || isFullAppSettingsPath(pathname);
+  }
+  if (isMinimalAccountEntitlementOutcome(outcome)) {
+    return pathname === outcomeToPath(outcome) || pathname === MINIMAL_ACCOUNT_PATH;
+  }
+  return pathname === outcomeToPath(outcome);
 }
 
 export function parseDevEntitlementOverride(raw: string | undefined): EntitlementOutcome | null {

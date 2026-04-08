@@ -6,37 +6,39 @@ import {
   setCheckoutReturnPending,
 } from "@/entitlement/checkoutReturn";
 import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
+import { parsePaymentReturnOutcome } from "@/lib/paymentReturnParams";
 
 /**
- * Mercado Pago `back_urls` target. Sets session flags then hands off to `/app` entitlement routing.
+ * Payment return URL (`/checkout/return`). Sets session flags then navigates to a concrete
+ * `/app/*` shell — `/app` alone is not allowed by `EntitlementGate` (only specific outcomes).
  */
 export function CheckoutReturnPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const status = searchParams.get("status");
+    const outcome = parsePaymentReturnOutcome(searchParams);
 
-    if (status === "success") {
+    if (outcome === "success") {
       setCheckoutReturnPending();
       consumeCheckoutReturnMessageKey();
-      void navigate("/app", { replace: true });
+      void navigate("/app/activating", { replace: true });
       return;
     }
 
-    if (status === "failure") {
+    if (outcome === "failure") {
       setCheckoutReturnMessageKey("shell.pending.checkoutReturnedFailure");
-      void navigate("/app", { replace: true });
+      void navigate("/app/pending-subscription", { replace: true });
       return;
     }
 
-    if (status === "pending") {
+    if (outcome === "pending") {
       setCheckoutReturnMessageKey("shell.pending.checkoutReturnedPending");
-      void navigate("/app", { replace: true });
+      void navigate("/app/pending-subscription", { replace: true });
       return;
     }
 
-    void navigate("/app", { replace: true });
+    void navigate("/app/pending-subscription", { replace: true });
   }, [navigate, searchParams]);
 
   return <AuthFlowLoading variant="fullscreen" />;
