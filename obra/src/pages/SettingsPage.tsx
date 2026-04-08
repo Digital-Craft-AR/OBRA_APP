@@ -158,7 +158,7 @@ export function SettingsPage() {
         navItems={[
           {
             id: "dashboard",
-            label: t("dashboard.title"),
+            label: t("nav.projects"),
             to: "/app/dashboard",
             active: location.pathname === "/app/dashboard",
             icon: <FolderOpen className="size-4" aria-hidden />,
