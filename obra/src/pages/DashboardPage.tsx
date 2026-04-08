@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, Home, Settings } from "lucide-react";
+import { FolderOpen, HelpCircle, Home, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
@@ -67,6 +67,13 @@ export function DashboardPage() {
             to: "/app/settings/profile",
             active: location.pathname.startsWith("/app/settings"),
             icon: <Settings className="size-4" aria-hidden />,
+          },
+          {
+            id: "help",
+            label: t("nav.help"),
+            to: "/app/help",
+            active: location.pathname === "/app/help",
+            icon: <HelpCircle className="size-4" aria-hidden />,
           },
           {
             id: "home",

@@ -9,6 +9,7 @@ const resources = {
       "nav.login": "Iniciar sesión",
       "nav.app": "Aplicación",
       "nav.settings": "Configuración",
+      "nav.help": "Ayuda",
       "nav.logout": "Cerrar sesión",
       "sidebar.mainAria": "Barra lateral principal",
       "sidebar.primaryNavAria": "Navegación principal",
@@ -172,6 +173,49 @@ const resources = {
       "settings.sectionNav.billing": "Facturación",
       "settings.sectionNav.credits": "Créditos",
       "settings.sectionNav.privacy": "Privacidad y datos",
+      "settings.sectionNav.help": "Ayuda y soporte",
+      "help.title": "Ayuda y soporte",
+      "help.intro":
+        "Encontrá respuestas rápidas sobre suscripción, créditos, exportación y límites del producto. Si seguís con dudas, podés escribirnos desde este mismo espacio.",
+      "help.faqHeading": "Preguntas frecuentes",
+      "help.faqIntro": "Abrí cada tema para ver la respuesta completa.",
+      "help.faq.q1.question": "¿Qué es Obra y qué puedo crear con la plataforma?",
+      "help.faq.q1.answer":
+        "Obra te ayuda a crear un paquete digital completo: un ebook principal, hasta cinco bonuses y hasta dos order bumps, todo con una estética consistente. Al finalizar, podés descargar los PDFs para usar donde prefieras.",
+      "help.faq.q2.question": "La app está en un idioma y mi ebook en otro. ¿Eso está bien?",
+      "help.faq.q2.answer":
+        "Sí. La app puede estar en español o portugués y podés cambiarla cuando quieras. Cada proyecto tiene un idioma de contenido que se define al crearlo y no se puede cambiar después. Si necesitás otra versión, creá un proyecto nuevo con ese idioma.",
+      "help.faq.q3.question": "¿Cómo pago Obra?",
+      "help.faq.q3.answer":
+        "Obra funciona con suscripción. El pago se gestiona con Mercado Pago, donde también ves el estado de tu suscripción y tus comprobantes.",
+      "help.faq.q4.question": "¿Qué son los créditos?",
+      "help.faq.q4.answer":
+        "Los créditos habilitan funciones de IA, como generar o mejorar textos y crear o ajustar imágenes. En la app siempre podés ver tu saldo disponible.",
+      "help.faq.q5.question": "¿Cuántos proyectos puedo tener?",
+      "help.faq.q5.answer":
+        "Podés tener hasta 20 proyectos activos al mismo tiempo. Los proyectos archivados no cuentan para ese límite. Cada proyecto incluye un ebook principal, hasta cinco bonuses y hasta dos order bumps.",
+      "help.faq.q6.question": "¿Cómo descargo mis PDFs?",
+      "help.faq.q6.answer":
+        "Desde Vista previa podés exportar un PDF por cada entregable (ebook, bonus u order bump). También podés descargar todo junto en un paquete cuando esa opción esté disponible y la exportación termine correctamente.",
+      "help.faq.q7.question": "¿Puedo comenzar desde un archivo Word o PDF?",
+      "help.faq.q7.answer":
+        "Sí. Podés subir un archivo .docx o PDF de hasta 10 MB. Debe contener texto real seleccionable, no imágenes escaneadas. Si el PDF está protegido con contraseña, primero subí una copia sin bloqueo.",
+      "help.faq.q8.question": "¿Qué pasa si elimino un proyecto?",
+      "help.faq.q8.answer":
+        "La eliminación puede pasar por una ventana de recuperación para evitar pérdidas accidentales. Cuando ese período termina, el proyecto se elimina por completo.",
+      "help.faq.q9.question": "¿Obra también crea la página donde vendo mi curso?",
+      "help.faq.q9.answer":
+        "Hoy Obra se enfoca en crear y exportar tus materiales en PDF. El canal de venta lo definís vos con las plataformas que uses actualmente.",
+      "help.faq.q10.question": "¿Cómo contacto al equipo si todavía necesito ayuda?",
+      "help.faq.q10.answer":
+        "En esta pantalla vas a encontrar el correo de soporte y un acceso para abrir tu app de email. Contanos qué estabas intentando hacer y qué viste en pantalla para ayudarte más rápido.",
+      "help.contact.heading": "Contactar soporte",
+      "help.contact.intro": "Podés copiar el correo o abrir tu cliente de email con un solo clic.",
+      "help.contact.emailLabel": "Correo de soporte",
+      "help.contact.cta": "Abrir email",
+      "help.contact.mailtoSubject": "Soporte Obra",
+      "help.contact.tipWhatHappened": "Incluí los pasos que estabas siguiendo y lo que apareció en pantalla.",
+      "help.contact.tipNoSensitiveData": "No compartas datos sensibles innecesarios en el primer mensaje.",
       "settings.section.profile": "Perfil",
       "settings.section.profileHint": "Gestioná tu información personal.",
       "settings.displayNameLabel": "Nombre para mostrar",
@@ -279,6 +323,7 @@ const resources = {
       "nav.login": "Entrar",
       "nav.app": "Aplicativo",
       "nav.settings": "Configurações",
+      "nav.help": "Ajuda",
       "nav.logout": "Sair",
       "sidebar.mainAria": "Barra lateral principal",
       "sidebar.primaryNavAria": "Navegação principal",
@@ -444,6 +489,49 @@ const resources = {
       "settings.sectionNav.billing": "Faturamento",
       "settings.sectionNav.credits": "Créditos",
       "settings.sectionNav.privacy": "Privacidade e dados",
+      "settings.sectionNav.help": "Ajuda e suporte",
+      "help.title": "Ajuda e suporte",
+      "help.intro":
+        "Encontre respostas rápidas sobre assinatura, créditos, exportação e limites do produto. Se ainda tiver dúvidas, você pode falar com a gente por esta tela.",
+      "help.faqHeading": "Perguntas frequentes",
+      "help.faqIntro": "Abra cada tópico para ver a resposta completa.",
+      "help.faq.q1.question": "O que é a Obra e o que posso criar na plataforma?",
+      "help.faq.q1.answer":
+        "A Obra ajuda você a montar um pacote digital completo: um ebook principal, até cinco bônus e até dois order bumps, todos com a mesma identidade visual. No fim, você baixa os PDFs para usar como quiser.",
+      "help.faq.q2.question": "O app está em um idioma e meu ebook em outro. Isso pode?",
+      "help.faq.q2.answer":
+        "Sim. O app pode ficar em espanhol ou português e você pode trocar quando quiser. Cada projeto tem um idioma de conteúdo definido na criação e ele não muda depois. Se precisar de outra versão, crie um novo projeto com o idioma certo.",
+      "help.faq.q3.question": "Como eu pago a Obra?",
+      "help.faq.q3.answer":
+        "A Obra funciona por assinatura. O pagamento é feito via Mercado Pago, onde você também acompanha status da assinatura e comprovantes.",
+      "help.faq.q4.question": "O que são créditos?",
+      "help.faq.q4.answer":
+        "Créditos liberam funções de IA, como gerar ou melhorar textos e criar ou ajustar imagens. No app você sempre vê o saldo disponível.",
+      "help.faq.q5.question": "Quantos projetos posso ter?",
+      "help.faq.q5.answer":
+        "Você pode ter até 20 projetos ativos ao mesmo tempo. Projetos arquivados não entram nesse limite. Cada projeto inclui um ebook principal, até cinco bônus e até dois order bumps.",
+      "help.faq.q6.question": "Como faço para baixar meus PDFs?",
+      "help.faq.q6.answer":
+        "Em Prévia, você pode exportar um PDF por entregável (ebook, bônus ou order bump). Também pode baixar tudo em um pacote quando essa opção estiver disponível e a exportação terminar com sucesso.",
+      "help.faq.q7.question": "Posso começar com um arquivo Word ou PDF que já tenho?",
+      "help.faq.q7.answer":
+        "Sim. Você pode enviar um arquivo .docx ou PDF de até 10 MB. Ele precisa ter texto selecionável, não imagens escaneadas. Se o PDF tiver senha, envie uma cópia sem bloqueio.",
+      "help.faq.q8.question": "O que acontece se eu excluir um projeto?",
+      "help.faq.q8.answer":
+        "A exclusão pode passar por uma janela de recuperação para evitar perdas acidentais. Depois desse período, o projeto é removido de forma definitiva.",
+      "help.faq.q9.question": "A Obra também cria a página onde eu vendo meu curso?",
+      "help.faq.q9.answer":
+        "Hoje a Obra é focada em criar e exportar seus materiais em PDF. O canal de venda fica por sua conta, usando as plataformas que você já utiliza.",
+      "help.faq.q10.question": "Como falo com o time se ainda precisar de ajuda?",
+      "help.faq.q10.answer":
+        "Nesta tela você encontra o e-mail de suporte e um atalho para abrir seu app de e-mail. Conte o que você estava tentando fazer e o que apareceu na tela para agilizar o atendimento.",
+      "help.contact.heading": "Falar com o suporte",
+      "help.contact.intro": "Você pode copiar o e-mail ou abrir seu cliente de e-mail com um clique.",
+      "help.contact.emailLabel": "E-mail de suporte",
+      "help.contact.cta": "Abrir e-mail",
+      "help.contact.mailtoSubject": "Suporte Obra",
+      "help.contact.tipWhatHappened": "Inclua os passos que você estava seguindo e o que apareceu na tela.",
+      "help.contact.tipNoSensitiveData": "Não compartilhe dados sensíveis desnecessários na primeira mensagem.",
       "settings.section.profile": "Perfil",
       "settings.section.profileHint": "Gerencie suas informações pessoais.",
       "settings.displayNameLabel": "Nome de exibição",

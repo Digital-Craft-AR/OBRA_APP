@@ -7,6 +7,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { DesignSystemPage } from "@/pages/DesignSystemPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { HomePage } from "@/pages/HomePage";
+import { HelpPage } from "@/pages/HelpPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { MinimalAccountPage } from "@/pages/MinimalAccountPage";
@@ -36,6 +37,7 @@ export function App() {
           <Route path="subscription-error" element={<SubscriptionErrorShellPage />} />
           <Route path="account" element={<MinimalAccountPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<Navigate to="/app/settings/profile" replace />} />
           <Route path="settings/:section" element={<SettingsPage />} />
         </Route>

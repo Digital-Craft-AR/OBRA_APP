@@ -61,7 +61,7 @@ export function outcomeToPath(outcome: EntitlementOutcome): string {
 }
 
 /** Under `full_app`, users may visit more than `/app/dashboard` (e.g. account settings). */
-const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/settings"];
+const FULL_APP_ALLOWED_PATHS: readonly string[] = ["/app/dashboard", "/app/help", "/app/settings"];
 
 /** URL segment after `/app/settings/` for each settings subpage. */
 export const SETTINGS_ROUTE_SECTIONS = ["profile", "security", "billing", "credits", "privacy"] as const;
