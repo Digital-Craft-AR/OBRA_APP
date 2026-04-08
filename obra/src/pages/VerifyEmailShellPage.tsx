@@ -8,13 +8,19 @@ import { useEntitlement } from "@/entitlement/EntitlementProvider";
 export function VerifyEmailShellPage() {
   const { t } = useTranslation();
   const { user, refreshSession } = useEntitlement();
-  const email = user?.email ?? "";
-  const { busy, message, resend } = useEmailVerificationResend(email);
+  const currentEmail = user?.email ?? "";
+  const pendingEmailChange = Boolean(user?.new_email?.trim());
+  const resendTarget = pendingEmailChange ? (user?.new_email ?? "").trim() : currentEmail;
+  const { busy, message, resend } = useEmailVerificationResend(resendTarget, {
+    mode: pendingEmailChange ? "email_change" : "signup",
+  });
 
   return (
     <BlockingShellFrame titleKey="shell.verify.title">
       <VerifyEmailPanel
-        email={email}
+        email={resendTarget}
+        currentEmail={pendingEmailChange ? currentEmail : undefined}
+        mode={pendingEmailChange ? "email_change" : "signup"}
         message={message}
         busy={busy}
         onResend={resend}

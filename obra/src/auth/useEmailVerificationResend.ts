@@ -2,8 +2,16 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabaseClient";
 
-export function useEmailVerificationResend(email: string) {
+export type EmailVerificationResendMode = "signup" | "email_change";
+
+type Options = {
+  /** Default `signup` (initial verification). Use `email_change` when `user.new_email` is set. */
+  mode?: EmailVerificationResendMode;
+};
+
+export function useEmailVerificationResend(email: string, options?: Options) {
   const { t } = useTranslation();
+  const mode: EmailVerificationResendMode = options?.mode ?? "signup";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -17,7 +25,7 @@ export function useEmailVerificationResend(email: string) {
     setBusy(true);
     const redirectTo = `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.resend({
-      type: "signup",
+      type: mode === "email_change" ? "email_change" : "signup",
       email,
       options: { emailRedirectTo: redirectTo },
     });

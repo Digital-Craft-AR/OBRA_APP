@@ -25,6 +25,14 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [confirmNewEmail, setConfirmNewEmail] = useState("");
+  const [emailChangePassword, setEmailChangePassword] = useState("");
+  const [showEmailChangePassword, setShowEmailChangePassword] = useState(false);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   const reloadIdentities = useCallback(async () => {
     setIdentitiesLoading(true);
     const { data } = await supabase.auth.getUser();
@@ -46,8 +54,91 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
   const canUnlinkOAuth = identities.length > 1;
 
   const mismatch = Boolean(newPassword && confirmPassword && newPassword !== confirmPassword);
+  const emailMismatch = Boolean(
+    newEmail && confirmNewEmail && newEmail.trim().toLowerCase() !== confirmNewEmail.trim().toLowerCase(),
+  );
+
+  function isValidEmailFormat(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }
+
+  function mapEmailChangeError(raw: string): string {
+    const m = raw.toLowerCase();
+    if ((m.includes("already") || m.includes("registered")) && m.includes("email")) {
+      return t("settings.security.emailChangeDuplicate");
+    }
+    if (m.includes("rate") || m.includes("429") || m.includes("too many")) {
+      return t("settings.security.emailChangeRateLimited");
+    }
+    if (m.includes("invalid") && m.includes("email")) {
+      return t("settings.security.emailChangeInvalid");
+    }
+    if (m.includes("same") && m.includes("email")) {
+      return t("settings.security.emailChangeSame");
+    }
+    return t("settings.security.emailChangeGeneric");
+  }
+
+  async function onEmailChangeSubmit() {
+    if (busy) return;
+    setEmailMessage(null);
+    setEmailError(null);
+    const next = newEmail.trim();
+    const confirm = confirmNewEmail.trim();
+    if (!next || !confirm) {
+      setEmailError(t("settings.security.emailChangeRequired"));
+      return;
+    }
+    if (!isValidEmailFormat(next)) {
+      setEmailError(t("settings.security.emailChangeInvalid"));
+      return;
+    }
+    if (emailMismatch) {
+      setEmailError(t("settings.security.emailMismatch"));
+      return;
+    }
+    if (userEmail && next.toLowerCase() === userEmail.trim().toLowerCase()) {
+      setEmailError(t("settings.security.emailChangeSame"));
+      return;
+    }
+    if (hasEmailIdentity) {
+      if (!emailChangePassword) {
+        setEmailError(t("settings.security.currentRequired"));
+        return;
+      }
+      if (!userEmail) {
+        setEmailError(t("settings.security.emailMissing"));
+        return;
+      }
+    }
+
+    setEmailBusy(true);
+    if (hasEmailIdentity && userEmail) {
+      const { error: signErr } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: emailChangePassword,
+      });
+      if (signErr) {
+        setEmailBusy(false);
+        setEmailError(t("settings.security.currentWrong"));
+        return;
+      }
+    }
+
+    const { error: upErr } = await supabase.auth.updateUser({ email: next });
+    setEmailBusy(false);
+    if (upErr) {
+      setEmailError(mapEmailChangeError(upErr.message));
+      return;
+    }
+    setNewEmail("");
+    setConfirmNewEmail("");
+    setEmailChangePassword("");
+    setEmailMessage(t("settings.security.emailChangeSent"));
+  }
 
   async function onPasswordSubmit() {
+    if (emailBusy) return;
     setMessage(null);
     setError(null);
     if (newPassword.length < 8) {
@@ -227,12 +318,102 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
         <Button
           type="button"
           variant="secondary"
-          disabled={busy || !newPassword || !confirmPassword || mismatch}
+          disabled={busy || emailBusy || !newPassword || !confirmPassword || mismatch}
           onClick={() => void onPasswordSubmit()}
         >
           {hasEmailIdentity ? t("settings.security.updatePassword") : t("settings.security.setPassword")}
         </Button>
       </div>
+
+      {userEmail ? (
+        <div className="flex flex-col gap-4 border-t border-obra-blue-100 pt-6">
+          <div>
+            <h3 className="text-sm font-semibold text-obra-blue-950">{t("settings.security.emailHeading")}</h3>
+            <p className="mt-1 text-sm text-obra-neutral-600">{t("settings.security.emailIntro")}</p>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-sm font-semibold text-obra-neutral-900">{t("settings.security.currentEmailLabel")}</span>
+            <p className="rounded-lg border border-obra-blue-100 bg-obra-blue-50 px-3 py-2 font-mono text-sm text-obra-blue-950">
+              {userEmail}
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="sec-new-email" className="text-sm font-semibold text-obra-neutral-900">
+              {t("settings.security.newEmailLabel")}
+            </label>
+            <input
+              id="sec-new-email"
+              type="email"
+              autoComplete="email"
+              className={`${inputFieldClass} mt-1`}
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="sec-confirm-email" className="text-sm font-semibold text-obra-neutral-900">
+              {t("settings.security.confirmNewEmailLabel")}
+            </label>
+            <input
+              id="sec-confirm-email"
+              type="email"
+              autoComplete="off"
+              className={`${inputFieldClass} mt-1`}
+              value={confirmNewEmail}
+              onChange={(e) => setConfirmNewEmail(e.target.value)}
+            />
+          </div>
+
+          {hasEmailIdentity ? (
+            <div className="relative">
+              <label htmlFor="sec-email-change-pw" className="text-sm font-semibold text-obra-neutral-900">
+                {t("settings.security.currentPassword")}
+              </label>
+              <input
+                id="sec-email-change-pw"
+                type={showEmailChangePassword ? "text" : "password"}
+                autoComplete="current-password"
+                className={`${inputFieldClass} mt-1 pr-10`}
+                value={emailChangePassword}
+                onChange={(e) => setEmailChangePassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-8 rounded p-1 text-obra-neutral-400 hover:text-obra-neutral-600"
+                onClick={() => setShowEmailChangePassword((v) => !v)}
+                aria-label={
+                  showEmailChangePassword ? t("settings.security.hidePassword") : t("settings.security.showPassword")
+                }
+              >
+                {showEmailChangePassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          ) : null}
+
+          {emailError ? (
+            <p className="text-sm text-red-600" role="alert">
+              {emailError}
+            </p>
+          ) : null}
+          {emailMessage ? (
+            <p className="text-sm text-obra-neutral-700" role="status">
+              {emailMessage}
+            </p>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={emailBusy || busy || !newEmail.trim() || !confirmNewEmail.trim() || emailMismatch}
+            onClick={() => void onEmailChangeSubmit()}
+          >
+            {emailBusy ? t("common.loading") : t("settings.security.emailChangeSubmit")}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-3 border-t border-obra-blue-100 pt-6">
         <h3 className="text-sm font-semibold text-obra-blue-950">{t("settings.security.providersHeading")}</h3>
@@ -251,7 +432,7 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
                     type="button"
                     variant="tertiary"
                     size="small"
-                    disabled={busy || !canUnlinkOAuth}
+                    disabled={busy || emailBusy || !canUnlinkOAuth}
                     title={!canUnlinkOAuth ? t("settings.security.unlinkNeedOther") : undefined}
                     onClick={() => void onUnlink(identity)}
                   >
@@ -267,7 +448,7 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
 
         {!hasGoogle ? (
           <div>
-            <Button type="button" variant="tertiary" disabled={busy} onClick={() => void onLinkGoogle()}>
+            <Button type="button" variant="tertiary" disabled={busy || emailBusy} onClick={() => void onLinkGoogle()}>
               {t("settings.security.linkGoogle")}
             </Button>
           </div>
