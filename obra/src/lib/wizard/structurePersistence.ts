@@ -63,3 +63,11 @@ export async function saveWizardDesignConfig(projectId: string, designConfig: Wi
     .eq("id", projectId);
   return { ok: !error };
 }
+
+export async function markStructureCompleted(projectId: string) {
+  const { error } = await supabase
+    .from("projects")
+    .update({ structure_completed_at: new Date().toISOString() })
+    .eq("id", projectId);
+  return { ok: !error };
+}

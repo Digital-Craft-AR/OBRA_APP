@@ -22,6 +22,10 @@ import {
   saveWizardTopic,
 } from "@/lib/wizard/structurePersistence";
 
+export type WizardStructureNextResult =
+  | { ok: true; finishedStructure?: boolean }
+  | { ok: false };
+
 type FlowArgs = {
   project: ProjectRow | null;
   setProject: Dispatch<SetStateAction<ProjectRow | null>>;
@@ -449,50 +453,51 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     return true;
   }
 
-  async function handleNextStep() {
+  async function handleNextStep(): Promise<WizardStructureNextResult> {
     if (innerStepIndex === 0) {
       if (!topicDraft.trim()) {
         setTopicError(t("wizard.structure.topic.required"));
-        return;
+        return { ok: false };
       }
       setTopicError(null);
-      if (!(await persistTopic())) return;
+      if (!(await persistTopic())) return { ok: false };
     }
 
     if (innerStepIndex === 1) {
       if (!avatarDraft.trim()) {
         setAvatarError(t("wizard.structure.step2.avatarRequired"));
         setProblemError(null);
-        return;
+        return { ok: false };
       }
       if (!problemDraft.trim()) {
         setAvatarError(null);
         setProblemError(t("wizard.structure.step2.problemRequired"));
-        return;
+        return { ok: false };
       }
       setAvatarError(null);
       setProblemError(null);
-      if (!(await persistAvatarProblem())) return;
+      if (!(await persistAvatarProblem())) return { ok: false };
     }
 
     if (innerStepIndex === 2) {
-      if (!(await persistPackageCounts())) return;
+      if (!(await persistPackageCounts())) return { ok: false };
     }
 
     if (innerStepIndex === 3) {
-      if (!(await persistMainTitleAndAuthor())) return;
+      if (!(await persistMainTitleAndAuthor())) return { ok: false };
     }
 
     if (innerStepIndex === 4 || innerStepIndex === 5) {
-      if (!(await persistBonusBumpItems())) return;
+      if (!(await persistBonusBumpItems())) return { ok: false };
     }
 
     if (innerStepIndex === 6) {
-      await persistDesignConfig();
-      return;
+      const saved = await persistDesignConfig();
+      return saved ? { ok: true, finishedStructure: true } : { ok: false };
     }
 
     setInnerStepIndex((current) => Math.min(INNER_STEPS.length - 1, current + 1));
+    return { ok: true };
   }
 
   return {
