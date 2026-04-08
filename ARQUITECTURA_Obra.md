@@ -317,7 +317,7 @@ CREATE TABLE projects (
   author          TEXT,                 -- optional; wizard main-title step — see wizard-shared, wizard-preview
   topic           TEXT,                 -- wizard topic step; long-form input for IA prompts
   problem         TEXT,                 -- reader / avatar problem statement; wizard + content IA
-  target_avatar   JSONB,                -- audience persona JSON; canonical on project — join from ebooks via project_id
+  target_avatar   TEXT,                 -- audience persona summary; canonical on project — join from ebooks via project_id
   structure_completed_at TIMESTAMPTZ,   -- NULL until Structure + design promoted to design_systems + ebook package; not the 3-step UI index
   archived_at     TIMESTAMPTZ,           -- NULL = no archivado; si set, no cuenta en el límite de 20 activos
   deleted_at      TIMESTAMPTZ,           -- NULL = no en papelera; si set, soft delete — hard delete tras 30 días (job programado)
