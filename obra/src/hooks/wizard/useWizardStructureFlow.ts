@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
 import { improveWizardText, suggestWizardTitles } from "@/lib/wizard/aiOptimize";
 import {
-  FALLBACK_MAIN_TITLE_SUGGESTIONS,
   INNER_STEPS,
   type ProjectRow,
 } from "@/lib/wizard/structureTypes";
@@ -43,10 +42,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [packageSaving, setPackageSaving] = useState(false);
   const [packageMessage, setPackageMessage] = useState<string | null>(null);
 
-  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([
-    ...FALLBACK_MAIN_TITLE_SUGGESTIONS,
-  ]);
-  const [selectedTitleIndex, setSelectedTitleIndex] = useState<number | null>(0);
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+  const [selectedTitleIndex, setSelectedTitleIndex] = useState<number | null>(null);
   const [customMainTitle, setCustomMainTitle] = useState("");
   const [authorDraft, setAuthorDraft] = useState("");
   const [mainTitleError, setMainTitleError] = useState<string | null>(null);
@@ -231,17 +228,20 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     });
     setTitleSuggestionsLoading(false);
     if (!result.ok) {
+      setTitleSuggestions([]);
+      setSelectedTitleIndex(null);
       setMainTitleMessage(t("wizard.structure.step4.suggestionsError"));
       return;
     }
     if (result.suggestions.length > 0) {
       setTitleSuggestions(result.suggestions);
       setSelectedTitleIndex(null);
+      setMainTitleMessage(null);
       return;
     }
-    setTitleSuggestions([...FALLBACK_MAIN_TITLE_SUGGESTIONS]);
+    setTitleSuggestions([]);
     setSelectedTitleIndex(null);
-    setMainTitleMessage(t("wizard.structure.step4.suggestionsPending"));
+    setMainTitleMessage(t("wizard.structure.step4.suggestionsError"));
   }
 
   async function persistMainTitleAndAuthor(): Promise<boolean> {
