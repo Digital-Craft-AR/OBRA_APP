@@ -52,11 +52,9 @@ type ProjectQueryRow = {
   bonus_count: number;
   bump_count: number;
   structure_completed_at: string | null;
-  project_content_progress: { current_phase: string }[] | null;
 };
 
-function mapProjectRow(row: ProjectQueryRow): ProjectSummaryCardModel {
-  const progress = row.project_content_progress?.[0];
+function mapProjectRow(row: ProjectQueryRow, currentPhase: string | null | undefined): ProjectSummaryCardModel {
   return {
     id: row.id,
     name: row.name,
@@ -66,7 +64,7 @@ function mapProjectRow(row: ProjectQueryRow): ProjectSummaryCardModel {
     bonus_count: row.bonus_count,
     bump_count: row.bump_count,
     structure_completed_at: row.structure_completed_at,
-    content_phase: parseContentPhase(progress?.current_phase),
+    content_phase: parseContentPhase(currentPhase),
   };
 }
 
@@ -151,22 +149,52 @@ export function DashboardPage() {
       const { data, error: qError } = await supabase
         .from("projects")
         .select(
-          "id, name, main_title, updated_at, design_config, bonus_count, bump_count, structure_completed_at, project_content_progress ( current_phase )",
+          "id, name, main_title, updated_at, design_config, bonus_count, bump_count, structure_completed_at",
         )
         .eq("user_id", uid)
         .eq("lifecycle_status", lifecycleTab)
         .order("updated_at", { ascending: false });
 
       if (cancelled) return;
-      setProjectsLoading(false);
       if (qError) {
+        setProjectsLoading(false);
         setProjectsError(qError.message);
         setTabProjects([]);
         return;
       }
+
+      const projectRows = (data ?? []) as ProjectQueryRow[];
+      const ids = projectRows.map((p) => p.id);
+      const phaseByProjectId: Record<string, string> = {};
+
+      if (ids.length > 0) {
+        const { data: progressRows, error: progressError } = await supabase
+          .from("project_content_progress")
+          .select("project_id, current_phase")
+          .in("project_id", ids);
+
+        if (cancelled) return;
+
+        if (progressError) {
+          setProjectsLoading(false);
+          setProjectsError(progressError.message);
+          setTabProjects([]);
+          return;
+        }
+
+        for (const row of progressRows ?? []) {
+          const pid = row.project_id as string;
+          const phase = row.current_phase as string;
+          if (pid && phase) {
+            phaseByProjectId[pid] = phase;
+          }
+        }
+      }
+
+      if (cancelled) return;
+      setProjectsLoading(false);
       setProjectsError(null);
-      const rows = (data ?? []) as ProjectQueryRow[];
-      setTabProjects(rows.map(mapProjectRow));
+      setTabProjects(projectRows.map((row) => mapProjectRow(row, phaseByProjectId[row.id])));
     })();
     return () => {
       cancelled = true;
