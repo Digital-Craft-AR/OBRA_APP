@@ -53,8 +53,9 @@ export function ContentChapterMilestone({
   const dirty = current ? bodyValue !== (current.content ?? "") : false;
   const generateDisabled = generateLoading || !current?.title?.trim();
   const saveDisabled = saveLoading || !dirty;
-  const approveDisabled =
-    approveLoading || !bodyValue.trim() || dirty || Boolean(current?.approved_at);
+  /** Approve persists unsaved text then sets approved_at; only disabled when already approved with no edits. */
+  const alreadyApprovedClean = Boolean(current?.approved_at) && !dirty;
+  const approveDisabled = approveLoading || !bodyValue.trim() || alreadyApprovedClean;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">

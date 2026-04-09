@@ -689,9 +689,27 @@ export function WizardContentPage() {
 
   const handleApproveMainChapter = useCallback(async () => {
     const current = mainChapterRows[mainChapterIdx];
-    if (!current || mainChapterBodyDraft !== (current.content ?? "")) return;
+    if (!current || !mainChapterBodyDraft.trim()) return;
+    const draftMatchesSaved = mainChapterBodyDraft === (current.content ?? "");
+    if (current.approved_at && draftMatchesSaved) return;
+
     setActionAnnouncement(null);
     setChapterApproveLoading(true);
+
+    if (!draftMatchesSaved) {
+      const saveRes = await updateChapterDraftContent(current.id, mainChapterBodyDraft);
+      if (!saveRes.ok) {
+        setChapterApproveLoading(false);
+        setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+        return;
+      }
+      setMainChapterRows((rows) =>
+        rows.map((r) =>
+          r.id === current.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r,
+        ),
+      );
+    }
+
     const res = await approveChapterBody(current.id);
     setChapterApproveLoading(false);
     if (!res.ok) {

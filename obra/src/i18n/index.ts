@@ -341,7 +341,7 @@ const resources = {
       "wizard.content.chapters.approve": "Aprobar capítulo",
       "wizard.content.chapters.approveLoading": "Aprobando…",
       "wizard.content.chapters.toolbarHint":
-        "Generar consume créditos solo si la IA responde con éxito. Guardá antes de aprobar si editaste el texto.",
+        "Generar consume créditos solo si la IA responde con éxito. Aprobar guarda el texto pendiente (si lo hay) y marca el capítulo como listo.",
       "wizard.content.chapters.errorInsufficientCredits":
         "No tenés créditos suficientes para generar este capítulo.",
       "wizard.content.chapters.errorSave": "No pudimos guardar el borrador.",
@@ -968,7 +968,7 @@ const resources = {
       "wizard.content.chapters.approve": "Aprovar capítulo",
       "wizard.content.chapters.approveLoading": "Aprovando…",
       "wizard.content.chapters.toolbarHint":
-        "Gerar consome créditos somente se a IA responder com sucesso. Salve antes de aprovar se você editou o texto.",
+        "Gerar consome créditos somente se a IA responder com sucesso. Aprovar salva o texto pendente (se houver) e marca o capítulo como pronto.",
       "wizard.content.chapters.errorInsufficientCredits":
         "Você não tem créditos suficientes para gerar este capítulo.",
       "wizard.content.chapters.errorSave": "Não foi possível salvar o rascunho.",
