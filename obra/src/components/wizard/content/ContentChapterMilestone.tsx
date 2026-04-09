@@ -146,6 +146,24 @@ export function ContentChapterMilestone({
               );
             })}
           </ol>
+          {onEditIndex ? (
+            <div className="mt-4 border-t border-obra-blue-100 pt-4">
+              <Button
+                type="button"
+                variant="tertiary"
+                size="medium"
+                disabled={editIndexLoading}
+                onClick={onEditIndex}
+              >
+                {editIndexLoading
+                  ? t("wizard.content.index.reopenIndexLoading")
+                  : t("wizard.content.index.reopenIndex")}
+              </Button>
+              <p className="mt-2 font-body text-xs text-obra-neutral-600">
+                {t("wizard.content.index.reopenIndexHint")}
+              </p>
+            </div>
+          ) : null}
         </nav>
 
         <section
@@ -210,25 +228,6 @@ export function ContentChapterMilestone({
             </Button>
           </div>
           <p className="font-body text-xs text-obra-neutral-600">{t("wizard.content.chapters.toolbarHint")}</p>
-
-          {onEditIndex ? (
-            <div className="border-t border-obra-blue-100 pt-4">
-              <Button
-                type="button"
-                variant="tertiary"
-                size="medium"
-                disabled={editIndexLoading}
-                onClick={onEditIndex}
-              >
-                {editIndexLoading
-                  ? t("wizard.content.index.reopenIndexLoading")
-                  : t("wizard.content.index.reopenIndex")}
-              </Button>
-              <p className="mt-2 font-body text-xs text-obra-neutral-600">
-                {t("wizard.content.index.reopenIndexHint")}
-              </p>
-            </div>
-          ) : null}
         </section>
       </div>
     </div>
