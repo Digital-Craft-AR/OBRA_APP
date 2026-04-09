@@ -360,14 +360,17 @@ CREATE TABLE ebooks (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id    UUID REFERENCES projects(id) ON DELETE CASCADE,
   type          TEXT NOT NULL CHECK (type IN ('main', 'bonus', 'order_bump')),
+  package_ordinal SMALLINT NOT NULL DEFAULT 0,  -- 0 for main; 0..n slot index for bonus / order_bump (unique with project_id + type)
   title         TEXT,
   subtitle      TEXT,
   layout_template_html TEXT,          -- optional per-ebook HTML shell / placeholders; canonical body text lives in chapters.content; full page for PDF = compose template + chapter bodies (see wizard-preview)
+  index_frozen_at TIMESTAMPTZ,        -- order_bump: set when user confirms that bump's TOC in Content; NULL while index is editable (parity with main index freeze)
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX ebooks_one_main_per_project ON ebooks (project_id) WHERE (type = 'main');
+CREATE UNIQUE INDEX ebooks_project_type_ordinal_unique ON ebooks (project_id, type, package_ordinal);
 -- Package limits (MVP): enforce in app/API for UX and in DB as final guard.
 -- Suggested trigger policy on INSERT/UPDATE of ebooks:
 --   - reject if main count > 1
@@ -419,14 +422,14 @@ CREATE TABLE chapters (
   ebook_id    UUID REFERENCES ebooks(id) ON DELETE CASCADE,
   "order"     INTEGER NOT NULL,
   title       TEXT NOT NULL,
-  content     TEXT,                   -- Contenido en markdown o HTML
+  content     TEXT,                   -- Cuerpo del capítulo: HTML enriquecido (subset sanitizado en cliente; ver wizard Contenido)
   image_id    UUID,                   -- FK a images (nullable)
   approved_at TIMESTAMPTZ,            -- NULL until user approves this chapter in Contenido flow
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Contenido scoped chat (wizard-ai-generation): separate threads per PRD — index chat vs per-chapter chat; no cross-artifact leakage.
--- chapter_id IS NULL: exactly one thread per project = "main index / TOC" chat (exists before chapter rows are created).
+-- Contenido scoped chat (wizard-ai-generation): per-chapter threads in MVP; optional post-MVP index chat; no cross-artifact leakage.
+-- chapter_id IS NULL: reserved for optional post-MVP "main index / TOC" chat (not required for MVP UI — index uses non-chat generate/regenerate actions).
 -- chapter_id set: one thread per chapter row (main, bonus, or order_bump ebook chapters).
 CREATE TABLE content_chat_threads (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -492,9 +495,11 @@ CREATE TABLE images (
 - **`project_content_progress`**: single row per project for **Contenido** milestone cursor (`current_phase` with **Postgres `CHECK`** on allowed values), optional `current_ebook_id` / `current_chapter_id`, **`main_index_frozen_at`**, and **`updated_at`** for optimistic locking. Allowed phases: `upload_alignment`, `main_index`, `main_chapter`, `bonus`, `order_bump`, `complete` — align app enums and PRDs (`wizard-ai-generation`, `wizard-upload`). **App** must set initial phase by `content_source` (upload → `upload_alignment`; ai → `main_index`).
 - **Create `project_content_progress` in the same DB transaction** that sets **`projects.structure_completed_at`**, promotes **`project_structure_drafts`** into canonical `projects` / `design_systems` / `ebooks`, and deletes or clears the draft row. **Invariant:** if `structure_completed_at IS NOT NULL`, a **`project_content_progress` row must exist** for that `project_id`. Do not lazy-insert on first navigation unless the transaction above failed and a repair job runs idempotently.
 - **`project_manuscripts`**: one **active** row per project (`superseded_at` NULL) for upload branch; `storage_path` in bucket; **replace** = new row + supersede previous + delete old object per PRD ordering. Supports **project clone** (copy file to new path + new row).
-- **`chapters.approved_at`**: per-chapter **Contenido** approval timestamp (`wizard-ai-generation`); applies to chapters under **main, bonus, or order_bump** ebooks. Do not duplicate approval state in `project_content_progress` beyond the cursor. Single-chapter bonuses/bumps: one chapter row with `approved_at` when done.
-- **Main ebook TOC (table of contents):** persist as **`chapters` rows** on the **main** `ebook` as soon as the user **confirms the index** (AI path) or **approves alignment** (upload path): `order`, `title`, `content` NULL or empty until generated/prefilled; **`approved_at`** is set when the user **approves that chapter’s body**, not when the TOC is confirmed. **Index freeze** is **`project_content_progress.main_index_frozen_at`** (and phase transition to `main_chapter`), not a separate TOC table. **Reopen index** edits these rows (with PRD confirmation flows when bodies already exist).
-- **`content_chat_threads` / `content_chat_messages`:** **Contenido** IA chat only (`wizard-ai-generation`). **`chapter_id` NULL** → single **main-index** thread per `project_id`. **`chapter_id` set** → one thread per **chapter** (main, bonus, or bump). **Upload alignment** UX has **no** persistent project-wide chat in MVP per `wizard-upload`; do not overload these threads for alignment unless product extends the PRD. **User turn persistence (MVP):** server inserts `role='user'` with `client_message_id` idempotency (unique per `thread_id`) after request acceptance; retries must not duplicate rows or charges. **Streaming (MVP):** insert **`assistant` rows only when the generation finishes** (full `content`); no per-chunk DB updates. Mid-stream recovery is client-side or out of scope unless product adds partial/cancel rows later.
+- **`chapters.approved_at`**: per-chapter **Contenido** approval timestamp (`wizard-ai-generation`); applies to chapters under **main, bonus, or order_bump** ebooks. Do not duplicate approval state in `project_content_progress` beyond the cursor. **Bonus** ebooks usually ship as **one** chapter row; **order_bump** ebooks use **multiple** `chapters` rows (TOC) like the main ebook, then one row per section for body work as the product implements the chapter loop.
+- **Multi-chapter TOC (`main` and `order_bump`):** draft chapter **titles** and order are stored as **`chapters`** rows on the corresponding **`ebooks`** row. **`approved_at`** on a chapter marks **body** approval, not TOC confirmation.
+- **Index freeze — main ebook:** **`project_content_progress.main_index_frozen_at`** after the user **confirms** the main index (AI path) or **approves alignment** (upload path), with phase transition to `main_chapter` per app rules. This does **not** use `ebooks.index_frozen_at` on the main row today (single source of truth remains the progress row).
+- **Index freeze — each order bump:** **`ebooks.index_frozen_at`** on that **`order_bump`** row when the user **confirms** the bump’s index in Content; while NULL, draft TOC rows for that ebook remain editable. **`ai-generate-index`** accepts optional **`target_ebook_id`** for bump stubs + credit debit; idempotency keys include the target ebook id. **Reopen index** (when implemented) should clear or update this column under the same product rules as main-index reopen.
+- **`content_chat_threads` / `content_chat_messages`:** **Contenido** IA chat (`wizard-ai-generation`). **`chapter_id` set** → one thread per **chapter** (main, bonus, or bump) in MVP. **`chapter_id` NULL** → optional **post-MVP** main-index conversational chat; **MVP** does not require this row for the TOC milestone (use explicit outline generation APIs). **Upload alignment** UX has **no** persistent project-wide chat in MVP per `wizard-upload`; do not overload these threads for alignment unless product extends the PRD. **User turn persistence (MVP):** server inserts `role='user'` with `client_message_id` idempotency (unique per `thread_id`) after request acceptance; retries must not duplicate rows or charges. **Streaming (MVP):** insert **`assistant` rows only when the generation finishes** (full `content`); no per-chunk DB updates. Mid-stream recovery is client-side or out of scope unless product adds partial/cancel rows later.
 - **Avatar/problem reset (confirmed, `PRD_Obra.md` §3):** After clearing dependent **content** and **storage** per product rules, **delete all `content_chat_threads`** for the project (**CASCADE** removes `content_chat_messages`). **No** chat archive in MVP — avoids stale assistant context against wiped chapters.
 
 ### Consistencia de datos (reset, duplicado, export)
@@ -534,7 +539,7 @@ Recommended **happy-path** order (adjust if your Edge Function uses a compensati
 
 1. **Delete `content_chat_threads`** for `project_id` (CASCADE drops `content_chat_messages`) — removes index + chapter threads without depending on chapter deletes.
 2. **Null or remove chapter-bound assets:** clear `chapters.image_id` / detach slots as needed, then delete **`images`** rows for `project_id` and **delete** corresponding **Storage** objects (or mark tombstone + async purge — document chosen pattern).
-3. **Clear or delete `chapters`** (and any TOC rows) for project ebooks per product rules; reset **`project_content_progress`** to the **initial** Content phase for this `content_source` (`upload_alignment` vs `main_index`), clear **`main_index_frozen_at`**, **`current_ebook_id`**, **`current_chapter_id`**, bump **`updated_at`** for optimistic clients.
+3. **Clear or delete `chapters`** (and any TOC rows) for project ebooks per product rules; clear **`ebooks.index_frozen_at`** on **`order_bump`** rows (and any future per-ebook index flags) so bump TOCs can be edited again; reset **`project_content_progress`** to the **initial** Content phase for this `content_source` (`upload_alignment` vs `main_index`), clear **`main_index_frozen_at`**, **`current_ebook_id`**, **`current_chapter_id`**, bump **`updated_at`** for optimistic clients.
 4. **Persist new `target_avatar` / `problem`** on **`projects`** (and apply **`published` → `modified`** if applicable per PRD).
 5. **Commit** before reporting success; on failure, **do not** tell the user the reset succeeded (`PRD_Obra.md` §3).
 
@@ -585,41 +590,36 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 ---
 
 ### 4.2 `ai-generate-index`
-**Propósito:** Proponer el **índice / lista de capítulos** del ebook principal en la **fase Contenido** (no en el wizard compartido).  
-**Input:** Contexto del proyecto (tema, avatar, problema, título main, `content_locale`, sistema de diseño referido si aplica). Opcional: `chapter_count_hint` o rango máximo según reglas de producto — **no** se envía un `chapter_count` fijado en `wizard-shared` (ese paso ya no define capítulos).
+**Propósito:** Proponer el **índice / lista de capítulos** en la **fase Contenido** para el ebook **principal** o para un ebook **`order_bump`** del mismo proyecto (no en el wizard compartido). Implementación actual: **Edge** `supabase/functions/ai-generate-index` con **stub** de títulos + débito de créditos; integración Claude pendiente.
+
+**Input (cuerpo JSON):** `project_id`, `client_request_id`, y opcionalmente **`target_ebook_id`** (UUID de un `ebooks` row con `type = order_bump` y mismo `project_id`). Sin `target_ebook_id`, el stub usa **`main_title`** / **`topic`** del proyecto. Con `target_ebook_id`, usa el **título del ebook bump** y valida que **`index_frozen_at`** sea NULL antes de cobrar créditos.
+
+**Idempotencia:** clave incluye el destino (`main` vs `target_ebook_id`) para no colisionar entre invocaciones del mismo usuario/proyecto.
+
+**Output (forma actual):**
 ```json
-{
-  "topic": "velas aromáticas",
-  "avatar": "...",
-  "problem": "...",
-  "main_ebook_title": "...",
-  "language": "es",
-  "chapter_count_hint": 8
-}
+{ "ok": true, "stub": true, "chapters": [{ "title": "..." }], "credits_balance_after": 0 }
 ```
-**Output:**
-```json
-{ "chapters": [{ "order": 1, "title": "..." }, ...] }
-```
-**Nota:** Tras **confirmación** del usuario en UI, el índice se persiste y aplica la regla de **index freeze** del PRD de generación de contenido.
+
+**Nota:** Tras **confirmación** en UI, el cliente persiste filas en **`chapters`** y aplica **freeze**: main vía **`main_index_frozen_at`** + fase; cada bump vía **`ebooks.index_frozen_at`** en la fila correspondiente.
 
 ---
 
 ### 4.3 `ai-generate-content`
-**Propósito:** Generar el contenido de un capítulo específico.  
-**Input:**
+**Propósito:** Generar el cuerpo de un capítulo del ebook principal (HTML enriquecido).  
+**Input (implementado):** JWT + body JSON:
 ```json
 {
-  "chapter_title": "Cómo calcular tu precio de venta",
-  "ebook_context": "...",
-  "avatar": "...",
-  "language": "es"
+  "project_id": "uuid",
+  "chapter_id": "uuid",
+  "client_request_id": "uuid"
 }
 ```
 **Output:**
 ```json
-{ "content": "## Cómo calcular tu precio...\n\n..." }
+{ "ok": true, "stub": true, "content": "<h2>Título</h2><p>…</p>", "credits_balance_after": 0 }
 ```
+El cliente **sanitiza** el HTML (DOMPurify, subset de etiquetas) antes de persistir en `chapters.content`. La integración Claude pendiente debe devolver el mismo formato (fragmentos HTML, no Markdown).
 
 ---
 

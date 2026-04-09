@@ -154,7 +154,7 @@ This is a design documentation file, not a navigable prototype. Organize everyth
   texto. El diseño y la vista previa vienen después." with an X to dismiss.                                                                              
    
   Índice del ebook: Split layout. Left panel (55%): editable ordered list of chapter titles. Each row: drag handle, chapter number, title input, delete  
-  icon. "Añadir capítulo" link at bottom of list. Right panel (45%): AI chat thread scoped to the index. Chat messages (user right-aligned, obra-blue-50;
+  icon. "Añadir capítulo" link at bottom of list. Right panel (45%): TOC editor + explicit "Regenerar esquema" actions; **index chatbot is post-MVP** (see `features/wizard-ai-generation/wizard-ai-generation.md`). Legacy note: chat thread scoped to the index was considered; MVP uses no chat here.
    assistant left-aligned, white with obra-blue-100 border). Message input at bottom with send button. Empty state in chat: placeholder text "Describí   
   cómo querés ajustar el índice". Bottom action bar: "Confirmar índice →" (cta). Show a second state where the index is frozen (titles become read-only,
   lock icon appears, "Editar índice" ghost link replaces the confirm button).

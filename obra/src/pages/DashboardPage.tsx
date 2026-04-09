@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/Modal";
 import type { ContentLocale } from "@/lib/projects";
 import { supabase } from "@/lib/supabaseClient";
+import { DEFAULT_DESIGN_CONFIG } from "@/lib/wizard/structureTypes";
 import { contentCardClass } from "@/lib/uiClasses";
 
 type ProfileRow = {
@@ -90,12 +91,16 @@ export function DashboardPage() {
         name: trimmedName,
         content_locale: projectLocale,
         content_source: "ai",
+        design_config: DEFAULT_DESIGN_CONFIG,
       })
       .select("id")
       .single();
     setCreatingProject(false);
 
     if (insertError || !data?.id) {
+      if (import.meta.env.DEV && insertError) {
+        console.error("[createProject]", insertError);
+      }
       setProjectCreateError(t("wizard.modal.createError"));
       return;
     }

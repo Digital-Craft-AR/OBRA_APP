@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -19,6 +19,7 @@ import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { useWizardStructureFlow } from "@/hooks/wizard/useWizardStructureFlow";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import { useWizardTourState } from "@/hooks/wizard/useWizardTourState";
+import { markStructureCompleted } from "@/lib/wizard/structurePersistence";
 import { INNER_STEPS } from "@/lib/wizard/structureTypes";
 
 export function WizardStructurePage() {
@@ -31,6 +32,8 @@ export function WizardStructurePage() {
     params.projectId,
     t("wizard.structure.loadError"),
   );
+
+  const [structureGateError, setStructureGateError] = useState<string | null>(null);
 
   const flow = useWizardStructureFlow({
     project,
@@ -93,6 +96,11 @@ export function WizardStructurePage() {
           {error ? (
             <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
+            </p>
+          ) : null}
+          {structureGateError ? (
+            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {structureGateError}
             </p>
           ) : null}
 
@@ -313,10 +321,33 @@ export function WizardStructurePage() {
           </Button>
           <Button
             variant="primary"
-            disabled={flow.mainTitleSaving}
-            onClick={() => void flow.handleNextStep()}
+            disabled={
+              flow.innerStepIndex === INNER_STEPS.length - 1 ? flow.designSaving : flow.mainTitleSaving
+            }
+            onClick={() =>
+              void (async () => {
+                setStructureGateError(null);
+                const result = await flow.handleNextStep();
+                if (!result.ok) return;
+                if (result.finishedStructure && params.projectId) {
+                  const marked = await markStructureCompleted(params.projectId);
+                  if (!marked.ok) {
+                    setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                    return;
+                  }
+                  setProject((current) =>
+                    current
+                      ? { ...current, structure_completed_at: new Date().toISOString() }
+                      : current,
+                  );
+                  navigate(`/app/projects/${params.projectId}/content`);
+                }
+              })()
+            }
           >
-            {t("wizard.structure.next")}
+            {flow.innerStepIndex === INNER_STEPS.length - 1
+              ? t("wizard.structure.step7.continueToContent")
+              : t("wizard.structure.next")}
             <ChevronRight className="size-4" aria-hidden />
           </Button>
         </div>

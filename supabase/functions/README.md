@@ -11,7 +11,7 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | `PAYMENT_PROVIDER` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Optional; default `mercadopago` — selects `BillingAdapter` implementation |
 | `SUPABASE_URL` | All functions (auto) | Project URL; often injected by the platform |
 | `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize` | Validates caller session via `auth.getUser` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize` | RLS bypass for webhooks / ledger RPC / account deletion |
+| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize`, `ai-generate-index` | RLS bypass for webhooks / ledger RPC / account deletion |
 | `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Production token or `TEST-…` for sandbox (`delete-account` uses it to reconcile before delete) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | **Your integrations** webhook signing secret (HMAC `x-signature`) |
 | `OBRA_APP_URL` | `create-subscription-checkout`, `create-credits-checkout` | Public site origin **without** trailing slash (e.g. `https://obra-app-nu.vercel.app`) — used for MP `back_urls` |
@@ -26,6 +26,7 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | `MERCADOPAGO_CREDITS_PACK_CURRENCY_ID` | `create-credits-checkout` | Optional; default `ARS` |
 | `MERCADOPAGO_CREDITS_PACK_TITLE` | `create-credits-checkout` | Optional; checkout line title |
 | `AI_OPTIMIZE_CREDIT_COST` | `ai-optimize` | Optional; positive integer credits debited per request (default `1`) |
+| `AI_GENERATE_INDEX_CREDIT_COST` | `ai-generate-index` | Optional; credits debited per successful TOC proposal (default `2`) |
 | `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-*` (future) | Claude text |
 | `GOOGLE_GENERATIVE_AI_API_KEY` / Gemini secrets | `image-generate`, Gemini calls (future) | Images |
 | `PUPPETEER_*` / PDF runtime secrets | `export-pdf` (future) | Server-side PDF |
