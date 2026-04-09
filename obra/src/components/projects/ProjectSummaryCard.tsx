@@ -45,14 +45,16 @@ export function ProjectSummaryCard({ project, t }: { project: ProjectSummaryCard
         <ObraBadge variant={variant}>{t(statusKey)}</ObraBadge>
       </div>
       <h2 className="font-display text-lg font-semibold leading-snug text-obra-blue-950">{title}</h2>
-      <div className="flex items-center gap-1.5" aria-label={t("projects.card.paletteAria")}>
-        <span className="size-6 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: primary }} />
-        <span className="size-6 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: secondary }} />
-        <span className="size-6 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: accent }} />
+      <div className="mt-auto flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5" aria-label={t("projects.card.paletteAria")}>
+          <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: primary }} />
+          <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: secondary }} />
+          <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: accent }} />
+        </div>
+        <p className="font-body text-xs text-obra-neutral-600">
+          {t("projects.card.packageMeta", { bonus: project.bonus_count, bump: project.bump_count })}
+        </p>
       </div>
-      <p className="mt-auto font-body text-xs text-obra-neutral-600">
-        {t("projects.card.packageMeta", { bonus: project.bonus_count, bump: project.bump_count })}
-      </p>
     </Link>
   );
 }
