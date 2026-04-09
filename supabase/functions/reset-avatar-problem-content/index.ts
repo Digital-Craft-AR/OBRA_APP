@@ -99,6 +99,31 @@ Deno.serve(async (req: Request) => {
     if (imageDeleteError) return json({ error: "reset_failed", detail: "images_delete" }, 500);
   }
 
+  const { data: manuscriptRows, error: manuscriptLoadError } = await admin
+    .from("project_manuscripts")
+    .select("storage_path, extracted_text_storage_path")
+    .eq("project_id", projectId);
+  if (manuscriptLoadError && !isMissingRelation(manuscriptLoadError)) {
+    return json({ error: "reset_failed", detail: "manuscripts_select" }, 500);
+  }
+  if (Array.isArray(manuscriptRows) && manuscriptRows.length > 0) {
+    const paths = manuscriptRows.flatMap((row) =>
+      [row.storage_path, row.extracted_text_storage_path].filter(
+        (p): p is string => typeof p === "string" && p.length > 0,
+      ),
+    );
+    if (paths.length > 0) {
+      await admin.storage.from("project-manuscripts").remove(paths);
+    }
+    const { error: manuscriptDeleteError } = await admin
+      .from("project_manuscripts")
+      .delete()
+      .eq("project_id", projectId);
+    if (manuscriptDeleteError && !isMissingRelation(manuscriptDeleteError)) {
+      return json({ error: "reset_failed", detail: "manuscripts_delete" }, 500);
+    }
+  }
+
   const { data: ebooks, error: ebookError } = await admin
     .from("ebooks")
     .select("id")
