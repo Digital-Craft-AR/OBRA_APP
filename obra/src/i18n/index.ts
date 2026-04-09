@@ -434,8 +434,7 @@ const resources = {
       "wizard.content.index.confirmSuccess": "Índice confirmado. Podés continuar cuando el paso de capítulos esté listo.",
       "wizard.content.index.reopenIndex": "Editar índice",
       "wizard.content.index.reopenIndexLoading": "Abriendo índice…",
-      "wizard.content.index.reopenIndexHint":
-        "Volvé a editar títulos y orden del índice. Si renombrás un capítulo con contenido, te pediremos si querés vaciar su cuerpo.",
+      "wizard.content.index.reopenIndexHint": "",
       "wizard.content.index.reopenIndexSuccess": "Índice desbloqueado. Editá la tabla de contenidos y volvé a confirmar cuando esté listo.",
       "wizard.content.index.errorReopenIndex": "No pudimos desbloquear el índice. Recargá la página o probá de nuevo.",
       "wizard.content.index.toastInsufficientCreditsTitle": "Sin créditos",
