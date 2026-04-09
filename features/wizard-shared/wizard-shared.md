@@ -47,6 +47,7 @@ The wizard is a **linear sequence of steps** with:
 **Design rules (resolved):**
 
 - **Page size** and **orientation** are the **single source of truth** for **in-app HTML preview** and **PDF export**.
+- **`book_template_id`:** the creator chooses a **book template** (pre-assembled layout composition for Preview/PDF) as part of **Design**, persisted on the project. Catalog and binding rules: **`features/wizard-preview/wizard-preview.md`** and **`docs/architecture/layout-registry-and-pools.md`**.
 - A **design preset** bundles **60/30/10 palette** and **display + body** font pair. Applying a preset sets both.
 - First **manual** change to **any** color or font **unlinks** the preset → state **“Custom”**; optional **restore preset** if offered. **Concrete preset catalog** (names and combinations) is **out of scope of this document** until product/design defines the MVP list (see `PRD_Obra.md` §5).
 

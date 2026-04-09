@@ -19,6 +19,7 @@
 | [architecture/frontend.md](architecture/frontend.md)                                 | Frontend architecture: app modules, state, and UX constraints                                                                                         |
 | [architecture/business_logic.md](architecture/business_logic.md)                     | Domain lifecycle rules and invariants across flows                                                                                                    |
 | [architecture/project-ebook-data-model.md](architecture/project-ebook-data-model.md) | Shared UML for project/ebook schema                                                                                                                   |
+| [architecture/layout-registry-and-pools.md](architecture/layout-registry-and-pools.md) | `book_template_id`, layout manifest, tagged pools, shared Preview + PDF package, CI, `replacedBy` (`wizard-preview`)                         |
 
 
 **Light monorepo:** product specs and engineering docs live at the repository root (`PRD_Obra.md`, `features/`, `ARQUITECTURA_Obra.md`, `CONVENCIONES.md`, `CLAUDE.md`). The web app is intended under `obra/` when present.

@@ -10,6 +10,7 @@ This file is the architecture entry point. Detailed implementation is split by d
 - Frontend architecture: [`docs/architecture/frontend.md`](docs/architecture/frontend.md)
 - Business logic architecture: [`docs/architecture/business_logic.md`](docs/architecture/business_logic.md)
 - Canonical project/ebook data model (shared appendix): [`docs/architecture/project-ebook-data-model.md`](docs/architecture/project-ebook-data-model.md)
+- Book templates, layout registry, pools (Preview/PDF): [`docs/architecture/layout-registry-and-pools.md`](docs/architecture/layout-registry-and-pools.md)
 
 ## 1) System summary
 
@@ -136,6 +137,7 @@ Material operativo y de desarrollo **en inglés**; el PRD sigue siendo la fuente
 | **`docs/operations/smoke-test.md`** | Checklist de smoke antes de deploy (PRD §16) |
 | **`docs/development/ci-pipeline.md`** | Expectativas de CI/E2E Playwright y decisiones abiertas (PRD §16) |
 | **`docs/infrastructure/supabase.md`** | Región, ref de proyecto, PITR — completar tras provisionar Supabase |
+| **`docs/architecture/layout-registry-and-pools.md`** | Book templates (`book_template_id`), registry de layouts, pools, CI compartido Preview/PDF (`wizard-preview`) |
 
 ---
 
