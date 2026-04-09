@@ -547,15 +547,27 @@ export function WizardContentPage() {
           description: t("wizard.content.index.errorInsufficientCredits"),
         });
       } else if (code === "wrong_content_source") {
-        setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
+        const message = t("wizard.content.index.errorWrongSource");
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: message,
+        });
       } else {
-        setActionAnnouncement(t("wizard.content.index.errorGenerateGeneric"));
+        const message = t("wizard.content.index.errorGenerateGeneric");
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: message,
+        });
       }
       return;
     }
     const saved = await replaceEbookDraftChapters(mainEbookId, result.titles);
     if (!saved.ok) {
-      setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+      const message = t("wizard.content.index.errorSaveToc");
+      toast.error({
+        title: t("wizard.content.index.regenerateOutline"),
+        description: message,
+      });
       return;
     }
     const loaded = await loadEbookChapters(mainEbookId);
@@ -586,15 +598,27 @@ export function WizardContentPage() {
       if (code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
       } else if (code === "wrong_content_source") {
-        setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
+        const message = t("wizard.content.index.errorWrongSource");
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: message,
+        });
       } else {
-        setActionAnnouncement(t("wizard.content.index.errorGenerateGeneric"));
+        const message = t("wizard.content.index.errorGenerateGeneric");
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: message,
+        });
       }
       return;
     }
     const saved = await replaceEbookDraftChapters(ebookId, result.titles);
     if (!saved.ok) {
-      setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+      const message = t("wizard.content.index.errorSaveToc");
+      toast.error({
+        title: t("wizard.content.index.regenerateOutline"),
+        description: message,
+      });
       return;
     }
     const loaded = await loadEbookChapters(ebookId);
