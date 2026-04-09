@@ -44,6 +44,7 @@ export function NewProjectPage() {
         content_locale: contentLocale,
         content_source: contentSource,
         design_config: DEFAULT_DESIGN_CONFIG,
+        lifecycle_status: "active",
       })
       .select("id")
       .single();
