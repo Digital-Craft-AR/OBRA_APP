@@ -282,16 +282,19 @@ export function DesignSystemPage() {
                 variant="success"
                 title="Project saved"
                 description="Your changes were saved successfully."
+                timeoutMs={0}
               />
               <ObraToast
                 variant="error"
                 title="Error exporting PDF"
                 description="Please try again in a few seconds."
+                timeoutMs={0}
               />
               <ObraToast
                 variant="info"
                 title="AI processing"
                 description="This action may take up to 30 seconds."
+                timeoutMs={0}
               />
             </div>
           </ObraCard>

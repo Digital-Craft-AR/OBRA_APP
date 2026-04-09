@@ -49,19 +49,22 @@ export function ObraToast({
   ...props
 }: ObraToastProps) {
   const style = variantStyles[variant];
-  const [remainingMs, setRemainingMs] = useState(timeoutMs);
+  const [remainingMs, setRemainingMs] = useState(() => (timeoutMs > 0 ? timeoutMs : 0));
   const [paused, setPaused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const timeoutHandledRef = useRef(false);
 
+  const liveRole = variant === "error" ? "alert" : "status";
+  const ariaLive = variant === "error" ? "assertive" : "polite";
+
   useEffect(() => {
     setDismissed(false);
-    setRemainingMs(timeoutMs);
+    setRemainingMs(timeoutMs > 0 ? timeoutMs : 0);
     timeoutHandledRef.current = false;
   }, [timeoutMs, title, description, variant]);
 
   useEffect(() => {
-    if (dismissed || paused || remainingMs <= 0) return;
+    if (dismissed || paused || remainingMs <= 0 || timeoutMs <= 0) return;
     const tickMs = 100;
     const timer = window.setInterval(() => {
       setRemainingMs((prev) => {
@@ -73,13 +76,28 @@ export function ObraToast({
       });
     }, tickMs);
     return () => window.clearInterval(timer);
-  }, [dismissed, paused, remainingMs]);
+  }, [dismissed, paused, remainingMs, timeoutMs]);
 
   useEffect(() => {
+    if (timeoutMs <= 0) return;
     if (remainingMs > 0 || timeoutHandledRef.current) return;
     timeoutHandledRef.current = true;
-    onTimeout?.();
-  }, [remainingMs, onTimeout]);
+    if (onTimeout) {
+      onTimeout();
+    } else {
+      setDismissed(true);
+    }
+  }, [remainingMs, onTimeout, timeoutMs]);
+
+  function handleDismiss() {
+    if (timeoutHandledRef.current) return;
+    timeoutHandledRef.current = true;
+    if (onTimeout) {
+      onTimeout();
+    } else {
+      setDismissed(true);
+    }
+  }
 
   function handleDismiss() {
     if (timeoutHandledRef.current) return;
@@ -105,8 +123,8 @@ export function ObraToast({
 
   return (
     <div
-      role="status"
-      aria-live="polite"
+      role={liveRole}
+      aria-live={ariaLive}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       className={`relative w-full max-w-toast rounded-card py-3 pl-4 pr-10 shadow-card-hover ${style.background} ${style.border} ${className}`.trim()}
