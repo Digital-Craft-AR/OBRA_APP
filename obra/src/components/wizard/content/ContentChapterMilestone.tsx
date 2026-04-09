@@ -13,7 +13,6 @@ type ContentChapterMilestoneProps = {
   onSelectKey: (key: string) => void;
   navItemDisabled?: (key: string) => boolean;
   panelTitle: string;
-  panelSubtitle: string;
   chapters: ChapterDraftRow[];
   selectedIndex: number;
   onSelectChapterIndex: (index: number) => void;
@@ -25,11 +24,10 @@ type ContentChapterMilestoneProps = {
   saveLoading: boolean;
   generateLoading: boolean;
   approveLoading: boolean;
-  actionAnnouncement?: string | null;
   /** Bumps when AI replaces body so the editor remounts with new HTML. */
   richTextResetKey: number;
-  onEditIndex?: () => void;
-  editIndexLoading?: boolean;
+  progressValue?: number;
+  progressMax?: number;
 };
 
 export function ContentChapterMilestone({
@@ -39,7 +37,6 @@ export function ContentChapterMilestone({
   onSelectKey,
   navItemDisabled,
   panelTitle,
-  panelSubtitle,
   chapters,
   selectedIndex,
   onSelectChapterIndex,
@@ -51,10 +48,9 @@ export function ContentChapterMilestone({
   saveLoading,
   generateLoading,
   approveLoading,
-  actionAnnouncement,
   richTextResetKey,
-  onEditIndex,
-  editIndexLoading = false,
+  progressValue = 0,
+  progressMax = 1,
 }: ContentChapterMilestoneProps) {
   const navLabel = t("wizard.content.index.packageNavAria");
   const listLabel = t("wizard.content.chapters.chapterListAria");
@@ -66,6 +62,9 @@ export function ContentChapterMilestone({
   const alreadyApprovedClean = Boolean(current?.approved_at) && !dirty;
   const approveDisabled =
     approveLoading || isChapterHtmlEffectivelyEmpty(bodyValue) || alreadyApprovedClean;
+  const safeMax = Math.max(1, progressMax);
+  const safeValue = Math.min(Math.max(progressValue, 0), safeMax);
+  const progressPercent = Math.round((safeValue / safeMax) * 100);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
@@ -146,24 +145,6 @@ export function ContentChapterMilestone({
               );
             })}
           </ol>
-          {onEditIndex ? (
-            <div className="mt-4 border-t border-obra-blue-100 pt-4">
-              <Button
-                type="button"
-                variant="tertiary"
-                size="small"
-                disabled={editIndexLoading}
-                onClick={onEditIndex}
-              >
-                {editIndexLoading
-                  ? t("wizard.content.index.reopenIndexLoading")
-                  : t("wizard.content.index.reopenIndex")}
-              </Button>
-              <p className="mt-2 font-body text-xs text-obra-neutral-600">
-                {t("wizard.content.index.reopenIndexHint")}
-              </p>
-            </div>
-          ) : null}
         </nav>
 
         <section
@@ -181,18 +162,22 @@ export function ContentChapterMilestone({
                 </span>
               ) : null}
             </div>
-            <p className="font-body text-sm text-obra-neutral-600">{panelSubtitle}</p>
+            <div className="pt-2">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="font-body text-xs text-obra-neutral-600">{t("wizard.content.progress.contentLabel")}</span>
+                <span className="font-body text-xs font-medium text-obra-blue-950">
+                  {safeValue}/{safeMax}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-obra-blue-100">
+                <div
+                  className="h-full rounded-full bg-obra-blue-700 transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                  aria-hidden
+                />
+              </div>
+            </div>
           </div>
-
-          {current ? (
-            <p className="font-body text-sm font-medium text-obra-blue-950">{current.title}</p>
-          ) : null}
-
-          {actionAnnouncement ? (
-            <p role="status" aria-live="polite" className="font-body text-sm text-obra-blue-950">
-              {actionAnnouncement}
-            </p>
-          ) : null}
 
           {current ? (
             <ChapterRichTextEditor
