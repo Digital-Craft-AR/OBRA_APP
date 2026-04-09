@@ -36,6 +36,8 @@ import {
   validateMainTocForConfirm,
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
+import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/manuscriptUploadApi";
+import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 import { toast } from "@/toast";
@@ -146,6 +148,7 @@ export function WizardContentPage() {
     pendingRows: TocChapterRow[];
     baseRows: TocChapterRow[];
   } | null>(null);
+  const [manuscriptRow, setManuscriptRow] = useState<ProjectManuscriptRow | null>(null);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -183,6 +186,7 @@ export function WizardContentPage() {
     setArtifactApprovedByKey({});
     setPackageEbookIds({});
     setBonusBumpToc({});
+    setManuscriptRow(null);
 
     void (async () => {
       const ensured = await ensureContentWorkspace(project.id);
@@ -252,6 +256,12 @@ export function WizardContentPage() {
       setBumpTocEntryResolved(bumpResolved);
       setBonusBumpToc(tocUpdates);
 
+      if (project.content_source === "upload") {
+        const ms = await fetchActiveManuscript(project.id);
+        if (cancelled) return;
+        if (ms.ok) setManuscriptRow(ms.row);
+      }
+
       setWorkspaceReady(true);
     })();
 
@@ -264,6 +274,7 @@ export function WizardContentPage() {
     project?.structure_completed_at,
     project?.bonus_count,
     project?.bump_count,
+    project?.content_source,
     t,
   ]);
 
@@ -1066,7 +1077,12 @@ export function WizardContentPage() {
 
           {needsUploadAlignment && project ? (
             <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
-              <p className="font-body text-sm text-obra-blue-950">{t("wizard.content.uploadGate.body")}</p>
+              <ManuscriptUploadPanel
+                t={t}
+                projectId={project.id}
+                initialManuscript={manuscriptRow}
+                onManuscriptCommitted={setManuscriptRow}
+              />
             </div>
           ) : null}
 
