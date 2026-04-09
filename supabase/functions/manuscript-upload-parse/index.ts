@@ -49,7 +49,11 @@ async function parseDocx(arrayBuffer: ArrayBuffer): Promise<string> {
 async function parsePdf(bytes: Uint8Array): Promise<{ text: string; passwordProtected?: boolean }> {
   try {
     const { text } = await extractText(bytes);
-    const t = typeof text === "string" ? text : "";
+    const t = Array.isArray(text)
+      ? text.join("\n")
+      : typeof text === "string"
+        ? text
+        : "";
     return { text: t };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
