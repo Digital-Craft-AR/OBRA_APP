@@ -346,6 +346,20 @@ const resources = {
       "wizard.structure.step7.continueToContent": "Ir a Contenido",
       "wizard.structure.step7.structureMarkError":
         "El diseño se guardó, pero no pudimos marcar la estructura como completa. Probá de nuevo o recargá la página.",
+      "wizard.structure.avatarReset.modal.closeAria": "Cerrar",
+      "wizard.structure.avatarReset.modal.step1Title": "Cambiaste avatar o problema",
+      "wizard.structure.avatarReset.modal.step1Subtitle": "Elegí cómo continuar",
+      "wizard.structure.avatarReset.modal.step1Body":
+        "Podés guardar los nuevos parámetros sin tocar el contenido existente, o empezar de cero con estos parámetros y limpiar hitos de contenido.",
+      "wizard.structure.avatarReset.modal.step2Title": "Confirmación final",
+      "wizard.structure.avatarReset.modal.step2Subtitle": "Se limpiará el avance de Contenido",
+      "wizard.structure.avatarReset.modal.step2Body":
+        "Esto reinicia los hitos de contenido del proyecto (índices, capítulos y progreso), mantiene Estructura completada y te devuelve a Contenido paso 2 con los nuevos parámetros.",
+      "wizard.structure.avatarReset.modal.cancel": "Cancelar",
+      "wizard.structure.avatarReset.modal.keepContent": "Guardar sin reiniciar",
+      "wizard.structure.avatarReset.modal.startFresh": "Empezar de cero",
+      "wizard.structure.avatarReset.modal.back": "Volver",
+      "wizard.structure.avatarReset.modal.confirmFresh": "Sí, reiniciar contenido",
       "wizard.content.footer.backToStructure": "Volver a estructura",
       "wizard.content.footer.back": "Volver",
       "wizard.content.progress.contentLabel": "Progreso de capítulos aprobados",
@@ -506,6 +520,8 @@ const resources = {
       "wizard.structure.topic.required": "El tema del proyecto es obligatorio para continuar.",
       "wizard.structure.avatarProblem.saving": "Guardando avatar y problema…",
       "wizard.structure.avatarProblem.saveError": "No pudimos guardar avatar y problema.",
+      "wizard.structure.avatarProblem.resetError":
+        "No pudimos reiniciar el contenido con los nuevos parámetros. Verificá que la función reset-avatar-problem-content esté desplegada y probá de nuevo.",
       "wizard.structure.avatarProblem.improveError": "No pudimos optimizar este texto en este momento.",
       "wizard.structure.avatarProblem.improvePending":
         "La optimización se procesó, pero la respuesta textual aún está en modo stub.",
@@ -1025,6 +1041,20 @@ const resources = {
       "wizard.structure.step7.continueToContent": "Ir para Conteúdo",
       "wizard.structure.step7.structureMarkError":
         "O design foi salvo, mas não foi possível marcar a estrutura como concluída. Tente de novo ou recarregue a página.",
+      "wizard.structure.avatarReset.modal.closeAria": "Fechar",
+      "wizard.structure.avatarReset.modal.step1Title": "Você alterou avatar ou problema",
+      "wizard.structure.avatarReset.modal.step1Subtitle": "Escolha como continuar",
+      "wizard.structure.avatarReset.modal.step1Body":
+        "Você pode salvar os novos parâmetros sem mexer no conteúdo existente, ou recomeçar com esses parâmetros e limpar os marcos de conteúdo.",
+      "wizard.structure.avatarReset.modal.step2Title": "Confirmação final",
+      "wizard.structure.avatarReset.modal.step2Subtitle": "O progresso de Conteúdo será limpo",
+      "wizard.structure.avatarReset.modal.step2Body":
+        "Isso reinicia os marcos de conteúdo do projeto (sumários, capítulos e progresso), mantém Estrutura concluída e leva você de volta ao passo 2 de Conteúdo com os novos parâmetros.",
+      "wizard.structure.avatarReset.modal.cancel": "Cancelar",
+      "wizard.structure.avatarReset.modal.keepContent": "Salvar sem reiniciar",
+      "wizard.structure.avatarReset.modal.startFresh": "Recomeçar do zero",
+      "wizard.structure.avatarReset.modal.back": "Voltar",
+      "wizard.structure.avatarReset.modal.confirmFresh": "Sim, reiniciar conteúdo",
       "wizard.content.footer.backToStructure": "Voltar para a estrutura",
       "wizard.content.footer.back": "Voltar",
       "wizard.content.progress.contentLabel": "Progresso de capítulos aprovados",
@@ -1186,6 +1216,8 @@ const resources = {
       "wizard.structure.topic.required": "O tema do projeto é obrigatório para continuar.",
       "wizard.structure.avatarProblem.saving": "Salvando avatar e problema…",
       "wizard.structure.avatarProblem.saveError": "Não foi possível salvar avatar e problema.",
+      "wizard.structure.avatarProblem.resetError":
+        "Não foi possível reiniciar o conteúdo com os novos parâmetros. Verifique se a função reset-avatar-problem-content está publicada e tente novamente.",
       "wizard.structure.avatarProblem.improveError":
         "Não foi possível otimizar este texto no momento.",
       "wizard.structure.avatarProblem.improvePending":

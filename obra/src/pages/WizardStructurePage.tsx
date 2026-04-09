@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
+import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { StructureStepAvatarProblem } from "@/components/wizard/structure/StructureStepAvatarProblem";
 import { StructureStepBonusBumpTitles } from "@/components/wizard/structure/StructureStepBonusBumpTitles";
 import { StructureStepDesign } from "@/components/wizard/structure/StructureStepDesign";
@@ -34,6 +35,8 @@ export function WizardStructurePage() {
   );
 
   const [structureGateError, setStructureGateError] = useState<string | null>(null);
+  const [avatarResetModalOpen, setAvatarResetModalOpen] = useState(false);
+  const [avatarResetModalStep, setAvatarResetModalStep] = useState<1 | 2>(1);
 
   const flow = useWizardStructureFlow({
     project,
@@ -327,6 +330,15 @@ export function WizardStructurePage() {
             onClick={() =>
               void (async () => {
                 setStructureGateError(null);
+                if (
+                  flow.innerStepIndex === 1 &&
+                  project?.structure_completed_at &&
+                  flow.avatarProblemChanged
+                ) {
+                  setAvatarResetModalStep(1);
+                  setAvatarResetModalOpen(true);
+                  return;
+                }
                 const result = await flow.handleNextStep();
                 if (!result.ok) return;
                 if (result.finishedStructure && params.projectId) {
@@ -369,6 +381,108 @@ export function WizardStructurePage() {
         onSkip={() => void dismissTour()}
         onFinish={() => void dismissTour()}
       />
+
+      <Modal
+        open={avatarResetModalOpen}
+        onClose={() => setAvatarResetModalOpen(false)}
+        closeLabel={t("wizard.structure.avatarReset.modal.closeAria")}
+      >
+        <ModalHead>
+          <ModalTitle>
+            {avatarResetModalStep === 1
+              ? t("wizard.structure.avatarReset.modal.step1Title")
+              : t("wizard.structure.avatarReset.modal.step2Title")}
+          </ModalTitle>
+        </ModalHead>
+        <ModalContent>
+          {avatarResetModalStep === 1
+            ? t("wizard.structure.avatarReset.modal.step1Body")
+            : t("wizard.structure.avatarReset.modal.step2Body")}
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          {avatarResetModalStep === 1 ? (
+            <>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="medium"
+                onClick={() => setAvatarResetModalOpen(false)}
+              >
+                {t("wizard.structure.avatarReset.modal.cancel")}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="medium"
+                onClick={() => {
+                  setAvatarResetModalOpen(false);
+                  void (async () => {
+                    const result = await flow.handleNextStep({ forceResetAvatarProblem: false });
+                    if (!result.ok) return;
+                    if (result.finishedStructure && params.projectId) {
+                      const marked = await markStructureCompleted(params.projectId);
+                      if (!marked.ok) {
+                        setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                        return;
+                      }
+                      setProject((current) =>
+                        current ? { ...current, structure_completed_at: new Date().toISOString() } : current,
+                      );
+                      navigate(`/app/projects/${params.projectId}/content`);
+                    }
+                  })();
+                }}
+              >
+                {t("wizard.structure.avatarReset.modal.keepContent")}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="medium"
+                onClick={() => setAvatarResetModalStep(2)}
+              >
+                {t("wizard.structure.avatarReset.modal.startFresh")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="medium"
+                onClick={() => setAvatarResetModalStep(1)}
+              >
+                {t("wizard.structure.avatarReset.modal.back")}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="medium"
+                onClick={() => {
+                  setAvatarResetModalOpen(false);
+                  void (async () => {
+                    const result = await flow.handleNextStep({ forceResetAvatarProblem: true });
+                    if (!result.ok) return;
+                    if (result.finishedStructure && params.projectId) {
+                      const marked = await markStructureCompleted(params.projectId);
+                      if (!marked.ok) {
+                        setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                        return;
+                      }
+                      setProject((current) =>
+                        current ? { ...current, structure_completed_at: new Date().toISOString() } : current,
+                      );
+                      navigate(`/app/projects/${params.projectId}/content`);
+                    }
+                  })();
+                }}
+              >
+                {t("wizard.structure.avatarReset.modal.confirmFresh")}
+              </Button>
+            </>
+          )}
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
