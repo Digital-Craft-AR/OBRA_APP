@@ -45,3 +45,68 @@
     @apply min-h-screen bg-obra-blue-50 font-body text-sm text-obra-neutral-900 antialiased;
   }
 }
+
+/* Tiptap / ProseMirror — chapter rich text (Content wizard) */
+.obra-rich-editor .ProseMirror {
+  min-height: 10rem;
+  outline: none;
+}
+
+.obra-rich-editor .ProseMirror p {
+  margin: 0 0 0.75em;
+}
+
+.obra-rich-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.obra-rich-editor .ProseMirror h2 {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-obra-blue-950);
+  margin: 0.75em 0 0.4em;
+}
+
+.obra-rich-editor .ProseMirror h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-obra-blue-950);
+  margin: 0.65em 0 0.35em;
+}
+
+.obra-rich-editor .ProseMirror ul,
+.obra-rich-editor .ProseMirror ol {
+  margin: 0 0 0.75em 1.25rem;
+  padding: 0;
+}
+
+.obra-rich-editor .ProseMirror li {
+  margin-bottom: 0.25em;
+}
+
+.obra-rich-editor .ProseMirror blockquote {
+  margin: 0.5em 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--color-obra-blue-200);
+  color: var(--color-obra-neutral-600);
+}
+
+.obra-rich-editor .ProseMirror code {
+  font-size: 0.9em;
+  background: var(--color-obra-blue-50);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.obra-rich-editor .ProseMirror-focused {
+  outline: none;
+}
+
+.obra-rich-editor .ProseMirror.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-obra-neutral-400);
+}

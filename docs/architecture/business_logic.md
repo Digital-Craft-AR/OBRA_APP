@@ -1,6 +1,6 @@
 # Business logic architecture (Obra)
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Last update:** April 2026  
 **Scope:** Domain flows, invariants, lifecycle rules, cross-layer contracts, and UI route guard derivation.
 
@@ -46,9 +46,10 @@ Initialization:
 
 Index behavior:
 
-- Main ebook TOC is stored in `chapters` rows.
-- `main_index_frozen_at` marks index freeze.
-- `chapters.approved_at` tracks body approval per chapter (not TOC confirmation).
+- **Main ebook** and **each order bump** use a **multi-chapter table of contents** stored as `chapters` rows on their respective `ebooks` row (`type = main` or `type = order_bump`). **Bonus** ebooks typically use a **single** chapter row for the deliverable.
+- **Main index freeze:** `project_content_progress.main_index_frozen_at` (and app phase transition to `main_chapter` after confirm). The main ebook row does **not** use `ebooks.index_frozen_at` for this today.
+- **Order bump index freeze:** `ebooks.index_frozen_at` on the specific `order_bump` row when the user confirms that bump’s TOC in Content. Until set, draft TOC chapter titles for that ebook remain editable.
+- `chapters.approved_at` tracks **body** approval per chapter (not TOC confirmation), for all ebook types that use chapter rows.
 
 Canonical schema details:
 
@@ -84,6 +85,7 @@ Avatar/problem reset behavior:
 
 - clear dependent generated content and image associations
 - remove content chat threads/messages for the project
+- clear **`ebooks.index_frozen_at`** on **`order_bump`** rows when wiping bump TOC/chapters (align with `ARQUITECTURA_Obra.md` reset ordering)
 - reset progression cursor to initial content phase for the current `content_source`
 - keep operation ordering atomic/idempotent to avoid partial visible states
 

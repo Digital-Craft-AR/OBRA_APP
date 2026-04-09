@@ -6,6 +6,7 @@ figma_make/node_modules/
 
 # Supabase CLI local state
 supabase/.temp/
+supabase/.branches/
 
 # Local secrets for email template push script (see supabase/email-templates/README.md)
 supabase/email-templates/.env.local

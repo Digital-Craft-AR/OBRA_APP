@@ -77,6 +77,7 @@ Upload rules (formats, 10 MB, sync flow, credits, weak prefill): `PRD_Obra.md` �
 
 - **Frontend:** React + Vite + TypeScript  
 - **UI:** shadcn/ui + Tailwind CSS  
+- **Chapter body (Content wizard):** `chapters.content` is **sanitized rich HTML**; editor is **Tiptap** (`@tiptap/react` + StarterKit, Link, Underline, Placeholder). Do not store Markdown in `chapters.content`.  
 - **Backend / data:** Supabase (Auth, PostgreSQL, Storage, Edge Functions)  
 - **AI — text:** Anthropic Claude API  
 - **AI — images:** Google **Gemini API** (Nano Banana / image models per PRD)  
