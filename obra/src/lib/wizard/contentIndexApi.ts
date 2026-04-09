@@ -344,6 +344,66 @@ export async function confirmOrderBumpIndex(ebookId: string): Promise<
   return { ok: true, frozen_at: data.index_frozen_at as string };
 }
 
+/** Reopens the main ebook TOC for editing (undo index freeze). Caller should reload chapter rows. */
+export async function reopenMainIndex(projectId: string): Promise<
+  { ok: true } | { ok: false; code: "wrong_phase" | "update_failed" }
+> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("project_content_progress")
+    .update({
+      main_index_frozen_at: null,
+      current_phase: "main_index",
+      updated_at: now,
+    })
+    .eq("project_id", projectId)
+    .eq("current_phase", "main_chapter")
+    .select("project_id")
+    .maybeSingle();
+
+  if (error) return { ok: false, code: "update_failed" };
+  if (!data) return { ok: false, code: "wrong_phase" };
+  return { ok: true };
+}
+
+export async function clearChapterBody(chapterId: string): Promise<{ ok: true } | { ok: false }> {
+  const { error } = await supabase
+    .from("chapters")
+    .update({ content: null, approved_at: null })
+    .eq("id", chapterId);
+
+  if (error) return { ok: false };
+  return { ok: true };
+}
+
+export type SyncMainTocResult =
+  | { ok: true; mode: "in_place" }
+  | { ok: true; mode: "full_replace" }
+  | { ok: false };
+
+/**
+ * When TOC row count and chapter ids match DB, update titles in place (preserves bodies).
+ * Otherwise caller should use `upsertEbookDraftChaptersFromRows` (destructive replace of draft rows).
+ */
+export async function trySyncMainEbookTocBeforeFreeze(
+  ebookId: string,
+  rows: TocChapterRow[],
+): Promise<SyncMainTocResult> {
+  const loaded = await loadEbookChapters(ebookId);
+  if (!loaded.ok) return { ok: false };
+  if (loaded.rows.length !== rows.length) return { ok: true, mode: "full_replace" };
+  for (let i = 0; i < rows.length; i++) {
+    if (loaded.rows[i].id !== rows[i].id) return { ok: true, mode: "full_replace" };
+  }
+  for (let i = 0; i < rows.length; i++) {
+    const nextTitle = rows[i].title.trim() || " ";
+    if (nextTitle === loaded.rows[i].title) continue;
+    const { error } = await supabase.from("chapters").update({ title: nextTitle }).eq("id", rows[i].id);
+    if (error) return { ok: false };
+  }
+  return { ok: true, mode: "in_place" };
+}
+
 export async function confirmMainIndex(projectId: string): Promise<
   { ok: true } | { ok: false; code: "wrong_phase" | "update_failed" }
 > {
