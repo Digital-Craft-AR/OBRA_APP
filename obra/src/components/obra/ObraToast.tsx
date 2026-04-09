@@ -99,16 +99,6 @@ export function ObraToast({
     }
   }
 
-  function handleDismiss() {
-    if (timeoutHandledRef.current) return;
-    timeoutHandledRef.current = true;
-    if (onTimeout) {
-      onTimeout();
-    } else {
-      setDismissed(true);
-    }
-  }
-
   const progress = useMemo(() => {
     if (timeoutMs <= 0) return 0;
     return remainingMs / timeoutMs;
