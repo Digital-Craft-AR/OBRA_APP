@@ -7,6 +7,7 @@ import { ObraSidebar } from "@/components/obra/ObraSidebar";
 import { Button } from "@/components/ui/Button";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { parseSettingsRouteSection, type SettingsRouteSection } from "@/entitlement/resolveEntitlement";
+import { usePersistentSidebarCollapsed } from "@/hooks/usePersistentSidebarCollapsed";
 import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
 import type { UiLocale } from "@/lib/uiLocale";
@@ -62,7 +63,7 @@ export function SettingsPage() {
   const [locale, setLocale] = useState<UiLocale>("es");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { sidebarCollapsed, setSidebarCollapsed } = usePersistentSidebarCollapsed();
   const [hasUiLocaleColumn, setHasUiLocaleColumn] = useState(true);
 
   useEffect(() => {
@@ -151,7 +152,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-obra-blue-50">
+    <div className="flex h-screen overflow-hidden bg-obra-blue-50">
       <ObraSidebar
         collapsed={sidebarCollapsed}
         onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
@@ -190,7 +191,7 @@ export function SettingsPage() {
         logoutLabel={t("nav.logout")}
       />
 
-      <main className="flex min-h-screen flex-1 flex-col bg-white">
+      <main className="flex min-h-0 flex-1 flex-col bg-white">
         <header className="flex h-18 shrink-0 items-center border-b border-obra-blue-100 px-10">
           <h1 className="font-display text-xl font-normal leading-none text-obra-blue-950">
             {t("settings.pageTitle")}

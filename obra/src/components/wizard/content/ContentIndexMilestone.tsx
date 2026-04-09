@@ -133,7 +133,7 @@ export function ContentIndexMilestone({
         aria-label={navLabel}
         className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 pb-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
       >
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
           {navItems.map((item) => {
             const isCurrent = item.key === selectedKey;
             const disabled = navItemDisabled?.(item.key) ?? false;

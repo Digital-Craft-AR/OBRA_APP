@@ -7,6 +7,7 @@ import { ObraSidebar } from "@/components/obra/ObraSidebar";
 import { ObraInput } from "@/components/obra/ObraInput";
 import { ProjectSummaryCard, type ProjectSummaryCardModel } from "@/components/projects/ProjectSummaryCard";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
+import { usePersistentSidebarCollapsed } from "@/hooks/usePersistentSidebarCollapsed";
 import { Button } from "@/components/ui/Button";
 import {
   Modal,
@@ -21,7 +22,6 @@ import type { ProjectContentProgressPhase, ProjectLifecycleTab } from "@/lib/pro
 import { projectLifecycleTabLabel } from "@/lib/projectDashboard";
 import { supabase } from "@/lib/supabaseClient";
 import { DEFAULT_DESIGN_CONFIG } from "@/lib/wizard/structureTypes";
-import { contentCardClass } from "@/lib/uiClasses";
 import { normalizeDesignConfig } from "@/lib/wizard/structureTypes";
 
 type ProfileRow = {
@@ -76,7 +76,7 @@ export function DashboardPage() {
   const { creditsBalance } = useEntitlement();
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { sidebarCollapsed, setSidebarCollapsed } = usePersistentSidebarCollapsed();
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [projectStep, setProjectStep] = useState<1 | 2>(1);
   const [projectName, setProjectName] = useState("");
@@ -255,7 +255,7 @@ export function DashboardPage() {
   const showProjectGrid = totalProjectCount !== null && totalProjectCount > 0;
 
   return (
-    <div className="flex min-h-screen bg-obra-blue-50">
+    <div className="flex h-screen overflow-hidden bg-obra-blue-50">
       <ObraSidebar
         collapsed={sidebarCollapsed}
         onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
@@ -294,13 +294,10 @@ export function DashboardPage() {
         logoutLabel={t("nav.logout")}
       />
 
-      <main className="flex flex-1 flex-col gap-6 p-6 sm:p-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-obra-blue-950">{t("projects.pageTitle")}</h1>
-            <p className="text-obra-neutral-600">{t("dashboard.welcome")}</p>
-          </div>
-          <Button type="button" variant="primary" className="shrink-0 self-start sm:self-auto" onClick={openNewProjectModal}>
+      <main className="flex min-h-0 flex-1 flex-col bg-white">
+        <header className="flex h-18 shrink-0 items-center justify-between border-b border-obra-blue-100 px-10">
+          <h1 className="font-display text-xl font-normal leading-none text-obra-blue-950">{t("projects.pageTitle")}</h1>
+          <Button type="button" variant="primary" className="shrink-0" onClick={openNewProjectModal}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -321,43 +318,17 @@ export function DashboardPage() {
           </Button>
         </header>
 
-        {countLoading ? (
-          <p className="text-obra-neutral-600">{t("projects.loading")}</p>
-        ) : tourEmpty ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-6 sm:px-10 sm:py-10">
-            <div className="relative flex aspect-video w-full max-w-2xl items-center justify-center overflow-hidden rounded-card border border-obra-blue-100 bg-obra-blue-50">
-              <button
-                type="button"
-                className="flex size-14 items-center justify-center rounded-full bg-obra-blue-900/80 transition-colors hover:bg-obra-blue-900"
-                aria-label={t("dashboard.demo.play")}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="ml-0.5 size-6 text-white"
-                  aria-hidden
+        <div className="min-h-0 flex-1 overflow-y-auto p-10">
+          {countLoading ? (
+            <p className="text-obra-neutral-600">{t("projects.loading")}</p>
+          ) : tourEmpty ? (
+            <div className="flex min-h-full flex-col items-center justify-center gap-8">
+              <div className="relative flex aspect-video w-full max-w-2xl items-center justify-center overflow-hidden rounded-card border border-obra-blue-100 bg-obra-blue-50">
+                <button
+                  type="button"
+                  className="flex size-14 items-center justify-center rounded-full bg-obra-blue-900/80 transition-colors hover:bg-obra-blue-900"
+                  aria-label={t("dashboard.demo.play")}
                 >
-                  <polygon points="6 3 20 12 6 21 6 3" />
-                </svg>
-              </button>
-              <span className="absolute bottom-3 left-4 font-body text-xs text-obra-neutral-600">
-                {t("dashboard.demo.duration")}
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-5 text-center">
-              <h2 className="font-display text-2xl text-obra-blue-950">{t("dashboard.demo.heroTitle")}</h2>
-              <p className="max-w-md font-body text-sm leading-relaxed text-obra-neutral-600">
-                {t("dashboard.demo.heroBody")}
-              </p>
-              <div className="flex flex-col items-center gap-3 sm:flex-row">
-                <Button type="button" variant="primary" onClick={openNewProjectModal}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
@@ -368,84 +339,101 @@ export function DashboardPage() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-4"
+                    className="ml-0.5 size-6 text-white"
                     aria-hidden
                   >
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
+                    <polygon points="6 3 20 12 6 21 6 3" />
                   </svg>
-                  {t("dashboard.demo.cta")}
-                </Button>
-                <Button type="button" variant="tertiary" onClick={openNewProjectModal}>
-                  {t("dashboard.demo.guided")}
-                </Button>
+                </button>
+                <span className="absolute bottom-3 left-4 font-body text-xs text-obra-neutral-600">
+                  {t("dashboard.demo.duration")}
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-5 text-center">
+                <h2 className="font-display text-2xl text-obra-blue-950">{t("dashboard.demo.heroTitle")}</h2>
+                <p className="max-w-md font-body text-sm leading-relaxed text-obra-neutral-600">
+                  {t("dashboard.demo.heroBody")}
+                </p>
+                <div className="flex flex-col items-center gap-3 sm:flex-row">
+                  <Button type="button" variant="primary" onClick={openNewProjectModal}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="size-4"
+                      aria-hidden
+                    >
+                      <path d="M5 12h14" />
+                      <path d="M12 5v14" />
+                    </svg>
+                    {t("dashboard.demo.cta")}
+                  </Button>
+                  <Button type="button" variant="tertiary" onClick={openNewProjectModal}>
+                    {t("dashboard.demo.guided")}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ) : showProjectGrid ? (
-          <div className="flex flex-col gap-6">
-            <div
-              role="tablist"
-              aria-label={t("projects.tabsAria")}
-              className="flex flex-wrap gap-2 border-b border-obra-blue-100 pb-3"
-            >
-              {(["active", "archived", "trash"] as const).map((tab) => {
-                const selected = lifecycleTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setLifecycleTab(tab)}
-                    className={`rounded-full px-4 py-2 font-body text-sm font-semibold transition-colors ${
-                      selected
-                        ? "bg-obra-blue-700 text-white"
-                        : "bg-white text-obra-blue-950 ring-1 ring-obra-blue-100 hover:bg-obra-blue-50"
-                    }`}
-                  >
-                    {projectLifecycleTabLabel(tab, t)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {projectsError ? (
-              <p className="text-sm text-red-600" role="alert">
-                {projectsError}
-              </p>
-            ) : null}
-
-            {projectsLoading ? (
-              <p className="text-obra-neutral-600">{t("projects.loading")}</p>
-            ) : tabProjects.length === 0 ? (
-              <p className="text-obra-neutral-600">{t(`projects.empty.${lifecycleTab}`)}</p>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {tabProjects.map((p) => (
-                  <ProjectSummaryCard key={p.id} project={p} t={t} />
-                ))}
+          ) : showProjectGrid ? (
+            <div className="flex flex-col gap-6">
+              <div
+                role="tablist"
+                aria-label={t("projects.tabsAria")}
+                className="flex flex-wrap gap-2 border-b border-obra-blue-100 pb-3"
+              >
+                {(["active", "archived", "trash"] as const).map((tab) => {
+                  const selected = lifecycleTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      onClick={() => setLifecycleTab(tab)}
+                      className={`rounded-full px-4 py-2 font-body text-sm font-semibold transition-colors ${
+                        selected
+                          ? "bg-obra-blue-700 text-white"
+                          : "bg-white text-obra-blue-950 ring-1 ring-obra-blue-100 hover:bg-obra-blue-50"
+                      }`}
+                    >
+                      {projectLifecycleTabLabel(tab, t)}
+                    </button>
+                  );
+                })}
               </div>
-            )}
-          </div>
-        ) : null}
 
-        {profile === undefined ? (
-          <p className="text-obra-neutral-600">{t("dashboard.profileLoading")}</p>
-        ) : error ? (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        ) : profile ? (
-          <div className={contentCardClass}>
-            <p className="text-sm text-obra-neutral-600">{t("dashboard.field.id")}</p>
-            <p className="font-mono text-sm text-obra-neutral-900">{profile.id}</p>
-            <p className="mt-4 text-sm text-obra-neutral-600">{t("dashboard.field.displayName")}</p>
-            <p className="text-obra-neutral-900">{profile.display_name ?? "—"}</p>
-          </div>
-        ) : (
-          <p className="text-obra-neutral-600">{t("dashboard.profileEmpty")}</p>
-        )}
+              {projectsError ? (
+                <p className="text-sm text-red-600" role="alert">
+                  {projectsError}
+                </p>
+              ) : null}
+
+              {projectsLoading ? (
+                <p className="text-obra-neutral-600">{t("projects.loading")}</p>
+              ) : tabProjects.length === 0 ? (
+                <p className="text-obra-neutral-600">{t(`projects.empty.${lifecycleTab}`)}</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {tabProjects.map((p) => (
+                    <ProjectSummaryCard key={p.id} project={p} t={t} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {error ? (
+            <p className="text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
       </main>
 
       <Modal
