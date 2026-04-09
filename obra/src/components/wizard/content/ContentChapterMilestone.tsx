@@ -1,8 +1,10 @@
 import { Book, Check, Gift } from "lucide-react";
 import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/Button";
+import { ChapterRichTextEditor } from "@/components/obra/ChapterRichTextEditor";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
 import type { ContentNavItem } from "@/components/wizard/content/ContentIndexMilestone";
+import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 
 type ContentChapterMilestoneProps = {
   t: TFunction;
@@ -24,6 +26,8 @@ type ContentChapterMilestoneProps = {
   generateLoading: boolean;
   approveLoading: boolean;
   actionAnnouncement?: string | null;
+  /** Bumps when AI replaces body so the editor remounts with new HTML. */
+  richTextResetKey: number;
 };
 
 export function ContentChapterMilestone({
@@ -46,16 +50,18 @@ export function ContentChapterMilestone({
   generateLoading,
   approveLoading,
   actionAnnouncement,
+  richTextResetKey,
 }: ContentChapterMilestoneProps) {
   const navLabel = t("wizard.content.index.packageNavAria");
   const listLabel = t("wizard.content.chapters.chapterListAria");
   const current = chapters[selectedIndex];
-  const dirty = current ? bodyValue !== (current.content ?? "") : false;
+  const dirty = current ? !chapterHtmlEquals(bodyValue, current.content ?? "") : false;
   const generateDisabled = generateLoading || !current?.title?.trim();
   const saveDisabled = saveLoading || !dirty;
   /** Approve persists unsaved text then sets approved_at; only disabled when already approved with no edits. */
   const alreadyApprovedClean = Boolean(current?.approved_at) && !dirty;
-  const approveDisabled = approveLoading || !bodyValue.trim() || alreadyApprovedClean;
+  const approveDisabled =
+    approveLoading || isChapterHtmlEffectivelyEmpty(bodyValue) || alreadyApprovedClean;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
@@ -166,15 +172,15 @@ export function ContentChapterMilestone({
             </p>
           ) : null}
 
-          <textarea
-            value={bodyValue}
-            onChange={(e) => onBodyChange(e.target.value)}
-            disabled={!current}
-            rows={16}
-            placeholder={t("wizard.content.chapters.bodyPlaceholder")}
-            className="min-h-[12rem] w-full resize-y rounded-xl border border-obra-neutral-200 bg-white px-4 py-3 font-body text-sm text-obra-blue-950 outline-none ring-obra-blue-400 placeholder:text-obra-neutral-400 focus:border-obra-blue-400 focus:ring-2 focus:ring-obra-blue-400/30 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label={t("wizard.content.chapters.bodyAria")}
-          />
+          {current ? (
+            <ChapterRichTextEditor
+              key={`${current.id}-${richTextResetKey}`}
+              value={bodyValue}
+              onChange={onBodyChange}
+              disabled={false}
+              placeholder={t("wizard.content.chapters.bodyPlaceholder")}
+            />
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
             <Button

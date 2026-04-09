@@ -2,9 +2,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 /**
- * Generates chapter body (markdown) for the main ebook on the AI path.
+ * Generates chapter body (sanitized rich HTML) for the main ebook on the AI path.
  * Validates JWT, checks ownership and frozen main index, debits credits idempotently.
- * Claude integration is pending (#26 / #55); returns deterministic stub text.
+ * Claude integration is pending (#26 / #55); returns deterministic stub HTML.
  */
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -13,73 +13,66 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function stubChapterBody(
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function stubChapterBodyHtml(
   contentLocale: string,
   chapterTitle: string,
   mainTitle: string,
   topic: string | null,
 ): string {
-  const ch = chapterTitle.trim() || "Chapter";
-  const book = mainTitle.trim() || topic?.trim() || "Your ebook";
+  const ch = esc(chapterTitle.trim() || "Chapter");
+  const book = esc(mainTitle.trim() || topic?.trim() || "Your ebook");
   const loc = contentLocale.toLowerCase();
   if (loc.startsWith("pt")) {
     return [
-      `# ${ch}`,
-      "",
-      `Este é um rascunho gerado automaticamente para **${book}**.`,
-      "",
-      "## Visão geral",
-      "",
-      "O conteúdo completo será gerado pela IA em uma versão futura. Por enquanto, use este texto como estrutura e edite à vontade.",
-      "",
-      "## Pontos principais",
-      "",
-      "- Ideia central alinhada ao título do capítulo",
-      "- Exemplos e detalhes virão na versão final",
-      "",
-      "## Próximos passos",
-      "",
-      "Revise, salve e aprove quando estiver satisfeito.",
-    ].join("\n");
+      `<h2>${ch}</h2>`,
+      `<p>Este é um rascunho gerado automaticamente para <strong>${book}</strong>.</p>`,
+      `<h3>Visão geral</h3>`,
+      `<p>O conteúdo completo será gerado pela IA em uma versão futura. Por enquanto, use este texto como estrutura e edite à vontade.</p>`,
+      `<h3>Pontos principais</h3>`,
+      `<ul>`,
+      `<li>Ideia central alinhada ao título do capítulo</li>`,
+      `<li>Exemplos e detalhes virão na versão final</li>`,
+      `</ul>`,
+      `<h3>Próximos passos</h3>`,
+      `<p>Revise, salve e aprove quando estiver satisfeito.</p>`,
+    ].join("");
   }
   if (loc.startsWith("en")) {
     return [
-      `# ${ch}`,
-      "",
-      `This is an auto-generated draft for **${book}**.`,
-      "",
-      "## Overview",
-      "",
-      "Full AI-generated copy will arrive in a future release. Use this as a scaffold and edit freely.",
-      "",
-      "## Key points",
-      "",
-      "- Core idea aligned with the chapter title",
-      "- Examples and depth will follow in the final version",
-      "",
-      "## Next steps",
-      "",
-      "Review, save, and approve when ready.",
-    ].join("\n");
+      `<h2>${ch}</h2>`,
+      `<p>This is an auto-generated draft for <strong>${book}</strong>.</p>`,
+      `<h3>Overview</h3>`,
+      `<p>Full AI-generated copy will arrive in a future release. Use this as a scaffold and edit freely.</p>`,
+      `<h3>Key points</h3>`,
+      `<ul>`,
+      `<li>Core idea aligned with the chapter title</li>`,
+      `<li>Examples and depth will follow in the final version</li>`,
+      `</ul>`,
+      `<h3>Next steps</h3>`,
+      `<p>Review, save, and approve when ready.</p>`,
+    ].join("");
   }
   return [
-    `# ${ch}`,
-    "",
-    `Este es un borrador generado automáticamente para **${book}**.`,
-    "",
-    "## Resumen",
-    "",
-    "El contenido completo lo generará la IA en una versión futura. Usá este texto como esquema y editá con libertad.",
-    "",
-    "## Ideas clave",
-    "",
-    "- Idea central alineada al título del capítulo",
-    "- Ejemplos y profundidad llegarán en la versión final",
-    "",
-    "## Próximos pasos",
-    "",
-    "Revisá, guardá y aprobá cuando esté listo.",
-  ].join("\n");
+    `<h2>${ch}</h2>`,
+    `<p>Este es un borrador generado automáticamente para <strong>${book}</strong>.</p>`,
+    `<h3>Resumen</h3>`,
+    `<p>El contenido completo lo generará la IA en una versión futura. Usá este texto como esquema y editá con libertad.</p>`,
+    `<h3>Ideas clave</h3>`,
+    `<ul>`,
+    `<li>Idea central alineada al título del capítulo</li>`,
+    `<li>Ejemplos y profundidad llegarán en la versión final</li>`,
+    `</ul>`,
+    `<h3>Próximos pasos</h3>`,
+    `<p>Revisá, guardá y aprobá cuando esté listo.</p>`,
+  ].join("");
 }
 
 Deno.serve(async (req: Request) => {
@@ -214,7 +207,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const mainTitle = typeof project.main_title === "string" ? project.main_title : "";
-  const body = stubChapterBody(
+  const body = stubChapterBodyHtml(
     project.content_locale ?? "es",
     title,
     mainTitle,

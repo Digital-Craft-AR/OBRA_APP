@@ -33,6 +33,7 @@ import {
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
+import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 
 const BANNER_STORAGE_PREFIX = "obra.content.banner.dismissed.";
 
@@ -101,6 +102,7 @@ export function WizardContentPage() {
   const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
+  const [mainChapterRichTextKey, setMainChapterRichTextKey] = useState(0);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -321,7 +323,7 @@ export function WizardContentPage() {
 
       if (leavingMainChapterEditor) {
         const prev = mainChapterRows[mainChapterIdx];
-        if (prev && mainChapterBodyDraft !== (prev.content ?? "")) {
+        if (prev && !chapterHtmlEquals(mainChapterBodyDraft, prev.content ?? "")) {
           setChapterSaveLoading(true);
           const res = await updateChapterDraftContent(prev.id, mainChapterBodyDraft);
           setChapterSaveLoading(false);
@@ -618,7 +620,7 @@ export function WizardContentPage() {
       const prev = mainChapterRows[mainChapterIdx];
       let rows = mainChapterRows;
 
-      if (prev && mainChapterBodyDraft !== (prev.content ?? "")) {
+      if (prev && !chapterHtmlEquals(mainChapterBodyDraft, prev.content ?? "")) {
         setChapterSaveLoading(true);
         const res = await updateChapterDraftContent(prev.id, mainChapterBodyDraft);
         setChapterSaveLoading(false);
@@ -684,13 +686,14 @@ export function WizardContentPage() {
     setMainChapterRows((rows) =>
       rows.map((r) => (r.id === current.id ? { ...r, content: result.content, approved_at: null } : r)),
     );
+    setMainChapterRichTextKey((k) => k + 1);
     setActionAnnouncement(t("wizard.content.chapters.generateSuccess"));
   }, [mainChapterRows, mainChapterIdx, project?.id, t]);
 
   const handleApproveMainChapter = useCallback(async () => {
     const current = mainChapterRows[mainChapterIdx];
-    if (!current || !mainChapterBodyDraft.trim()) return;
-    const draftMatchesSaved = mainChapterBodyDraft === (current.content ?? "");
+    if (!current || isChapterHtmlEffectivelyEmpty(mainChapterBodyDraft)) return;
+    const draftMatchesSaved = chapterHtmlEquals(mainChapterBodyDraft, current.content ?? "");
     if (current.approved_at && draftMatchesSaved) return;
 
     setActionAnnouncement(null);
@@ -836,7 +839,7 @@ export function WizardContentPage() {
     if (isFirstContentPackage) {
       if (showMainChapterLoop) {
         const row = mainChapterRows[mainChapterIdx];
-        if (row && mainChapterBodyDraft !== (row.content ?? "")) {
+        if (row && !chapterHtmlEquals(mainChapterBodyDraft, row.content ?? "")) {
           setChapterSaveLoading(true);
           const res = await updateChapterDraftContent(row.id, mainChapterBodyDraft);
           setChapterSaveLoading(false);
@@ -1000,6 +1003,7 @@ export function WizardContentPage() {
               generateLoading={chapterGenerateLoading}
               approveLoading={chapterApproveLoading}
               actionAnnouncement={actionAnnouncement}
+              richTextResetKey={mainChapterRichTextKey}
             />
           ) : null}
 

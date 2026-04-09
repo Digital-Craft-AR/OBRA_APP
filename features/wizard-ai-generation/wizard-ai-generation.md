@@ -104,6 +104,8 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 
 ### Main ebook — chapter loop
 
+**Persistence — chapter body:** `chapters.content` stores **rich HTML** (fragment), edited with **Tiptap** in the app. The client sanitizes with **DOMPurify** (allowed tags: paragraphs, headings h2–h3, lists, links, emphasis, blockquote, inline `code`, etc.) before save. **`ai-generate-content`** (Edge) returns HTML fragments in production; the current stub returns HTML, not Markdown.
+
 16. As a creator, I want the main ebook to be produced **one chapter at a time** in order, so that I can focus and approve incrementally.
 17. As a creator, I want to **edit chapter text manually** before approval, so that I can fix details without AI.
 18. As a creator, I want a **chat thread per chapter**, so that feedback applies only to that chapter’s AI passes.

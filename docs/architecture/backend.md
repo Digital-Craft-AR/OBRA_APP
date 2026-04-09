@@ -82,7 +82,7 @@ Primary functions:
 
 - `ai-optimize`: optimize short wizard inputs
 - `ai-generate-index`: TOC proposal for **main** or **`order_bump`** ebook (`target_ebook_id` optional in body; **stub titles** + credit debit; Claude wiring pending #29; **post-MVP:** optional chat-turn wrapper)
-- `ai-generate-content`: chapter body generation
+- `ai-generate-content`: chapter body generation (rich HTML fragment; client sanitizes before `chapters.content` persist)
 - `ai-generate-html`: design-aware HTML composition/generation
 - `image-generate`: Gemini image generation, then Storage persist + `images` row
 - `parse-document`: upload branch text extraction (`.docx`, text-layer PDF, no OCR in MVP)

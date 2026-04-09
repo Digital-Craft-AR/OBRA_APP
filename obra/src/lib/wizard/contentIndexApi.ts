@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabaseClient";
 import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
+import {
+  isChapterHtmlEffectivelyEmpty,
+  sanitizeChapterHtml,
+} from "@/lib/sanitizeChapterHtml";
 import { contentNavTargetToKey } from "@/lib/wizard/contentNav";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 
@@ -237,13 +241,16 @@ export async function loadEbookChaptersDraft(
     .order("sort_order", { ascending: true });
 
   if (error || !data) return { ok: false };
-  const rows: ChapterDraftRow[] = data.map((row) => ({
-    id: row.id as string,
-    title: row.title as string,
-    sort_order: Number(row.sort_order) || 0,
-    content: (row.content as string | null) ?? null,
-    approved_at: (row.approved_at as string | null) ?? null,
-  }));
+  const rows: ChapterDraftRow[] = data.map((row) => {
+    const raw = (row.content as string | null) ?? null;
+    return {
+      id: row.id as string,
+      title: row.title as string,
+      sort_order: Number(row.sort_order) || 0,
+      content: raw !== null && raw !== "" ? sanitizeChapterHtml(raw) : null,
+      approved_at: (row.approved_at as string | null) ?? null,
+    };
+  });
   return { ok: true, rows };
 }
 
@@ -251,9 +258,10 @@ export async function updateChapterDraftContent(
   chapterId: string,
   content: string,
 ): Promise<{ ok: true } | { ok: false }> {
+  const clean = sanitizeChapterHtml(content);
   const { error } = await supabase
     .from("chapters")
-    .update({ content, approved_at: null })
+    .update({ content: clean, approved_at: null })
     .eq("id", chapterId);
 
   if (error) return { ok: false };
@@ -414,13 +422,13 @@ export async function invokeGenerateChapterContent(
     const code = await getFunctionsInvokeErrorCode(error);
     return { ok: false, code: code ?? "invoke_failed" };
   }
-  if (!data?.ok || typeof data.content !== "string" || !data.content.trim()) {
+  if (!data?.ok || typeof data.content !== "string" || isChapterHtmlEffectivelyEmpty(data.content)) {
     const err = typeof data?.error === "string" ? data.error : "bad_response";
     return { ok: false, code: err };
   }
   return {
     ok: true,
-    content: data.content,
+    content: sanitizeChapterHtml(data.content),
     creditsBalanceAfter: data.credits_balance_after,
   };
 }
