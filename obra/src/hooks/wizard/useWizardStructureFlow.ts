@@ -14,6 +14,7 @@ import {
   type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
 import {
+  resetWizardAvatarProblemAndContent,
   saveWizardAvatarProblem,
   saveWizardBonusBumpItems,
   saveWizardDesignConfig,
@@ -31,6 +32,10 @@ type FlowArgs = {
   setProject: Dispatch<SetStateAction<ProjectRow | null>>;
   t: TFunction;
   language: string;
+};
+
+type HandleNextStepOptions = {
+  forceResetAvatarProblem?: boolean;
 };
 
 function normalizeItems(items: WizardTitleItem[] | null | undefined, count: number, kind: "bonus" | "bump") {
@@ -64,6 +69,14 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [avatarImproving, setAvatarImproving] = useState(false);
   const [problemImproving, setProblemImproving] = useState(false);
   const [avatarProblemMessage, setAvatarProblemMessage] = useState<string | null>(null);
+  const avatarProblemChanged = useMemo(() => {
+    if (!project) return false;
+    return (
+      (avatarDraft.trim() || "") !== (project.target_avatar?.trim() || "") ||
+      (problemDraft.trim() || "") !== (project.problem?.trim() || "")
+    );
+  }, [project, avatarDraft, problemDraft]);
+
 
   const [bonusCount, setBonusCount] = useState(0);
   const [bumpCount, setBumpCount] = useState(0);
@@ -185,14 +198,21 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setTopicMessage(t("wizard.structure.topic.improvePending"));
   }
 
-  async function persistAvatarProblem(): Promise<boolean> {
+  async function persistAvatarProblem(forceReset: boolean): Promise<boolean> {
     if (!project?.id || avatarProblemSaving) return false;
     setAvatarProblemSaving(true);
     setAvatarProblemMessage(null);
-    const result = await saveWizardAvatarProblem(project.id, avatarDraft, problemDraft);
+    const result =
+      forceReset && project.structure_completed_at
+        ? await resetWizardAvatarProblemAndContent(project.id, avatarDraft, problemDraft)
+        : await saveWizardAvatarProblem(project.id, avatarDraft, problemDraft);
     setAvatarProblemSaving(false);
     if (!result.ok) {
-      setAvatarProblemMessage(t("wizard.structure.avatarProblem.saveError"));
+      if (forceReset) {
+        setAvatarProblemMessage(t("wizard.structure.avatarProblem.resetError"));
+      } else {
+        setAvatarProblemMessage(t("wizard.structure.avatarProblem.saveError"));
+      }
       return false;
     }
     setProject((current) =>
@@ -453,7 +473,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     return true;
   }
 
-  async function handleNextStep(): Promise<WizardStructureNextResult> {
+  async function handleNextStep(options?: HandleNextStepOptions): Promise<WizardStructureNextResult> {
     if (innerStepIndex === 0) {
       if (!topicDraft.trim()) {
         setTopicError(t("wizard.structure.topic.required"));
@@ -476,7 +496,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       }
       setAvatarError(null);
       setProblemError(null);
-      if (!(await persistAvatarProblem())) return { ok: false };
+      if (!(await persistAvatarProblem(Boolean(options?.forceResetAvatarProblem)))) return { ok: false };
     }
 
     if (innerStepIndex === 2) {
@@ -521,6 +541,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     avatarImproving,
     problemImproving,
     avatarProblemMessage,
+    avatarProblemChanged,
     setAvatarDraft,
     setProblemDraft,
     setAvatarError,

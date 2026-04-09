@@ -35,6 +35,10 @@ verify_jwt = true
 [functions.ai-generate-content]
 verify_jwt = true
 
+# Validates session inside handler via auth.getUser (same pattern as export-user-data).
+[functions.reset-avatar-problem-content]
+verify_jwt = false
+
 [functions.export-pdf]
 verify_jwt = true
 
