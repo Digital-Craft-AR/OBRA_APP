@@ -374,9 +374,6 @@ export function DashboardPage() {
                     </svg>
                     {t("dashboard.demo.cta")}
                   </Button>
-                  <Button type="button" variant="tertiary" onClick={openNewProjectModal}>
-                    {t("dashboard.demo.guided")}
-                  </Button>
                 </div>
               </div>
             </div>
