@@ -9,8 +9,6 @@ You are the **epic coordinator** for this repository. **Do not** produce a long 
 
 ## Phase 1 — GitHub MCP (required first)
 
-Use **`user-github`** MCP only (do not use `gh` or HTTP to api.github.com per project rules).
-
 1. `issue_read` with `method: get` for that issue number — capture title, body, state, labels, `html_url`.
 2. `issue_read` with `method: get_sub_issues` — list all child issues (titles, bodies, numbers).
 3. `issue_read` with `method: get_comments` — incorporate context from comments if any.

@@ -14,6 +14,7 @@ export type ContentWorkspacePayload = {
   main_ebook_id: string;
   current_phase: string;
   main_index_frozen_at: string | null;
+  global_index_frozen_at: string | null;
   updated_at: string;
 };
 
@@ -60,6 +61,7 @@ function buildWorkspacePayload(
   prog: {
     current_phase: string;
     main_index_frozen_at: string | null;
+    global_index_frozen_at: string | null;
     updated_at: unknown;
   },
 ): ContentWorkspacePayload | null {
@@ -69,6 +71,7 @@ function buildWorkspacePayload(
     main_ebook_id: mainEbookId,
     current_phase: prog.current_phase,
     main_index_frozen_at: prog.main_index_frozen_at,
+    global_index_frozen_at: prog.global_index_frozen_at,
     updated_at: updatedAt,
   };
 }
@@ -199,7 +202,7 @@ export async function ensureContentWorkspace(projectId: string): Promise<
 
   const { data: progRow, error: progSelErr } = await supabase
     .from("project_content_progress")
-    .select("current_phase, main_index_frozen_at, updated_at")
+    .select("current_phase, main_index_frozen_at, global_index_frozen_at, updated_at")
     .eq("project_id", projectId)
     .maybeSingle();
 
@@ -208,6 +211,7 @@ export async function ensureContentWorkspace(projectId: string): Promise<
   const payload = buildWorkspacePayload(ebookRow.id as string, {
     current_phase: progRow.current_phase as string,
     main_index_frozen_at: (progRow.main_index_frozen_at as string | null) ?? null,
+    global_index_frozen_at: (progRow.global_index_frozen_at as string | null) ?? null,
     updated_at: progRow.updated_at,
   });
   if (!payload) return { ok: false, code: "db_error" };
@@ -351,6 +355,7 @@ export async function reopenMainIndex(projectId: string): Promise<
     .from("project_content_progress")
     .update({
       main_index_frozen_at: null,
+      global_index_frozen_at: null,
       current_phase: "main_index",
       updated_at: now,
     })
@@ -361,6 +366,24 @@ export async function reopenMainIndex(projectId: string): Promise<
 
   if (error) return { ok: false, code: "update_failed" };
   if (!data) return { ok: false, code: "wrong_phase" };
+  return { ok: true };
+}
+
+export async function reopenGlobalIndex(projectId: string): Promise<
+  { ok: true } | { ok: false; code: "wrong_phase" | "update_failed" }
+> {
+  const progress = await reopenMainIndex(projectId);
+  if (!progress.ok) return progress;
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("ebooks")
+    .update({ index_frozen_at: null, updated_at: now })
+    .eq("project_id", projectId)
+    .eq("type", "order_bump")
+    .not("index_frozen_at", "is", null);
+
+  if (error) return { ok: false, code: "update_failed" };
   return { ok: true };
 }
 
@@ -410,12 +433,14 @@ export async function confirmMainIndex(projectId: string): Promise<
     .from("project_content_progress")
     .update({
       main_index_frozen_at: now,
+      global_index_frozen_at: now,
       current_phase: "main_chapter",
       updated_at: now,
     })
     .eq("project_id", projectId)
     .eq("current_phase", "main_index")
     .is("main_index_frozen_at", null)
+    .is("global_index_frozen_at", null)
     .select("project_id")
     .maybeSingle();
 

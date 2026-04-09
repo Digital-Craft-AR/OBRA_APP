@@ -47,8 +47,9 @@ Initialization:
 Index behavior:
 
 - **Main ebook** and **each order bump** use a **multi-chapter table of contents** stored as `chapters` rows on their respective `ebooks` row (`type = main` or `type = order_bump`). **Bonus** ebooks typically use a **single** chapter row for the deliverable.
-- **Main index freeze:** `project_content_progress.main_index_frozen_at` (and app phase transition to `main_chapter` after confirm). The main ebook row does **not** use `ebooks.index_frozen_at` for this today.
-- **Order bump index freeze:** `ebooks.index_frozen_at` on the specific `order_bump` row when the user confirms that bump’s TOC in Content. Until set, draft TOC chapter titles for that ebook remain editable.
+- **Global index freeze gate:** `project_content_progress.global_index_frozen_at` is set only when all required package TOCs are valid and confirmed in one global action; then phase transitions to `main_chapter`.
+- **Compatibility marker:** `project_content_progress.main_index_frozen_at` is written alongside the global marker to preserve existing consumers.
+- **Order bump freeze metadata:** `ebooks.index_frozen_at` is still written for each `order_bump` row at global confirmation time for row-level compatibility and auditability.
 - `chapters.approved_at` tracks **body** approval per chapter (not TOC confirmation), for all ebook types that use chapter rows.
 
 Canonical schema details:

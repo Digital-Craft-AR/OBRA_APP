@@ -18,7 +18,7 @@ Without explicit milestone-based UX, teams risk: one-shot generation that ignore
 
 ## Solution
 
-**Wizard AI generation** is the **canonical milestone flow** for **step 2 — Contenido** after design: **index (main ebook TOC) → main ebook chapters → bonuses → order bumps**. It applies to **both** content sources:
+**Wizard AI generation** is the **canonical milestone flow** for **step 2 — Contenido** after design: **global index confirmation (main + bonuses + bumps) → unified chapter editing step**. It applies to **both** content sources:
 
 - **AI path:** the user has not uploaded a manuscript; the **first milestone** establishes **main ebook chapter boundaries** (table of contents) using wizard context (topic, avatar, problem, **main title**, design), then chapter bodies are generated **within** those boundaries.
 - **Upload path:** the user uploads a **single** main ebook file (`.docx`/`.pdf`); parse + IA processing produce a proposed **index and chapter split** aligned to Obra format; the user **approves** (or edits) that alignment, then continues **in the same flow** with **prefilled** chapter text; **bonuses and bumps** are still generated in this flow after the main ebook, using wizard-defined titles and counts.
@@ -43,18 +43,18 @@ Step 3 **Vista previa** means **seeing** the product with **design tokens alread
 
 **Phases (strict order):**
 
-1. **Table of contents (index) — main ebook chapter definition**  
-   - **AI path:** AI proposes a **table of contents** that **defines** chapter count and titles (within product limits — see master PRD); the user edits manually and uses explicit **generate / regenerate outline** actions for another AI pass. **Conversational index chat (chatbot scoped to the index step) is post-MVP** — see *Chat model* below. The user **confirms** the index before continuing — this is the **lock-in** for main ebook structure.  
+1. **Table of contents (index) — package-wide chapter definitions**  
+   - **AI path:** AI proposes chapter structures for the selected package artifact; the user can edit each artifact TOC manually (main ebook, bonuses, order bumps) and use explicit **generate / regenerate outline** actions for another AI pass where available. **Conversational index chat (chatbot scoped to the index step) is post-MVP** — see *Chat model* below. The user can only continue after a **single global confirm** validates all required artifact TOCs.  
    - **Upload path:** After parse + IA, the user **aligns** the extracted material to Obra’s **index + chapters** (edit titles, merge/split sections as needed) and **approves**; persisted chapter count reflects the **aligned** outline (may differ from the raw section count of the file). **Then** the same **index freeze** rules apply as the AI path.
 2. **Main ebook** — **Chapter by chapter**: for each chapter, the user edits manually or uses a **chapter-scoped chat** to request AI changes (**AI path:** generation/refinement; **upload path:** refinement of prefill). The user **approves** the chapter before moving on. The UI allows **returning to earlier chapters** to keep editing.
 3. **Bonuses** — Same pattern (**per-bonus chat**, manual edit, approve); **skipped** if the project has **zero** bonuses.
-4. **Order bumps** — Same **index / TOC** pattern as the main ebook (multi-chapter outline, confirm, freeze per bump via `ebooks.index_frozen_at`), then body milestones (**per-bump chat** when implemented); **skipped** if **zero** bumps.
+4. **Order bumps** — Follow the same TOC + chapter editing behavior as other package artifacts; **skipped** if **zero** bumps.
 
 **Upload branch — preamble (ordering and rules):** upload → parse (no LLM) → IA split proposal → **alignment** → **Approve alignment** → **this** flow’s chapter loop with prefill. **Canonical spec:** **`features/wizard-upload/wizard-upload.md`**. Master **file** rules: **`PRD_Obra.md` §4**.
 
 **Upload — weak prefill (MVP, decision C2)** applies **after** handoff, in the **chapter loop** below: if a **prefilled chapter** body is below a **minimum length threshold**, show a **non-blocking** warning and optional **expand with IA**; if **every** chapter is below the threshold, **blocking** dialog — see Implementation **Upload weak prefill**.
 
-**Index freeze:** After the user leaves the index / alignment milestone for the first chapter (AI path: after **Confirm index**; upload path: after **Approve alignment**), the index is **frozen**. Reopening or editing the index uses an **explicit flow**; if the index changes, the product shows a **confirmation** asking whether **affected chapter(s)** should be updated (MVP: user-driven; no automatic bulk rewrite of all downstream content).
+**Index freeze:** After global confirmation (AI path) or approved upload alignment, index state is treated as **globally frozen** for the Content phase (`project_content_progress.global_index_frozen_at`). For order bumps, per-row freeze metadata on `ebooks.index_frozen_at` is also set for compatibility. Reopening/editing remains an explicit action in future flows.
 
 **Coherence:** Editing an **earlier** chapter does **not** auto-invalidate later chapters. A **soft, non-blocking notice** may suggest reviewing coherence when the user edits upstream content.
 
@@ -206,8 +206,8 @@ Upload-specific stories **before** alignment (file, parse, alignment, replace fi
 ## Frontend Tasks
 
 1. **Flow shell** for the post-design **content** phase (**AI and upload** paths): **global stepper** (step 1 complete, 2 current, 3 upcoming) matching `wizard-shared`, plus optional **dismissible banner**; **inner** milestone header (index/alignment → main ebook → bonuses → bumps), **skip** empty bonus/bump lanes, clear **current artifact** (chapter index, bonus index, bump index).
-2. **Index milestone (AI path):** **two-column layout:** left **package navigation** (main ebook, each bonus, each order bump); right **TOC editor** for the **selected** ebook. **No index chatbot in MVP** — use **Regenerate outline** / **Generate outline** actions only. **Confirm index** primary action; **Edit index** / reopen when frozen; **confirmation dialog** when index changes after chapters exist (which chapters to refresh). **Upload path** alignment UI **before** handoff: **`features/wizard-upload/wizard-upload.md`** (Frontend Tasks there).
-3. **Chapter loop:** one **main ebook chapter** at a time; rich text or long-text editor per product choice; **per-chapter chat**; **Approve chapter** to advance; **navigate back** to prior chapters without losing later drafts; **soft coherence notice** when editing upstream. **Upload path:** **weak-prefill** warnings (C2) and **all-empty** blocking modal per Implementation Decisions.
+2. **Index milestone (AI path):** package TOC editor with package navigation and one **global** confirm action. **No index chatbot in MVP** — use **Regenerate outline** / **Generate outline** actions only. Global confirm requires valid TOC state for all required artifacts before entering chapter editing.
+3. **Unified chapter step:** **three-column layout**: (1) artifact selector (**Ebook, bonuses, bumps**), (2) chapter list for selected artifact, (3) shared WYSIWYG editor with generate/save/approve actions. Users can switch artifacts without losing drafts. **Upload path:** **weak-prefill** warnings (C2) and **all-empty** blocking modal per Implementation Decisions.
 4. **Bonus and bump milestones:** same pattern as chapters (editor + per-artifact chat + approve); **skip** UI when count is zero.
 5. **Autosave** UX: debounced save indicators, **dirty** state, **retry** on failed save; disable **double-submit** on AI actions while pending.
 6. **Credit transparency:** surface **recent API credit usage** (per call or per action) aligned with backend events; no spend forecasting in MVP.

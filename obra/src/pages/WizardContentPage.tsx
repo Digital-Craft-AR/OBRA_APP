@@ -28,7 +28,7 @@ import {
   invokeGenerateIndex,
   loadEbookChapters,
   loadEbookChaptersDraft,
-  reopenMainIndex,
+  reopenGlobalIndex,
   replaceEbookDraftChapters,
   trySyncMainEbookTocBeforeFreeze,
   updateChapterDraftContent,
@@ -118,7 +118,7 @@ export function WizardContentPage() {
   const [packageEbookIds, setPackageEbookIds] = useState<Record<string, string>>({});
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
-  const [mainIndexFrozenAt, setMainIndexFrozenAt] = useState<string | null>(null);
+  const [globalIndexFrozenAt, setGlobalIndexFrozenAt] = useState<string | null>(null);
   /** Per `bump:n` nav key: `ebooks.index_frozen_at` for that order bump. */
   const [bumpIndexFrozenAt, setBumpIndexFrozenAt] = useState<Record<string, string | null>>({});
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -132,19 +132,19 @@ export function WizardContentPage() {
   const [bumpTocEntryResolved, setBumpTocEntryResolved] = useState<Record<string, boolean>>({});
   const [insufficientCreditsToastOpen, setInsufficientCreditsToastOpen] = useState(false);
   const [insufficientCreditsSource, setInsufficientCreditsSource] = useState<"index" | "chapter">("index");
-  const [mainChapterRows, setMainChapterRows] = useState<ChapterDraftRow[]>([]);
-  const [mainChapterIdx, setMainChapterIdx] = useState(0);
-  const [mainChapterBodyDraft, setMainChapterBodyDraft] = useState("");
+  const [chapterRows, setChapterRows] = useState<ChapterDraftRow[]>([]);
+  const [chapterIdx, setChapterIdx] = useState(0);
+  const [chapterBodyDraft, setChapterBodyDraft] = useState("");
   const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
-  const [mainChapterRichTextKey, setMainChapterRichTextKey] = useState(0);
+  const [chapterRichTextKey, setChapterRichTextKey] = useState(0);
   const [chapterBodyPresence, setChapterBodyPresence] = useState<Record<string, boolean>>({});
+  const [artifactApprovedByKey, setArtifactApprovedByKey] = useState<Record<string, boolean>>({});
   const [titleChangeModal, setTitleChangeModal] = useState<{
     pendingRows: TocChapterRow[];
     baseRows: TocChapterRow[];
   } | null>(null);
-  const [reopenIndexLoading, setReopenIndexLoading] = useState(false);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -176,8 +176,10 @@ export function WizardContentPage() {
     setWorkspaceError(null);
     setWorkspaceReady(false);
     setTocEntryResolved(false);
+    setGlobalIndexFrozenAt(null);
     setBumpTocEntryResolved({});
     setBumpIndexFrozenAt({});
+    setArtifactApprovedByKey({});
     setPackageEbookIds({});
     setBonusBumpToc({});
 
@@ -198,7 +200,7 @@ export function WizardContentPage() {
       }
       setMainEbookId(ensured.data.main_ebook_id);
       setCurrentPhase(ensured.data.current_phase);
-      setMainIndexFrozenAt(ensured.data.main_index_frozen_at);
+      setGlobalIndexFrozenAt(ensured.data.global_index_frozen_at);
 
       const chapters = await loadEbookChapters(ensured.data.main_ebook_id);
       if (cancelled) return;
@@ -264,19 +266,30 @@ export function WizardContentPage() {
     t,
   ]);
 
+  const selectedEbookId = useMemo(() => {
+    if (selectedKey === "main") return mainEbookId;
+    return packageEbookIds[selectedKey] ?? null;
+  }, [selectedKey, mainEbookId, packageEbookIds]);
+
   useEffect(() => {
-    if (!mainEbookId || currentPhase !== "main_chapter") return;
+    if (!selectedEbookId || currentPhase !== "main_chapter") return;
+    // Avoid showing stale chapter progress from the previously selected artifact
+    // while the next artifact's chapters are loading.
+    setChapterRows([]);
+    setChapterIdx(0);
+    setChapterBodyDraft("");
     let cancelled = false;
-    void loadEbookChaptersDraft(mainEbookId).then((r) => {
+    void loadEbookChaptersDraft(selectedEbookId).then((r) => {
       if (cancelled || !r.ok) return;
-      setMainChapterRows(r.rows);
-      setMainChapterIdx(0);
-      setMainChapterBodyDraft(r.rows[0]?.content ?? "");
+      setChapterRows(r.rows);
+      setChapterIdx(0);
+      setChapterBodyDraft(r.rows[0]?.content ?? "");
+      setChapterRichTextKey((k) => k + 1);
     });
     return () => {
       cancelled = true;
     };
-  }, [mainEbookId, currentPhase]);
+  }, [selectedEbookId, currentPhase]);
 
   const refreshChapterBodyPresence = useCallback(async () => {
     if (!mainEbookId) return;
@@ -289,12 +302,34 @@ export function WizardContentPage() {
     setChapterBodyPresence(next);
   }, [mainEbookId]);
 
+  const refreshArtifactApprovalFor = useCallback(async (key: string, ebookId: string) => {
+    const draft = await loadEbookChaptersDraft(ebookId);
+    if (!draft.ok) return;
+    const allApproved = draft.rows.length > 0 && draft.rows.every((row) => Boolean(row.approved_at));
+    setArtifactApprovedByKey((prev) => ({ ...prev, [key]: allApproved }));
+  }, []);
+
+  const refreshAllArtifactApprovals = useCallback(async () => {
+    const entries: Array<{ key: string; ebookId: string }> = [];
+    if (mainEbookId) entries.push({ key: "main", ebookId: mainEbookId });
+    for (const [key, ebookId] of Object.entries(packageEbookIds)) {
+      entries.push({ key, ebookId });
+    }
+    await Promise.all(entries.map((entry) => refreshArtifactApprovalFor(entry.key, entry.ebookId)));
+  }, [mainEbookId, packageEbookIds, refreshArtifactApprovalFor]);
+
   useEffect(() => {
     if (!mainEbookId) return;
     void refreshChapterBodyPresence();
   }, [mainEbookId, refreshChapterBodyPresence]);
 
   useEffect(() => {
+    if (!workspaceReady || currentPhase !== "main_chapter") return;
+    void refreshAllArtifactApprovals();
+  }, [workspaceReady, currentPhase, refreshAllArtifactApprovals]);
+
+  useEffect(() => {
+    if (currentPhase === "main_chapter") return;
     const prev = prevSelectedKeyRef.current;
     prevSelectedKeyRef.current = selectedKey;
     if (prev === null) return;
@@ -311,10 +346,11 @@ export function WizardContentPage() {
     if (ebookId && rows) {
       void upsertEbookDraftChaptersFromRows(ebookId, rows);
     }
-  }, [selectedKey]);
+  }, [selectedKey, currentPhase]);
 
   useEffect(() => {
     return () => {
+      if (currentPhase === "main_chapter") return;
       for (const tid of Object.values(persistTimersRef.current)) {
         clearTimeout(tid);
       }
@@ -328,12 +364,12 @@ export function WizardContentPage() {
         }
       }
     };
-  }, []);
+  }, [currentPhase]);
 
   const needsUploadAlignment =
     project?.content_source === "upload" && currentPhase === "upload_alignment";
 
-  const indexFrozen = Boolean(mainIndexFrozenAt);
+  const indexFrozen = Boolean(globalIndexFrozenAt);
 
   const navItems: ContentNavItem[] = useMemo(() => {
     if (!project) return [];
@@ -352,61 +388,46 @@ export function WizardContentPage() {
           project.bump_items[target.index]?.title?.trim() ||
           t("wizard.content.nav.bumpFallback", { n: target.index + 1 });
       }
-      const tocConfirmed =
-        (target.kind === "main" && indexFrozen) ||
-        (target.kind === "bump" && Boolean(bumpIndexFrozenAt[key]));
+      const tocConfirmed = Boolean(artifactApprovedByKey[key]);
       return { key, navTitle, target, tocConfirmed };
     });
-  }, [project, t, indexFrozen, bumpIndexFrozenAt]);
+  }, [project, t, artifactApprovedByKey]);
 
   const selectedTarget = parseContentNavKey(selectedKey) ?? { kind: "main" as const };
 
-  const showMainChapterLoop =
+  const showChapterLoop =
     Boolean(project) &&
     !loading &&
     workspaceReady &&
     !needsUploadAlignment &&
-    selectedTarget.kind === "main" &&
     currentPhase === "main_chapter" &&
     project?.content_source === "ai";
+
+  const persistCurrentChapterDraftIfDirty = useCallback(async () => {
+    if (!showChapterLoop) return true;
+    const prev = chapterRows[chapterIdx];
+    if (!prev || chapterHtmlEquals(chapterBodyDraft, prev.content ?? "")) return true;
+    setChapterSaveLoading(true);
+    const res = await updateChapterDraftContent(prev.id, chapterBodyDraft);
+    setChapterSaveLoading(false);
+    if (!res.ok) {
+      setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+      return false;
+    }
+    setChapterRows((rows) =>
+      rows.map((r) => (r.id === prev.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r)),
+    );
+    return true;
+  }, [showChapterLoop, chapterRows, chapterIdx, chapterBodyDraft, t]);
 
   const handleSelectPackageKey = useCallback(
     async (key: string) => {
       if (key === selectedKey) return;
-      const leavingMainChapterEditor =
-        selectedTarget.kind === "main" &&
-        currentPhase === "main_chapter" &&
-        project?.content_source === "ai" &&
-        !needsUploadAlignment;
-
-      if (leavingMainChapterEditor) {
-        const prev = mainChapterRows[mainChapterIdx];
-        if (prev && !chapterHtmlEquals(mainChapterBodyDraft, prev.content ?? "")) {
-          setChapterSaveLoading(true);
-          const res = await updateChapterDraftContent(prev.id, mainChapterBodyDraft);
-          setChapterSaveLoading(false);
-          if (!res.ok) {
-            setActionAnnouncement(t("wizard.content.chapters.errorSave"));
-            return;
-          }
-          setMainChapterRows((rows) =>
-            rows.map((r) => (r.id === prev.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r)),
-          );
-        }
-      }
+      const ok = await persistCurrentChapterDraftIfDirty();
+      if (!ok) return;
       setSelectedKey(key);
     },
-    [
-      selectedKey,
-      selectedTarget.kind,
-      currentPhase,
-      project?.content_source,
-      needsUploadAlignment,
-      mainChapterRows,
-      mainChapterIdx,
-      mainChapterBodyDraft,
-      t,
-    ],
+    [selectedKey, persistCurrentChapterDraftIfDirty],
   );
 
   const panelCopy = useMemo(() => {
@@ -453,12 +474,15 @@ export function WizardContentPage() {
     if (!project) {
       return { title: "", subtitle: "" };
     }
-    const mainTitle = project.main_title?.trim() || t("wizard.content.index.mainTitleFallback");
+    const selectedNavTitle =
+      navItems.find((item) => item.key === selectedKey)?.navTitle ||
+      project.main_title?.trim() ||
+      t("wizard.content.index.mainTitleFallback");
     return {
-      title: t("wizard.content.chapters.panelTitle", { title: mainTitle }),
+      title: t("wizard.content.chapters.panelTitle", { title: selectedNavTitle }),
       subtitle: t("wizard.content.chapters.panelSubtitle"),
     };
-  }, [project, t]);
+  }, [project, t, navItems, selectedKey]);
 
   const currentTocRows: TocChapterRow[] =
     selectedTarget.kind === "main"
@@ -606,111 +630,71 @@ export function WizardContentPage() {
     }
   }, [selectedTarget, project, packageEbookIds, selectedKey, t]);
 
-  const handleConfirmPackageIndex = useCallback(async () => {
-    if (!project?.id) return;
+  const handleConfirmGlobalIndex = useCallback(async () => {
+    if (!project?.id || !mainEbookId) return;
+    setConfirmLoading(true);
 
-    if (selectedTarget.kind === "main") {
-      if (!mainEbookId) return;
-      const validation = validateMainTocForConfirm(mainTocRows);
-      if (validation !== "ok") {
-        if (validation === "empty_title") setActionAnnouncement(t("wizard.content.index.errorEmptyTitle"));
-        else if (validation === "too_many") setActionAnnouncement(t("wizard.content.index.errorTooManyChapters"));
-        else setActionAnnouncement(t("wizard.content.index.errorTooFewChapters"));
-        return;
-      }
-      setConfirmLoading(true);
-      const sync = await trySyncMainEbookTocBeforeFreeze(mainEbookId, mainTocRows);
-      if (!sync.ok) {
-        setConfirmLoading(false);
-        setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
-        return;
-      }
-      if (sync.mode === "full_replace") {
-        const persist = await upsertEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
-        if (!persist.ok) {
-          setConfirmLoading(false);
-          setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
-          return;
-        }
-        setMainTocRows(persist.rows);
-      } else {
-        const reloaded = await loadEbookChapters(mainEbookId);
-        if (reloaded.ok) setMainTocRows(reloaded.rows);
-      }
-      const confirmed = await confirmMainIndex(project.id);
+    const mainSync = await trySyncMainEbookTocBeforeFreeze(mainEbookId, mainTocRows);
+    if (!mainSync.ok) {
       setConfirmLoading(false);
-      if (!confirmed.ok) {
-        setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
-        return;
-      }
-      setMainIndexFrozenAt(new Date().toISOString());
-      setCurrentPhase("main_chapter");
-      void refreshChapterBodyPresence();
-      setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
+      setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
       return;
     }
-
-    if (selectedTarget.kind === "bump") {
-      const ebookId = packageEbookIds[selectedKey];
-      if (!ebookId) return;
-      const rows = bonusBumpToc[selectedKey] ?? [];
-      const validation = validateMainTocForConfirm(rows);
-      if (validation !== "ok") {
-        if (validation === "empty_title") setActionAnnouncement(t("wizard.content.index.errorEmptyTitle"));
-        else if (validation === "too_many") setActionAnnouncement(t("wizard.content.index.errorTooManyChapters"));
-        else setActionAnnouncement(t("wizard.content.index.errorTooFewChapters"));
-        return;
-      }
-      setConfirmLoading(true);
-      const persist = await upsertEbookDraftChaptersFromRows(ebookId, rows);
-      if (!persist.ok) {
+    if (mainSync.mode === "full_replace") {
+      const persisted = await upsertEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
+      if (!persisted.ok) {
         setConfirmLoading(false);
         setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
         return;
       }
-      setBonusBumpToc((p) => ({ ...p, [selectedKey]: persist.rows }));
-      const confirmed = await confirmOrderBumpIndex(ebookId);
-      setConfirmLoading(false);
-      if (!confirmed.ok) {
-        setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+      setMainTocRows(persisted.rows);
+    }
+
+    for (const item of navItems) {
+      if (item.target.kind === "main") continue;
+      const ebookId = packageEbookIds[item.key];
+      if (!ebookId) continue;
+      const rows = bonusBumpToc[item.key] ?? [];
+      const persisted = await upsertEbookDraftChaptersFromRows(ebookId, rows);
+      if (!persisted.ok) {
+        setConfirmLoading(false);
+        setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
         return;
       }
-      setBumpIndexFrozenAt((p) => ({ ...p, [selectedKey]: confirmed.frozen_at }));
-      setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
+      setBonusBumpToc((p) => ({ ...p, [item.key]: persisted.rows }));
+      if (item.target.kind === "bump" && !bumpIndexFrozenAt[item.key]) {
+        const confirmedBump = await confirmOrderBumpIndex(ebookId);
+        if (!confirmedBump.ok) {
+          setConfirmLoading(false);
+          setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+          return;
+        }
+        setBumpIndexFrozenAt((p) => ({ ...p, [item.key]: confirmedBump.frozen_at }));
+      }
     }
+
+    const confirmed = await confirmMainIndex(project.id);
+    setConfirmLoading(false);
+    if (!confirmed.ok) {
+      setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+      return;
+    }
+    const now = new Date().toISOString();
+    setGlobalIndexFrozenAt(now);
+    setCurrentPhase("main_chapter");
+    void refreshChapterBodyPresence();
+    setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
   }, [
     project?.id,
-    selectedTarget.kind,
     mainEbookId,
     mainTocRows,
-    bonusBumpToc,
-    selectedKey,
+    navItems,
     packageEbookIds,
+    bonusBumpToc,
+    bumpIndexFrozenAt,
     t,
     refreshChapterBodyPresence,
   ]);
-
-  const handleReopenMainIndex = useCallback(async () => {
-    if (!project?.id || !mainEbookId) return;
-    setActionAnnouncement(null);
-    setReopenIndexLoading(true);
-    const opened = await reopenMainIndex(project.id);
-    if (!opened.ok) {
-      setReopenIndexLoading(false);
-      setActionAnnouncement(t("wizard.content.index.errorReopenIndex"));
-      return;
-    }
-    const loaded = await loadEbookChapters(mainEbookId);
-    if (loaded.ok) setMainTocRows(loaded.rows);
-    setMainIndexFrozenAt(null);
-    setCurrentPhase("main_index");
-    setMainChapterIdx(0);
-    setMainChapterBodyDraft("");
-    setMainChapterRichTextKey((k) => k + 1);
-    await refreshChapterBodyPresence();
-    setReopenIndexLoading(false);
-    setActionAnnouncement(t("wizard.content.index.reopenIndexSuccess"));
-  }, [project?.id, mainEbookId, t, refreshChapterBodyPresence]);
 
   const handleConfirmTitleChangeResetBody = useCallback(async () => {
     if (!titleChangeModal) return;
@@ -732,52 +716,53 @@ export function WizardContentPage() {
     setTitleChangeModal(null);
   }, []);
 
-  const handleSelectMainChapterIndex = useCallback(
+  const handleSelectChapterIndex = useCallback(
     async (nextIdx: number) => {
-      if (nextIdx === mainChapterIdx || !mainEbookId) return;
-      const prev = mainChapterRows[mainChapterIdx];
-      let rows = mainChapterRows;
+      if (nextIdx === chapterIdx) return;
+      const prev = chapterRows[chapterIdx];
+      let rows = chapterRows;
 
-      if (prev && !chapterHtmlEquals(mainChapterBodyDraft, prev.content ?? "")) {
+      if (prev && !chapterHtmlEquals(chapterBodyDraft, prev.content ?? "")) {
         setChapterSaveLoading(true);
-        const res = await updateChapterDraftContent(prev.id, mainChapterBodyDraft);
+        const res = await updateChapterDraftContent(prev.id, chapterBodyDraft);
         setChapterSaveLoading(false);
         if (!res.ok) {
           setActionAnnouncement(t("wizard.content.chapters.errorSave"));
           return;
         }
         rows = rows.map((r) =>
-          r.id === prev.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r,
+          r.id === prev.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r,
         );
-        setMainChapterRows(rows);
+        setChapterRows(rows);
       }
 
-      setMainChapterIdx(nextIdx);
-      setMainChapterBodyDraft(rows[nextIdx]?.content ?? "");
+      setChapterIdx(nextIdx);
+      setChapterBodyDraft(rows[nextIdx]?.content ?? "");
     },
-    [mainChapterIdx, mainChapterRows, mainChapterBodyDraft, mainEbookId, t],
+    [chapterIdx, chapterRows, chapterBodyDraft, t],
   );
 
-  const handleSaveMainChapterBody = useCallback(async () => {
-    const current = mainChapterRows[mainChapterIdx];
+  const handleSaveChapterBody = useCallback(async () => {
+    const current = chapterRows[chapterIdx];
     if (!current) return;
     setActionAnnouncement(null);
     setChapterSaveLoading(true);
-    const res = await updateChapterDraftContent(current.id, mainChapterBodyDraft);
+    const res = await updateChapterDraftContent(current.id, chapterBodyDraft);
     setChapterSaveLoading(false);
     if (!res.ok) {
       setActionAnnouncement(t("wizard.content.chapters.errorSave"));
       return;
     }
-    setMainChapterRows((rows) =>
-      rows.map((r) => (r.id === current.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r)),
+    setChapterRows((rows) =>
+      rows.map((r) => (r.id === current.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r)),
     );
+    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
     void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.saveSuccess"));
-  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t, refreshChapterBodyPresence]);
+  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey]);
 
-  const handleGenerateMainChapter = useCallback(async () => {
-    const current = mainChapterRows[mainChapterIdx];
+  const handleGenerateChapter = useCallback(async () => {
+    const current = chapterRows[chapterIdx];
     if (!current || !project?.id) return;
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
@@ -801,34 +786,35 @@ export function WizardContentPage() {
       setActionAnnouncement(t("wizard.content.chapters.errorSave"));
       return;
     }
-    setMainChapterBodyDraft(result.content);
-    setMainChapterRows((rows) =>
+    setChapterBodyDraft(result.content);
+    setChapterRows((rows) =>
       rows.map((r) => (r.id === current.id ? { ...r, content: result.content, approved_at: null } : r)),
     );
-    setMainChapterRichTextKey((k) => k + 1);
+    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
+    setChapterRichTextKey((k) => k + 1);
     void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.generateSuccess"));
-  }, [mainChapterRows, mainChapterIdx, project?.id, t, refreshChapterBodyPresence]);
+  }, [chapterRows, chapterIdx, project?.id, t, refreshChapterBodyPresence, selectedKey]);
 
-  const handleApproveMainChapter = useCallback(async () => {
-    const current = mainChapterRows[mainChapterIdx];
-    if (!current || isChapterHtmlEffectivelyEmpty(mainChapterBodyDraft)) return;
-    const draftMatchesSaved = chapterHtmlEquals(mainChapterBodyDraft, current.content ?? "");
+  const handleApproveChapter = useCallback(async () => {
+    const current = chapterRows[chapterIdx];
+    if (!current || isChapterHtmlEffectivelyEmpty(chapterBodyDraft)) return;
+    const draftMatchesSaved = chapterHtmlEquals(chapterBodyDraft, current.content ?? "");
     if (current.approved_at && draftMatchesSaved) return;
 
     setActionAnnouncement(null);
     setChapterApproveLoading(true);
 
     if (!draftMatchesSaved) {
-      const saveRes = await updateChapterDraftContent(current.id, mainChapterBodyDraft);
+      const saveRes = await updateChapterDraftContent(current.id, chapterBodyDraft);
       if (!saveRes.ok) {
         setChapterApproveLoading(false);
         setActionAnnouncement(t("wizard.content.chapters.errorSave"));
         return;
       }
-      setMainChapterRows((rows) =>
+      setChapterRows((rows) =>
         rows.map((r) =>
-          r.id === current.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r,
+          r.id === current.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r,
         ),
       );
     }
@@ -840,12 +826,18 @@ export function WizardContentPage() {
       return;
     }
     const now = new Date().toISOString();
-    setMainChapterRows((rows) =>
-      rows.map((r) => (r.id === current.id ? { ...r, approved_at: now } : r)),
-    );
+    const optimisticRows = chapterRows.map((r) => (r.id === current.id ? { ...r, approved_at: now } : r));
+    let nextRows = optimisticRows;
+    if (selectedEbookId) {
+      const reloaded = await loadEbookChaptersDraft(selectedEbookId);
+      if (reloaded.ok) nextRows = reloaded.rows;
+    }
+    setChapterRows(nextRows);
+    const allApproved = nextRows.length > 0 && nextRows.every((row) => Boolean(row.approved_at));
+    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: allApproved }));
     void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
-  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t, refreshChapterBodyPresence]);
+  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, selectedEbookId]);
 
   function dismissBanner() {
     if (!params.projectId) return;
@@ -867,27 +859,25 @@ export function WizardContentPage() {
   );
 
   const mainTocValidation = validateMainTocForConfirm(mainTocRows);
-  const bumpRowsForConfirm = bonusBumpToc[selectedKey] ?? [];
-  const bumpTocValidation = validateMainTocForConfirm(bumpRowsForConfirm);
-  const confirmDisabled =
-    selectedTarget.kind === "main"
-      ? mainTocValidation !== "ok"
-      : selectedTarget.kind === "bump"
-        ? bumpTocValidation !== "ok"
-        : true;
+  const globalIndexReady = useMemo(() => {
+    if (!project) return false;
+    if (!tocEntryResolved || mainTocValidation !== "ok") return false;
+    for (const item of navItems) {
+      if (item.target.kind === "main") continue;
+      const rows = bonusBumpToc[item.key] ?? [];
+      if (validateMainTocForConfirm(rows) !== "ok") return false;
+      if (item.target.kind === "bump" && bumpTocEntryResolved[item.key] !== true) return false;
+    }
+    return true;
+  }, [project, tocEntryResolved, mainTocValidation, navItems, bonusBumpToc, bumpTocEntryResolved]);
+
+  const confirmDisabled = !globalIndexReady;
 
   const confirmVisible =
-    (selectedTarget.kind === "main" &&
-      !needsUploadAlignment &&
-      !indexFrozen &&
-      currentPhase === "main_index" &&
-      project?.content_source === "ai" &&
-      tocEntryResolved) ||
-    (selectedTarget.kind === "bump" &&
-      !needsUploadAlignment &&
-      !Boolean(bumpIndexFrozenAt[selectedKey]) &&
-      project?.content_source === "ai" &&
-      bumpTocEntryResolved[selectedKey] === true);
+    !needsUploadAlignment &&
+    !Boolean(globalIndexFrozenAt) &&
+    currentPhase === "main_index" &&
+    project?.content_source === "ai";
 
   const tocReadOnly =
     (selectedTarget.kind === "main" && (needsUploadAlignment || indexFrozen || !workspaceReady)) ||
@@ -947,58 +937,30 @@ export function WizardContentPage() {
     }
   }, [selectedTarget.kind, selectedKey, packageEbookIds]);
 
-  const selectedNavIndex = useMemo(() => {
-    const i = navItems.findIndex((item) => item.key === selectedKey);
-    return i >= 0 ? i : 0;
-  }, [navItems, selectedKey]);
+  const chapterProgressValue = useMemo(
+    () => chapterRows.filter((ch) => Boolean(ch.approved_at)).length,
+    [chapterRows],
+  );
 
-  const isFirstContentPackage = selectedNavIndex === 0;
-  const isLastContentPackage = navItems.length > 0 && selectedNavIndex >= navItems.length - 1;
-
-  const handleFooterBack = useCallback(async () => {
-    if (!params.projectId) return;
-    if (isFirstContentPackage) {
-      if (showMainChapterLoop) {
-        const row = mainChapterRows[mainChapterIdx];
-        if (row && !chapterHtmlEquals(mainChapterBodyDraft, row.content ?? "")) {
-          setChapterSaveLoading(true);
-          const res = await updateChapterDraftContent(row.id, mainChapterBodyDraft);
-          setChapterSaveLoading(false);
-          if (!res.ok) {
-            setActionAnnouncement(t("wizard.content.chapters.errorSave"));
-            return;
-          }
-          setMainChapterRows((rows) =>
-            rows.map((r) =>
-              r.id === row.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r,
-            ),
-          );
-        }
-      }
-      navigate(`/app/projects/${params.projectId}/wizard`);
+  const handleEditIndexFromFooter = useCallback(async () => {
+    if (!project?.id) return;
+    const persisted = await persistCurrentChapterDraftIfDirty();
+    if (!persisted) return;
+    setActionAnnouncement(null);
+    const reopened = await reopenGlobalIndex(project.id);
+    if (!reopened.ok) {
+      setActionAnnouncement(t("wizard.content.index.errorReopenIndex"));
       return;
     }
-    const prevNav = navItems[selectedNavIndex - 1];
-    if (prevNav) void handleSelectPackageKey(prevNav.key);
-  }, [
-    isFirstContentPackage,
-    showMainChapterLoop,
-    mainChapterRows,
-    mainChapterIdx,
-    mainChapterBodyDraft,
-    handleSelectPackageKey,
-    navigate,
-    navItems,
-    params.projectId,
-    selectedNavIndex,
-    t,
-  ]);
-
-  const handleFooterNext = useCallback(() => {
-    if (isLastContentPackage) return;
-    const next = navItems[selectedNavIndex + 1];
-    if (next) void handleSelectPackageKey(next.key);
-  }, [isLastContentPackage, handleSelectPackageKey, navItems, selectedNavIndex]);
+    setGlobalIndexFrozenAt(null);
+    setCurrentPhase("main_index");
+    setBumpIndexFrozenAt((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) next[key] = null;
+      return next;
+    });
+    setActionAnnouncement(t("wizard.content.index.reopenIndexSuccess"));
+  }, [project?.id, persistCurrentChapterDraftIfDirty, t]);
 
   if (!params.projectId) {
     return null;
@@ -1022,9 +984,27 @@ export function WizardContentPage() {
       </div>
 
       <div className="border-b border-obra-blue-100 px-8 py-3">
-        <p className="font-body text-xs font-semibold uppercase tracking-wide text-obra-neutral-600">
-          {showMainChapterLoop ? t("wizard.content.milestone.chapters") : t("wizard.content.milestone.index")}
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm font-medium text-obra-neutral-600">
+            {t("wizard.content.stepCounter", {
+              current: showChapterLoop ? 2 : 1,
+              total: 2,
+              step: showChapterLoop
+                ? t("wizard.content.inner.chapterContent")
+                : t("wizard.content.inner.toc"),
+            })}
+          </span>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div
+                key={index}
+                className={`h-1.5 w-9 rounded-full transition-all ${
+                  index <= (showChapterLoop ? 1 : 0) ? "bg-obra-blue-700" : "bg-obra-blue-100"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
@@ -1062,7 +1042,7 @@ export function WizardContentPage() {
             </div>
           ) : null}
 
-          {project && !loading && workspaceReady && !needsUploadAlignment && !showMainChapterLoop ? (
+          {project && !loading && workspaceReady && !needsUploadAlignment && !showChapterLoop ? (
             <ContentIndexMilestone
               t={t}
               navItems={navItems}
@@ -1087,10 +1067,6 @@ export function WizardContentPage() {
               }
               regenerateLoading={generateLoading}
               tocReadOnly={tocReadOnly}
-              confirmVisible={confirmVisible}
-              onConfirmIndex={() => void handleConfirmPackageIndex()}
-              confirmDisabled={confirmDisabled}
-              confirmLoading={confirmLoading}
               actionAnnouncement={actionAnnouncement}
               showMainTocEmptyChoice={showMainTocEmptyChoice}
               mainTocEmptyShowGenerate={project?.content_source === "ai"}
@@ -1103,7 +1079,7 @@ export function WizardContentPage() {
             />
           ) : null}
 
-          {showMainChapterLoop ? (
+          {showChapterLoop ? (
             <ContentChapterMilestone
               t={t}
               navItems={navItems}
@@ -1111,22 +1087,20 @@ export function WizardContentPage() {
               onSelectKey={handleSelectPackageKey}
               navItemDisabled={navItemDisabled}
               panelTitle={chapterPanelCopy.title}
-              panelSubtitle={chapterPanelCopy.subtitle}
-              chapters={mainChapterRows}
-              selectedIndex={mainChapterIdx}
-              onSelectChapterIndex={(i) => void handleSelectMainChapterIndex(i)}
-              bodyValue={mainChapterBodyDraft}
-              onBodyChange={setMainChapterBodyDraft}
-              onSave={() => void handleSaveMainChapterBody()}
-              onGenerate={() => void handleGenerateMainChapter()}
-              onApprove={() => void handleApproveMainChapter()}
+              chapters={chapterRows}
+              selectedIndex={chapterIdx}
+              onSelectChapterIndex={(i) => void handleSelectChapterIndex(i)}
+              bodyValue={chapterBodyDraft}
+              onBodyChange={setChapterBodyDraft}
+              onSave={() => void handleSaveChapterBody()}
+              onGenerate={() => void handleGenerateChapter()}
+              onApprove={() => void handleApproveChapter()}
               saveLoading={chapterSaveLoading}
               generateLoading={chapterGenerateLoading}
               approveLoading={chapterApproveLoading}
-              actionAnnouncement={actionAnnouncement}
-              richTextResetKey={mainChapterRichTextKey}
-              onEditIndex={() => void handleReopenMainIndex()}
-              editIndexLoading={reopenIndexLoading}
+              richTextResetKey={chapterRichTextKey}
+              progressValue={chapterProgressValue}
+              progressMax={Math.max(chapterRows.length, 1)}
             />
           ) : null}
 
@@ -1135,21 +1109,33 @@ export function WizardContentPage() {
 
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
         <div className="flex w-full min-w-0 items-center justify-between">
-          <Button type="button" variant="tertiary" onClick={() => void handleFooterBack()}>
-            <ChevronLeft className="size-4" aria-hidden />
-            {isFirstContentPackage
-              ? t("wizard.content.footer.backToStructure")
-              : t("wizard.content.footer.back")}
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            disabled={navItems.length === 0 || isLastContentPackage}
-            onClick={handleFooterNext}
-          >
-            {t("wizard.structure.next")}
-            <ChevronRight className="size-4" aria-hidden />
-          </Button>
+          {showChapterLoop ? (
+            <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
+              <ChevronLeft className="size-4" aria-hidden />
+              {t("wizard.content.index.reopenIndex")}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="tertiary"
+              onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              {t("wizard.content.footer.backToStructure")}
+            </Button>
+          )}
+
+          {!showChapterLoop ? (
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!confirmVisible || confirmDisabled || confirmLoading}
+              onClick={() => void handleConfirmGlobalIndex()}
+            >
+              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : <span />}
         </div>
       </div>
 
