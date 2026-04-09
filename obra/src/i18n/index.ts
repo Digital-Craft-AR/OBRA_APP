@@ -650,6 +650,8 @@ const resources = {
       "settings.privacy.deleteHeading": "Eliminar cuenta",
       "settings.privacy.deleteBody":
         "Esta acción es irreversible. Si tenés suscripción activa en Mercado Pago, puede ser necesario resolverla antes.",
+      "toast.regionLabel": "Notifications",
+      "toast.close": "Close",
       "common.loading": "Cargando…",
       "common.comingSoon": "Próximamente",
     },
@@ -1307,6 +1309,8 @@ const resources = {
       "settings.privacy.deleteHeading": "Excluir conta",
       "settings.privacy.deleteBody":
         "Esta ação é irreversível. Se houver assinatura ativa no Mercado Pago, pode ser necessário resolvê-la antes.",
+      "toast.regionLabel": "Notifications",
+      "toast.close": "Close",
       "common.loading": "Carregando…",
       "common.comingSoon": "Em breve",
     },

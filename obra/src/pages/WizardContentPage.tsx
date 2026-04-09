@@ -38,6 +38,7 @@ import {
 } from "@/lib/wizard/contentIndexApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
+import { toast } from "@/toast";
 
 const BANNER_STORAGE_PREFIX = "obra.content.banner.dismissed.";
 
@@ -541,7 +542,10 @@ export function WizardContentPage() {
     if (!result.ok) {
       const code = result.code;
       if (code === "insufficient_credits") {
-        setInsufficientCreditsToastOpen(true);
+        toast.error({
+          title: t("wizard.content.index.toastInsufficientCreditsTitle"),
+          description: t("wizard.content.index.errorInsufficientCredits"),
+        });
       } else if (code === "wrong_content_source") {
         setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
       } else {
