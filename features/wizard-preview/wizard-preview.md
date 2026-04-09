@@ -4,7 +4,7 @@
 **Feature slug:** `wizard-preview`  
 **Status:** Draft  
 **Parent reference:** `PRD_Obra.md` (limits, credits, locales, PDF export)  
-**Related:** `features/wizard-shared/wizard-shared.md` (design handoff, global stepper, `image_mode` / `image_style`, optional **`author`** with main title), `features/wizard-ai-generation/wizard-ai-generation.md` and `features/wizard-upload/wizard-upload.md` (entry from Content for both branches). **`PRD_Obra.md` §6–§7** — product-level image and export rules.
+**Related:** `features/wizard-shared/wizard-shared.md` (design handoff, global stepper, `image_mode` / `image_style`, optional `**author`** with main title), `features/wizard-ai-generation/wizard-ai-generation.md` and `features/wizard-upload/wizard-upload.md` (entry from Content for both branches). `**PRD_Obra.md` §6–§7** — product-level image and export rules.
 
 ---
 
@@ -22,7 +22,9 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 **Cover** is generated with **Gemini (Nano Banana)** using a prompt that places **visible text inside the image**; the cover surface does not duplicate that text for sighted users, while **in-app accessibility** uses `alt` and screen-reader-only text. **Regeneration** of cover is **explicit**; initial generation may run when entering Preview if no cover exists.
 
-**Layout variation:** random assignment from a **tagged internal pool** for body pages, **persisted per content entity**; **Cover** and **TOC / index** pages are **excluded** from randomization. **Chapter openers** use a **project-wide fixed** opener template (not per-chapter random). **PDF output** uses **multi-page reflow** with correct **page breaks** (not single-page-per-chapter unless content fits).
+**Layout variation:** Each project uses a **pre-assembled book template** identified by **`book_template_id`** (chosen with design / structure; align placement with `wizard-shared`). The template **binds page roles** (cover, TOC/index, chapter opener, continuation, body, …) to **fixed layout ids** and/or **internal tagged pools** (e.g. optional variety for body pages). **Cover** and **TOC / index** are **never** “free random” outside the template—they follow the template’s rules. **Chapter openers** use the **layout id defined by the template** for the opener role (**one style per project** via the chosen template, not a separate per-chapter random pick). **PDF output** uses **multi-page reflow** with correct **page breaks** (not single-page-per-chapter unless content fits).
+
+**Layout catalog (product rules):** **Book templates**, **layouts**, and **pools** are **owned by the product/engineering team** and ship as **versioned catalog data in the monorepo** (not as end-user-editable rows in the database in MVP). **Preview and exported PDF** must use the **same** catalog version for a given render; the API may expose **`layout_catalog_version`** (and template version if split) so clients and workers detect mismatch after deploys. **Persistence:** the project stores **`book_template_id`**; each eligible **logical page** stores its resolved **`layout_variant_id`** once assigned—**no per-page RNG seed** in MVP—so layouts stay stable across refresh. **Deprecation:** if a layout id is retired, **runtime resolution** maps old ids to a **replacement** (`replacedBy`) so existing projects keep rendering without a batch data migration (see [`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)).
 
 **Text editing in Preview is out of MVP:** users use a **general “Edit content”** control to return to **Content**; returning to Preview **starts from the top**. **Re-approval** of chapters after edits is **not** required; **export rules are relaxed** for MVP (warnings for empty parts, non-blocking).
 
@@ -41,53 +43,54 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ### Canonical content and navigation
 
-5. As a creator, I want **all long-form text** to remain stored in the **canonical JSON** model, so that there is a single source of truth.
-6. As a creator, I want a **general control** to **go back to Content** to edit text, so that I do not look for paragraph editing in Preview in MVP.
-7. As a creator, when I return to Preview after editing in Content, I want the view to **open from the beginning**, so that behavior is predictable (MVP).
-8. As a creator, I want **not** to be forced to **re-approve** chapters after I edit text again, so that iteration is fast (MVP).
-9. As a creator, I want **export** to remain **available** under relaxed MVP rules, with **warnings** when parts are empty, so that I can still download deliverables.
+1. As a creator, I want **all long-form text** to remain stored in the **canonical JSON** model, so that there is a single source of truth.
+2. As a creator, I want a **general control** to **go back to Content** to edit text, so that I do not look for paragraph editing in Preview in MVP.
+3. As a creator, when I return to Preview after editing in Content, I want the view to **open from the beginning**, so that behavior is predictable (MVP).
+4. As a creator, I want **not** to be forced to **re-approve** chapters after I edit text again, so that iteration is fast (MVP).
+5. As a creator, I want **export** to remain **available** under relaxed MVP rules, with **warnings** when parts are empty, so that I can still download deliverables.
 
 ### Layouts and templates
 
-10. As a creator, I want **body pages** to use layouts chosen from an **internal pool** with **stable persistence** per logical page entity, so that layouts do not reshuffle on every refresh.
-11. As a creator, I want **Cover** and **table of contents / index** pages **not** to use the random pool, so that those pages stay predictable.
-12. As a creator, I want **chapter boundaries** to show a **clear chapter opener** layout with a **structural page break** before each chapter’s first page, so that chapters feel separated in PDF.
-13. As a creator, I want **one chapter-opener style per project** applied to **all** chapters, so that the book feels consistent.
-14. As a creator, I want chapter openers to show **chapter number** (from **TOC order**) and **chapter title** from content, so that numbering matches the index.
+1. As a creator, I want to **choose a book template** (`book_template_id`) that defines the **overall page composition** of my deliverable, so that I get a **coherent pre-assembled layout** instead of piecing pages together ad hoc.
+2. As a creator, I want **body pages** (and any other roles the template defines) to use layouts **determined by my book template**—**fixed** and/or from **internal pools**—with **stable persistence** per logical page entity, so that layouts do not reshuffle on every refresh.
+3. As a creator, I want **Cover** and **table of contents / index** pages to follow the **book template’s rules**, so that those pages stay predictable and match the template I picked.
+4. As a creator, I want **chapter boundaries** to show a **clear chapter opener** layout with a **structural page break** before each chapter’s first page, so that chapters feel separated in PDF.
+5. As a creator, I want **one chapter-opener treatment per project** (as defined by my **book template**) applied to **all** chapters, so that the book feels consistent.
+6. As a creator, I want chapter openers to show **chapter number** (from **TOC order**) and **chapter title** from content, so that numbering matches the index.
 
 ### Design system application
 
-15. As a creator, I want **step 1 design** (palette, fonts, page format) to drive **preview and PDF** through a **shared CSS contract**, so that brand stays coherent.
+1. As a creator, I want **step 1 design** (palette, fonts, page format) to drive **preview and PDF** through a **shared CSS contract**, so that brand stays coherent.
 
 ### Images
 
-16. As a creator, I want **only contract-defined image slots** (from layouts) to appear, with **one or more slots per page** when the layout defines them, so that the template stays intact.
-17. As a creator with **AI-assisted** image defaults, I want missing slot images to be **queued automatically** when I open Preview, and **executed** without a separate “generate all” click, so that I see progress quickly.
-18. As a creator, I want **refreshing** the page to **only enqueue slots still without a URL**, so that I do not pay or wait for duplicate work.
-19. As a creator, I want to **upload** my own image into a slot within **KB** and **layout-defined dimension** rules, so that I stay within technical limits.
-20. As a creator, I want **one optimized** image variant stored per slot, so that PDFs do not become unnecessarily heavy.
-21. As a creator, I want **regenerate** to accept a **short instruction**, show a **preview**, and require **confirmation** before replacing the stored image, so that I stay in control.
-22. As a creator, I want **image generation** to **charge credits only on success**, with **idempotent** retries, so that billing feels fair.
+1. As a creator, I want **only contract-defined image slots** (from layouts) to appear, with **one or more slots per page** when the layout defines them, so that the template stays intact.
+2. As a creator with **AI-assisted** image defaults, I want missing slot images to be **queued automatically** when I open Preview, and **executed** without a separate “generate all” click, so that I see progress quickly.
+3. As a creator, I want **refreshing** the page to **only enqueue slots still without a URL**, so that I do not pay or wait for duplicate work.
+4. As a creator, I want to **upload** my own image into a slot within **KB** and **layout-defined dimension** rules, so that I stay within technical limits.
+5. As a creator, I want **one optimized** image variant stored per slot, so that PDFs do not become unnecessarily heavy.
+6. As a creator, I want **regenerate** to accept a **short instruction**, show a **preview**, and require **confirmation** before replacing the stored image, so that I stay in control.
+7. As a creator, I want **image generation** to **charge credits only on success**, with **idempotent** retries, so that billing feels fair.
 
 ### Cover (Nano Banana)
 
-23. As a creator, I want an **AI-generated cover** whose **visible typography lives in the image**, with **no duplicate marketing text** in the HTML for sighted users.
-24. As a creator, I want **optional project author** (single field, project-level) to feed the cover prompt **when provided**, so that branding can appear when I care to fill it.
-25. As a creator, I want **cover regeneration** to be **explicit**, not triggered by every title tweak, so that credits are predictable.
-26. As a creator, I want **accessible** cover handling **in the app** (`alt` + screen-reader-only text), even if **PDF tagging** is not required in MVP.
-27. As a creator, when cover generation **fails**, I want a **degraded placeholder**, **retry**, and **upload** path, and I still want to **export the rest**, with a **clear warning**.
+1. As a creator, I want an **AI-generated cover** whose **visible typography lives in the image**, with **no duplicate marketing text** in the HTML for sighted users.
+2. As a creator, I want **optional project author** (single field, project-level) to feed the cover prompt **when provided**, so that branding can appear when I care to fill it.
+3. As a creator, I want **cover regeneration** to be **explicit**, not triggered by every title tweak, so that credits are predictable.
+4. As a creator, I want **accessible** cover handling **in the app** (`alt` + screen-reader-only text), even if **PDF tagging** is not required in MVP.
+5. As a creator, when cover generation **fails**, I want a **degraded placeholder**, **retry**, and **upload** path, and I still want to **export the rest**, with a **clear warning**.
 
 ### Pagination and print
 
-28. As a creator, I want **page numbers** on **non-cover** pages **bottom-right**, so that PDFs look like professional documents.
+1. As a creator, I want **page numbers** on **non-cover** pages **bottom-right**, so that PDFs look like professional documents.
 
 ### Export
 
-29. As a creator, I want to **download one PDF** for the **main** ebook and **each** bonus and bump, so that I can ship files separately.
-30. As a creator, I want a **ZIP** that contains **all deliverable PDFs** for the project, so that I can archive or share the full package.
-31. As a creator, I want the ZIP job to **fail entirely** if **any** PDF in the bundle fails, so that I do not get silent partial packages.
-32. As a creator, I want **empty** sections still **exportable** with **warnings**, so that I am not blocked in MVP.
-33. As a creator, I want **export** not to consume **AI credits** (compute-only), so that pricing stays understandable.
+1. As a creator, I want to **download one PDF** for the **main** ebook and **each** bonus and bump, so that I can ship files separately.
+2. As a creator, I want a **ZIP** that contains **all deliverable PDFs** for the project, so that I can archive or share the full package.
+3. As a creator, I want the ZIP job to **fail entirely** if **any** PDF in the bundle fails, so that I do not get silent partial packages.
+4. As a creator, I want **empty** sections still **exportable** with **warnings**, so that I am not blocked in MVP.
+5. As a creator, I want **export** not to consume **AI credits** (compute-only), so that pricing stays understandable.
 
 ---
 
@@ -97,8 +100,8 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 - **Canonical content** remains **structured JSON**; HTML templates are **render functions** that map JSON + design + layout selection + resolved image URLs into DOM/HTML for **in-app preview** and **PDF HTML** input.
 - **Image slots** are **first-class records** (stable ids, layout slot keys, storage URL of optimized asset, optional generation metadata), not inferred by scraping HTML.
-- **Layout assignment:** persist **layout variant id** (and seed if needed) per **eligible entity**; **exclude** Cover and TOC/index from random pools; **chapter opener** template id is **one per project** (not randomized per chapter).
-- **Chapter structure:** each chapter starts with a **chapter opener** page (project-fixed template) preceded by a **page break**; following pages use **continuation** templates consistent with multi-page flow.
+- **Book template:** persist **`book_template_id`** on the **project** (selection UX lives with **Structure / Design**; keep `wizard-shared` aligned). **Layout assignment:** resolve **`layout_variant_id`** per **eligible logical page** using **template role bindings** (fixed layout and/or internal pool + selection mode); persist the resolved id on the logical page. Optionally persist **`layout_catalog_version`** on the project or page for deploy alignment. **No RNG seed** in MVP. **Retired layout ids** resolve via **`replacedBy`** at render time (see [`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)). **Changing `book_template_id`** after content exists requires an explicit product policy (warnings, slot invalidation, or re-resolve)—document in API/UX before shipping.
+- **Chapter structure:** each chapter starts with a **chapter opener** page (layout id from the project’s **book template** for the opener role) preceded by a **page break**; following pages use **continuation** layouts per the same **book template** (role bindings), consistent with multi-page flow.
 
 ### Styling and PDF
 
@@ -107,13 +110,13 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ### Images pipeline
 
-- On **entering Preview**, enqueue **missing** slot URLs according to **`image_mode`**; **auto-run** jobs; on **reload**, only **still-empty** slots enqueue again.
+- On **entering Preview**, enqueue **missing** slot URLs according to `**image_mode`**; **auto-run** jobs; on **reload**, only **still-empty** slots enqueue again.
 - **Uploads:** validate **KB max** and **layout max dimensions/aspect**; persist **single optimized** derivative; reject or downscale per product rules.
 - **AI regenerate:** optional **short user instruction**; **preview** result; **confirm** to commit; credits on **successful** persist; **idempotency** keys for retries.
 
 ### Cover generation
 
-- **Gemini Nano Banana** via **server-side** proxy only; prompt includes **title**, optional **subtitle**, optional **author** if non-empty, **`image_style`** and palette/style notes, **`content_locale`**.
+- **Gemini Nano Banana** via **server-side** proxy only; prompt includes **title**, optional **subtitle**, optional **author** if non-empty, `**image_style`** and palette/style notes, `**content_locale`**.
 - **First-time** cover generation may run when entering Preview if absent; **subsequent** generations are **user-initiated** only.
 - **Failure:** placeholder aligned to design system; retry/upload; export still allowed with warning.
 
@@ -135,7 +138,7 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ### Deep modules (stable surfaces)
 
-- **Layout registry:** internal catalog of layouts with **tags** (cover, toc, chapter_opener, continuation, body, …), **slot schemas**, and compatibility with page size/orientation.
+- **Layout registry:** internal catalog of **book templates** (`bookTemplates`), **layouts** (**tags**, slot schemas, page size/orientation), and **pools** (optional building blocks referenced by templates); **source of truth in the monorepo** (manifest + code), shared by preview and PDF worker ([`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)).
 - **Render pipeline:** `renderPage(project, entity, layoutId, contentJson, assets) → HTML fragment` shared by preview iframe and PDF builder.
 - **Image slot service:** enqueue, upload normalize, AI regenerate with preview/confirm, storage URL write-back to canonical model.
 - **Export service:** orchestrate PDF generation per deliverable, ZIP packaging, error aggregation.
@@ -146,7 +149,7 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ### Design
 
-- **Layout catalog:** define **Cover**, **TOC/Index**, **chapter opener** (project-default), **continuation**, and **body** variants; specify **slot positions**, safe areas, and **which pages** participate in random pools vs fixed types.
+- **Layout catalog:** define **book templates** (`book_template_id` targets) that bind **Cover**, **TOC/Index**, **chapter opener**, **continuation**, and **body** (and any other roles) to **fixed layouts** and/or **internal pools**; specify **slot positions**, safe areas, and **per-role** behavior inside each template.
 - **Visual specs** for **degraded** states: missing image, generating, failed AI, empty text warning badges.
 - **Export UX:** primary/secondary actions (single PDF vs full ZIP), progress, error when ZIP aborts, non-blocking **warnings** list for empty sections.
 - **Cover:** art direction for **text-in-image** covers; confirm **no visible duplicate** title in layout; **accessibility** pattern (`alt` + visually hidden text).
@@ -200,7 +203,8 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ## Further Notes
 
-- **Author field:** single optional **`author`** string at **project** level, captured **on the same screen as main title** in shared package structure (`wizard-shared` alignment required).
-- **Chapter opener vs random body layouts:** opener is **fixed per project**; randomization applies to **body/continuation** pages per prior rules—ensure PRD **§Implementation** and layout tags stay consistent.
-- **Billing:** align image credit triggers with **`PRD_Obra.md` §11** and global ledger rules; export remains **compute-only**.
-- **Related docs to update when implementing:** master PRD cross-links, `wizard-shared` (author + main title screen), `ARQUITECTURA_Obra.md`, `CLAUDE.md`, and `docs/` as needed for **render pipeline** and **export**—as per repo documentation norms.
+- **Author field:** single optional `**author`** string at **project** level, captured **on the same screen as main title** in shared package structure (`wizard-shared` alignment required).
+- **Chapter opener vs body layouts:** both are defined by the project’s **`book_template_id`** (opener role vs body/continuation roles). **Pools** are only used where the template says so—ensure PRD **§Implementation** and engineering **`roleBindings`** stay consistent.
+- **Billing:** align image credit triggers with `**PRD_Obra.md` §11** and global ledger rules; export remains **compute-only**.
+- **Related docs to update when implementing:** master PRD cross-links, `wizard-shared` (**book template** picker + author + main title screen), `ARQUITECTURA_Obra.md`, `CLAUDE.md`, **`docs/architecture/layout-registry-and-pools.md`** (book templates, layout manifest, pools, CI), and `docs/` as needed for **render pipeline** and **export**—as per repo documentation norms.
+

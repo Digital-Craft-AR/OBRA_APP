@@ -67,7 +67,7 @@ Inner wizard progress (topic, avatar/problem, package sub-steps, design) sits **
 3. **Content phase** (`wizard-ai-generation`; upload preamble in `wizard-upload`):
    - **AI path:** edit TOCs across package artifacts, then run a **single global index confirmation** (main + bonuses + bumps) → unified chapter editing.
    - **Upload path:** single `.docx`/`.pdf` → parse (no LLM) + LLM split proposal → user **aligns** → approve → **same** milestone sequence with **prefilled** chapter text → bonuses → bumps.
-4. **Preview & export** — global step 3 (`features/wizard-preview/wizard-preview.md`): JSON → HTML layouts, image pipeline, cover (Gemini), individual PDFs + project ZIP. **Images / credits:** `PRD_Obra.md` §6.
+4. **Preview & export** — global step 3 (`features/wizard-preview/wizard-preview.md`): JSON → HTML layouts, image pipeline, cover (Gemini), individual PDFs + project ZIP. **Images / credits:** `PRD_Obra.md` §6. **Book templates (`book_template_id`), layout registry, pools:** `docs/architecture/layout-registry-and-pools.md`.
 
 Upload rules (formats, 10 MB, sync flow, credits, weak prefill): `PRD_Obra.md` §4 and `features/wizard-upload/wizard-upload.md`.
 
