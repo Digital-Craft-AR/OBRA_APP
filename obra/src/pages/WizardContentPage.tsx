@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
+import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle } from "@/components/ui/Modal";
 import { ObraToast } from "@/components/obra/ObraToast";
 import {
   ContentIndexMilestone,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/wizard/contentNav";
 import {
   approveChapterBody,
+  clearChapterBody,
   confirmMainIndex,
   confirmOrderBumpIndex,
   ensureContentWorkspace,
@@ -26,7 +28,9 @@ import {
   invokeGenerateIndex,
   loadEbookChapters,
   loadEbookChaptersDraft,
+  reopenMainIndex,
   replaceEbookDraftChapters,
+  trySyncMainEbookTocBeforeFreeze,
   updateChapterDraftContent,
   upsertEbookDraftChaptersFromRows,
   validateMainTocForConfirm,
@@ -36,6 +40,38 @@ import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 
 const BANNER_STORAGE_PREFIX = "obra.content.banner.dismissed.";
+
+function findFirstTitleChangeWithBody(
+  prev: TocChapterRow[],
+  next: TocChapterRow[],
+  presence: Record<string, boolean>,
+): { mergedRows: TocChapterRow[] } | null {
+  const prevById = new Map(prev.map((r) => [r.id, r.title]));
+  for (const row of next) {
+    const prevTitle = prevById.get(row.id);
+    if (prevTitle === undefined) continue;
+    if (prevTitle === row.title) continue;
+    if (presence[row.id]) {
+      return { mergedRows: next };
+    }
+  }
+  return null;
+}
+
+function chapterIdsWithRenamedBody(
+  base: TocChapterRow[],
+  pending: TocChapterRow[],
+  presence: Record<string, boolean>,
+): string[] {
+  const baseById = new Map(base.map((r) => [r.id, r.title]));
+  const ids: string[] = [];
+  for (const row of pending) {
+    const prevTitle = baseById.get(row.id);
+    if (prevTitle === undefined) continue;
+    if (prevTitle !== row.title && presence[row.id]) ids.push(row.id);
+  }
+  return ids;
+}
 
 function newRowId() {
   return globalThis.crypto?.randomUUID?.() ?? `row-${Math.random().toString(36).slice(2, 11)}`;
@@ -103,6 +139,12 @@ export function WizardContentPage() {
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
   const [mainChapterRichTextKey, setMainChapterRichTextKey] = useState(0);
+  const [chapterBodyPresence, setChapterBodyPresence] = useState<Record<string, boolean>>({});
+  const [titleChangeModal, setTitleChangeModal] = useState<{
+    pendingRows: TocChapterRow[];
+    baseRows: TocChapterRow[];
+  } | null>(null);
+  const [reopenIndexLoading, setReopenIndexLoading] = useState(false);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -235,6 +277,22 @@ export function WizardContentPage() {
       cancelled = true;
     };
   }, [mainEbookId, currentPhase]);
+
+  const refreshChapterBodyPresence = useCallback(async () => {
+    if (!mainEbookId) return;
+    const r = await loadEbookChaptersDraft(mainEbookId);
+    if (!r.ok) return;
+    const next: Record<string, boolean> = {};
+    for (const ch of r.rows) {
+      next[ch.id] = !isChapterHtmlEffectivelyEmpty(ch.content ?? "");
+    }
+    setChapterBodyPresence(next);
+  }, [mainEbookId]);
+
+  useEffect(() => {
+    if (!mainEbookId) return;
+    void refreshChapterBodyPresence();
+  }, [mainEbookId, refreshChapterBodyPresence]);
 
   useEffect(() => {
     const prev = prevSelectedKeyRef.current;
@@ -411,6 +469,11 @@ export function WizardContentPage() {
   const setCurrentToc = useCallback(
     (rows: TocChapterRow[]) => {
       if (selectedTarget.kind === "main") {
+        const blocked = findFirstTitleChangeWithBody(mainTocRows, rows, chapterBodyPresence);
+        if (blocked) {
+          setTitleChangeModal({ pendingRows: blocked.mergedRows, baseRows: mainTocRows });
+          return;
+        }
         setMainTocRows(rows);
         return;
       }
@@ -433,7 +496,7 @@ export function WizardContentPage() {
         delete persistTimersRef.current[key];
       }, 550);
     },
-    [selectedKey, selectedTarget.kind, packageEbookIds, bumpIndexFrozenAt],
+    [selectedKey, selectedTarget.kind, packageEbookIds, bumpIndexFrozenAt, mainTocRows, chapterBodyPresence],
   );
 
   const navItemDisabled = useCallback(
@@ -556,13 +619,24 @@ export function WizardContentPage() {
         return;
       }
       setConfirmLoading(true);
-      const persist = await upsertEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
-      if (!persist.ok) {
+      const sync = await trySyncMainEbookTocBeforeFreeze(mainEbookId, mainTocRows);
+      if (!sync.ok) {
         setConfirmLoading(false);
         setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
         return;
       }
-      setMainTocRows(persist.rows);
+      if (sync.mode === "full_replace") {
+        const persist = await upsertEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
+        if (!persist.ok) {
+          setConfirmLoading(false);
+          setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+          return;
+        }
+        setMainTocRows(persist.rows);
+      } else {
+        const reloaded = await loadEbookChapters(mainEbookId);
+        if (reloaded.ok) setMainTocRows(reloaded.rows);
+      }
       const confirmed = await confirmMainIndex(project.id);
       setConfirmLoading(false);
       if (!confirmed.ok) {
@@ -571,6 +645,7 @@ export function WizardContentPage() {
       }
       setMainIndexFrozenAt(new Date().toISOString());
       setCurrentPhase("main_chapter");
+      void refreshChapterBodyPresence();
       setActionAnnouncement(t("wizard.content.index.confirmSuccess"));
       return;
     }
@@ -612,7 +687,50 @@ export function WizardContentPage() {
     selectedKey,
     packageEbookIds,
     t,
+    refreshChapterBodyPresence,
   ]);
+
+  const handleReopenMainIndex = useCallback(async () => {
+    if (!project?.id || !mainEbookId) return;
+    setActionAnnouncement(null);
+    setReopenIndexLoading(true);
+    const opened = await reopenMainIndex(project.id);
+    if (!opened.ok) {
+      setReopenIndexLoading(false);
+      setActionAnnouncement(t("wizard.content.index.errorReopenIndex"));
+      return;
+    }
+    const loaded = await loadEbookChapters(mainEbookId);
+    if (loaded.ok) setMainTocRows(loaded.rows);
+    setMainIndexFrozenAt(null);
+    setCurrentPhase("main_index");
+    setMainChapterIdx(0);
+    setMainChapterBodyDraft("");
+    setMainChapterRichTextKey((k) => k + 1);
+    await refreshChapterBodyPresence();
+    setReopenIndexLoading(false);
+    setActionAnnouncement(t("wizard.content.index.reopenIndexSuccess"));
+  }, [project?.id, mainEbookId, t, refreshChapterBodyPresence]);
+
+  const handleConfirmTitleChangeResetBody = useCallback(async () => {
+    if (!titleChangeModal) return;
+    const { pendingRows, baseRows } = titleChangeModal;
+    const toClear = chapterIdsWithRenamedBody(baseRows, pendingRows, chapterBodyPresence);
+    setTitleChangeModal(null);
+    for (const id of toClear) {
+      const cleared = await clearChapterBody(id);
+      if (!cleared.ok) {
+        setActionAnnouncement(t("wizard.content.chapters.errorClearBody"));
+        return;
+      }
+    }
+    setMainTocRows(pendingRows);
+    void refreshChapterBodyPresence();
+  }, [titleChangeModal, chapterBodyPresence, refreshChapterBodyPresence, t]);
+
+  const handleCancelTitleChangeModal = useCallback(() => {
+    setTitleChangeModal(null);
+  }, []);
 
   const handleSelectMainChapterIndex = useCallback(
     async (nextIdx: number) => {
@@ -654,8 +772,9 @@ export function WizardContentPage() {
     setMainChapterRows((rows) =>
       rows.map((r) => (r.id === current.id ? { ...r, content: mainChapterBodyDraft, approved_at: null } : r)),
     );
+    void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.saveSuccess"));
-  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t]);
+  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t, refreshChapterBodyPresence]);
 
   const handleGenerateMainChapter = useCallback(async () => {
     const current = mainChapterRows[mainChapterIdx];
@@ -687,8 +806,9 @@ export function WizardContentPage() {
       rows.map((r) => (r.id === current.id ? { ...r, content: result.content, approved_at: null } : r)),
     );
     setMainChapterRichTextKey((k) => k + 1);
+    void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.generateSuccess"));
-  }, [mainChapterRows, mainChapterIdx, project?.id, t]);
+  }, [mainChapterRows, mainChapterIdx, project?.id, t, refreshChapterBodyPresence]);
 
   const handleApproveMainChapter = useCallback(async () => {
     const current = mainChapterRows[mainChapterIdx];
@@ -723,8 +843,9 @@ export function WizardContentPage() {
     setMainChapterRows((rows) =>
       rows.map((r) => (r.id === current.id ? { ...r, approved_at: now } : r)),
     );
+    void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
-  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t]);
+  }, [mainChapterRows, mainChapterIdx, mainChapterBodyDraft, t, refreshChapterBodyPresence]);
 
   function dismissBanner() {
     if (!params.projectId) return;
@@ -1004,6 +1125,8 @@ export function WizardContentPage() {
               approveLoading={chapterApproveLoading}
               actionAnnouncement={actionAnnouncement}
               richTextResetKey={mainChapterRichTextKey}
+              onEditIndex={() => void handleReopenMainIndex()}
+              editIndexLoading={reopenIndexLoading}
             />
           ) : null}
 
@@ -1029,6 +1152,26 @@ export function WizardContentPage() {
           </Button>
         </div>
       </div>
+
+      <Modal
+        open={Boolean(titleChangeModal)}
+        onClose={handleCancelTitleChangeModal}
+        closeLabel={t("wizard.content.chapters.titleChangeModalCloseAria")}
+      >
+        <ModalHead>
+          <ModalTitle>{t("wizard.content.chapters.titleChangeModalTitle")}</ModalTitle>
+          <ModalSubtitle>{t("wizard.content.chapters.titleChangeModalSubtitle")}</ModalSubtitle>
+        </ModalHead>
+        <ModalContent>{t("wizard.content.chapters.titleChangeModalBody")}</ModalContent>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" size="medium" onClick={handleCancelTitleChangeModal}>
+            {t("wizard.content.chapters.titleChangeModalCancel")}
+          </Button>
+          <Button type="button" variant="primary" size="medium" onClick={() => void handleConfirmTitleChangeResetBody()}>
+            {t("wizard.content.chapters.titleChangeModalConfirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {insufficientCreditsToastOpen ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[200] flex justify-center px-4 sm:bottom-8">
