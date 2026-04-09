@@ -8,7 +8,7 @@ Canonical SQL and field notes: [`backend.md`](backend.md) and [`business_logic.m
 
 **`ProjectContentProgress.current_phase`** is restricted in PostgreSQL to: `upload_alignment` | `main_index` | `main_chapter` | `bonus` | `order_bump` | `complete`. Initial phase: **`upload_alignment`** if `content_source = upload`, else **`main_index`**.
 
-**Main ebook TOC:** stored as **`chapters`** on the main ebook (titles + order); **`project_content_progress.main_index_frozen_at`** marks **main** index freeze (not `ebooks.index_frozen_at` on the main row today).
+**Global TOC confirmation:** `project_content_progress.global_index_frozen_at` is the canonical phase gate for entering chapter editing; `main_index_frozen_at` is still written for compatibility.
 
 **Order bump TOC:** same persistence pattern as the main ebook — multiple **`chapters`** rows on each **`ebooks`** row with `type = order_bump` (scoped by `package_ordinal`). **`ebooks.index_frozen_at`** on that row marks when the user **confirmed** that bump’s index in Content.
 
@@ -90,6 +90,7 @@ classDiagram
     +UUID project_id
     +string current_phase
     +datetime main_index_frozen_at
+    +datetime global_index_frozen_at
     +UUID current_ebook_id
     +UUID current_chapter_id
     +datetime updated_at
@@ -209,6 +210,7 @@ class ProjectContentProgress {
   project_id : UUID <<PK,FK>>
   current_phase : string
   main_index_frozen_at : timestamptz <<optional>>
+  global_index_frozen_at : timestamptz <<optional>>
   current_ebook_id : UUID <<FK optional>>
   current_chapter_id : UUID <<FK optional>>
   updated_at : timestamptz
