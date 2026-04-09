@@ -16,6 +16,8 @@ Canonical SQL and field notes: [`backend.md`](backend.md) and [`business_logic.m
 
 **`chapters.approved_at`** applies to **body** approval per chapter, not TOC confirmation, for all types above.
 
+**`chapters.content` (body):** persisted as **rich HTML** (fragment), not Markdown. The Content wizard uses **Tiptap** for editing and **DOMPurify** on the client to sanitize to an allowed tag subset before `UPDATE`; AI stubs and future LLM output should return compatible HTML fragments.
+
 **Contenido chat:** **`content_chat_threads`** — `chapter_id` set = one thread per **chapter / bonus / bump** artifact in MVP. **`chapter_id` null** slot (historically “main index / TOC” chat): **post-MVP** if conversational index refinement is enabled; **MVP** uses explicit generate/regenerate outline actions **without** an index chat transcript. Messages in **`content_chat_messages`**. **MVP:** persist **`user`** server-side with `client_message_id` idempotency (unique per thread) and persist **`assistant`** only when the streamed reply **finishes** (no per-chunk rows).
 
 ---

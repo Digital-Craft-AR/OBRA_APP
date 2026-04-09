@@ -422,7 +422,7 @@ CREATE TABLE chapters (
   ebook_id    UUID REFERENCES ebooks(id) ON DELETE CASCADE,
   "order"     INTEGER NOT NULL,
   title       TEXT NOT NULL,
-  content     TEXT,                   -- Contenido en markdown o HTML
+  content     TEXT,                   -- Cuerpo del capítulo: HTML enriquecido (subset sanitizado en cliente; ver wizard Contenido)
   image_id    UUID,                   -- FK a images (nullable)
   approved_at TIMESTAMPTZ,            -- NULL until user approves this chapter in Contenido flow
   created_at  TIMESTAMPTZ DEFAULT NOW()
@@ -606,20 +606,20 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 ---
 
 ### 4.3 `ai-generate-content`
-**Propósito:** Generar el contenido de un capítulo específico.  
-**Input:**
+**Propósito:** Generar el cuerpo de un capítulo del ebook principal (HTML enriquecido).  
+**Input (implementado):** JWT + body JSON:
 ```json
 {
-  "chapter_title": "Cómo calcular tu precio de venta",
-  "ebook_context": "...",
-  "avatar": "...",
-  "language": "es"
+  "project_id": "uuid",
+  "chapter_id": "uuid",
+  "client_request_id": "uuid"
 }
 ```
 **Output:**
 ```json
-{ "content": "## Cómo calcular tu precio...\n\n..." }
+{ "ok": true, "stub": true, "content": "<h2>Título</h2><p>…</p>", "credits_balance_after": 0 }
 ```
+El cliente **sanitiza** el HTML (DOMPurify, subset de etiquetas) antes de persistir en `chapters.content`. La integración Claude pendiente debe devolver el mismo formato (fragmentos HTML, no Markdown).
 
 ---
 
