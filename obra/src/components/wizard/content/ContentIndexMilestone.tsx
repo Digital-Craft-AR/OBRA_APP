@@ -33,10 +33,6 @@ type ContentIndexMilestoneProps = {
   regenerateDisabled?: boolean;
   regenerateLoading?: boolean;
   tocReadOnly?: boolean;
-  confirmVisible?: boolean;
-  onConfirmIndex?: () => void;
-  confirmDisabled?: boolean;
-  confirmLoading?: boolean;
   actionAnnouncement?: string | null;
   showMainTocEmptyChoice?: boolean;
   mainTocEmptyShowGenerate?: boolean;
@@ -72,10 +68,6 @@ export function ContentIndexMilestone({
   regenerateDisabled,
   regenerateLoading,
   tocReadOnly,
-  confirmVisible,
-  onConfirmIndex,
-  confirmDisabled,
-  confirmLoading,
   actionAnnouncement,
   showMainTocEmptyChoice = false,
   mainTocEmptyShowGenerate = true,
@@ -85,8 +77,6 @@ export function ContentIndexMilestone({
 }: ContentIndexMilestoneProps) {
   const selected = navItems.find((item) => item.key === selectedKey) ?? navItems[0];
   const usesChapterList = selected ? usesMultiChapterContentNavTarget(selected.target) : false;
-  const isMainOnly = selected?.target.kind === "main";
-  const isBumpPackage = selected?.target.kind === "bump";
   const readOnly = Boolean(tocReadOnly);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -326,20 +316,6 @@ export function ContentIndexMilestone({
           </div>
         ) : null}
 
-        {confirmVisible && (isMainOnly || isBumpPackage) ? (
-          <div className="border-t border-obra-blue-100 pt-4">
-            <Button
-              type="button"
-              variant="primary"
-              size="medium"
-              disabled={confirmDisabled || confirmLoading}
-              onClick={() => onConfirmIndex?.()}
-            >
-              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
-            </Button>
-            <p className="mt-2 font-body text-xs text-obra-neutral-600">{t("wizard.content.index.confirmIndexHint")}</p>
-          </div>
-        ) : null}
       </section>
     </div>
   );
