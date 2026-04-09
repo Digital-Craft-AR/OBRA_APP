@@ -286,11 +286,9 @@ export async function replaceEbookDraftChapters(
   ebookId: string,
   titles: string[],
 ): Promise<{ ok: true } | { ok: false }> {
-  const { error: delError } = await supabase
-    .from("chapters")
-    .delete()
-    .eq("ebook_id", ebookId)
-    .is("approved_at", null);
+  // Remove every row for this ebook. Draft-only deletes left approved chapters in place,
+  // so re-inserting sort_order 1..n hit chapters_unique_sort_per_ebook and the save failed.
+  const { error: delError } = await supabase.from("chapters").delete().eq("ebook_id", ebookId);
 
   if (delError) return { ok: false };
 

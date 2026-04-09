@@ -151,7 +151,7 @@ export function ContentChapterMilestone({
               <Button
                 type="button"
                 variant="tertiary"
-                size="medium"
+                size="small"
                 disabled={editIndexLoading}
                 onClick={onEditIndex}
               >

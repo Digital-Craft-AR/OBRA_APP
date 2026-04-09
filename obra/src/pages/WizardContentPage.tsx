@@ -1035,7 +1035,7 @@ export function WizardContentPage() {
               aria-label={t("wizard.content.banner.regionAria")}
               className="mb-6 rounded-card border border-obra-blue-100 bg-white px-4 py-3 shadow-sm"
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-body text-sm text-obra-blue-950">{t("wizard.content.banner.body")}</p>
                 <Button type="button" variant="tertiary" size="small" onClick={dismissBanner}>
                   {t("wizard.content.banner.dismiss")}
