@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
 import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
-import { generateIndexPrompt } from "../_shared/prompts.ts";
+import { generateBonusSectionIndexPrompt, generateIndexPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import type { ChapterCount, ContentLocale, ContentTone } from "../_shared/prompts.ts";
 
@@ -145,10 +145,11 @@ Deno.serve(async (req: Request) => {
     return json({ error: "wrong_content_source", detail: "ai_path_only" }, 400);
   }
 
-  let seedTitle = typeof project.main_title === "string" ? project.main_title : "";
-  let isOrderBump = false;
+  const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
+  let seedTitle = projectMainTitle;
+  type PackageTargetKind = "order_bump" | "bonus";
+  let packageTargetKind: PackageTargetKind | null = null;
   if (targetEbookId !== null && targetEbookId !== "") {
-    isOrderBump = true;
     const { data: targetEbook, error: ebookErr } = await admin
       .from("ebooks")
       .select("id, type, title, index_frozen_at")
@@ -159,13 +160,14 @@ Deno.serve(async (req: Request) => {
     if (ebookErr || !targetEbook) {
       return json({ error: "invalid_payload", detail: "target_ebook_not_found" }, 400);
     }
-    if (targetEbook.type !== "order_bump") {
-      return json({ error: "invalid_payload", detail: "target_ebook_not_order_bump" }, 400);
+    if (targetEbook.type !== "order_bump" && targetEbook.type !== "bonus") {
+      return json({ error: "invalid_payload", detail: "target_ebook_invalid_type" }, 400);
     }
     if (targetEbook.index_frozen_at != null) {
-      return json({ error: "index_already_frozen", detail: "order_bump" }, 400);
+      return json({ error: "index_already_frozen", detail: targetEbook.type }, 400);
     }
-    seedTitle = typeof targetEbook.title === "string" ? targetEbook.title : "";
+    packageTargetKind = targetEbook.type as PackageTargetKind;
+    seedTitle = typeof targetEbook.title === "string" ? targetEbook.title.trim() : "";
   }
 
   const { chapterCount: designChapterCount, contentTone: designTone } = parseDesignConfigForAi(project.design_config);
@@ -180,9 +182,11 @@ Deno.serve(async (req: Request) => {
   ) {
     chapterCount = bodyChapterOverride as ChapterCount;
   }
-  if (isOrderBump) {
+  if (packageTargetKind === "order_bump") {
     chapterCount = 4;
   }
+
+  const expectedTitleCount = packageTargetKind === "bonus" ? 1 : chapterCount;
 
   const tone: ContentTone =
     bodyToneOverride &&
@@ -195,7 +199,7 @@ Deno.serve(async (req: Request) => {
   const topic = typeof project.topic === "string" ? project.topic : "";
   const avatar = typeof project.target_avatar === "string" ? project.target_avatar : "";
   const problem = typeof project.problem === "string" ? project.problem : "";
-  const mainEbookTitle = seedTitle.trim() || topic || "Ebook";
+  const artifactTitle = seedTitle.trim() || topic || "Ebook";
 
   const rawCost = Deno.env.get("AI_GENERATE_INDEX_CREDIT_COST");
   const cost = rawCost !== undefined && rawCost !== "" ? Number(rawCost) : 2;
@@ -235,9 +239,9 @@ Deno.serve(async (req: Request) => {
   if (!useAnthropic) {
     const titles = stubChapterTitles(
       project.content_locale ?? "es",
-      mainEbookTitle,
+      artifactTitle,
       typeof project.topic === "string" ? project.topic : null,
-      chapterCount,
+      expectedTitleCount,
     );
     return json({
       ok: true,
@@ -247,17 +251,32 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { system, user: userMsg } = generateIndexPrompt({
-    content_locale: contentLocale,
-    topic,
-    avatar,
-    problem,
-    main_ebook_title: mainEbookTitle,
-    chapter_count: chapterCount,
-    tone,
-  });
+  const promptBundle =
+    packageTargetKind === "bonus"
+      ? generateBonusSectionIndexPrompt({
+          content_locale: contentLocale,
+          topic,
+          avatar,
+          problem,
+          main_ebook_title: projectMainTitle || topic || "Ebook",
+          bonus_product_title: artifactTitle,
+          tone,
+        })
+      : generateIndexPrompt({
+          content_locale: contentLocale,
+          topic,
+          avatar,
+          problem,
+          main_ebook_title: artifactTitle,
+          chapter_count: chapterCount,
+          tone,
+        });
 
-  const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 8192 });
+  const ai = await callClaudeJsonText({
+    system: promptBundle.system,
+    user: promptBundle.user,
+    maxTokens: packageTargetKind === "bonus" ? 2048 : 8192,
+  });
   if (!ai.ok) {
     return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
   }
@@ -277,7 +296,7 @@ Deno.serve(async (req: Request) => {
     }, 400);
   }
 
-  const titles = extractChapterTitles(o, chapterCount);
+  const titles = extractChapterTitles(o, expectedTitleCount);
   if (!titles) {
     return json({ ok: false, error: "index_shape_mismatch", credits_balance_after: balanceAfter }, 502);
   }
