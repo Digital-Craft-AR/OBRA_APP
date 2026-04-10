@@ -3,8 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 
 /**
- * Generates chapter body (sanitized rich HTML) for the main ebook on the AI path.
- * Validates JWT, checks ownership and frozen main index, debits credits idempotently.
+ * Generates chapter body (sanitized rich HTML) for package ebooks on the AI path:
+ * `main` (uses project chapter count), `order_bump`, and `bonus` (typically one section).
+ * Validates JWT, frozen index gates, ownership, debits credits idempotently.
  * Claude integration is pending (#26 / #55); returns deterministic stub HTML.
  */
 const json = corsJson;
@@ -20,11 +21,12 @@ function esc(s: string): string {
 function stubChapterBodyHtml(
   contentLocale: string,
   chapterTitle: string,
-  mainTitle: string,
+  /** Main ebook title, or bonus/bump product title for package artifacts. */
+  artifactTitle: string,
   topic: string | null,
 ): string {
   const ch = esc(chapterTitle.trim() || "Chapter");
-  const book = esc(mainTitle.trim() || topic?.trim() || "Your ebook");
+  const book = esc(artifactTitle.trim() || topic?.trim() || "Your ebook");
   const loc = contentLocale.toLowerCase();
   if (loc.startsWith("pt")) {
     return [
@@ -135,16 +137,6 @@ Deno.serve(async (req: Request) => {
     return json({ error: "wrong_content_source", detail: "ai_path_only" }, 400);
   }
 
-  const { data: progress, error: progErr } = await admin
-    .from("project_content_progress")
-    .select("main_index_frozen_at")
-    .eq("project_id", projectId)
-    .maybeSingle();
-
-  if (progErr || !progress?.main_index_frozen_at) {
-    return json({ error: "index_not_frozen", detail: "confirm_main_index_first" }, 400);
-  }
-
   const { data: chapter, error: chErr } = await admin
     .from("chapters")
     .select("id, title, ebook_id")
@@ -157,15 +149,40 @@ Deno.serve(async (req: Request) => {
 
   const { data: ebook, error: ebErr } = await admin
     .from("ebooks")
-    .select("id, type, project_id")
+    .select("id, type, project_id, title")
     .eq("id", chapter.ebook_id as string)
     .maybeSingle();
 
   if (ebErr || !ebook) {
     return json({ error: "chapter_not_found" }, 404);
   }
-  if (ebook.project_id !== projectId || ebook.type !== "main") {
-    return json({ error: "forbidden", detail: "chapter_not_main_ebook" }, 403);
+  if (ebook.project_id !== projectId) {
+    return json({ error: "forbidden", detail: "chapter_ebook_mismatch" }, 403);
+  }
+
+  const ebookType = ebook.type;
+  if (ebookType !== "main" && ebookType !== "bonus" && ebookType !== "order_bump") {
+    return json({ error: "forbidden", detail: "unsupported_ebook_type" }, 403);
+  }
+
+  const { data: progress, error: progErr } = await admin
+    .from("project_content_progress")
+    .select("main_index_frozen_at, global_index_frozen_at")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (progErr || !progress) {
+    return json({ error: "index_not_frozen", detail: "content_progress_missing" }, 400);
+  }
+
+  if (ebookType === "main") {
+    if (!progress.main_index_frozen_at) {
+      return json({ error: "index_not_frozen", detail: "confirm_main_index_first" }, 400);
+    }
+  } else {
+    if (!progress.global_index_frozen_at) {
+      return json({ error: "index_not_frozen", detail: "confirm_global_index_first" }, 400);
+    }
   }
 
   const title = typeof chapter.title === "string" ? chapter.title.trim() : "";
@@ -205,11 +222,13 @@ Deno.serve(async (req: Request) => {
     return json({ error: "ledger_failed" }, 500);
   }
 
-  const mainTitle = typeof project.main_title === "string" ? project.main_title : "";
+  const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
+  const ebookProductTitle = typeof ebook.title === "string" ? ebook.title.trim() : "";
+  const stubBookTitle = ebookType === "main" ? projectMainTitle : ebookProductTitle;
   const body = stubChapterBodyHtml(
     project.content_locale ?? "es",
     title,
-    mainTitle,
+    stubBookTitle || projectMainTitle,
     project.topic as string | null,
   );
 
