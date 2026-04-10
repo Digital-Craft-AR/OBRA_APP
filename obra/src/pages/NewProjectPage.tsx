@@ -8,8 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { ContentLocale, ContentSource } from "@/lib/projects";
 import { CONTENT_LOCALE_OPTIONS } from "@/lib/projects";
 import { DEFAULT_DESIGN_CONFIG } from "@/lib/wizard/structureTypes";
-
-const SOURCE_OPTIONS: ContentSource[] = ["ai", "upload"];
+import { ContentSourceCards } from "@/components/wizard/content/ContentSourceCards";
 
 export function NewProjectPage() {
   const { t } = useTranslation();
@@ -107,33 +106,12 @@ export function NewProjectPage() {
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-obra-blue-950">{t("wizard.create.sourceTitle")}</h2>
-          <div className="grid grid-cols-1 gap-3">
-            {SOURCE_OPTIONS.map((option) => {
-              const selected = contentSource === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setContentSource(option)}
-                  className={`rounded-card border px-4 py-4 text-left transition-all ${
-                    selected
-                      ? "border-obra-blue-700 bg-obra-blue-50"
-                      : "border-obra-blue-100 bg-white hover:border-obra-blue-700/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-obra-blue-950">
-                      {t(`wizard.create.source.${option}.label`)}
-                    </span>
-                    {selected ? <Check className="size-4 text-obra-blue-700" aria-hidden /> : null}
-                  </div>
-                  <p className="mt-1 text-sm text-obra-neutral-600">
-                    {t(`wizard.create.source.${option}.description`)}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
+          <ContentSourceCards
+            t={t}
+            value={contentSource}
+            variant="select"
+            onSelect={(source) => setContentSource(source)}
+          />
         </section>
 
         {errorMessage ? (
