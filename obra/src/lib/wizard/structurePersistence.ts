@@ -7,12 +7,18 @@ export async function saveWizardTopic(projectId: string, topic: string) {
   return { ok: !error };
 }
 
-export async function saveWizardAvatarProblem(projectId: string, avatar: string, problem: string) {
+export async function saveWizardAvatarProblem(
+  projectId: string,
+  avatar: string,
+  problem: string,
+  designConfig: WizardDesignConfig,
+) {
   const { error } = await supabase
     .from("projects")
     .update({
       target_avatar: avatar || null,
       problem: problem || null,
+      design_config: designConfig,
     })
     .eq("id", projectId);
   return { ok: !error };

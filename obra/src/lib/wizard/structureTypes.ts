@@ -26,7 +26,19 @@ export type WizardTitleItem = {
   locked: boolean;
 };
 
+/** Chapter counts available in Structure → Design (issue #112). */
+export const WIZARD_CHAPTER_COUNTS = [6, 8, 10, 12] as const;
+export type WizardChapterCount = (typeof WIZARD_CHAPTER_COUNTS)[number];
+
+/** Stored on `design_config.contentTone`; English keys for prompts and APIs. */
+export const CONTENT_TONE_KEYS = ["professional", "friendly", "inspirational", "direct", "educational"] as const;
+export type ContentTone = (typeof CONTENT_TONE_KEYS)[number];
+
 export type WizardDesignConfig = {
+  /** Number of main-ebook chapters; drives index generation (issue #112). */
+  chapterCount: WizardChapterCount;
+  /** Voice preset for AI-written package text (issue #112). */
+  contentTone: ContentTone;
   /** Palette only — independent from typography. */
   paletteMode: "preset" | "custom";
   palettePresetId: DesignPresetId | null;
@@ -115,8 +127,34 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function normalizeChapterCount(raw: unknown): WizardChapterCount {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (n === 6 || n === 8 || n === 10 || n === 12) return n;
+  return DEFAULT_DESIGN_CONFIG.chapterCount;
+}
+
+function normalizeContentTone(raw: unknown): ContentTone {
+  if (typeof raw === "string" && (CONTENT_TONE_KEYS as readonly string[]).includes(raw)) {
+    return raw as ContentTone;
+  }
+  return DEFAULT_DESIGN_CONFIG.contentTone;
+}
+
 export function normalizeDesignConfig(value: unknown): WizardDesignConfig {
   if (!isObject(value)) return DEFAULT_DESIGN_CONFIG;
+
+  const chapterCountRaw =
+    value.chapterCount !== undefined
+      ? value.chapterCount
+      : typeof value.chapter_count === "number" || typeof value.chapter_count === "string"
+        ? value.chapter_count
+        : undefined;
+  const contentToneRaw =
+    typeof value.contentTone === "string"
+      ? value.contentTone
+      : typeof value.content_tone === "string"
+        ? value.content_tone
+        : undefined;
 
   const paletteModeRaw =
     typeof value.paletteMode === "string"
@@ -151,6 +189,8 @@ export function normalizeDesignConfig(value: unknown): WizardDesignConfig {
   const imageInput = isObject(value.image) ? value.image : {};
 
   return {
+    chapterCount: normalizeChapterCount(chapterCountRaw),
+    contentTone: normalizeContentTone(contentToneRaw),
     paletteMode,
     palettePresetId,
     palette: {
@@ -196,6 +236,8 @@ export function normalizeDesignConfig(value: unknown): WizardDesignConfig {
 }
 
 export const DEFAULT_DESIGN_CONFIG: WizardDesignConfig = {
+  chapterCount: 8,
+  contentTone: "friendly",
   paletteMode: "preset",
   palettePresetId: "oceanic",
   palette: {

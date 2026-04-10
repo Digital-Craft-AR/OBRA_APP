@@ -10,7 +10,7 @@
 
 ## 1. Objetivo
 
-Es el primer prompt del flujo de Contenido (Día 2). Se llama inmediatamente después de que el usuario aprueba el wizard completo de Estructura y antes de cualquier llamada a `generate-chapter`. Toma todo el contexto acumulado del wizard — topic, avatar, problem, main ebook title, y las decisiones de diseño (chapter_count y tone) — y devuelve el índice estructurado del ebook principal con un `narrative_arc` que garantiza coherencia entre capítulos. El arc se inyecta como variable `{index}` en cada llamada posterior a `generateChapterPrompt()`.
+Es el primer prompt del flujo de Contenido (Día 2). Se llama inmediatamente después de que el usuario aprueba el wizard completo de Estructura y antes de cualquier llamada a `generate-chapter`. Toma todo el contexto acumulado del wizard — topic, avatar, problem, main ebook title, `chapter_count` (elegido en el subpaso Diseño) y `tone` (elegido en el paso Avatar y Problema; persistido en `design_config.contentTone`) — y devuelve el índice estructurado del ebook principal con un `narrative_arc` que garantiza coherencia entre capítulos. El arc se inyecta como variable `{index}` en cada llamada posterior a `generateChapterPrompt()`.
 
 ---
 
@@ -24,7 +24,7 @@ Es el primer prompt del flujo de Contenido (Día 2). Se llama inmediatamente des
 | `{problem}` | `string` (JSON serializado) | ✅ | Output completo de `optimize-problem`, serializado como `JSON.stringify()` |
 | `{main_ebook_title}` | `string` | ✅ | `main_ebook.title` del output de `suggest-package`, aprobado o editado por el usuario en el wizard |
 | `{chapter_count}` | `6 \| 8 \| 10 \| 12` | ✅ | Número exacto de capítulos elegido por el usuario en el subpaso "Diseño" del wizard de Estructura |
-| `{tone}` | `"educativo" \| "calido" \| "cercano" \| "amigable"` | ✅ | Preset de tono elegido en el mismo subpaso de Diseño |
+| `{tone}` | `"professional" \| "friendly" \| "inspirational" \| "direct" \| "educational"` | ✅ | Preset de tono (clave en inglés) elegido en el paso **Avatar y Problema** del wizard de Estructura; se persiste en `design_config.contentTone` |
 
 **Conectividad de pipeline:**
 - Todos los inputs llegan ya validados desde pasos anteriores del pipeline del wizard
@@ -124,11 +124,12 @@ Role: generate the complete structured index (TOC) for the main ebook using all 
 
 Respond strictly in {content_locale}. Output must be fully in {content_locale} regardless of input language. Cross-translate avatar/problem context if it is in a different language.
 
-TONE GUIDE — apply to titles, descriptions, and key_concepts:
-- educativo: formal, structured, didactic. Authority through expertise. Impersonal or third-person constructions. Academic but accessible.
-- calido: emotional, inclusive, first-person plural ("juntos", "vamos a"). Warmth without losing rigor. Acknowledges feelings before delivering information.
-- cercano: conversational, anecdotal, direct second person ("vos" in es, "você" in pt-BR). Everyday language. Reads like advice from a friend who knows the topic deeply.
-- amigable: balanced. Professional but accessible. Expert who is also warm. Not too formal, not too casual.
+TONE GUIDE — apply to titles, descriptions, and key_concepts (use the exact preset key the user selected; keys are English, output language is {content_locale}):
+- professional: clear expert voice, structured, credible. Suitable for readers who want authority and precision without fluff.
+- friendly: warm, direct, non-corporate — like a trusted peer. Conversational but still actionable (default Obra voice).
+- inspirational: motivating and forward-looking. Emphasizes possibility and momentum without hype, fake urgency, or income promises.
+- direct: concise, no filler. Gets to the point quickly; practical imperatives and concrete next steps.
+- educational: didactic and stepwise. Teaches systematically; defines terms when needed; patient pacing for learners.
 
 WORD COUNT TARGETS by chapter_count={chapter_count}:
 - 6 chapters: ch1 ~900w | middle (2-5) ~1100w each | last ~900w → ~6,500w total
@@ -138,7 +139,7 @@ WORD COUNT TARGETS by chapter_count={chapter_count}:
 
 RULES (non-negotiable):
 1. EXACT count: output exactly {chapter_count} chapters. Never more, never fewer.
-2. VALID tone: must be one of educativo|calido|cercano|amigable. Apply consistently to titles, descriptions, and key_concepts.
+2. VALID tone: must be one of professional|friendly|inspirational|direct|educational. Apply consistently to titles, descriptions, and key_concepts.
 3. Narrative arc is mandatory: each chapter must advance the reader from problem.transformation.from toward problem.transformation.to. No disconnected or redundant chapters.
 4. Chapter 1 is the hook: validates the pain, makes the reader feel understood, opens the loop. NO heavy method delivery. ~900w.
 5. Middle chapters carry the method: each delivers ONE concrete piece of the transformation. Titles must be specific and benefit-forward. BAD: "La importancia del precio". GOOD: "Calculá el costo real de cada vela en 4 pasos".
@@ -154,10 +155,10 @@ RULES (non-negotiable):
 - chapters[].description: max 280 characters
 - chapters[].key_concepts[]: max 130 characters each
 If any field exceeds its limit, rewrite it shorter before returning. Outputs with fields exceeding limits will be rejected downstream.
-11. Return {"error":"INVALID_INPUT","reason":"<brief in {content_locale}>"} if: chapter_count is not one of 6/8/10/12 | tone is not one of the 4 presets | topic or main_ebook_title is empty | avatar or problem contain an error field.
+11. Return {"error":"INVALID_INPUT","reason":"<brief in {content_locale}>"} if: chapter_count is not one of 6/8/10/12 | tone is not one of professional|friendly|inspirational|direct|educational | topic or main_ebook_title is empty | avatar or problem contain an error field.
 
-Example (es, chapter_count=6, tone=cercano):
-Input: topic="Cómo transformar tu hobby de velas en negocio rentable" chapter_count=6 tone=cercano main_ebook_title="Velas que se venden" avatar=(artesana 25-45 LATAM; pain: precios/ventas/diferenciación) problem=(trabaja a pérdida sin saberlo; transformation.from="artesana que cobra barato"; transformation.to="emprendedora que cobra con confianza")
+Example (es, chapter_count=6, tone=friendly):
+Input: topic="Cómo transformar tu hobby de velas en negocio rentable" chapter_count=6 tone=friendly main_ebook_title="Velas que se venden" avatar=(artesana 25-45 LATAM; pain: precios/ventas/diferenciación) problem=(trabaja a pérdida sin saberlo; transformation.from="artesana que cobra barato"; transformation.to="emprendedora que cobra con confianza")
 {"title":"Velas que se venden: sistema de precios, marca y clientes que pagan lo que vale","subtitle":"Guía práctica para artesanas que quieren vivir de su taller sin cobrar barato","narrative_arc":"De artesana que trabaja a pérdida sin saberlo, a emprendedora que cobra con confianza y tiene clientes que vuelven — seis pasos concretos, sin teoría innecesaria.","chapters":[{"number":1,"title":"Por qué trabajar más no alcanza si el precio está mal","description":"Abre el loop: valida el esfuerzo y muestra el mecanismo del precio bajo como trampa estructural.","key_concepts":["El ciclo de trabajar más para ganar igual","La diferencia entre precio de venta y precio rentable","Por qué vender más volumen no resuelve el problema"],"word_count_target":900},{"number":2,"title":"Calculá el costo real de tu vela sin adivinar","description":"Método paso a paso para calcular el costo completo: materiales, tiempo y gastos que casi nadie incluye.","key_concepts":["Los 4 componentes del costo real de una vela","Cómo valuar tu tiempo sin subestimarlo","Costos fijos vs. variables: qué incluir en cada vela"],"word_count_target":1100},{"number":3,"title":"Tu precio de venta: la fórmula que sí cubre todo","description":"Cómo pasar del costo al precio final incluyendo ganancia real y margen para imprevistos.","key_concepts":["Margen mínimo vs. margen objetivo","El error de compararte con la vela importada más barata","Cómo ajustar el precio sin perder clientes actuales"],"word_count_target":1100},{"number":4,"title":"Diferenciarte sin bajar el precio: tu propuesta única","description":"Cómo construir un diferencial de marca que justifique el precio y haga irrelevante la comparación.","key_concepts":["3 tipos de diferencial artesanal que funcionan","Cómo comunicar el valor sin sonar arrogante","Tu historia como parte del producto"],"word_count_target":1100},{"number":5,"title":"Canales de venta que no dependen de las ferias","description":"Cómo vender de forma consistente sin esperar el pico de fechas especiales.","key_concepts":["Instagram como canal de venta directa","WhatsApp como canal de fidelización","Cómo armar una cartera de clientes que vuelven"],"word_count_target":1100},{"number":6,"title":"Tu taller como negocio: los próximos 90 días","description":"Consolida el método y da un plan de acción concreto para los primeros tres meses con el sistema aplicado.","key_concepts":["Las 3 métricas que indican si tu negocio de velas está sano","Cómo revisar y ajustar tu precio cada trimestre","El mapa de los próximos 90 días paso a paso"],"word_count_target":900}]}
 ```
 
@@ -179,7 +180,7 @@ Generate the complete index with exactly {chapter_count} chapters.
 **Notas de implementación en `prompts.ts`:**
 - `{chapter_count}` y `{tone}` se interpolan en el system (para la lógica de reglas) y en el user template (para que el modelo lo tenga explícito en el turno del usuario)
 - Si `chapter_count` no es uno de `[6, 8, 10, 12]`, **no llamar al prompt** — validar en UI antes de la llamada; el selector de capítulos solo expone esos cuatro valores
-- Si `tone` no es uno de los 4 presets, **no llamar al prompt** — el selector de UI lo garantiza
+- Si `tone` no es uno de los 5 presets (`professional`, `friendly`, `inspirational`, `direct`, `educational`), **no llamar al prompt** — el paso Avatar y Problema en la UI lo garantiza
 - Si `avatar` o `problem` contienen campo `"error"`, **no llamar al prompt** — resolver los pasos del wizard primero
 - Si `main_ebook_title` o `topic` están vacíos, **no llamar al prompt**
 - `{avatar}` y `{problem}` se pasan como `JSON.stringify(object)` — los objetos completos, no solo campos individuales
@@ -195,7 +196,7 @@ _Los tres ejemplos usan personajes canónicos del Día 1 del wizard para demostr
 
 ---
 
-### Ejemplo 1 — `es`, 8 capítulos, tono `calido`
+### Ejemplo 1 — `es`, 8 capítulos, tono `friendly`
 
 **Variables de input:**
 ```
@@ -203,7 +204,7 @@ content_locale: "es"
 topic: "Cocina vegana para familias: cómo hacer que toda la familia coma rico, sano y sin conflictos"
 main_ebook_title: "Come bien, cocina vegano: recetas y estrategias para que tu familia disfrute sin darse cuenta"
 chapter_count: 8
-tone: "calido"
+tone: "friendly"
 avatar: {
   "description": "Mamá o papá que quiere incorporar más comida vegetal en la dieta familiar pero enfrenta resistencia, especialmente de los chicos. Cocina todos los días, le importa la salud, y está dispuesta a aprender — pero necesita recetas que gusten de verdad, no platos de 'comida de régimen'.",
   "demographics": { "age_range": "28-45 años", "gender": "femenino", "location": "Argentina/LATAM, zonas urbanas", "socioeconomic": "Clase media; cocina en casa la mayoría de los días" },
@@ -321,11 +322,11 @@ problem: {
 }
 ```
 
-**Por qué es el caso base:** 8 capítulos con tono `calido` — verifica que el `narrative_arc` usa primera persona plural ("Juntos vamos a pasar"), que los títulos acompañan emocionalmente ("y no es tu culpa", "de aquí en adelante"), y que el word_count_target aplica la tabla correcta (900 / 1050×6 / 950). Los capítulos del medio forman un arco lógico: estrategia de introducción → proteínas → sabor → recetas → organización → convivencia. El último consolida sin CTAs externos. Cada capítulo ataca un sub_problem o desire distinto del avatar.
+**Por qué es el caso base:** 8 capítulos con tono `friendly` — verifica que el `narrative_arc` puede usar primera persona plural inclusiva ("Juntos vamos a pasar"), que los títulos acompañan emocionalmente ("y no es tu culpa", "de aquí en adelante"), y que el word_count_target aplica la tabla correcta (900 / 1050×6 / 950). Los capítulos del medio forman un arco lógico: estrategia de introducción → proteínas → sabor → recetas → organización → convivencia. El último consolida sin CTAs externos. Cada capítulo ataca un sub_problem o desire distinto del avatar.
 
 ---
 
-### Ejemplo 2 — `pt-BR`, 6 capítulos, tono `educativo`
+### Ejemplo 2 — `pt-BR`, 6 capítulos, tono `educational`
 
 **Variables de input:**
 ```
@@ -333,7 +334,7 @@ content_locale: "pt-BR"
 topic: "Yoga para maiores de 40: como começar com segurança, respeitar o seu corpo e colher benefícios reais"
 main_ebook_title: "Yoga depois dos 40: guia prático para começar com segurança e evoluir no seu próprio ritmo"
 chapter_count: 6
-tone: "educativo"
+tone: "educational"
 avatar: {
   "description": "Homem ou mulher acima dos 40 que quer começar yoga mas sente que o próprio corpo é um obstáculo — pouca flexibilidade, lesões antigas, ou sem histórico consistente de exercício. Sabe que precisa se mover mais, mas teme se machucar ou não conseguir acompanhar uma aula regular.",
   "demographics": { "age_range": "40-60 anos", "gender": "misto", "location": "Brasil, grandes centros urbanos", "socioeconomic": "Classe média; tempo limitado, busca eficiência" },
@@ -429,11 +430,11 @@ problem: {
 }
 ```
 
-**Por qué es útil:** 6 capítulos con tono `educativo` — verifica que el word_count_target aplica la tabla correcta (900 / 1100×4 / 900) y que los títulos usan construcciones formales e impersonales ("como selecionar", "como mensurar"). El `narrative_arc` describe la transformación de manera estructurada, no emocional. El capítulo 2 introduce anatomía — autoridad por expertise, característica definitoria del tono educativo. El último no tiene CTAs y proyecta hacia adelante con criterios objetivos. Verifica también que el output es pt-BR genuino (não tradução do espanhol).
+**Por qué es útil:** 6 capítulos con tono `educational` — verifica que el word_count_target aplica la tabla correcta (900 / 1100×4 / 900) y que los títulos usan construcciones formales e impersonales ("como selecionar", "como mensurar"). El `narrative_arc` describe la transformación de manera estructurada, no emocional. El capítulo 2 introduce anatomía — autoridad por expertise, característica definitoria del tono educational. El último no tiene CTAs y proyecta hacia adelante con criterios objetivos. Verifica también que el output es pt-BR genuino (não tradução do espanhol).
 
 ---
 
-### Ejemplo 3 — `en-US`, 10 capítulos, tono `amigable`
+### Ejemplo 3 — `en-US`, 10 capítulos, tono `professional`
 
 **Variables de input:**
 ```
@@ -441,7 +442,7 @@ content_locale: "en-US"
 topic: "Freelance writing for engineers: how to turn technical expertise into consistent writing income"
 main_ebook_title: "The Technical Writer's Playbook: build a freelance writing income using what you already know"
 chapter_count: 10
-tone: "amigable"
+tone: "professional"
 avatar: {
   "description": "A software engineer or technical professional who wants to build a freelance writing income on the side — or eventually replace their salary. They know their subject matter deeply but assume writing is a separate skill they don't have. Analytical, skeptical of passive income promises, and wants a method, not motivation.",
   "demographics": { "age_range": "28-42 years old", "gender": "mixed", "location": "US, Canada, remote-first tech markets", "socioeconomic": "Upper-middle class; stable tech salary, looking for income diversification or more autonomy" },
@@ -581,7 +582,7 @@ problem: {
 }
 ```
 
-**Por qué es útil:** 10 capítulos con tono `amigable` — verifica que el word_count_target aplica correctamente la tabla de 10 caps (900 / 1000×8 / 950). Los títulos son específicos y benefit-forward sin ser ni demasiado formales ni demasiado informales. El capítulo 1 reencuadra la creencia central (el problema no es la escritura, es el posicionamiento) sin cargar con método. El último usa "honest milestones, not motivational claims" — coherente con el avatar analítico y escéptico. El `narrative_arc` es directo y específico. Verifica también que el modelo puede construir un arco coherente para un caso completamente nuevo (no basado en los personajes del wizard de Día 1).
+**Por qué es útil:** 10 capítulos con tono `professional` — verifica que el word_count_target aplica correctamente la tabla de 10 caps (900 / 1000×8 / 950). Los títulos son específicos y benefit-forward, con voz experta clara sin exceso de informalidad. El capítulo 1 reencuadra la creencia central (el problema no es la escritura, es el posicionamiento) sin cargar con método. El último usa "honest milestones, not motivational claims" — coherente con el avatar analítico y escéptico. El `narrative_arc` es directo y específico. Verifica también que el modelo puede construir un arco coherente para un caso completamente nuevo (no basado en los personajes del wizard de Día 1).
 
 ---
 
@@ -590,7 +591,7 @@ problem: {
 | Caso | Input | Comportamiento esperado |
 |------|-------|-------------------------|
 | `chapter_count` inválido | `chapter_count: 7`, `chapter_count: 5`, `chapter_count: 15` | `{"error":"INVALID_INPUT","reason":"chapter_count debe ser 6, 8, 10 o 12."}` — validar en UI antes de llamar; el selector solo expone los 4 valores válidos |
-| `tone` inválido | `tone: "profesional"`, `tone: "neutral"` | `{"error":"INVALID_INPUT","reason":"tone debe ser educativo, calido, cercano o amigable."}` — el selector de UI lo previene |
+| `tone` inválido | `tone: "neutral"`, `tone: "casual"` | `{"error":"INVALID_INPUT","reason":"tone must be professional, friendly, inspirational, direct, or educational."}` — el selector de UI lo previene |
 | `avatar` con error | `avatar` contiene campo `"error"` | No llamar al prompt — resolver el avatar en el wizard primero |
 | `problem` con error | `problem` contiene campo `"error"` | No llamar al prompt — resolver el problema en el wizard primero |
 | `main_ebook_title` vacío | `main_ebook_title: ""` | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar |
@@ -624,7 +625,7 @@ problem: {
 - [ ] Testear temperatura `0.4` vs `0.5` — ¿produce arcos narrativos más coherentes o títulos más repetitivos entre proyectos del mismo nicho?
 - [ ] Evaluar si pasar `problem.sub_problems` como lista explícita en el user template (además del JSON completo de `{problem}`) mejora la asignación 1:1 de sub-problemas a capítulos
 - [ ] Medir si agregar el `angle` del topic (de `optimize-topic`) como variable explícita mejora la coherencia tonal del índice con el posicionamiento elegido
-- [ ] Testear si el ejemplo en el system prompt (6 caps, cercano) es suficiente para el caso de `chapter_count: 12` o si conviene un segundo ejemplo mini para el extremo superior
+- [ ] Testear si el ejemplo en el system prompt (6 caps, friendly) es suficiente para el caso de `chapter_count: 12` o si conviene un segundo ejemplo mini para el extremo superior
 - [ ] Evaluar si el `narrative_arc` inyectado como variable en `generate-chapter` mejora la coherencia de voz entre capítulos, o si los capítulos son suficientemente coherentes con solo el `index_json` completo como contexto
 
 ### Problemas conocidos en producción
