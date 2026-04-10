@@ -128,6 +128,7 @@ Generate the complete avatar profile. Output exactly 3 pains, 3 desires, 2 objec
 - `{content_locale}` se interpola en el system antes de enviarlo — nunca va en el user turn
 - Si `topic` está vacío, **no llamar al prompt** — validar en UI antes de la llamada. El system retornará `INVALID_INPUT` de todas formas, pero es mejor fallar antes de consumir tokens
 - `raw_input` se pasa tal cual escribe el usuario, sin limpiar ni normalizar
+- La Edge `ai-optimize` arma el campo `optimized` como texto multilínea (`description`, líneas de `demographics`, luego cada `pain` / `desire` / `objection` como bloques separados por línea en blanco); ver `supabase/functions/_shared/wizardOptimizeUnifiedText.ts` (`avatarProfileToUnifiedText`). El objeto estructurado sigue en `avatar_profile`.
 
 ---
 

@@ -13,7 +13,8 @@
  *   prompts/wizard/generate-ebook-title.md  → generateEbookTitlePrompt()
  *   prompts/wizard/generate-bonus-titles.md → generateBonusTitlesPrompt()
  *   prompts/wizard/generate-bump-titles.md  → generateBumpTitlesPrompt()
- *   prompts/content/generate-index.md       → generateIndexPrompt()
+ *   prompts/content/generate-index.md              → generateIndexPrompt()
+ *   prompts/content/generate-bonus-section-index.md → generateBonusSectionIndexPrompt()
  *
  * Edge/Deno copy — keep aligned with prompts/*.md (no Vite path aliases).
  */
@@ -71,7 +72,7 @@ Rules:
 
 Example (es):
 Input: raw="velas aromaticas"
-{"optimized_title":"Velas aromáticas artesanales: cómo crear y vender las que la gente busca","description":"Guía para fabricar velas de calidad, elegir fragancias con demanda real y construir una marca propia. Para quien quiere convertir este hobby en un ingreso concreto.","niche":"Fabricación y venta de velas aromáticas artesanales","angle":"technical"}`,
+{"optimized_title":"Velas aromáticas artesanales: cómo crear y vender las que la gente busca","description":"Guía para fabricar velas de calidad, elegir fragancias con demanda real y construir una marca propia. Para quien quiere convertir este hobby en un ingreso concreto.","niche":"Fabricación y venta de velas aromáticas artesanales","angle":"Angulo Técnico"}`,
 
     user: `Raw topic: ${vars.raw_input}
 
@@ -109,7 +110,7 @@ Rules (non-negotiable):
 
 Example (es):
 Input: topic="Cómo vender velas artesanales y hacerlo rentable" raw="mujeres que hacen velas"
-{"description":"Artesana que fabrica velas en casa pero no sabe convertirlo en negocio. Vende en ferias y casi no cubre materiales. Quiere ingresos estables con su talento.","demographics":{"age_range":"25-45 años","gender":"femenino","location":"LATAM, ciudades medianas","socioeconomic":"Clase media; velas como ingreso secundario"},"pains":["Cobra barato por miedo a perder clientes pero no le cierra la ecuación","Ventas inconsistentes: pico en fechas especiales, silencio el resto","Le cuesta diferenciarse de velas importadas más baratas"],"desires":["$300–500/mes con su taller sin depender de ferias","Marca reconocida para cobrar lo que realmente vale","Negocio que crezca aunque ella no esté produciendo"],"objections":["Soy artesana, no sé de marketing — eso no es lo mío","Mercado de velas saturado, no creo poder destacarme"]}`,
+{"description":"Artesana que fabrica velas en casa pero no sabe convertirlo en negocio. Vende en ferias y casi no cubre materiales. Quiere ingresos estables con su talento.","demographics":{"age_range":"De 25-45 años","gender":"Genero Femenino","location":"Reside en LATAM, ciudades medianas","socioeconomic":"Clase media; velas como ingreso secundario"},"pains":["Cobra barato por miedo a perder clientes pero no le cierra la ecuación","Ventas inconsistentes: pico en fechas especiales, silencio el resto","Le cuesta diferenciarse de velas importadas más baratas"],"desires":["$300–500/mes con su taller sin depender de ferias","Marca reconocida para cobrar lo que realmente vale","Negocio que crezca aunque ella no esté produciendo"],"objections":["Soy artesana, no sé de marketing — eso no es lo mío","Mercado de velas saturado, no creo poder destacarme"]}`,
 
     user: `Topic: ${vars.topic}
 Audience description: ${vars.raw_input}
@@ -144,12 +145,12 @@ Rules:
 2. sub_problems: exactly 3. Each must be a concrete, observable manifestation of the core problem in this avatar's daily life. Never abstract ("doesn't understand the market") — always specific ("Calcula precios comparándose con la competencia más barata, sin incluir su tiempo").
 3. transformation: visceral and specific. from = the current lived state, not a generic descriptor. to = the concrete new capability or feeling, not "success". Avoid corporate language.
 4. urgency: honest reasoning, not manufactured pressure. Answer: why does waiting make it specifically worse for this person? Ground it in their situation.
-5. Length: core_problem max 200 chars. Each sub_problem max 160 chars. transformation.from/to max 160 chars each. urgency max 200 chars.
-6. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: topic or raw_input is empty | input is off-topic or incomprehensible.
+6. Length: core_problem max 200 chars. Each sub_problem max 160 chars. transformation.from/to max 160 chars each. urgency max 200 chars.
+7. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: topic or raw_input is empty | input is off-topic or incomprehensible.
 
 Example (es):
 Input: topic="Velas artesanales: sistema de precios" raw="no sé cómo poner precios y cobro poco" avatar=(artesana, 25-45 años, LATAM, pain: precios/ventas/competencia)
-{"core_problem":"No tiene sistema para fijar precios que cubra costos y genere ganancia — trabaja a pérdida sin darse cuenta.","sub_problems":["Calcula precios por intuición comparándose con la competencia más barata, sin incluir su tiempo","No lleva registro de costos, no puede saber si gana o pierde por vela","Cuando le dicen 'está caro' cede porque no sabe defender su precio"],"transformation":{"from":"Artesana que trabaja muchas horas sin saber si tiene negocio o hobby caro","to":"Emprendedora que cobra con confianza y sabe exactamente cuánto gana por vela"},"urgency":"Cada semana a precio incorrecto educa al cliente a esperar ese precio — corregirlo después es mucho más difícil."}`,
+{"core_problem":"No tiene sistema para fijar precios que cubra costos y genere ganancia — trabaja a pérdida sin darse cuenta.","sub_problems":["Calcula precios por intuición comparándose con la competencia más barata, sin incluir su tiempo","No lleva registro de costos, no puede saber si gana o pierde por vela","Cuando le dicen 'está caro' cede porque no sabe defender su precio"],"transformation":{"from":"Artesana que trabaja muchas horas sin saber si tiene negocio o hobby caro","to":"Emprendedora que cobra con confianza y sabe exactamente cuánto gana por vela"},"urgency":"Cada semana a precio incorrecto educa al cliente a esperar ese precio — corregirlo después es mucho más difícil.", "string_result": }`,
 
     user: `Topic: ${vars.topic}
 Avatar profile: ${vars.avatar}
@@ -469,5 +470,63 @@ Avatar profile: ${vars.avatar}
 Problem: ${vars.problem}
 
 Generate the complete index with exactly ${vars.chapter_count} chapters.`,
+  };
+}
+
+// ─── generate-bonus-section-index ─────────────────────────────────────────────
+// docs: prompts/content/generate-bonus-section-index.md (v1.0)
+
+export interface GenerateBonusSectionIndexVars {
+  content_locale: ContentLocale;
+  topic: string;
+  avatar: string;
+  problem: string;
+  /** Main package ebook title (projects.main_title). */
+  main_ebook_title: string;
+  /** Bonus deliverable product title (ebooks.title for the bonus row). */
+  bonus_product_title: string;
+  tone: ContentTone;
+}
+
+/**
+ * Single-section “TOC” for a bonus PDF (~10–12 pages): one primary body block title.
+ * Output shape matches `extractChapterTitles(..., 1)` in ai-generate-index.
+ */
+export function generateBonusSectionIndexPrompt(vars: GenerateBonusSectionIndexVars): { system: string; user: string } {
+  return {
+    system: `${CRITICAL_JSON_OBJECT}
+
+${OBRA_SYSTEM_BASE}
+
+Role: propose exactly ONE primary section title for the body of a short bonus deliverable (roughly 10–12 pages). The bonus is a compact tool — checklist, planner, script, template, worksheet — that extends the main ebook’s promise from a different angle. The **bonus product title** is already chosen; your **section title** names the single main content block inside the bonus (the reader-facing heading for that block). It must NOT be a lazy copy of the product title — it should describe what the reader does or gets inside.
+
+Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
+
+TONE GUIDE — apply to title, description, and key_concepts (preset key is English; output language is ${vars.content_locale}):
+- professional: clear expert voice, structured, credible.
+- friendly: warm, direct, non-corporate — trusted peer (default Obra voice).
+- inspirational: motivating without hype or income promises.
+- direct: concise, practical imperatives.
+- educational: didactic, stepwise, patient pacing.
+
+RULES (non-negotiable):
+1. Output must be a single JSON object with key "chapters" only — an array of exactly ONE object with number 1.
+2. That object must include: number (integer 1), title (string), description (string), key_concepts (array of 2–4 strings), word_count_target (integer, use 900).
+3. chapters[0].title: max 90 characters — specific, benefit-forward (this is the editable section heading in the content wizard).
+4. chapters[0].description: max 280 characters — what this block delivers.
+5. chapters[0].key_concepts: each string max 130 characters — concrete, specific bullets.
+6. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: tone is invalid | topic, main_ebook_title, or bonus_product_title is empty | avatar or problem JSON suggests an error field.
+
+Example (es, tone=friendly):
+{"chapters":[{"number":1,"title":"La hoja de costos en 6 líneas: de la materia prima al precio mínimo","description":"Una sola página para calcular el costo real de cada unidad sin omitir tiempo ni gastos fijos, alineada al método del ebook principal.","key_concepts":["Los seis renglones obligatorios del costo artesanal","Cómo convertir horas de taller en costo por unidad","El precio mínimo antes de hablar de margen"],"word_count_target":900}]}`,
+
+    user: `Main ebook title: ${vars.main_ebook_title}
+Bonus product title: ${vars.bonus_product_title}
+Topic: ${vars.topic}
+Tone: ${vars.tone}
+Avatar profile: ${vars.avatar}
+Problem: ${vars.problem}
+
+Generate exactly one section entry (chapters array length 1) for this bonus deliverable.`,
   };
 }

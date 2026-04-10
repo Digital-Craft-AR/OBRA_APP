@@ -5,8 +5,10 @@ import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/auth/authContext";
 import { consumeCheckoutReturnMessageKey } from "@/entitlement/checkoutReturn";
+import { tCheckoutConfigError, tMercadoPagoProviderError } from "@/lib/checkoutEdgeErrors";
 import { toastApiFailure } from "@/lib/apiToast";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/toast";
 
 type CheckoutFnResponse = {
   redirect_url?: string;
@@ -64,9 +66,9 @@ export function PendingSubscriptionShellPage() {
     }
 
     if (data?.error === "checkout_unavailable" || data?.error === "server_misconfigured") {
-      const key = "shell.pending.checkoutUnavailable";
-      setMessage(t(key));
-      toastApiFailure(t, key);
+      const msg = tCheckoutConfigError(t, data.detail);
+      setMessage(msg);
+      toast.error({ title: msg, description: t("toast.api.genericHint") });
       return;
     }
 
@@ -77,11 +79,14 @@ export function PendingSubscriptionShellPage() {
       return;
     }
 
-    if (
-      data?.error === "mercadopago_error" ||
-      data?.error === "mercadopago_no_redirect" ||
-      data?.error === "method_not_allowed"
-    ) {
+    if (data?.error === "mercadopago_error" || data?.error === "mercadopago_no_redirect") {
+      const msg = tMercadoPagoProviderError(t);
+      setMessage(msg);
+      toast.error({ title: msg, description: t("toast.api.genericHint") });
+      return;
+    }
+
+    if (data?.error === "method_not_allowed") {
       const key = "shell.pending.checkoutStartError";
       setMessage(t(key));
       toastApiFailure(t, key);

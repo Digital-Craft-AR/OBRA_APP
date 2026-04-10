@@ -5,11 +5,13 @@ import { CONTENT_TONE_KEYS, type ContentTone } from "@/lib/wizard/structureTypes
 type StructureStepAvatarProblemProps = {
   avatarLabel: string;
   avatarPlaceholder: string;
+  avatarHint?: string;
   avatarValue: string;
   avatarError?: string;
   avatarImproving: boolean;
   problemLabel: string;
   problemPlaceholder: string;
+  problemHint?: string;
   problemValue: string;
   problemError?: string;
   problemImproving: boolean;
@@ -17,7 +19,7 @@ type StructureStepAvatarProblemProps = {
   disabled: boolean;
   saving: boolean;
   savingLabel: string;
-  message: string | null;
+  footerMessage: string | null;
   contentTone: ContentTone;
   onContentToneChange: (tone: ContentTone) => void;
   onAvatarChange: (value: string) => void;
@@ -29,11 +31,13 @@ type StructureStepAvatarProblemProps = {
 export function StructureStepAvatarProblem({
   avatarLabel,
   avatarPlaceholder,
+  avatarHint,
   avatarValue,
   avatarError,
   avatarImproving,
   problemLabel,
   problemPlaceholder,
+  problemHint,
   problemValue,
   problemError,
   problemImproving,
@@ -41,7 +45,7 @@ export function StructureStepAvatarProblem({
   disabled,
   saving,
   savingLabel,
-  message,
+  footerMessage,
   contentTone,
   onContentToneChange,
   onAvatarChange,
@@ -56,6 +60,7 @@ export function StructureStepAvatarProblem({
       <ObraTextarea
         id="wizard-avatar"
         label={avatarLabel}
+        hint={avatarHint}
         value={avatarValue}
         onChange={(event) => onAvatarChange(event.target.value)}
         placeholder={avatarPlaceholder}
@@ -69,6 +74,7 @@ export function StructureStepAvatarProblem({
       <ObraTextarea
         id="wizard-problem"
         label={problemLabel}
+        hint={problemHint}
         value={problemValue}
         onChange={(event) => onProblemChange(event.target.value)}
         placeholder={problemPlaceholder}
@@ -108,9 +114,11 @@ export function StructureStepAvatarProblem({
       </div>
 
       {saving ? <span className="text-xs text-obra-neutral-600">{savingLabel}</span> : null}
-      <div aria-live="polite" className="text-xs text-obra-neutral-600">
-        {message}
-      </div>
+      {footerMessage ? (
+        <div aria-live="polite" className="text-xs text-obra-neutral-600">
+          {footerMessage}
+        </div>
+      ) : null}
     </section>
   );
 }

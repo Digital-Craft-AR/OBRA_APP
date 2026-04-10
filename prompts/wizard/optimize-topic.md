@@ -113,7 +113,8 @@ Generate the optimized topic framing.
 **Notas de implementación en `_shared/prompts.ts`:**
 
 - Si `raw_input` está vacío, **no llamar al prompt** — validar en UI antes. El system retornará `INVALID_INPUT` de todas formas, pero es mejor fallar antes de consumir tokens
-- El `optimized_title` del output se almacena como el campo `topic` del proyecto y se pasa como `{topic}` a los prompts posteriores (`optimize-avatar`, `optimize-problem`, `suggest-package`)
+- Tras **mejorar con IA**, el campo `topic` del proyecto guarda el texto unificado (título, descripción, nicho y ángulo en bloques); ese mismo string se pasa como `{topic}` a prompts posteriores. Las claves sueltas siguen en `topic_framing` para consumidores estructurados
+- La Edge `ai-optimize` arma el campo `optimized` como texto multilínea (`optimized_title`, `description`, `niche`, `angle`, bloques separados por línea en blanco); ver `supabase/functions/_shared/wizardOptimizeUnifiedText.ts` (`topicFramingToUnifiedText`). Los campos estructurados siguen en `topic_framing`.
 - No limpiar ni normalizar `raw_input` antes de pasarlo — el modelo maneja mejor el texto crudo
 
 ---
