@@ -156,6 +156,10 @@ export function WizardStructurePage() {
                   }}
                   onImproveAvatar={() => void flow.improveAvatarText()}
                   onImproveProblem={() => void flow.improveProblemText()}
+                  contentTone={flow.designConfig.contentTone}
+                  onContentToneChange={(tone) =>
+                    flow.setDesignConfig({ ...flow.designConfig, contentTone: tone })
+                  }
                 />
               ) : null}
 
