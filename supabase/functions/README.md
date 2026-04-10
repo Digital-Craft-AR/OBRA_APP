@@ -11,7 +11,7 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | `PAYMENT_PROVIDER` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Optional; default `mercadopago` — selects `BillingAdapter` implementation |
 | `SUPABASE_URL` | All functions (auto) | Project URL; often injected by the platform |
 | `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize` | Validates caller session via `auth.getUser` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize`, `ai-generate-index` | RLS bypass for webhooks / ledger RPC / account deletion |
+| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize`, `ai-generate-index`, `manuscript-upload-parse` | RLS bypass for webhooks / ledger RPC / account deletion / manuscript Storage + RPC |
 | `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Production token or `TEST-…` for sandbox (`delete-account` uses it to reconcile before delete) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | **Your integrations** webhook signing secret (HMAC `x-signature`) |
 | `OBRA_APP_URL` | `create-subscription-checkout`, `create-credits-checkout` | Public site origin **without** trailing slash (e.g. `https://obra-app-nu.vercel.app`) — used for MP `back_urls` |
