@@ -415,6 +415,28 @@ export function WizardContentPage() {
     currentPhase === "main_chapter" &&
     project?.content_source === "ai";
 
+  const contentInnerStepTotal = project?.content_source === "upload" ? 3 : 2;
+
+  const contentInnerStepCurrent = useMemo(() => {
+    if (!project) return 1;
+    if (project.content_source === "upload") {
+      if (needsUploadAlignment) return 1;
+      if (showChapterLoop) return 3;
+      return 2;
+    }
+    return showChapterLoop ? 2 : 1;
+  }, [project, needsUploadAlignment, showChapterLoop]);
+
+  const contentInnerStepLabel = useMemo(() => {
+    if (!project) return t("wizard.content.inner.toc");
+    if (project.content_source === "upload") {
+      if (contentInnerStepCurrent === 1) return t("wizard.content.inner.manuscript");
+      if (contentInnerStepCurrent === 2) return t("wizard.content.inner.packageIndex");
+      return t("wizard.content.inner.chapterContent");
+    }
+    return showChapterLoop ? t("wizard.content.inner.chapterContent") : t("wizard.content.inner.toc");
+  }, [project, contentInnerStepCurrent, showChapterLoop, t]);
+
   const persistCurrentChapterDraftIfDirty = useCallback(async () => {
     if (!showChapterLoop) return true;
     const prev = chapterRows[chapterIdx];
@@ -1026,19 +1048,24 @@ export function WizardContentPage() {
         <div className="flex items-center justify-between gap-4">
           <span className="text-sm font-medium text-obra-neutral-600">
             {t("wizard.content.stepCounter", {
-              current: showChapterLoop ? 2 : 1,
-              total: 2,
-              step: showChapterLoop
-                ? t("wizard.content.inner.chapterContent")
-                : t("wizard.content.inner.toc"),
+              current: contentInnerStepCurrent,
+              total: contentInnerStepTotal,
+              step: contentInnerStepLabel,
             })}
           </span>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            className="flex items-center gap-1"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={contentInnerStepTotal}
+            aria-valuenow={contentInnerStepCurrent}
+            aria-label={contentInnerStepLabel}
+          >
+            {Array.from({ length: contentInnerStepTotal }).map((_, index) => (
               <div
                 key={index}
                 className={`h-1.5 w-9 rounded-full transition-all ${
-                  index <= (showChapterLoop ? 1 : 0) ? "bg-obra-blue-700" : "bg-obra-blue-100"
+                  index < contentInnerStepCurrent ? "bg-obra-blue-700" : "bg-obra-blue-100"
                 }`}
               />
             ))}
