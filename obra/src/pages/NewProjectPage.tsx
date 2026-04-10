@@ -104,8 +104,11 @@ export function NewProjectPage() {
           </div>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-obra-blue-950">{t("wizard.create.sourceTitle")}</h2>
+        <section className="space-y-4">
+          <header className="space-y-2">
+            <h2 className="font-display text-2xl text-obra-blue-950">{t("wizard.create.sourceChoice.title")}</h2>
+            <p className="text-sm text-obra-neutral-600">{t("wizard.create.sourceChoice.subtitle")}</p>
+          </header>
           <ContentSourceCards
             t={t}
             value={contentSource}

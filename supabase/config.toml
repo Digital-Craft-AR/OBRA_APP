@@ -35,8 +35,9 @@ verify_jwt = true
 [functions.ai-generate-content]
 verify_jwt = true
 
+# Handler validates JWT with `auth.getUser`; same pattern as export-user-data / reset-avatar-problem-content.
 [functions.manuscript-upload-parse]
-verify_jwt = true
+verify_jwt = false
 
 # Validates session inside handler via auth.getUser (same pattern as export-user-data).
 [functions.reset-avatar-problem-content]

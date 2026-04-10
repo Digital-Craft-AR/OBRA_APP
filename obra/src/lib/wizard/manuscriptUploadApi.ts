@@ -1,4 +1,6 @@
+import { FunctionsFetchError, FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 
 const FN_NAME = "manuscript-upload-parse";
 
@@ -52,61 +54,88 @@ export type ManuscriptUploadParseErr = {
   code: string;
 };
 
-function supabaseFunctionsBaseUrl(): string {
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  if (!url) throw new Error("Missing VITE_SUPABASE_URL");
-  return `${url.replace(/\/$/, "")}/functions/v1`;
+type InvokeBody = {
+  ok?: boolean;
+  manuscript_id?: string;
+  extracted_char_count?: number;
+  mime?: string;
+  byte_size?: number;
+  error?: string;
+};
+
+function parseInvokeResult(data: InvokeBody | null): ManuscriptUploadParseOk | ManuscriptUploadParseErr | null {
+  if (!data) return null;
+  if (data.ok === true && typeof data.manuscript_id === "string") {
+    return {
+      ok: true,
+      manuscript_id: data.manuscript_id,
+      extracted_char_count: Number(data.extracted_char_count) || 0,
+      mime: typeof data.mime === "string" ? data.mime : "",
+      byte_size: Number(data.byte_size) || 0,
+    };
+  }
+  if (typeof data.error === "string") {
+    return { ok: false, code: data.error };
+  }
+  return null;
 }
 
 /**
- * Upload + parse (no AI credits). One automatic retry on network failure.
+ * Upload + parse (no AI credits). Uses the same transport as other Edge calls (`functions.invoke`).
+ * Refreshes the session on 401 once; retries fetch errors once.
  */
 export async function invokeManuscriptUploadParse(
   projectId: string,
   file: File,
 ): Promise<ManuscriptUploadParseOk | ManuscriptUploadParseErr> {
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
     return { ok: false, code: "unauthorized" };
   }
 
-  const base = supabaseFunctionsBaseUrl();
-  const attempts = 2;
+  const maxAttempts = 2;
 
-  for (let i = 0; i < attempts; i++) {
+  for (let i = 0; i < maxAttempts; i++) {
     if (i > 0) {
       await new Promise((r) => setTimeout(r, 800));
     }
+
     const form = new FormData();
     form.append("project_id", projectId);
     form.append("file", file);
 
-    try {
-      const res = await fetch(`${base}/${FN_NAME}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: form,
-      });
+    const { data, error } = await supabase.functions.invoke<InvokeBody>(FN_NAME, {
+      body: form,
+    });
 
-      const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-      if (res.ok && body && body.ok === true && typeof body.manuscript_id === "string") {
-        return {
-          ok: true,
-          manuscript_id: body.manuscript_id,
-          extracted_char_count: Number(body.extracted_char_count) || 0,
-          mime: typeof body.mime === "string" ? body.mime : "",
-          byte_size: Number(body.byte_size) || 0,
-        };
-      }
-      const code = typeof body?.error === "string" ? body.error : "unknown_error";
-      return { ok: false, code };
-    } catch {
-      if (i === attempts - 1) return { ok: false, code: "network_error" };
+    if (!error) {
+      const parsed = parseInvokeResult(data);
+      if (parsed) return parsed;
+      return { ok: false, code: "unknown_error" };
     }
+
+    if (error instanceof FunctionsHttpError) {
+      const status = error.context.status;
+      if (status === 401 && i < maxAttempts - 1) {
+        await supabase.auth.refreshSession();
+        continue;
+      }
+      if (status === 401) {
+        return { ok: false, code: "unauthorized" };
+      }
+      const code = await getFunctionsInvokeErrorCode(error);
+      return { ok: false, code: code ?? "unknown_error" };
+    }
+
+    if (error instanceof FunctionsFetchError && i < maxAttempts - 1) {
+      continue;
+    }
+
+    const code = await getFunctionsInvokeErrorCode(error);
+    return { ok: false, code: code ?? "invoke_failed" };
   }
 
   return { ok: false, code: "network_error" };

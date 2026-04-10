@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { TFunction } from "i18next";
+import { AlertCircle, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   fetchActiveManuscript,
@@ -44,15 +45,20 @@ function mapServerErrorCodeToKey(code: string): string {
 
 export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManuscriptCommitted }: Props) {
   const inputId = useId();
-  const statusId = useId();
+  const panelTitleId = useId();
+  const dropZoneId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [localRow, setLocalRow] = useState<ProjectManuscriptRow | null>(initialManuscript);
   const [clientError, setClientError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [lastFailedFile, setLastFailedFile] = useState<File | null>(null);
 
   const displayRow = localRow ?? initialManuscript;
+  const errorMessage = clientError ?? serverError;
+  const extractedCount = displayRow?.extracted_char_count;
+  const hasParseSuccess = extractedCount != null;
 
   useEffect(() => {
     setLocalRow(initialManuscript);
@@ -71,6 +77,7 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
               ? "wizard.content.manuscript.errorUnsupportedMime"
               : "wizard.content.manuscript.errorEmptyFile";
         setClientError(t(key));
+        setLastFailedFile(null);
         return;
       }
       setBusy(true);
@@ -113,68 +120,212 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
     void runUpload(file);
   };
 
-  const handleRetry = () => {
+  const openFilePicker = () => {
+    if (busy) return;
+    fileInputRef.current?.click();
+  };
+
+  const handlePickAnotherFile = () => {
+    setClientError(null);
+    setServerError(null);
+    setLastFailedFile(null);
+    openFilePicker();
+  };
+
+  const handleRetryLastFailed = () => {
     if (!lastFailedFile) return;
     void runUpload(lastFailedFile);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!busy && !hasParseSuccess) setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const related = e.relatedTarget as Node | null;
+    if (related && e.currentTarget.contains(related)) return;
+    setDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (busy || hasParseSuccess) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) void runUpload(file);
+  };
+
+  const handleDropZoneKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (busy || hasParseSuccess || errorMessage) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openFilePicker();
+    }
+  };
+
+  const baseDropClasses =
+    "flex min-h-[280px] flex-col items-center justify-center gap-4 rounded-card border-2 border-dashed px-6 py-10 text-center transition-colors";
+  const idleDropClasses = dragActive
+    ? "border-obra-blue-700 bg-obra-blue-50"
+    : "border-obra-neutral-200 bg-white";
+  const busyDropClasses = "border-obra-blue-200 bg-obra-blue-50/80";
+  const errorDropClasses = "border-red-200 bg-red-50";
+
   return (
-    <div className="flex flex-col gap-4">
-      <p className="font-body text-sm text-obra-neutral-600">{t("wizard.content.manuscript.intro")}</p>
+    <div className="flex flex-col gap-6">
+      <header className="space-y-2">
+        <h2 id={panelTitleId} className="font-display text-2xl text-obra-blue-950">
+          {t("wizard.content.manuscript.panelTitle")}
+        </h2>
+        <p className="font-body text-sm text-obra-neutral-600">{t("wizard.content.manuscript.panelSubtitle")}</p>
+      </header>
 
-      <div
-        className="rounded-card border border-obra-blue-100 bg-obra-blue-50/60 px-4 py-4"
-        aria-busy={busy}
-      >
-        <label htmlFor={inputId} className="block text-sm font-medium text-obra-blue-950">
-          {t("wizard.content.manuscript.fileLabel")}
-        </label>
-        <p className="mt-1 text-xs text-obra-neutral-600">{t("wizard.content.manuscript.hintFormats")}</p>
-        <input
-          ref={fileInputRef}
-          id={inputId}
-          type="file"
-          accept={MANUSCRIPT_ACCEPT}
-          className="sr-only"
-          disabled={busy}
-          onChange={onFileChange}
-        />
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            size="medium"
-            disabled={busy}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {busy ? t("wizard.content.manuscript.uploading") : t("wizard.content.manuscript.uploadCta")}
-          </Button>
-          {lastFailedFile && !busy ? (
-            <Button type="button" variant="tertiary" size="medium" onClick={handleRetry}>
-              {t("wizard.content.manuscript.retry")}
-            </Button>
-          ) : null}
+      <label htmlFor={inputId} className="sr-only">
+        {t("wizard.content.manuscript.dropPrimary")}
+      </label>
+      <input
+        ref={fileInputRef}
+        id={inputId}
+        type="file"
+        accept={MANUSCRIPT_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        disabled={busy || hasParseSuccess}
+        onChange={onFileChange}
+      />
+
+      {hasParseSuccess ? (
+        <div role="status" aria-live="polite" className="rounded-card border border-obra-blue-100 bg-obra-blue-50/60 px-5 py-6">
+          <p className="font-body text-sm font-medium text-obra-blue-950">
+            {t("wizard.content.manuscript.successStats", {
+              count: extractedCount ?? 0,
+            })}
+          </p>
+          <p className="mt-2 font-body text-sm text-obra-neutral-600">{t("wizard.content.manuscript.nextSplitStub")}</p>
         </div>
-      </div>
-
-      <div id={statusId} role="status" aria-live="polite" className="min-h-[1.25rem] text-sm">
-        {clientError ? (
-          <p className="text-red-700">{clientError}</p>
-        ) : serverError ? (
-          <p className="text-red-700">{serverError}</p>
-        ) : busy ? (
-          <p className="text-obra-neutral-600">{t("wizard.content.manuscript.uploadingDetail")}</p>
-        ) : displayRow?.extracted_char_count != null ? (
-          <div className="space-y-2 text-obra-blue-950">
-            <p>
-              {t("wizard.content.manuscript.successStats", {
-                count: displayRow.extracted_char_count,
-              })}
-            </p>
-            <p className="text-obra-neutral-600">{t("wizard.content.manuscript.nextSplitStub")}</p>
+      ) : (
+        <>
+          <div
+            id={dropZoneId}
+            role="region"
+            aria-labelledby={panelTitleId}
+            aria-busy={busy}
+            tabIndex={busy || errorMessage ? -1 : 0}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onKeyDown={handleDropZoneKeyDown}
+            className={`${baseDropClasses} ${
+              errorMessage ? errorDropClasses : busy ? busyDropClasses : idleDropClasses
+            } ${!busy && !errorMessage ? "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-obra-blue-700 focus-visible:ring-offset-2" : ""}`}
+            onClick={!busy && !errorMessage ? openFilePicker : undefined}
+          >
+            {errorMessage ? (
+              <>
+                <div
+                  className="flex size-14 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600"
+                  aria-hidden
+                >
+                  <AlertCircle className="size-7 stroke-[2]" />
+                </div>
+                <p role="alert" aria-live="assertive" className="max-w-md font-body text-sm font-semibold text-red-600">
+                  {errorMessage}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {lastFailedFile ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="tertiary"
+                        size="medium"
+                        disabled={busy}
+                        className="shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRetryLastFailed();
+                        }}
+                      >
+                        {t("wizard.content.manuscript.retry")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="medium"
+                        disabled={busy}
+                        className="shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePickAnotherFile();
+                        }}
+                      >
+                        {t("wizard.content.manuscript.pickAnotherFile")}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      size="medium"
+                      disabled={busy}
+                      className="shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePickAnotherFile();
+                      }}
+                    >
+                      {t("wizard.content.manuscript.pickAnotherFile")}
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : busy ? (
+              <div className="space-y-4" aria-live="polite">
+                <Loader2 className="mx-auto size-10 shrink-0 animate-spin text-obra-blue-700" aria-hidden />
+                <div className="space-y-1">
+                  <p className="font-body text-sm font-semibold text-obra-blue-950">{t("wizard.content.manuscript.uploading")}</p>
+                  <p className="font-body text-sm text-obra-neutral-600">{t("wizard.content.manuscript.uploadingDetail")}</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="flex size-14 shrink-0 items-center justify-center rounded-full bg-obra-blue-100 text-obra-blue-700"
+                  aria-hidden
+                >
+                  <Upload className="size-7 stroke-[2]" />
+                </div>
+                <div className="space-y-2">
+                  <p className="font-body text-base font-semibold text-obra-blue-950">{t("wizard.content.manuscript.dropPrimary")}</p>
+                  <button
+                    type="button"
+                    className="font-body text-sm font-semibold text-obra-blue-700 underline underline-offset-4 hover:text-obra-blue-900"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openFilePicker();
+                    }}
+                  >
+                    {t("wizard.content.manuscript.dropClickHint")}
+                  </button>
+                </div>
+                <p className="max-w-sm font-body text-xs leading-relaxed text-obra-neutral-600">
+                  {t("wizard.content.manuscript.dropFooter")}
+                </p>
+              </>
+            )}
           </div>
-        ) : null}
-      </div>
+        </>
+      )}
     </div>
   );
 }
