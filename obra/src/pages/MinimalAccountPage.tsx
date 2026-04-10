@@ -8,6 +8,7 @@ import {
   isMinimalAccountEntitlementOutcome,
   outcomeToPath,
 } from "@/entitlement/resolveEntitlement";
+import { toastApiFailure } from "@/lib/apiToast";
 import { confirmAccountDeletionInBrowser } from "@/lib/accountDeletionConfirm";
 import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import { supabase } from "@/lib/supabaseClient";
@@ -35,7 +36,9 @@ export function MinimalAccountPage() {
     });
     setBusy(false);
     if (error) {
-      setMessage(t("shell.account.exportUnavailable"));
+      const key = "shell.account.exportUnavailable";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
     if (data?.ok && data.data != null) {
@@ -49,7 +52,9 @@ export function MinimalAccountPage() {
       setMessage(t("shell.account.exportDownloaded"));
       return;
     }
-    setMessage(t("shell.account.exportUnavailable"));
+    const key = "shell.account.exportUnavailable";
+    setMessage(t(key));
+    toastApiFailure(t, key);
   }
 
   async function onDeleteAccount() {
@@ -61,10 +66,14 @@ export function MinimalAccountPage() {
     if (error) {
       const code = await getFunctionsInvokeErrorCode(error);
       if (code === "subscription_blocks_delete") {
-        setMessage(t("shell.account.deleteSubscriptionActive"));
+        const key = "shell.account.deleteSubscriptionActive";
+        setMessage(t(key));
+        toastApiFailure(t, key);
         return;
       }
-      setMessage(t("shell.account.deleteUnavailable"));
+      const key = "shell.account.deleteUnavailable";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
     await supabase.auth.signOut();

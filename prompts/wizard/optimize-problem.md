@@ -1,7 +1,7 @@
 # optimize-problem — Expande descripción cruda del problema en estructura de promesa transformacional
 
 **Ruta:** `prompts/wizard/optimize-problem.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `optimizeProblemPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `optimizeProblemPrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Avatar + problem (single step)  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-06
@@ -87,7 +87,7 @@ Toma el texto crudo que el creador escribe en el campo "problema que resuelve mi
 
 ## 5. System prompt
 
-_`{content_locale}` se interpola en `prompts.ts` antes de enviar al modelo._
+_`{content_locale}` se interpola en `_shared/prompts.ts` antes de enviar al modelo._
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
@@ -123,12 +123,13 @@ Problem description (raw): {raw_input}
 Expand the problem statement into the complete structure.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
 - Si `topic` está vacío, **no llamar al prompt** — validar en UI antes de la llamada
 - Si `raw_input` está vacío, **no llamar al prompt** — el campo es requerido en el wizard
 - `{avatar}` se pasa como `JSON.stringify(avatarObject)` — el objeto completo, no solo la descripción
 - Si `{avatar}` contiene `"error"`, resolver el avatar primero
 - El output completo de este prompt se pasa como `{problem}` a `suggestPackagePrompt()`
+- La función Edge `ai-optimize` convierte el JSON en un solo string multilínea para el campo `optimized` (bloques separados por línea en blanco); ver `supabase/functions/_shared/wizardOptimizeUnifiedText.ts` (`problemFramingToUnifiedText`). El objeto estructurado sigue en `problem_framing`.
 
 ---
 

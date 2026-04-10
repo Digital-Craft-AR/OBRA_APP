@@ -1,7 +1,7 @@
 # suggest-package — Genera la estructura completa del paquete de infoproducto
 
 **Ruta:** `prompts/wizard/suggest-package.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `suggestPackagePrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `suggestPackagePrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Package structure (counts + main title)  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-06
@@ -16,14 +16,17 @@ A partir del topic, avatar, y problema ya definidos, genera una propuesta cohere
 
 ## 2. Inputs
 
-| Variable | Tipo | Requerido | Descripción |
-|----------|------|:---------:|-------------|
-| `{content_locale}` | `"es" \| "pt-BR" \| "en-US" \| "en-GB"` | ✅ | Locale del output |
-| `{topic}` | `string` | ✅ | `optimized_title` del output de `optimize-topic` |
-| `{avatar}` | `string` (JSON serializado) | ✅ | Output completo de `optimize-avatar`, serializado como string JSON |
-| `{problem}` | `string` (JSON serializado) | ✅ | Output completo de `optimize-problem`, serializado como string JSON |
+
+| Variable           | Tipo                                 | Requerido | Descripción                                                         |
+| ------------------ | ------------------------------------ | --------- | ------------------------------------------------------------------- |
+| `{content_locale}` | `"es" | "pt-BR" | "en-US" | "en-GB"` | ✅         | Locale del output                                                   |
+| `{topic}`          | `string`                             | ✅         | `optimized_title` del output de `optimize-topic`                    |
+| `{avatar}`         | `string` (JSON serializado)          | ✅         | Output completo de `optimize-avatar`, serializado como string JSON  |
+| `{problem}`        | `string` (JSON serializado)          | ✅         | Output completo de `optimize-problem`, serializado como string JSON |
+
 
 **Conectividad de pipeline:**
+
 - `{topic}` = campo `optimized_title` de `optimizeTopicPrompt()`
 - `{avatar}` = output de `optimizeAvatarPrompt()` vía `JSON.stringify()`
 - `{problem}` = output de `optimizeProblemPrompt()` vía `JSON.stringify()`
@@ -73,10 +76,12 @@ A partir del topic, avatar, y problema ya definidos, genera una propuesta cohere
 ```
 
 **Restricciones de conteo (límites del MVP):**
+
 - `bonuses`: entre 1 y 5 items — nunca más de 5, nunca lista vacía. Sugerir 3-4 por defecto.
 - `bumps`: entre 0 y 2 items — lista vacía `[]` es válida si el tema no justifica bumps. Sugerir 1-2 por defecto.
 
 **Restricciones de longitud:**
+
 - `main_ebook.title`: max 120 caracteres
 - Cada `bonus.title` y `bump.title`: max 100 caracteres
 - Cada `bonus.description` y `bump.description`: max 150 caracteres (1 oración)
@@ -95,17 +100,19 @@ A partir del topic, avatar, y problema ya definidos, genera una propuesta cohere
 
 ## 4. Parámetros de modelo
 
-| Parámetro | Valor recomendado | Razón |
-|-----------|:-----------------:|-------|
-| **Temperatura** | `0.6` | La mayor creatividad justificada: el modelo debe proponer un paquete coherente y atractivo, no solo descriptivo. Más variedad que los prompts anteriores del pipeline. |
-| **max_tokens** | `1200` | El JSON completo con 4 bonuses + 2 bumps ronda los 700-800 tokens; margen para títulos más elaborados |
-| **Modelo** | `claude-sonnet-4-6` | Requiere síntesis de todo el contexto acumulado para proponer un paquete coherente como sistema |
+
+| Parámetro       | Valor recomendado   | Razón                                                                                                                                                                  |
+| --------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Temperatura** | `0.6`               | La mayor creatividad justificada: el modelo debe proponer un paquete coherente y atractivo, no solo descriptivo. Más variedad que los prompts anteriores del pipeline. |
+| **max_tokens**  | `1200`              | El JSON completo con 4 bonuses + 2 bumps ronda los 700-800 tokens; margen para títulos más elaborados                                                                  |
+| **Modelo**      | `claude-sonnet-4-6` | Requiere síntesis de todo el contexto acumulado para proponer un paquete coherente como sistema                                                                        |
+
 
 ---
 
 ## 5. System prompt
 
-_`{content_locale}` se interpola en `prompts.ts` antes de enviar al modelo._
+*`{content_locale}` se interpola en `_shared/prompts.ts` antes de enviar al modelo.*
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
@@ -143,7 +150,8 @@ Problem: {problem}
 Propose the complete package structure for this infoproduct.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
+
 - Si `topic`, `avatar`, o `problem` están vacíos o contienen `"error"`, **no llamar al prompt** — resolver los pasos anteriores del pipeline primero
 - `{avatar}` y `{problem}` se pasan como `JSON.stringify(object)` — los objetos completos
 - El output de este prompt alimenta directamente la UI del wizard de estructura: los títulos de `bonuses` y `bumps` se usan como sugerencias pre-populadas en los pasos de bonus/bump titles, y `main_ebook.title` es una de las candidatas para el paso de main titles
@@ -153,13 +161,14 @@ Propose the complete package structure for this infoproduct.
 
 ## 7. Ejemplos few-shot
 
-_Los tres ejemplos siguen los mismos "personajes" del pipeline para demostrar coherencia end-to-end. El avatar y problem se muestran abreviados — en producción se pasan los JSON completos._
+*Los tres ejemplos siguen los mismos "personajes" del pipeline para demostrar coherencia end-to-end. El avatar y problem se muestran abreviados — en producción se pasan los JSON completos.*
 
 ---
 
 ### Ejemplo 1 — Paquete completo en `es`
 
 **Variables de input:**
+
 ```
 content_locale: "es"
 topic: "Velas aromáticas artesanales: cómo crear y vender las que la gente busca"
@@ -168,6 +177,7 @@ problem: { "core_problem": "No tiene sistema para fijar precios...", "sub_proble
 ```
 
 **Output esperado:**
+
 ```json
 {
   "main_ebook": {
@@ -207,6 +217,7 @@ problem: { "core_problem": "No tiene sistema para fijar precios...", "sub_proble
 ### Ejemplo 2 — Paquete en `pt-BR`
 
 **Variables de input:**
+
 ```
 content_locale: "pt-BR"
 topic: "Marketing digital para artesãs: como atrair clientes novos sem depender de indicações"
@@ -215,6 +226,7 @@ problem: { "core_problem": "Seu negócio depende de quem já a conhece...", "sub
 ```
 
 **Output esperado:**
+
 ```json
 {
   "main_ebook": {
@@ -254,6 +266,7 @@ problem: { "core_problem": "Seu negócio depende de quem já a conhece...", "sub
 ### Ejemplo 3 — Paquete en `en-US`
 
 **Variables de input:**
+
 ```
 content_locale: "en-US"
 topic: "Mindfulness without the woo: a practical guide for skeptical, busy people"
@@ -262,6 +275,7 @@ problem: { "core_problem": "She tried meditation, decided her mind is 'too busy,
 ```
 
 **Output esperado:**
+
 ```json
 {
   "main_ebook": {
@@ -300,16 +314,18 @@ problem: { "core_problem": "She tried meditation, decided her mind is 'too busy,
 
 ## 8. Casos límite
 
-| Caso | Descripción del input | Output esperado |
-|------|-----------------------|-----------------|
-| **`topic` vacío** | `topic: ""` | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI |
-| **`avatar` con error** | `avatar` contiene campo `"error"` | No llamar al prompt — resolver el avatar primero |
-| **`problem` con error** | `problem` contiene campo `"error"` | No llamar al prompt — resolver el problema primero |
-| Topic muy amplio | `topic: "bienestar personal"` | Generar igualmente; los bonuses serán más genéricos — normal para temas amplios |
-| Topic que no justifica bumps | Nicho muy específico y técnico donde un bump no agrega valor claro | Devolver `"bumps": []` — lista vacía es válida |
-| Topic que genera 5+ bonuses obvios | Nicho con muchos sub-temas complementarios | Limitar a los 4-5 más distintos e impactantes. Nunca superar 5. |
-| Avatar o problem en locale distinto al actual | Contextos generados previamente en `es`, prompt actual en `pt-BR` | Output en `pt-BR`; el modelo cross-traduce el contexto |
-| Input en idioma distinto al locale | `content_locale: "es"`, inputs en inglés | Output completo en `es` |
+
+| Caso                                          | Descripción del input                                              | Output esperado                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `**topic` vacío**                             | `topic: ""`                                                        | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI                      |
+| `**avatar` con error**                        | `avatar` contiene campo `"error"`                                  | No llamar al prompt — resolver el avatar primero                                |
+| `**problem` con error**                       | `problem` contiene campo `"error"`                                 | No llamar al prompt — resolver el problema primero                              |
+| Topic muy amplio                              | `topic: "bienestar personal"`                                      | Generar igualmente; los bonuses serán más genéricos — normal para temas amplios |
+| Topic que no justifica bumps                  | Nicho muy específico y técnico donde un bump no agrega valor claro | Devolver `"bumps": []` — lista vacía es válida                                  |
+| Topic que genera 5+ bonuses obvios            | Nicho con muchos sub-temas complementarios                         | Limitar a los 4-5 más distintos e impactantes. Nunca superar 5.                 |
+| Avatar o problem en locale distinto al actual | Contextos generados previamente en `es`, prompt actual en `pt-BR`  | Output en `pt-BR`; el modelo cross-traduce el contexto                          |
+| Input en idioma distinto al locale            | `content_locale: "es"`, inputs en inglés                           | Output completo en `es`                                                         |
+
 
 ---
 
@@ -317,9 +333,11 @@ problem: { "core_problem": "She tried meditation, decided her mind is 'too busy,
 
 ### Historial
 
-| Fecha | Versión | Cambio | Razón |
-|-------|---------|--------|-------|
-| 2026-04-06 | v1.0 | Versión inicial | Cuarto y último prompt del pipeline del wizard de estructura |
+
+| Fecha      | Versión | Cambio          | Razón                                                        |
+| ---------- | ------- | --------------- | ------------------------------------------------------------ |
+| 2026-04-06 | v1.0    | Versión inicial | Cuarto y último prompt del pipeline del wizard de estructura |
+
 
 ### Decisiones descartadas
 
@@ -330,11 +348,12 @@ problem: { "core_problem": "She tried meditation, decided her mind is 'too busy,
 
 ### Próximos experimentos
 
-- [ ] Evaluar si pasar el `angle` del topic (de `optimize-topic`) como variable explícita mejora la coherencia entre el perfil emocional del paquete y el tipo de avatar — e.g. un paquete "emocional" debería tener bonuses de herramientas introspectivas, no plantillas de negocio
-- [ ] Testear temperatura `0.7` vs `0.6` — ¿más creatividad en los títulos o más ruido?
-- [ ] Medir si incluir `problem.transformation.to` explícitamente en el user template (además del objeto completo) mejora la coherencia del main ebook title con la promesa de transformación
-- [ ] Explorar si el campo `complement` puede usarse como base de copy para la futura landing page de ventas (post-MVP)
+- Evaluar si pasar el `angle` del topic (de `optimize-topic`) como variable explícita mejora la coherencia entre el perfil emocional del paquete y el tipo de avatar — e.g. un paquete "emocional" debería tener bonuses de herramientas introspectivas, no plantillas de negocio
+- Testear temperatura `0.7` vs `0.6` — ¿más creatividad en los títulos o más ruido?
+- Medir si incluir `problem.transformation.to` explícitamente en el user template (además del objeto completo) mejora la coherencia del main ebook title con la promesa de transformación
+- Explorar si el campo `complement` puede usarse como base de copy para la futura landing page de ventas (post-MVP)
 
 ### Problemas conocidos en producción
 
-- _Ninguno registrado._
+- *Ninguno registrado.*
+

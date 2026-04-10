@@ -5,7 +5,10 @@ import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/auth/authContext";
 import { consumeCheckoutReturnMessageKey } from "@/entitlement/checkoutReturn";
+import { tCheckoutConfigError, tMercadoPagoProviderError } from "@/lib/checkoutEdgeErrors";
+import { toastApiFailure } from "@/lib/apiToast";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/toast";
 
 type CheckoutFnResponse = {
   redirect_url?: string;
@@ -29,7 +32,9 @@ export function PendingSubscriptionShellPage() {
     setBusy(true);
     if (!session?.access_token) {
       setBusy(false);
-      setMessage(t("shell.pending.checkoutStartError"));
+      const key = "shell.pending.checkoutStartError";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
 
@@ -47,36 +52,51 @@ export function PendingSubscriptionShellPage() {
     setBusy(false);
 
     if (error) {
-      setMessage(t("shell.pending.checkoutStartError"));
+      const key = "shell.pending.checkoutStartError";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
 
-    if (error?.message?.includes("401") || data?.error === "unauthorized") {
-      setMessage(t("auth.callbackError"));
+    if (data?.error === "unauthorized") {
+      const key = "auth.callbackError";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
 
     if (data?.error === "checkout_unavailable" || data?.error === "server_misconfigured") {
-      setMessage(t("shell.pending.checkoutUnavailable"));
+      const msg = tCheckoutConfigError(t, data.detail);
+      setMessage(msg);
+      toast.error({ title: msg, description: t("toast.api.genericHint") });
       return;
     }
 
     if (data?.error === "email_not_verified") {
-      setMessage(t("shell.pending.checkoutEmailNotVerified"));
+      const key = "shell.pending.checkoutEmailNotVerified";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
 
-    if (
-      data?.error === "mercadopago_error" ||
-      data?.error === "mercadopago_no_redirect" ||
-      data?.error === "method_not_allowed"
-    ) {
-      setMessage(t("shell.pending.checkoutStartError"));
+    if (data?.error === "mercadopago_error" || data?.error === "mercadopago_no_redirect") {
+      const msg = tMercadoPagoProviderError(t);
+      setMessage(msg);
+      toast.error({ title: msg, description: t("toast.api.genericHint") });
+      return;
+    }
+
+    if (data?.error === "method_not_allowed") {
+      const key = "shell.pending.checkoutStartError";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
 
     if (data?.error || !data?.redirect_url) {
-      setMessage(t("shell.pending.checkoutStartError"));
+      const key = "shell.pending.checkoutStartError";
+      setMessage(t(key));
+      toastApiFailure(t, key);
       return;
     }
 

@@ -4,13 +4,13 @@ type StructureStepTopicProps = {
   label: string;
   placeholder: string;
   assistLabel: string;
+  hint?: string;
   value: string;
   error?: string;
   disabled: boolean;
   improving: boolean;
   saving: boolean;
   savingLabel: string;
-  message: string | null;
   onChange: (value: string) => void;
   onAssist: () => void;
 };
@@ -19,13 +19,13 @@ export function StructureStepTopic({
   label,
   placeholder,
   assistLabel,
+  hint,
   value,
   error,
   disabled,
   improving,
   saving,
   savingLabel,
-  message,
   onChange,
   onAssist,
 }: StructureStepTopicProps) {
@@ -34,6 +34,7 @@ export function StructureStepTopic({
       <ObraTextarea
         id="wizard-topic"
         label={label}
+        hint={hint}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -46,9 +47,6 @@ export function StructureStepTopic({
       />
       <div className="flex items-center gap-3">
         {saving ? <span className="text-xs text-obra-neutral-600">{savingLabel}</span> : null}
-      </div>
-      <div aria-live="polite" className="text-xs text-obra-neutral-600">
-        {message}
       </div>
     </section>
   );

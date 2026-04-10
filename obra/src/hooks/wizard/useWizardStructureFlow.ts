@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
 import {
@@ -14,6 +14,11 @@ import {
   type WizardDesignConfig,
   type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
+import {
+  INVOKE_ERROR_INSUFFICIENT_CREDITS,
+  toastApiFailure,
+  toastInsufficientCredits,
+} from "@/lib/apiToast";
 import {
   resetWizardAvatarProblemAndContent,
   saveWizardAvatarProblem,
@@ -39,6 +44,8 @@ type HandleNextStepOptions = {
   forceResetAvatarProblem?: boolean;
 };
 
+const STRUCTURE_INSUFFICIENT_CREDITS_KEY = "wizard.structure.shared.insufficientCredits";
+
 function normalizeItems(items: WizardTitleItem[] | null | undefined, count: number, kind: "bonus" | "bump") {
   const base = Array.isArray(items) ? items : [];
   const normalized = Array.from({ length: count }).map((_, index) => {
@@ -59,7 +66,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [topicDraft, setTopicDraft] = useState("");
   const [topicSaving, setTopicSaving] = useState(false);
   const [topicImproving, setTopicImproving] = useState(false);
-  const [topicMessage, setTopicMessage] = useState<string | null>(null);
+  const [topicAssistHint, setTopicAssistHint] = useState<string | null>(null);
+  const [topicAssistError, setTopicAssistError] = useState<string | null>(null);
   const [topicError, setTopicError] = useState<string | null>(null);
 
   const [avatarDraft, setAvatarDraft] = useState("");
@@ -69,7 +77,11 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [avatarProblemSaving, setAvatarProblemSaving] = useState(false);
   const [avatarImproving, setAvatarImproving] = useState(false);
   const [problemImproving, setProblemImproving] = useState(false);
-  const [avatarProblemMessage, setAvatarProblemMessage] = useState<string | null>(null);
+  const [avatarAssistHint, setAvatarAssistHint] = useState<string | null>(null);
+  const [problemAssistHint, setProblemAssistHint] = useState<string | null>(null);
+  const [avatarAssistError, setAvatarAssistError] = useState<string | null>(null);
+  const [problemAssistError, setProblemAssistError] = useState<string | null>(null);
+  const [avatarProblemFooterMessage, setAvatarProblemFooterMessage] = useState<string | null>(null);
 
   const [bonusCount, setBonusCount] = useState(0);
   const [bumpCount, setBumpCount] = useState(0);
@@ -79,6 +91,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
   const [selectedTitleIndex, setSelectedTitleIndex] = useState<number | null>(null);
   const [customMainTitle, setCustomMainTitle] = useState("");
+  /** Prevents repeat auto-fetch when revisiting step 4 in the same session without a title. */
+  const titleSuggestionsAutoAttemptedRef = useRef(false);
   const [authorDraft, setAuthorDraft] = useState("");
   const [mainTitleError, setMainTitleError] = useState<string | null>(null);
   const [titleSuggestionsLoading, setTitleSuggestionsLoading] = useState(false);
@@ -104,6 +118,12 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       designConfig.contentTone !== savedDesign.contentTone
     );
   }, [project, avatarDraft, problemDraft, designConfig.contentTone]);
+
+  /** Main ebook title for AI suggest calls (step 5 bonus/bump). */
+  const ebookTitleForAi = useMemo(() => {
+    const selected = selectedTitleIndex !== null ? (titleSuggestions[selectedTitleIndex] ?? "") : "";
+    return (customMainTitle.trim() || selected.trim() || project?.main_title || "").trim();
+  }, [customMainTitle, selectedTitleIndex, titleSuggestions, project?.main_title]);
 
   useEffect(() => {
     if (!project) return;
@@ -138,10 +158,18 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   }, [bumpCount]);
 
   useEffect(() => {
-    if (innerStepIndex !== 3) return;
+    if (innerStepIndex !== 3) {
+      titleSuggestionsAutoAttemptedRef.current = false;
+      return;
+    }
     if (titleSuggestionsLoading) return;
+    const saved = (project?.main_title ?? "").trim();
+    const custom = customMainTitle.trim();
+    if (saved.length > 0 || custom.length > 0) return;
+    if (titleSuggestionsAutoAttemptedRef.current) return;
+    titleSuggestionsAutoAttemptedRef.current = true;
     void generateMainTitleSuggestions();
-  }, [innerStepIndex]);
+  }, [innerStepIndex, customMainTitle, project?.main_title, titleSuggestionsLoading]);
 
   const stepTitle = useMemo(() => {
     if (innerStepIndex === 0) return t("wizard.structure.step1.title");
@@ -168,11 +196,13 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   async function persistTopic(): Promise<boolean> {
     if (!project?.id || topicSaving) return false;
     setTopicSaving(true);
-    setTopicMessage(null);
+    setTopicAssistError(null);
     const result = await saveWizardTopic(project.id, topicDraft);
     setTopicSaving(false);
     if (!result.ok) {
-      setTopicMessage(t("wizard.structure.topic.saveError"));
+      const key = "wizard.structure.topic.saveError";
+      setTopicAssistError(t(key));
+      toastApiFailure(t, key);
       return false;
     }
     setProject((current) => (current ? { ...current, topic: topicDraft } : current));
@@ -180,31 +210,40 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   }
 
   async function handleImproveTopic() {
-    if (!topicDraft.trim() || topicImproving) return;
+    if (!topicDraft.trim() || topicImproving || !project?.id) return;
     setTopicImproving(true);
-    setTopicMessage(null);
+    setTopicAssistHint(null);
+    setTopicAssistError(null);
     const result = await improveWizardText({
+      projectId: project.id,
       field: "topic",
       rawText: topicDraft,
       language,
     });
     setTopicImproving(false);
     if (!result.ok) {
-      setTopicMessage(t("wizard.structure.topic.improveError"));
+      const key = "wizard.structure.topic.improveError";
+      if (result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS) {
+        setTopicAssistError(t(STRUCTURE_INSUFFICIENT_CREDITS_KEY));
+        toastInsufficientCredits(t, STRUCTURE_INSUFFICIENT_CREDITS_KEY);
+      } else {
+        setTopicAssistError(t(key));
+        toastApiFailure(t, key);
+      }
       return;
     }
     if (result.optimized) {
       setTopicDraft(result.optimized);
-      setTopicMessage(t("wizard.structure.topic.improved"));
+      setTopicAssistHint(t("wizard.structure.topic.improved"));
       return;
     }
-    setTopicMessage(t("wizard.structure.topic.improvePending"));
+    setTopicAssistError(t("wizard.structure.topic.improvePending"));
   }
 
   async function persistAvatarProblem(forceReset: boolean): Promise<boolean> {
     if (!project?.id || avatarProblemSaving) return false;
     setAvatarProblemSaving(true);
-    setAvatarProblemMessage(null);
+    setAvatarProblemFooterMessage(null);
     const result =
       forceReset && project.structure_completed_at
         ? await resetWizardAvatarProblemAndContent(project.id, avatarDraft, problemDraft)
@@ -212,9 +251,13 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setAvatarProblemSaving(false);
     if (!result.ok) {
       if (forceReset) {
-        setAvatarProblemMessage(t("wizard.structure.avatarProblem.resetError"));
+        const key = "wizard.structure.avatarProblem.resetError";
+        setAvatarProblemFooterMessage(t(key));
+        toastApiFailure(t, key);
       } else {
-        setAvatarProblemMessage(t("wizard.structure.avatarProblem.saveError"));
+        const key = "wizard.structure.avatarProblem.saveError";
+        setAvatarProblemFooterMessage(t(key));
+        toastApiFailure(t, key);
       }
       return false;
     }
@@ -232,45 +275,68 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   }
 
   async function improveAvatarText() {
-    if (!avatarDraft.trim() || avatarImproving) return;
+    if (!avatarDraft.trim() || avatarImproving || !project?.id) return;
     setAvatarImproving(true);
-    setAvatarProblemMessage(null);
+    setAvatarAssistHint(null);
+    setAvatarAssistError(null);
     const result = await improveWizardText({
+      projectId: project.id,
       field: "target_avatar",
       rawText: avatarDraft,
       language,
+      topic: topicDraft,
     });
     setAvatarImproving(false);
     if (!result.ok) {
-      setAvatarProblemMessage(t("wizard.structure.avatarProblem.improveError"));
+      const key = "wizard.structure.avatarProblem.improveError";
+      if (result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS) {
+        setAvatarAssistError(t(STRUCTURE_INSUFFICIENT_CREDITS_KEY));
+        toastInsufficientCredits(t, STRUCTURE_INSUFFICIENT_CREDITS_KEY);
+      } else {
+        setAvatarAssistError(t(key));
+        toastApiFailure(t, key);
+      }
       return;
     }
     if (result.optimized) {
       setAvatarDraft(result.optimized);
+      setAvatarAssistHint(t("wizard.structure.avatarProblem.improved"));
       return;
     }
-    setAvatarProblemMessage(t("wizard.structure.avatarProblem.improvePending"));
+    setAvatarAssistError(t("wizard.structure.avatarProblem.improvePending"));
   }
 
   async function improveProblemText() {
-    if (!problemDraft.trim() || problemImproving) return;
+    if (!problemDraft.trim() || problemImproving || !project?.id) return;
     setProblemImproving(true);
-    setAvatarProblemMessage(null);
+    setProblemAssistHint(null);
+    setProblemAssistError(null);
     const result = await improveWizardText({
+      projectId: project.id,
       field: "problem",
       rawText: problemDraft,
       language,
+      topic: topicDraft,
+      avatar: avatarDraft,
     });
     setProblemImproving(false);
     if (!result.ok) {
-      setAvatarProblemMessage(t("wizard.structure.avatarProblem.improveError"));
+      const key = "wizard.structure.avatarProblem.improveError";
+      if (result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS) {
+        setProblemAssistError(t(STRUCTURE_INSUFFICIENT_CREDITS_KEY));
+        toastInsufficientCredits(t, STRUCTURE_INSUFFICIENT_CREDITS_KEY);
+      } else {
+        setProblemAssistError(t(key));
+        toastApiFailure(t, key);
+      }
       return;
     }
     if (result.optimized) {
       setProblemDraft(result.optimized);
+      setProblemAssistHint(t("wizard.structure.avatarProblem.improved"));
       return;
     }
-    setAvatarProblemMessage(t("wizard.structure.avatarProblem.improvePending"));
+    setProblemAssistError(t("wizard.structure.avatarProblem.improvePending"));
   }
 
   async function persistPackageCounts(): Promise<boolean> {
@@ -280,7 +346,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const result = await saveWizardPackageCounts(project.id, bonusCount, bumpCount);
     setPackageSaving(false);
     if (!result.ok) {
-      setPackageMessage(t("wizard.structure.package.saveError"));
+      const key = "wizard.structure.package.saveError";
+      setPackageMessage(t(key));
+      toastApiFailure(t, key);
       return false;
     }
     setProject((current) =>
@@ -298,7 +366,12 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   async function generateMainTitleSuggestions() {
     setTitleSuggestionsLoading(true);
     setMainTitleMessage(null);
+    if (!project?.id) {
+      setTitleSuggestionsLoading(false);
+      return;
+    }
     const result = await suggestWizardTitles({
+      projectId: project.id,
       topic: topicDraft,
       problem: problemDraft,
       avatar: avatarDraft,
@@ -308,9 +381,16 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     });
     setTitleSuggestionsLoading(false);
     if (!result.ok) {
+      const key = "wizard.structure.step4.suggestionsError";
       setTitleSuggestions([]);
       setSelectedTitleIndex(null);
-      setMainTitleMessage(t("wizard.structure.step4.suggestionsError"));
+      if (result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS) {
+        setMainTitleMessage(t(STRUCTURE_INSUFFICIENT_CREDITS_KEY));
+        toastInsufficientCredits(t, STRUCTURE_INSUFFICIENT_CREDITS_KEY);
+      } else {
+        setMainTitleMessage(t(key));
+        toastApiFailure(t, key);
+      }
       return;
     }
     if (result.suggestions.length > 0) {
@@ -321,7 +401,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     }
     setTitleSuggestions([]);
     setSelectedTitleIndex(null);
-    setMainTitleMessage(t("wizard.structure.step4.suggestionsError"));
+    const key = "wizard.structure.step4.suggestionsError";
+    setMainTitleMessage(t(key));
+    toastApiFailure(t, key);
   }
 
   async function persistMainTitleAndAuthor(): Promise<boolean> {
@@ -338,7 +420,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const result = await saveWizardMainTitle(project.id, finalTitle, authorDraft);
     setMainTitleSaving(false);
     if (!result.ok) {
-      setMainTitleMessage(t("wizard.structure.step4.saveError"));
+      const key = "wizard.structure.step4.saveError";
+      setMainTitleMessage(t(key));
+      toastApiFailure(t, key);
       return false;
     }
     setProject((current) =>
@@ -354,6 +438,17 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     return true;
   }
 
+  const selectMainTitleFromSuggestion = useCallback(
+    (index: number) => {
+      const title = titleSuggestions[index];
+      if (typeof title !== "string" || !title.trim()) return;
+      setCustomMainTitle(title.trim());
+      setSelectedTitleIndex(null);
+      setMainTitleError(null);
+    },
+    [titleSuggestions],
+  );
+
   async function persistBonusBumpItems(): Promise<boolean> {
     if (!project?.id || itemsSaving) return false;
     setItemsSaving(true);
@@ -361,7 +456,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const result = await saveWizardBonusBumpItems(project.id, bonusItems, bumpItems);
     setItemsSaving(false);
     if (!result.ok) {
-      setItemsMessage(t("wizard.structure.step5.saveError"));
+      const key = "wizard.structure.step5.saveError";
+      setItemsMessage(t(key));
+      toastApiFailure(t, key);
       return false;
     }
     setProject((current) =>
@@ -379,20 +476,37 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
 
   async function regenerateItem(kind: "bonus" | "bump", index: number) {
     const items = kind === "bonus" ? bonusItems : bumpItems;
-    if (!items[index] || items[index].locked) return;
+    if (!items[index] || items[index].locked || !project?.id) return;
     const key = `${kind}-${index}`;
     setItemRegeneratingKey(key);
     setItemsMessage(null);
+    const lockedTitles = items.filter((x) => x.locked).map((x) => x.title.trim()).filter(Boolean);
+    const previousTitles = items
+      .map((x) => x.title.trim())
+      .filter((_, i) => i !== index)
+      .filter(Boolean);
     const result = await suggestSingleWizardTitle({
+      projectId: project.id,
       field: kind === "bonus" ? "bonus_title" : "bump_title",
       topic: topicDraft,
       problem: problemDraft,
       avatar: avatarDraft,
       language,
+      contentLocale: project.content_locale ?? null,
+      ebookTitle: ebookTitleForAi,
+      lockedTitles,
+      previousTitles,
     });
     setItemRegeneratingKey(null);
     if (!result.ok || !result.suggestion) {
-      setItemsMessage(t("wizard.structure.step5.regenerateError"));
+      const key = "wizard.structure.step5.regenerateError";
+      if (result.ok === false && result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS) {
+        setItemsMessage(t(STRUCTURE_INSUFFICIENT_CREDITS_KEY));
+        toastInsufficientCredits(t, STRUCTURE_INSUFFICIENT_CREDITS_KEY);
+      } else {
+        setItemsMessage(t(key));
+        toastApiFailure(t, key);
+      }
       return;
     }
     if (kind === "bonus") {
@@ -417,23 +531,37 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       .filter(({ item }) => !item.locked)
       .map(({ index }) => index);
 
-    if (unlockedIndexes.length === 0) return;
+    if (unlockedIndexes.length === 0 || !project?.id) return;
 
     setItemRegeneratingKey(`${kind}-all`);
     setItemsMessage(null);
 
     let hadError = false;
+    let creditBlocked = false;
     const updates: Record<number, string> = {};
     for (const index of unlockedIndexes) {
+      const lockedTitles = sourceItems.filter((x) => x.locked).map((x) => x.title.trim()).filter(Boolean);
+      const previousTitles = sourceItems
+        .map((x) => x.title.trim())
+        .filter((_, i) => i !== index)
+        .filter(Boolean);
       const result = await suggestSingleWizardTitle({
+        projectId: project.id,
         field: kind === "bonus" ? "bonus_title" : "bump_title",
         topic: topicDraft,
         problem: problemDraft,
         avatar: avatarDraft,
         language,
+        contentLocale: project.content_locale ?? null,
+        ebookTitle: ebookTitleForAi,
+        lockedTitles,
+        previousTitles,
       });
       if (!result.ok || !result.suggestion) {
         hadError = true;
+        if (result.ok === false && result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS) {
+          creditBlocked = true;
+        }
         continue;
       }
       updates[index] = result.suggestion;
@@ -451,7 +579,14 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
 
     setItemRegeneratingKey(null);
     if (hadError) {
-      setItemsMessage(t("wizard.structure.step5.regenerateError"));
+      const key = "wizard.structure.step5.regenerateError";
+      if (creditBlocked) {
+        setItemsMessage(t(STRUCTURE_INSUFFICIENT_CREDITS_KEY));
+        toastInsufficientCredits(t, STRUCTURE_INSUFFICIENT_CREDITS_KEY);
+      } else {
+        setItemsMessage(t(key));
+        toastApiFailure(t, key);
+      }
     }
   }
 
@@ -462,7 +597,9 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const result = await saveWizardDesignConfig(project.id, designConfig);
     setDesignSaving(false);
     if (!result.ok) {
-      setDesignMessage(t("wizard.structure.step7.saveError"));
+      const key = "wizard.structure.step7.saveError";
+      setDesignMessage(t(key));
+      toastApiFailure(t, key);
       return false;
     }
     setProject((current) =>
@@ -524,6 +661,21 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     return { ok: true };
   }
 
+  const clearTopicAssistFeedback = useCallback(() => {
+    setTopicAssistHint(null);
+    setTopicAssistError(null);
+  }, []);
+
+  const clearAvatarAssistFeedback = useCallback(() => {
+    setAvatarAssistHint(null);
+    setAvatarAssistError(null);
+  }, []);
+
+  const clearProblemAssistFeedback = useCallback(() => {
+    setProblemAssistHint(null);
+    setProblemAssistError(null);
+  }, []);
+
   return {
     innerStepIndex,
     setInnerStepIndex,
@@ -532,10 +684,12 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     topicDraft,
     topicSaving,
     topicImproving,
-    topicMessage,
+    topicAssistHint,
+    topicAssistError,
     topicError,
     setTopicDraft,
     setTopicError,
+    clearTopicAssistFeedback,
     handleImproveTopic,
     avatarDraft,
     problemDraft,
@@ -544,7 +698,13 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     avatarProblemSaving,
     avatarImproving,
     problemImproving,
-    avatarProblemMessage,
+    avatarAssistHint,
+    problemAssistHint,
+    avatarAssistError,
+    problemAssistError,
+    avatarProblemFooterMessage,
+    clearAvatarAssistFeedback,
+    clearProblemAssistFeedback,
     avatarProblemChanged,
     setAvatarDraft,
     setProblemDraft,
@@ -571,6 +731,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setAuthorDraft,
     setMainTitleError,
     generateMainTitleSuggestions,
+    selectMainTitleFromSuggestion,
     bonusItems,
     bumpItems,
     itemsSaving,

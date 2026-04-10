@@ -51,24 +51,24 @@ prompts/
 
 ---
 
-## Cómo se conectan los `.md` con `obra/src/lib/prompts.ts`
+## Cómo se conectan los `.md` con `supabase/functions/_shared/prompts.ts`
 
-El `.md` documenta; el código implementa. Son inseparables.
+El `.md` documenta; el código ejecutable vive en Edge (Deno). Son inseparables.
 
 ```
-prompts/content/generate-index.md       ←→    prompts.ts → generateIndexPrompt()
-prompts/wizard/suggest-main-titles.md   ←→    prompts.ts → suggestMainTitlesPrompt()
-prompts/images/generate-cover.md        ←→    prompts.ts → generateCoverPrompt()
+prompts/content/generate-index.md       ←→    _shared/prompts.ts → generateIndexPrompt()
+prompts/wizard/generate-ebook-title.md  ←→    _shared/prompts.ts → generateEbookTitlePrompt()
+prompts/images/generate-cover.md        ←→    _shared/prompts.ts → (future) generateCoverPrompt()
 ```
 
 ### Flujo de trabajo obligatorio
 
 1. **Diseñar** el prompt en el `.md`: objetivo, contratos, ejemplos few-shot.
-2. **Implementar** en `obra/src/lib/prompts.ts` como función TypeScript que recibe las variables y devuelve `{ system: string; user: string }`.
-3. **Versionar** en el mismo commit: el `.md` y la función en `prompts.ts` viajan juntos.
-4. **Nunca** hardcodear strings de prompts en Edge Functions, componentes, o stores. Siempre pasar por `prompts.ts`.
+2. **Implementar** en `supabase/functions/_shared/prompts.ts` como función TypeScript que recibe las variables y devuelve `{ system: string; user: string }`.
+3. **Versionar** en el mismo commit: el `.md` y la función en `_shared/prompts.ts` viajan juntos.
+4. **Nunca** duplicar strings de prompts en handlers: importar los builders desde `_shared/prompts.ts` dentro de `supabase/functions/*/index.ts`. El SPA no incluye estos templates.
 
-### Patrón de implementación en `prompts.ts`
+### Patrón de implementación en `_shared/prompts.ts`
 
 ```typescript
 // Constante compartida — mismo system base en todos los prompts de Obra
@@ -246,7 +246,7 @@ La instrucción de fallback va en el **system prompt**, no en el user template.
 
 Todos los prompts del mismo flujo deben mantener coherencia de voz y contexto.
 
-- El **Obra system base** es una sola constante `OBRA_SYSTEM_BASE` en `prompts.ts`, reutilizada en todos los prompts.
+- El **Obra system base** es una sola constante `OBRA_SYSTEM_BASE` en `_shared/prompts.ts`, reutilizada en todos los prompts.
 - Los campos de contexto del proyecto (`topic`, `avatar`, `problem`, `main_title`, `content_locale`) se pasan de forma **consistente** en todos los prompts del flujo — nunca parcialmente.
 - Si el avatar del proyecto es "cálido y aspiracional", los capítulos deben sonar igual. La voz no cambia entre milestones.
 - Cambiar el `OBRA_SYSTEM_BASE` requiere revisar **todos** los prompts que lo usan.
@@ -255,7 +255,7 @@ Todos los prompts del mismo flujo deben mantener coherencia de voz y contexto.
 
 ### 7. Testing built-in
 
-Los ejemplos few-shot del `.md` son también los **casos de test** para `prompts.ts`.
+Los ejemplos few-shot del `.md` son también los **casos de test** para `_shared/prompts.ts`.
 
 - Cada prompt incluye **mínimo 2 ejemplos** que cubren:
   1. **Input típico** — el happy path, locale `es`

@@ -8,6 +8,7 @@ import {
   type DesignPresetId,
   type WizardDesignConfig,
   WIZARD_CHAPTER_COUNTS,
+  WIZARD_RECOMMENDED_CHAPTER_COUNT,
 } from "@/lib/wizard/structureTypes";
 
 type StructureStepDesignConfigProps = {
@@ -189,32 +190,34 @@ export function StructureStepDesignConfig({ config, message, onChange }: Structu
         <h3 className="text-sm font-semibold text-obra-blue-950">
           {t("wizard.structure.design.chapters.title")}
         </h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-4 sm:gap-y-6">
           {WIZARD_CHAPTER_COUNTS.map((count) => {
             const selected = config.chapterCount === count;
+            const isRecommended = count === WIZARD_RECOMMENDED_CHAPTER_COUNT;
             return (
               <button
                 key={count}
                 type="button"
                 onClick={() => onChange({ ...config, chapterCount: count })}
-                className={`relative flex flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 text-center transition-colors ${
+                className={`relative flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-3 py-3 text-center transition-colors ${
                   selected
                     ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-700"
                     : "border-obra-neutral-200 bg-white text-obra-neutral-600"
                 }`}
               >
-                <span className="text-sm font-semibold">{count}</span>
-                {count === 8 ? (
+                <span className="text-sm font-semibold tabular-nums">{count}</span>
+                {isRecommended ? (
                   <span
-                    className={`text-[10px] font-medium uppercase tracking-wide ${
-                      selected ? "text-obra-blue-600" : "text-obra-neutral-500"
+                    className={`pointer-events-none absolute bottom-0 left-1/2 z-10 -translate-x-1/2 translate-y-1/2 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide shadow-sm ${
+                      selected
+                        ? "border-obra-blue-200 bg-obra-blue-100 text-obra-blue-800"
+                        : "border-obra-blue-100 bg-white text-obra-blue-700"
                     }`}
+                    aria-hidden
                   >
                     {t("wizard.structure.design.chapters.recommended")}
                   </span>
-                ) : (
-                  <span className="h-3" aria-hidden />
-                )}
+                ) : null}
               </button>
             );
           })}
@@ -418,14 +421,33 @@ export function StructureStepDesignConfig({ config, message, onChange }: Structu
                 image: { ...config.image, mode: "ai" },
               })
             }
-            className={`rounded-card border p-3 text-left ${
+            className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
               config.image.mode === "ai"
-                ? "border-obra-blue-100 bg-obra-blue-50"
-                : "border-obra-neutral-200 bg-obra-neutral-100"
+                ? "border-obra-blue-700 bg-obra-blue-50"
+                : "border-obra-neutral-200 bg-white"
             }`}
           >
-            <p className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.images.aiMode")}</p>
-            <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.images.aiModeHint")}</p>
+            <div className="min-w-0 flex-1">
+              <p
+                className={`text-sm font-semibold ${
+                  config.image.mode === "ai" ? "text-obra-blue-700" : "text-obra-blue-950"
+                }`}
+              >
+                {t("wizard.structure.design.images.aiMode")}
+              </p>
+              <p
+                className={`text-xs ${
+                  config.image.mode === "ai" ? "text-obra-neutral-600" : "text-obra-neutral-500"
+                }`}
+              >
+                {t("wizard.structure.design.images.aiModeHint")}
+              </p>
+            </div>
+            {config.image.mode === "ai" ? (
+              <Check className="size-5 shrink-0 text-obra-blue-700" aria-hidden />
+            ) : (
+              <span className="size-5 shrink-0" aria-hidden />
+            )}
           </button>
           <button
             type="button"
@@ -435,18 +457,33 @@ export function StructureStepDesignConfig({ config, message, onChange }: Structu
                 image: { ...config.image, mode: "upload" },
               })
             }
-            className={`rounded-card border p-3 text-left ${
+            className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
               config.image.mode === "upload"
-                ? "border-obra-blue-100 bg-obra-blue-50"
-                : "border-obra-neutral-200 bg-obra-neutral-100"
+                ? "border-obra-blue-700 bg-obra-blue-50"
+                : "border-obra-neutral-200 bg-white"
             }`}
           >
-            <p className="text-sm font-semibold text-obra-blue-950">
-              {t("wizard.structure.design.images.uploadMode")}
-            </p>
-            <p className="text-xs text-obra-neutral-600">
-              {t("wizard.structure.design.images.uploadModeHint")}
-            </p>
+            <div className="min-w-0 flex-1">
+              <p
+                className={`text-sm font-semibold ${
+                  config.image.mode === "upload" ? "text-obra-blue-700" : "text-obra-blue-950"
+                }`}
+              >
+                {t("wizard.structure.design.images.uploadMode")}
+              </p>
+              <p
+                className={`text-xs ${
+                  config.image.mode === "upload" ? "text-obra-neutral-600" : "text-obra-neutral-500"
+                }`}
+              >
+                {t("wizard.structure.design.images.uploadModeHint")}
+              </p>
+            </div>
+            {config.image.mode === "upload" ? (
+              <Check className="size-5 shrink-0 text-obra-blue-700" aria-hidden />
+            ) : (
+              <span className="size-5 shrink-0" aria-hidden />
+            )}
           </button>
         </div>
         {config.image.mode === "ai" ? (

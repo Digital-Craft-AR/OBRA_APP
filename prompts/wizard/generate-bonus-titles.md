@@ -1,7 +1,7 @@
 # generate-bonus-titles — Propone títulos de bonuses que complementan el ebook principal
 
 **Ruta:** `prompts/wizard/generate-bonus-titles.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `generateBonusTitlesPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `generateBonusTitlesPrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Package structure — bonus titles  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-09
@@ -16,15 +16,17 @@ Propone exactamente `count_to_generate` títulos de bonuses para el paquete de i
 
 ## 2. Inputs
 
-| Variable | Tipo | Requerido | Descripción |
-|----------|------|:---------:|-------------|
-| `{content_locale}` | `"es" \| "pt-BR" \| "en-US" \| "en-GB"` | ✅ | Locale del output — determina idioma y registro |
-| `{ebook_title}` | `string` | ✅ | Título confirmado del ebook principal; ancla temática del paquete |
-| `{topic}` | `string` | ✅ | Tema del infoproducto; contexto para que los bonuses sean específicos al nicho |
-| `{avatar_summary}` | `string` | ✅ | Descripción breve del cliente ideal; campo `description` del output de `optimize-avatar` |
-| `{count_to_generate}` | `number` | ✅ | Cantidad de títulos a generar. En batch: `5 - locked_titles.length`. En regeneración de fila individual: `1`. |
-| `{locked_titles}` | `string[]` | ❌ | Títulos que el creador ya bloqueó; excluir similitudes. Serializar como JSON. `[]` en la primera generación. |
-| `{previous_titles}` | `string[]` | ❌ | Todos los títulos ya mostrados en rondas anteriores; evitar repeticiones y paráfrasis. Serializar como JSON. `[]` en la primera generación. |
+
+| Variable              | Tipo                                 | Requerido | Descripción                                                                                                                                 |
+| --------------------- | ------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{content_locale}`    | `"es" | "pt-BR" | "en-US" | "en-GB"` | ✅         | Locale del output — determina idioma y registro                                                                                             |
+| `{ebook_title}`       | `string`                             | ✅         | Título confirmado del ebook principal; ancla temática del paquete                                                                           |
+| `{topic}`             | `string`                             | ✅         | Tema del infoproducto; contexto para que los bonuses sean específicos al nicho                                                              |
+| `{avatar_summary}`    | `string`                             | ✅         | Descripción breve del cliente ideal; campo `description` del output de `optimize-avatar`                                                    |
+| `{count_to_generate}` | `number`                             | ✅         | Cantidad de títulos a generar. En batch: `5 - locked_titles.length`. En regeneración de fila individual: `1`.                               |
+| `{locked_titles}`     | `string[]`                           | ❌         | Títulos que el creador ya bloqueó; excluir similitudes. Serializar como JSON. `[]` en la primera generación.                                |
+| `{previous_titles}`   | `string[]`                           | ❌         | Todos los títulos ya mostrados en rondas anteriores; evitar repeticiones y paráfrasis. Serializar como JSON. `[]` en la primera generación. |
+
 
 **Nota sobre conteo:** `count_to_generate = 5 - locked_titles.length` en el caso habitual (regenerar todos los no bloqueados). En regeneración de una sola fila, `count_to_generate = 1`. Si `locked_titles.length >= 5`, la UI debe bloquear la acción — no llamar al prompt.
 
@@ -63,17 +65,19 @@ Propone exactamente `count_to_generate` títulos de bonuses para el paquete de i
 
 ## 4. Parámetros de modelo
 
-| Parámetro | Valor recomendado | Razón |
-|-----------|:-----------------:|-------|
-| **Temperatura** | `0.6` | Creatividad necesaria para encontrar ángulos complementarios distintos; más libre que el ebook title |
-| **max_tokens** | `250` | `count_to_generate` títulos de ~60-100 chars; el array JSON completo ronda los 100-180 tokens |
-| **Modelo** | `claude-sonnet-4-6` | Tarea de complejidad media: creatividad acotada al paquete + avoidance de repeticiones |
+
+| Parámetro       | Valor recomendado   | Razón                                                                                                |
+| --------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Temperatura** | `0.6`               | Creatividad necesaria para encontrar ángulos complementarios distintos; más libre que el ebook title |
+| **max_tokens**  | `250`               | `count_to_generate` títulos de ~60-100 chars; el array JSON completo ronda los 100-180 tokens        |
+| **Modelo**      | `claude-sonnet-4-6` | Tarea de complejidad media: creatividad acotada al paquete + avoidance de repeticiones               |
+
 
 ---
 
 ## 5. System prompt
 
-_`{content_locale}` se interpola en `prompts.ts` antes de enviar al modelo._
+*`{content_locale}` se interpola en `_shared/prompts.ts` antes de enviar al modelo.*
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must be a valid JSON array starting with [ and ending with ]. Do NOT wrap it in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the array. The first character must be [ and the last must be ].
@@ -120,7 +124,8 @@ Previously shown titles (avoid repeating or paraphrasing): {previous_titles}
 Propose exactly {count_to_generate} distinct bonus titles that complement this ebook.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
+
 - `{content_locale}` se interpola en el system antes de enviar — nunca va en el user turn
 - `{locked_titles}` y `{previous_titles}` se serializan como `JSON.stringify(array)`; pasar `"[]"` cuando están vacíos
 - `count_to_generate` se calcula antes de la llamada: `Math.max(1, 5 - locked_titles.length)`
@@ -133,13 +138,14 @@ Propose exactly {count_to_generate} distinct bonus titles that complement this e
 
 ## 7. Ejemplos few-shot
 
-_Estos ejemplos son los casos de test canónicos para `generateBonusTitlesPrompt()` en `prompts.ts`._
+*Estos ejemplos son los casos de test canónicos para `generateBonusTitlesPrompt()` en `_shared/prompts.ts`.*
 
 ---
 
 ### Ejemplo 1 — Primera generación, `es`, batch completo
 
 **Variables de input:**
+
 ```
 content_locale: "es"
 ebook_title: "Velas que se venden: el sistema para fijar precios y conseguir clientes que pagan lo que vale"
@@ -151,6 +157,7 @@ previous_titles: []
 ```
 
 **Output esperado:**
+
 ```json
 [
   "La calculadora de costos para artesanas",
@@ -168,6 +175,7 @@ previous_titles: []
 ### Ejemplo 2 — Regeneración con `locked_titles` y `previous_titles`, `es`
 
 **Variables de input:**
+
 ```
 content_locale: "es"
 ebook_title: "Velas que se venden: el sistema para fijar precios y conseguir clientes que pagan lo que vale"
@@ -188,6 +196,7 @@ previous_titles: [
 ```
 
 **Output esperado:**
+
 ```json
 [
   "Mini guía de fotografía de velas con el celular",
@@ -203,6 +212,7 @@ previous_titles: [
 ### Ejemplo 3 — Primera generación en `pt-BR`
 
 **Variables de input:**
+
 ```
 content_locale: "pt-BR"
 ebook_title: "Clientes novos todo mês: marketing digital para artesãs que querem crescer além dos conhecidos"
@@ -214,6 +224,7 @@ previous_titles: []
 ```
 
 **Output esperado:**
+
 ```json
 [
   "30 legendas prontas para o Instagram",
@@ -230,16 +241,18 @@ previous_titles: []
 
 ## 8. Casos límite
 
-| Caso | Descripción | Output esperado |
-|------|-------------|-----------------|
-| **`ebook_title` vacío** | `ebook_title: ""` o solo espacios | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar |
-| **`locked_titles.length >= 5`** | Todos los slots bloqueados | `{"error":"ALL_LOCKED","reason":"..."}` — no llamar al prompt; bloquear desde UI |
-| **`count_to_generate = 1`** | Regeneración individual de una sola fila | Devolver array con exactamente 1 string |
-| **`previous_titles` con 20+ títulos** | Muchas rondas de regeneración | Generar `count_to_generate` con la mayor novedad posible; el modelo puede no garantizar diferencia total con sets muy grandes — aceptable en producción |
-| **Input en idioma distinto al locale** | `content_locale: "es"`, inputs en inglés | Output en `es`; ignorar idioma del input |
-| **Topic muy amplio** | `ebook_title` genérico sin contexto de nicho | Generar igualmente; los títulos serán más genéricos — normal con input mínimo |
-| **Topic ofensivo o fuera de scope** | Contenido inapropiado o ilegal | `{"error":"INVALID_INPUT","reason":"..."}` |
-| **El modelo propone capítulos del ebook** | Confusión entre bonus y capítulo | El system rule 5 es explícito. Si persiste en producción, reforzar con un ejemplo contrario (antipatrón) en el system. |
+
+| Caso                                      | Descripción                                  | Output esperado                                                                                                                                         |
+| ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `**ebook_title` vacío**                   | `ebook_title: ""` o solo espacios            | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar                                                                              |
+| `**locked_titles.length >= 5`**           | Todos los slots bloqueados                   | `{"error":"ALL_LOCKED","reason":"..."}` — no llamar al prompt; bloquear desde UI                                                                        |
+| `**count_to_generate = 1**`               | Regeneración individual de una sola fila     | Devolver array con exactamente 1 string                                                                                                                 |
+| `**previous_titles` con 20+ títulos**     | Muchas rondas de regeneración                | Generar `count_to_generate` con la mayor novedad posible; el modelo puede no garantizar diferencia total con sets muy grandes — aceptable en producción |
+| **Input en idioma distinto al locale**    | `content_locale: "es"`, inputs en inglés     | Output en `es`; ignorar idioma del input                                                                                                                |
+| **Topic muy amplio**                      | `ebook_title` genérico sin contexto de nicho | Generar igualmente; los títulos serán más genéricos — normal con input mínimo                                                                           |
+| **Topic ofensivo o fuera de scope**       | Contenido inapropiado o ilegal               | `{"error":"INVALID_INPUT","reason":"..."}`                                                                                                              |
+| **El modelo propone capítulos del ebook** | Confusión entre bonus y capítulo             | El system rule 5 es explícito. Si persiste en producción, reforzar con un ejemplo contrario (antipatrón) en el system.                                  |
+
 
 ---
 
@@ -247,9 +260,11 @@ previous_titles: []
 
 ### Historial
 
-| Fecha | Versión | Cambio | Razón |
-|-------|---------|--------|-------|
-| 2026-04-09 | v1.0 | Versión inicial | Primer prompt de generación de títulos de bonuses del wizard compartido |
+
+| Fecha      | Versión | Cambio          | Razón                                                                   |
+| ---------- | ------- | --------------- | ----------------------------------------------------------------------- |
+| 2026-04-09 | v1.0    | Versión inicial | Primer prompt de generación de títulos de bonuses del wizard compartido |
+
 
 ### Decisiones descartadas
 
@@ -259,11 +274,12 @@ previous_titles: []
 
 ### Próximos experimentos
 
-- [ ] Testear temperatura `0.7` vs `0.6` — ¿más creatividad en formatos de bonus o más divergencia del topic?
-- [ ] Evaluar si pasar `problem.sub_problems` explícitamente mejora la especificidad de los bonuses vs. usar solo `avatar_summary`.
-- [ ] Medir si el few-shot inline en el system reduce la repetición de formatos genéricos ("guía de X", "guía de Y").
-- [ ] Testear en `en-GB` para verificar diferencia de registro respecto a `en-US`.
+- Testear temperatura `0.7` vs `0.6` — ¿más creatividad en formatos de bonus o más divergencia del topic?
+- Evaluar si pasar `problem.sub_problems` explícitamente mejora la especificidad de los bonuses vs. usar solo `avatar_summary`.
+- Medir si el few-shot inline en el system reduce la repetición de formatos genéricos ("guía de X", "guía de Y").
+- Testear en `en-GB` para verificar diferencia de registro respecto a `en-US`.
 
 ### Problemas conocidos en producción
 
-- _Ninguno registrado._
+- *Ninguno registrado.*
+

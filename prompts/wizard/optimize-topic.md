@@ -1,7 +1,7 @@
 # optimize-topic — Transforma descripción cruda del tema en framing de producto listo para venta
 
 **Ruta:** `prompts/wizard/optimize-topic.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `optimizeTopicPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `optimizeTopicPrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Topic  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-06
@@ -16,12 +16,14 @@ Transforma el texto crudo que el creador escribe en el primer campo del wizard (
 
 ## 2. Inputs
 
-| Variable | Tipo | Requerido | Descripción |
-|----------|------|:---------:|-------------|
-| `{content_locale}` | `"es" \| "pt-BR" \| "en-US" \| "en-GB"` | ✅ | Locale del output — determina idioma y registro de todo el JSON |
-| `{raw_input}` | `string` | ✅ | Texto crudo del creador describiendo el tema; puede ser tan breve como 1-2 palabras |
 
-_Este es el primer prompt del pipeline. No recibe `{topic}` porque él mismo lo genera. Su output (`optimized_title`) se usa como `{topic}` en los prompts siguientes._
+| Variable           | Tipo     | Requerido | Descripción                                                                         |
+| ------------------ | -------- | --------- | ----------------------------------------------------------------------------------- |
+| `{content_locale}` | `"es"    | "pt-BR"   | "en-US"                                                                             |
+| `{raw_input}`      | `string` | ✅         | Texto crudo del creador describiendo el tema; puede ser tan breve como 1-2 palabras |
+
+
+*Este es el primer prompt del pipeline. No recibe `{topic}` porque él mismo lo genera. Su output (`optimized_title`) se usa como `{topic}` en los prompts siguientes.*
 
 ---
 
@@ -42,6 +44,7 @@ _Este es el primer prompt del pipeline. No recibe `{topic}` porque él mismo lo 
 ```
 
 **Restricciones de longitud:**
+
 - `optimized_title`: max 120 caracteres
 - `description`: max 400 caracteres (2-3 oraciones)
 - `niche`: max 80 caracteres
@@ -62,17 +65,19 @@ _Este es el primer prompt del pipeline. No recibe `{topic}` porque él mismo lo 
 
 ## 4. Parámetros de modelo
 
-| Parámetro | Valor recomendado | Razón |
-|-----------|:-----------------:|-------|
-| **Temperatura** | `0.5` | Variedad suficiente para proponer un título atractivo sin perder especificidad |
-| **max_tokens** | `500` | El JSON completo ronda los 200-250 tokens; margen para descripciones largas |
-| **Modelo** | `claude-sonnet-4-6` | Requiere buen juicio para convertir input mínimo en framing de calidad |
+
+| Parámetro       | Valor recomendado   | Razón                                                                          |
+| --------------- | ------------------- | ------------------------------------------------------------------------------ |
+| **Temperatura** | `0.5`               | Variedad suficiente para proponer un título atractivo sin perder especificidad |
+| **max_tokens**  | `500`               | El JSON completo ronda los 200-250 tokens; margen para descripciones largas    |
+| **Modelo**      | `claude-sonnet-4-6` | Requiere buen juicio para convertir input mínimo en framing de calidad         |
+
 
 ---
 
 ## 5. System prompt
 
-_`{content_locale}` se interpola en `prompts.ts` antes de enviar al modelo._
+*`{content_locale}` se interpola en `_shared/prompts.ts` antes de enviar al modelo.*
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
@@ -105,28 +110,32 @@ Raw topic: {raw_input}
 Generate the optimized topic framing.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
+
 - Si `raw_input` está vacío, **no llamar al prompt** — validar en UI antes. El system retornará `INVALID_INPUT` de todas formas, pero es mejor fallar antes de consumir tokens
-- El `optimized_title` del output se almacena como el campo `topic` del proyecto y se pasa como `{topic}` a los prompts posteriores (`optimize-avatar`, `optimize-problem`, `suggest-package`)
+- Tras **mejorar con IA**, el campo `topic` del proyecto guarda el texto unificado (título, descripción, nicho y ángulo en bloques); ese mismo string se pasa como `{topic}` a prompts posteriores. Las claves sueltas siguen en `topic_framing` para consumidores estructurados
+- La Edge `ai-optimize` arma el campo `optimized` como texto multilínea (`optimized_title`, `description`, `niche`, `angle`, bloques separados por línea en blanco); ver `supabase/functions/_shared/wizardOptimizeUnifiedText.ts` (`topicFramingToUnifiedText`). Los campos estructurados siguen en `topic_framing`.
 - No limpiar ni normalizar `raw_input` antes de pasarlo — el modelo maneja mejor el texto crudo
 
 ---
 
 ## 7. Ejemplos few-shot
 
-_Estos tres ejemplos son los casos de test canónicos para `optimizeTopicPrompt()` en `prompts.ts`. Usan los mismos "personajes" que los ejemplos de `optimize-avatar` para mantener coherencia de pipeline._
+*Estos tres ejemplos son los casos de test canónicos para `optimizeTopicPrompt()` en `_shared/prompts.ts`. Usan los mismos "personajes" que los ejemplos de `optimize-avatar` para mantener coherencia de pipeline.*
 
 ---
 
 ### Ejemplo 1 — Input vago en `es`
 
 **Variables de input:**
+
 ```
 content_locale: "es"
 raw_input: "velas aromaticas"
 ```
 
 **Output esperado:**
+
 ```json
 {
   "optimized_title": "Velas aromáticas artesanales: cómo crear y vender las que la gente busca",
@@ -143,12 +152,14 @@ raw_input: "velas aromaticas"
 ### Ejemplo 2 — Input medio en `pt-BR`
 
 **Variables de input:**
+
 ```
 content_locale: "pt-BR"
 raw_input: "marketing digital para artesãos"
 ```
 
 **Output esperado:**
+
 ```json
 {
   "optimized_title": "Marketing digital para artesãs: como atrair clientes novos sem depender de indicações",
@@ -165,12 +176,14 @@ raw_input: "marketing digital para artesãos"
 ### Ejemplo 3 — Input específico en `en-US`
 
 **Variables de input:**
+
 ```
 content_locale: "en-US"
 raw_input: "mindfulness for people who hate meditation"
 ```
 
 **Output esperado:**
+
 ```json
 {
   "optimized_title": "Mindfulness without the woo: a practical guide for skeptical, busy people",
@@ -186,14 +199,16 @@ raw_input: "mindfulness for people who hate meditation"
 
 ## 8. Casos límite
 
-| Caso | Descripción del input | Output esperado |
-|------|-----------------------|-----------------|
-| `raw_input` vacío | `""` o solo espacios | `{"error":"INVALID_INPUT","reason":"Necesito que describas el tema de tu infoproducto."}` — validar en UI antes de la llamada |
-| Input = actividad ilegal o inapropiada | `"cómo hackear cuentas"` | `{"error":"INVALID_INPUT","reason":"..."}` |
-| Input fuera del scope de infoproductos | `"quiero organizar mis compras del supermercado"` | `{"error":"INVALID_INPUT","reason":"Obra está diseñado para infoproductos educativos y de desarrollo profesional."}` |
-| Input en idioma distinto al locale | `content_locale: "es"`, `raw_input: "candle making"` | Output completo en `es`, ignorar idioma del input |
-| Input muy largo (>500 chars) | Descripción extensa del tema | Procesar normalmente; el modelo toma la esencia y la destila |
-| Input con múltiples temas mezclados | `"nutrición y yoga y meditación"` | Elegir el eje más fuerte o proponer un `niche` que los conecte; no generar múltiples outputs |
+
+| Caso                                   | Descripción del input                                | Output esperado                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `raw_input` vacío                      | `""` o solo espacios                                 | `{"error":"INVALID_INPUT","reason":"Necesito que describas el tema de tu infoproducto."}` — validar en UI antes de la llamada |
+| Input = actividad ilegal o inapropiada | `"cómo hackear cuentas"`                             | `{"error":"INVALID_INPUT","reason":"..."}`                                                                                    |
+| Input fuera del scope de infoproductos | `"quiero organizar mis compras del supermercado"`    | `{"error":"INVALID_INPUT","reason":"Obra está diseñado para infoproductos educativos y de desarrollo profesional."}`          |
+| Input en idioma distinto al locale     | `content_locale: "es"`, `raw_input: "candle making"` | Output completo en `es`, ignorar idioma del input                                                                             |
+| Input muy largo (>500 chars)           | Descripción extensa del tema                         | Procesar normalmente; el modelo toma la esencia y la destila                                                                  |
+| Input con múltiples temas mezclados    | `"nutrición y yoga y meditación"`                    | Elegir el eje más fuerte o proponer un `niche` que los conecte; no generar múltiples outputs                                  |
+
 
 ---
 
@@ -201,22 +216,25 @@ raw_input: "mindfulness for people who hate meditation"
 
 ### Historial
 
-| Fecha | Versión | Cambio | Razón |
-|-------|---------|--------|-------|
-| 2026-04-06 | v1.0 | Versión inicial | Primer prompt del pipeline del wizard |
+
+| Fecha      | Versión | Cambio          | Razón                                 |
+| ---------- | ------- | --------------- | ------------------------------------- |
+| 2026-04-06 | v1.0    | Versión inicial | Primer prompt del pipeline del wizard |
+
 
 ### Decisiones descartadas
 
-- **`angle` en el locale del output:** se evaluó devolver "técnico" (con tilde en es) para que sea user-facing. Descartado: es un valor code-facing que el sistema usa para orientar prompts posteriores; tenerlo en inglés sin tilde simplifica el parsing y evita variaciones tipográficas.
+- `**angle` en el locale del output:** se evaluó devolver "técnico" (con tilde en es) para que sea user-facing. Descartado: es un valor code-facing que el sistema usa para orientar prompts posteriores; tenerlo en inglés sin tilde simplifica el parsing y evita variaciones tipográficas.
 - **Devolver múltiples títulos (como `suggest-main-titles`):** se evaluó que este prompt devuelva 3-5 opciones de título. Descartado: el objetivo de `optimize-topic` es generar el framing base del proyecto (niche, angle), no las alternativas de título para el ebook — eso es responsabilidad de `suggest-main-titles`. Responsabilidades separadas.
 - **Flag de "primera aproximación" para inputs ≤ 3 palabras:** aplicado en `optimize-avatar` pero no aquí. Descartado: el enriquecimiento de un tema breve es exactamente el propósito de este prompt. "velas" es un input válido, no un caso degradado.
 
 ### Próximos experimentos
 
-- [ ] Evaluar si pasar `angle` como input opcional al prompt de `generate-chapter-body` mejora la consistencia de voz en el contenido
-- [ ] Testear si agregar un campo `target_audience_hint` al output (e.g. "mujeres emprendedoras LATAM") mejora la coherencia con `optimize-avatar` cuando el modelo lo usa como contexto
-- [ ] Medir si temperatura `0.4` reduce la variación excesiva en `optimized_title` sin sacrificar calidad
+- Evaluar si pasar `angle` como input opcional al prompt de `generate-chapter-body` mejora la consistencia de voz en el contenido
+- Testear si agregar un campo `target_audience_hint` al output (e.g. "mujeres emprendedoras LATAM") mejora la coherencia con `optimize-avatar` cuando el modelo lo usa como contexto
+- Medir si temperatura `0.4` reduce la variación excesiva en `optimized_title` sin sacrificar calidad
 
 ### Problemas conocidos en producción
 
-- _Ninguno registrado._
+- *Ninguno registrado.*
+

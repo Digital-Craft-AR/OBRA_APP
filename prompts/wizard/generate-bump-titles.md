@@ -1,7 +1,7 @@
 # generate-bump-titles — Propone títulos de order bumps en temas adyacentes al ebook principal
 
 **Ruta:** `prompts/wizard/generate-bump-titles.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `generateBumpTitlesPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `generateBumpTitlesPrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Package structure — bump titles  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-09 (v1.4)
@@ -76,7 +76,7 @@ Propone exactamente `count_to_generate` títulos de order bumps para el paquete 
 
 ## 5. System prompt
 
-_`{content_locale}` se interpola en `prompts.ts` antes de enviar al modelo._
+_`{content_locale}` se interpola en `_shared/prompts.ts` antes de enviar al modelo._
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must be a valid JSON array starting with [ and ending with ]. Do NOT wrap it in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the array. The first character must be [ and the last must be ].
@@ -148,7 +148,7 @@ Previously shown titles (avoid repeating or paraphrasing): {previous_titles}
 Propose exactly {count_to_generate} distinct order bump titles on adjacent topics for the same audience.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
 - `{content_locale}` se interpola en el system antes de enviar — nunca va en el user turn
 - `{locked_titles}` y `{previous_titles}` se serializan como `JSON.stringify(array)`; pasar `"[]"` cuando están vacíos
 - `count_to_generate` se calcula antes de la llamada: `Math.max(1, 5 - locked_titles.length)`
@@ -162,7 +162,7 @@ Propose exactly {count_to_generate} distinct order bump titles on adjacent topic
 
 ## 7. Ejemplos few-shot
 
-_Estos ejemplos son los casos de test canónicos para `generateBumpTitlesPrompt()` en `prompts.ts`._
+_Estos ejemplos son los casos de test canónicos para `generateBumpTitlesPrompt()` en `_shared/prompts.ts`._
 
 ---
 

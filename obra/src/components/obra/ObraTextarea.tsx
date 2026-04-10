@@ -64,10 +64,12 @@ export function ObraTextarea({
           id={textareaId}
           className={`${textareaBase} ${error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""} ${className}`.trim()}
           aria-invalid={!!error}
+          aria-busy={resolvedStatus === "loading"}
           aria-describedby={
             error ? `${textareaId}-error` : hint ? `${textareaId}-hint` : undefined
           }
           {...props}
+          disabled={Boolean(props.disabled) || resolvedStatus === "loading"}
         />
         {assisted ? (
           <button

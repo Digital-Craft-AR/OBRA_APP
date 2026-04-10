@@ -30,6 +30,9 @@ export type WizardTitleItem = {
 export const WIZARD_CHAPTER_COUNTS = [6, 8, 10, 12] as const;
 export type WizardChapterCount = (typeof WIZARD_CHAPTER_COUNTS)[number];
 
+/** Highlighted as the recommended option in the design wizard UI. */
+export const WIZARD_RECOMMENDED_CHAPTER_COUNT: WizardChapterCount = 8;
+
 /** Stored on `design_config.contentTone`; English keys for prompts and APIs. */
 export const CONTENT_TONE_KEYS = ["professional", "friendly", "inspirational", "direct", "educational"] as const;
 export type ContentTone = (typeof CONTENT_TONE_KEYS)[number];
