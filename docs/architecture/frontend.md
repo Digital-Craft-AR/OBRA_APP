@@ -62,7 +62,7 @@ The exact folder shape can differ (for example `src/pages` vs `src/app`), but re
 - `hooks/*`: API orchestration hooks (`useProject`, `useAi`, `useImages`, `useExport`).
 - `store/*`: **UI-only** store (modals, step transition focus flags, transient loading UX).
 - `lib/supabase.ts`: Supabase client setup.
-- `lib/prompts.ts`: text model prompt templates used by backend-facing flows (no secrets).
+- Text model prompt templates live in [`supabase/functions/_shared/prompts.ts`](../../supabase/functions/_shared/prompts.ts) (Edge Functions only; not bundled in the SPA).
 - `i18n/*`: translation resources and locale setup.
 
 ## 6) Wizard and content UX architecture

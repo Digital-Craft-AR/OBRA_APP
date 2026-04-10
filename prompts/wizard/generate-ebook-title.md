@@ -1,7 +1,7 @@
 # generate-ebook-title — Propone 5 candidatos de título para el ebook principal
 
 **Ruta:** `prompts/wizard/generate-ebook-title.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `generateEbookTitlePrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `generateEbookTitlePrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Package structure — main titles  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-09 (v1.1)
@@ -71,7 +71,7 @@ Propone exactamente 5 candidatos de título para el ebook principal del paquete,
 
 ## 5. System prompt
 
-_`{content_locale}` se interpola en `prompts.ts` antes de enviar al modelo._
+_`{content_locale}` se interpola en `_shared/prompts.ts` antes de enviar al modelo._
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must be a valid JSON array starting with [ and ending with ]. Do NOT wrap it in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the array. The first character must be [ and the last must be ].
@@ -116,7 +116,7 @@ Locked titles (do not generate similar): {locked_titles}
 Propose exactly 5 distinct ebook title candidates.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
 - `{content_locale}` se interpola en el system antes de enviar — nunca va en el user turn
 - `{previous_titles}` y `{locked_titles}` se serializan como `JSON.stringify(array)`; pasar `"[]"` cuando están vacíos
 - Si `topic` está vacío, no llamar al prompt — validar en UI antes de la llamada
@@ -127,7 +127,7 @@ Propose exactly 5 distinct ebook title candidates.
 
 ## 7. Ejemplos few-shot
 
-_Estos ejemplos son los casos de test canónicos para `generateEbookTitlePrompt()` en `prompts.ts`._
+_Estos ejemplos son los casos de test canónicos para `generateEbookTitlePrompt()` en `_shared/prompts.ts`._
 
 ---
 

@@ -452,17 +452,23 @@ export async function confirmMainIndex(projectId: string): Promise<
 export async function invokeGenerateIndex(
   projectId: string,
   clientRequestId: string,
-  options?: { targetEbookId?: string },
+  options?: { targetEbookId?: string; chapterCount?: 4 | 6 | 8 | 10 | 12; contentTone?: string },
 ): Promise<
   | { ok: true; titles: string[]; creditsBalanceAfter?: number }
   | { ok: false; code: string }
 > {
-  const body: Record<string, string> = {
+  const body: Record<string, string | number> = {
     project_id: projectId,
     client_request_id: clientRequestId,
   };
   if (options?.targetEbookId) {
     body.target_ebook_id = options.targetEbookId;
+  }
+  if (options?.chapterCount !== undefined) {
+    body.chapter_count = options.chapterCount;
+  }
+  if (options?.contentTone !== undefined && options.contentTone.trim()) {
+    body.content_tone = options.contentTone.trim();
   }
   const { data, error } = await supabase.functions.invoke<GenerateIndexResponse>("ai-generate-index", {
     body,

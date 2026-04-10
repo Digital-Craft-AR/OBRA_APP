@@ -20,6 +20,7 @@ import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { useWizardStructureFlow } from "@/hooks/wizard/useWizardStructureFlow";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import { useWizardTourState } from "@/hooks/wizard/useWizardTourState";
+import { toastApiFailure } from "@/lib/apiToast";
 import { markStructureCompleted } from "@/lib/wizard/structurePersistence";
 import { INNER_STEPS } from "@/lib/wizard/structureTypes";
 
@@ -348,7 +349,9 @@ export function WizardStructurePage() {
                 if (result.finishedStructure && params.projectId) {
                   const marked = await markStructureCompleted(params.projectId);
                   if (!marked.ok) {
-                    setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                    const key = "wizard.structure.step7.structureMarkError";
+                    setStructureGateError(t(key));
+                    toastApiFailure(t, key);
                     return;
                   }
                   setProject((current) =>
@@ -426,7 +429,9 @@ export function WizardStructurePage() {
                     if (result.finishedStructure && params.projectId) {
                       const marked = await markStructureCompleted(params.projectId);
                       if (!marked.ok) {
-                        setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                        const key = "wizard.structure.step7.structureMarkError";
+                        setStructureGateError(t(key));
+                        toastApiFailure(t, key);
                         return;
                       }
                       setProject((current) =>
@@ -470,7 +475,9 @@ export function WizardStructurePage() {
                     if (result.finishedStructure && params.projectId) {
                       const marked = await markStructureCompleted(params.projectId);
                       if (!marked.ok) {
-                        setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                        const key = "wizard.structure.step7.structureMarkError";
+                        setStructureGateError(t(key));
+                        toastApiFailure(t, key);
                         return;
                       }
                       setProject((current) =>

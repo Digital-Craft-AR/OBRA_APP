@@ -26,14 +26,16 @@ verify_jwt = false
 [functions.send-auth-email]
 verify_jwt = false
 
+# JWT verified inside each handler via `auth.getUser` (same as manuscript-upload-parse).
+# Gateway verify_jwt=true often returns 401 from the browser even with a valid session.
 [functions.ai-optimize]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-generate-index]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-generate-content]
-verify_jwt = true
+verify_jwt = false
 
 # Handler validates JWT with `auth.getUser`; same pattern as export-user-data / reset-avatar-problem-content.
 [functions.manuscript-upload-parse]

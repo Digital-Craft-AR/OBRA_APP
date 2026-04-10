@@ -150,6 +150,8 @@ const resources = {
       "shell.account.deleteUnavailable":
         "No pudimos eliminar la cuenta. Revisá el estado de suscripción o contactá soporte.",
       "entitlement.profileError": "No pudimos cargar tu perfil. Recargá la página o probá más tarde.",
+      "entitlement.reconcileError":
+        "No pudimos actualizar el estado de tu suscripción. Probá de nuevo en unos minutos.",
       "dashboard.title": "Panel",
       "dashboard.profileLoading": "Cargando perfil…",
       "dashboard.profileEmpty": "Sin fila de perfil todavía. Aplicá la migración RLS o registrate de nuevo.",
@@ -428,7 +430,7 @@ const resources = {
       "wizard.content.chapters.toolbarHint":
         "Generar consume créditos solo si la IA responde con éxito. Aprobar guarda el texto pendiente (si lo hay) y marca el capítulo como listo.",
       "wizard.content.chapters.errorInsufficientCredits":
-        "No tenés créditos suficientes para generar este capítulo.",
+        "No tenés créditos suficientes para generar este capítulo con IA. Recargá en Configuración → Créditos.",
       "wizard.content.chapters.errorSave": "No pudimos guardar el borrador.",
       "wizard.content.chapters.errorGenerateGeneric": "No pudimos generar el capítulo. Probá de nuevo.",
       "wizard.content.chapters.errorApprove": "No pudimos aprobar el capítulo.",
@@ -490,6 +492,8 @@ const resources = {
       "wizard.content.manuscript.errorUnauthorized": "Iniciá sesión de nuevo e intentá otra vez.",
       "wizard.content.manuscript.errorNetwork": "Falló la conexión. Reintentá en unos segundos.",
       "wizard.content.manuscript.errorGeneric": "No pudimos procesar el archivo. Probá de nuevo.",
+      "wizard.content.manuscript.errorInsufficientCredits":
+        "No tenés créditos suficientes para completar esta operación. Recargá en Configuración → Créditos.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bonus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
@@ -543,8 +547,8 @@ const resources = {
       "wizard.content.index.reopenIndexHint": "",
       "wizard.content.index.reopenIndexSuccess": "Índice desbloqueado. Editá la tabla de contenidos y volvé a confirmar cuando esté listo.",
       "wizard.content.index.errorReopenIndex": "No pudimos desbloquear el índice. Recargá la página o probá de nuevo.",
-      "wizard.content.index.toastInsufficientCreditsTitle": "Sin créditos",
-      "wizard.content.index.errorInsufficientCredits": "No tenés créditos suficientes para regenerar el esquema.",
+      "wizard.content.index.errorInsufficientCredits":
+        "No tenés créditos suficientes para regenerar el esquema. Recargá en Configuración → Créditos.",
       "wizard.content.index.errorWrongSource": "Esta acción solo aplica a proyectos con fuente de contenido por IA.",
       "wizard.content.index.errorGenerateGeneric": "No pudimos generar el esquema. Probá de nuevo.",
       "wizard.content.index.errorSaveToc": "No pudimos guardar la tabla de contenidos.",
@@ -553,6 +557,8 @@ const resources = {
       "wizard.content.index.errorTooManyChapters": "Demasiados capítulos para el límite del producto.",
       "wizard.content.index.errorTooFewChapters": "Añadí al menos un capítulo antes de confirmar.",
       "wizard.structure.projectName": "Proyecto",
+      "wizard.structure.shared.insufficientCredits":
+        "No tenés créditos suficientes para usar la IA en este paso. Recargá en Configuración → Créditos.",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fuente",
       "wizard.structure.waveAStub":
@@ -741,6 +747,7 @@ const resources = {
       "settings.credits.topUpRedirectHint": "Serás redirigido a Mercado Pago para completar el pago. Los créditos se acreditan cuando el pago queda aprobado.",
       "settings.credits.topUpError": "No pudimos iniciar el checkout. Intentá de nuevo en unos minutos.",
       "settings.credits.topUpSubscriptionRequired": "Necesitás una suscripción activa para comprar créditos extra.",
+      "settings.credits.ledgerLoadError": "No pudimos cargar el historial de créditos.",
       "settings.credits.historyHeading": "Historial",
       "settings.credits.historyEmpty": "Todavía no hay movimientos para mostrar en esta vista.",
       "settings.credits.historyCapped": "Mostramos los últimos {{count}} movimientos.",
@@ -764,6 +771,10 @@ const resources = {
         "Esta acción es irreversible. Si tenés suscripción activa en Mercado Pago, puede ser necesario resolverla antes.",
       "toast.regionLabel": "Notifications",
       "toast.close": "Close",
+      "toast.api.genericHint": "Si el problema continúa, recargá la página o volvé a iniciar sesión.",
+      "toast.api.insufficientCreditsTitle": "Créditos insuficientes",
+      "toast.api.insufficientCreditsHint":
+        "Esta acción consume créditos de IA. Recargá saldo en Configuración → Créditos o probá más tarde.",
       "common.loading": "Cargando…",
       "common.comingSoon": "Próximamente",
     },
@@ -918,6 +929,8 @@ const resources = {
       "shell.account.deleteUnavailable":
         "Não foi possível excluir a conta. Verifique o status da assinatura ou fale com o suporte.",
       "entitlement.profileError": "Não foi possível carregar seu perfil. Recarregue a página ou tente mais tarde.",
+      "entitlement.reconcileError":
+        "Não foi possível atualizar o status da sua assinatura. Tente novamente em alguns minutos.",
       "dashboard.title": "Painel",
       "dashboard.profileLoading": "Carregando perfil…",
       "dashboard.profileEmpty": "Sem linha de perfil ainda. Aplique a migração RLS ou cadastre-se de novo.",
@@ -1196,7 +1209,7 @@ const resources = {
       "wizard.content.chapters.toolbarHint":
         "Gerar consome créditos somente se a IA responder com sucesso. Aprovar salva o texto pendente (se houver) e marca o capítulo como pronto.",
       "wizard.content.chapters.errorInsufficientCredits":
-        "Você não tem créditos suficientes para gerar este capítulo.",
+        "Você não tem créditos suficientes para gerar este capítulo com IA. Recarregue em Configurações → Créditos.",
       "wizard.content.chapters.errorSave": "Não foi possível salvar o rascunho.",
       "wizard.content.chapters.errorGenerateGeneric": "Não foi possível gerar o capítulo. Tente de novo.",
       "wizard.content.chapters.errorApprove": "Não foi possível aprovar o capítulo.",
@@ -1259,6 +1272,8 @@ const resources = {
       "wizard.content.manuscript.errorUnauthorized": "Entre de novo e tente outra vez.",
       "wizard.content.manuscript.errorNetwork": "Falha de conexão. Tente novamente em alguns segundos.",
       "wizard.content.manuscript.errorGeneric": "Não foi possível processar o arquivo. Tente de novo.",
+      "wizard.content.manuscript.errorInsufficientCredits":
+        "Você não tem créditos suficientes para concluir esta operação. Recarregue em Configurações → Créditos.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bônus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
@@ -1313,8 +1328,8 @@ const resources = {
         "Volte a editar títulos e ordem do sumário. Se renomear um capítulo com conteúdo, perguntaremos se deseja limpar o corpo.",
       "wizard.content.index.reopenIndexSuccess": "Índice desbloqueado. Edite a tabela de conteúdos e confirme novamente quando estiver pronto.",
       "wizard.content.index.errorReopenIndex": "Não foi possível desbloquear o índice. Recarregue a página ou tente de novo.",
-      "wizard.content.index.toastInsufficientCreditsTitle": "Sem créditos",
-      "wizard.content.index.errorInsufficientCredits": "Créditos insuficientes para regenerar o esquema.",
+      "wizard.content.index.errorInsufficientCredits":
+        "Créditos insuficientes para regenerar o esquema. Recarregue em Configurações → Créditos.",
       "wizard.content.index.errorWrongSource": "Esta ação vale só para projetos com fonte de conteúdo por IA.",
       "wizard.content.index.errorGenerateGeneric": "Não foi possível gerar o esquema. Tente de novo.",
       "wizard.content.index.errorSaveToc": "Não foi possível salvar o sumário.",
@@ -1323,6 +1338,8 @@ const resources = {
       "wizard.content.index.errorTooManyChapters": "Capítulos demais para o limite do produto.",
       "wizard.content.index.errorTooFewChapters": "Adicione pelo menos um capítulo antes de confirmar.",
       "wizard.structure.projectName": "Projeto",
+      "wizard.structure.shared.insufficientCredits":
+        "Você não tem créditos suficientes para usar a IA neste passo. Recarregue em Configurações → Créditos.",
       "wizard.structure.contentLocale": "Content locale",
       "wizard.structure.contentSource": "Fonte",
       "wizard.structure.waveAStub":
@@ -1513,6 +1530,7 @@ const resources = {
       "settings.credits.topUpRedirectHint": "Você será redirecionado ao Mercado Pago para concluir o pagamento. Os créditos são creditados quando o pagamento é aprovado.",
       "settings.credits.topUpError": "Não foi possível iniciar o checkout. Tente novamente em alguns minutos.",
       "settings.credits.topUpSubscriptionRequired": "É necessária uma assinatura ativa para comprar créditos extras.",
+      "settings.credits.ledgerLoadError": "Não foi possível carregar o histórico de créditos.",
       "settings.credits.historyHeading": "Histórico",
       "settings.credits.historyEmpty": "Ainda não há movimentações para mostrar nesta visualização.",
       "settings.credits.historyCapped": "Mostramos as últimas {{count}} movimentações.",
@@ -1536,6 +1554,10 @@ const resources = {
         "Esta ação é irreversível. Se houver assinatura ativa no Mercado Pago, pode ser necessário resolvê-la antes.",
       "toast.regionLabel": "Notifications",
       "toast.close": "Close",
+      "toast.api.genericHint": "Se o problema continuar, recarregue a página ou entre novamente.",
+      "toast.api.insufficientCreditsTitle": "Créditos insuficientes",
+      "toast.api.insufficientCreditsHint":
+        "Esta ação consome créditos de IA. Recarregue o saldo em Configurações → Créditos ou tente mais tarde.",
       "common.loading": "Carregando…",
       "common.comingSoon": "Em breve",
     },

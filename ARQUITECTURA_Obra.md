@@ -227,7 +227,7 @@ obra/
 │   │
 │   ├── lib/
 │   │   ├── supabase.ts             # Cliente Supabase
-│   │   ├── prompts.ts              # Todos los prompts de Claude centralizados
+│   │   ├── (prompts en Edge)       # Ver `supabase/functions/_shared/prompts.ts`
 │   │   └── utils.ts
 │   │
 │   ├── store/
@@ -587,7 +587,7 @@ Todas las funciones se ubican en `supabase/functions/`. Se invocan desde el fron
 ```json
 { "optimized": "Mujeres de 28 a 45 años que quieren emprender..." }
 ```
-**Prompt base:** Ver `src/lib/prompts.ts → OPTIMIZE_PROMPTS[field]`
+**Prompt base:** Ver `supabase/functions/_shared/prompts.ts` (builders por flujo / field).
 
 ---
 
@@ -831,7 +831,7 @@ Reglas absolutas:
 - Llamadas a APIs externas SOLO desde Supabase Edge Functions, nunca desde el cliente
 - Estilos solo con Tailwind CSS, nunca CSS inline ni archivos .css separados
 - Todos los textos de UI usan i18next (t('key')), nunca strings hardcodeados
-- Prompts de modelo de texto centralizados en `obra/src/lib/prompts.ts` (o capa equivalente)
+- Prompts de modelo de texto centralizados en `supabase/functions/_shared/prompts.ts` (desplegados con Edge Functions)
 - Nombres de archivos: PascalCase para componentes, camelCase para hooks y utils
 - Cada componente tiene su propio archivo, nunca múltiples componentes en un archivo
 - Los Edge Functions se escriben en TypeScript/Deno
