@@ -64,7 +64,7 @@ describe("NewProjectPage", () => {
     if (!main) throw new Error("Could not locate page container");
 
     await user.click(within(main).getByRole("button", { name: /english \(us\)/i }));
-    await user.click(within(main).getByRole("button", { name: /subir manuscrito/i }));
+    await user.click(within(main).getByRole("button", { name: /subir mi manuscrito/i }));
     await user.click(within(main).getByRole("button", { name: /continuar al wizard/i }));
 
     await waitFor(() => {

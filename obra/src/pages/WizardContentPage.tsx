@@ -36,11 +36,29 @@ import {
   validateMainTocForConfirm,
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
+import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/manuscriptUploadApi";
+import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
+import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
+import { supabase } from "@/lib/supabaseClient";
+import type { ContentSource } from "@/lib/projects";
 import { toast } from "@/toast";
 
 const BANNER_STORAGE_PREFIX = "obra.content.banner.dismissed.";
+
+function contentSourceIntroStorageKey(projectId: string) {
+  return `obra.content.sourceIntro.${projectId}`;
+}
+
+function readContentSourceIntroDone(projectId: string | undefined): boolean {
+  try {
+    if (typeof globalThis.sessionStorage === "undefined" || !projectId) return false;
+    return globalThis.sessionStorage.getItem(contentSourceIntroStorageKey(projectId)) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function findFirstTitleChangeWithBody(
   prev: TocChapterRow[],
@@ -107,7 +125,7 @@ export function WizardContentPage() {
   const navigate = useNavigate();
   const params = useParams<{ projectId: string }>();
 
-  const { project, loading, error } = useWizardStructureProject(
+  const { project, loading, error, setProject } = useWizardStructureProject(
     params.projectId,
     t("wizard.structure.loadError"),
   );
@@ -146,6 +164,15 @@ export function WizardContentPage() {
     pendingRows: TocChapterRow[];
     baseRows: TocChapterRow[];
   } | null>(null);
+  const [manuscriptRow, setManuscriptRow] = useState<ProjectManuscriptRow | null>(null);
+  const [contentSourceIntroDone, setContentSourceIntroDone] = useState(() =>
+    readContentSourceIntroDone(params.projectId),
+  );
+  const [introSourceBusy, setIntroSourceBusy] = useState(false);
+
+  useEffect(() => {
+    setContentSourceIntroDone(readContentSourceIntroDone(params.projectId));
+  }, [params.projectId]);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -183,6 +210,7 @@ export function WizardContentPage() {
     setArtifactApprovedByKey({});
     setPackageEbookIds({});
     setBonusBumpToc({});
+    setManuscriptRow(null);
 
     void (async () => {
       const ensured = await ensureContentWorkspace(project.id);
@@ -266,6 +294,24 @@ export function WizardContentPage() {
     project?.bump_count,
     t,
   ]);
+
+  useEffect(() => {
+    if (!project?.id || loading) return;
+    if (!project.structure_completed_at) return;
+    if (project.content_source !== "upload") {
+      setManuscriptRow(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchActiveManuscript(project.id).then((ms) => {
+      if (cancelled) return;
+      if (ms.ok) setManuscriptRow(ms.row);
+      else setManuscriptRow(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, project?.content_source, loading, project?.structure_completed_at]);
 
   const selectedEbookId = useMemo(() => {
     if (selectedKey === "main") return mainEbookId;
@@ -403,6 +449,37 @@ export function WizardContentPage() {
     !needsUploadAlignment &&
     currentPhase === "main_chapter" &&
     project?.content_source === "ai";
+
+  const awaitingContentIntro = useMemo(
+    () => Boolean(project && workspaceReady && !contentSourceIntroDone),
+    [project, workspaceReady, contentSourceIntroDone],
+  );
+
+  const contentInnerStepTotal = project?.content_source === "upload" ? 4 : 3;
+
+  const contentInnerStepCurrent = useMemo(() => {
+    if (!project || !workspaceReady) return 1;
+    if (!contentSourceIntroDone) return 1;
+    if (project.content_source === "upload") {
+      if (needsUploadAlignment) return 2;
+      if (showChapterLoop) return 4;
+      return 3;
+    }
+    if (showChapterLoop) return 3;
+    return 2;
+  }, [project, workspaceReady, contentSourceIntroDone, needsUploadAlignment, showChapterLoop]);
+
+  const contentInnerStepLabel = useMemo(() => {
+    if (!project || !workspaceReady) return t("wizard.content.inner.contentSource");
+    if (!contentSourceIntroDone) return t("wizard.content.inner.contentSource");
+    if (project.content_source === "upload") {
+      if (contentInnerStepCurrent === 2) return t("wizard.content.inner.manuscript");
+      if (contentInnerStepCurrent === 3) return t("wizard.content.inner.packageIndex");
+      return t("wizard.content.inner.chapterContent");
+    }
+    if (contentInnerStepCurrent === 2) return t("wizard.content.inner.toc");
+    return t("wizard.content.inner.chapterContent");
+  }, [project, workspaceReady, contentSourceIntroDone, contentInnerStepCurrent, t]);
 
   const persistCurrentChapterDraftIfDirty = useCallback(async () => {
     if (!showChapterLoop) return true;
@@ -867,6 +944,56 @@ export function WizardContentPage() {
     setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
   }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, selectedEbookId]);
 
+  const handleIntroContentSourceSelect = useCallback(
+    async (source: ContentSource) => {
+      if (!project || source === project.content_source) return;
+      if (introSourceBusy) return;
+      const previousSource = project.content_source;
+      const nextPhase = source === "upload" ? "upload_alignment" : "main_index";
+      setIntroSourceBusy(true);
+      try {
+        const { error: projErr } = await supabase
+          .from("projects")
+          .update({ content_source: source })
+          .eq("id", project.id);
+        if (projErr) {
+          toast.error({
+            title: t("wizard.content.sourceIntro.updateErrorTitle"),
+            description: t("wizard.content.sourceIntro.updateError"),
+          });
+          return;
+        }
+        const { error: progErr } = await supabase
+          .from("project_content_progress")
+          .update({ current_phase: nextPhase })
+          .eq("project_id", project.id);
+        if (progErr) {
+          await supabase.from("projects").update({ content_source: previousSource }).eq("id", project.id);
+          toast.error({
+            title: t("wizard.content.sourceIntro.updateErrorTitle"),
+            description: t("wizard.content.sourceIntro.updateError"),
+          });
+          return;
+        }
+        setProject((prev) => (prev ? { ...prev, content_source: source } : null));
+        setCurrentPhase(nextPhase);
+      } finally {
+        setIntroSourceBusy(false);
+      }
+    },
+    [project, introSourceBusy, setProject, t],
+  );
+
+  const handleContentIntroContinue = useCallback(() => {
+    if (!params.projectId) return;
+    try {
+      globalThis.sessionStorage.setItem(contentSourceIntroStorageKey(params.projectId), "1");
+    } catch {
+      /* ignore */
+    }
+    setContentSourceIntroDone(true);
+  }, [params.projectId]);
+
   function dismissBanner() {
     if (!params.projectId) return;
     try {
@@ -902,18 +1029,21 @@ export function WizardContentPage() {
   const confirmDisabled = !globalIndexReady;
 
   const confirmVisible =
+    contentSourceIntroDone &&
     !needsUploadAlignment &&
     !Boolean(globalIndexFrozenAt) &&
     currentPhase === "main_index" &&
     project?.content_source === "ai";
 
   const tocReadOnly =
-    (selectedTarget.kind === "main" && (needsUploadAlignment || indexFrozen || !workspaceReady)) ||
+    (selectedTarget.kind === "main" &&
+      (awaitingContentIntro || needsUploadAlignment || indexFrozen || !workspaceReady)) ||
     (selectedTarget.kind === "bump" &&
-      (needsUploadAlignment || Boolean(bumpIndexFrozenAt[selectedKey]) || !workspaceReady));
+      (awaitingContentIntro || needsUploadAlignment || Boolean(bumpIndexFrozenAt[selectedKey]) || !workspaceReady));
 
   const showMainTocEmptyChoice =
     (selectedTarget.kind === "main" &&
+      !awaitingContentIntro &&
       !needsUploadAlignment &&
       !indexFrozen &&
       currentPhase === "main_index" &&
@@ -921,12 +1051,14 @@ export function WizardContentPage() {
       !tocReadOnly &&
       !tocEntryResolved) ||
     (selectedTarget.kind === "bump" &&
+      !awaitingContentIntro &&
       !needsUploadAlignment &&
       workspaceReady &&
       !Boolean(bumpIndexFrozenAt[selectedKey]) &&
       bumpTocEntryResolved[selectedKey] === false);
 
   const regenerateDisabledMain =
+    awaitingContentIntro ||
     needsUploadAlignment ||
     indexFrozen ||
     !workspaceReady ||
@@ -934,6 +1066,7 @@ export function WizardContentPage() {
     project?.content_source !== "ai";
 
   const regenerateDisabledBump =
+    awaitingContentIntro ||
     needsUploadAlignment ||
     Boolean(bumpIndexFrozenAt[selectedKey]) ||
     !workspaceReady ||
@@ -1015,19 +1148,24 @@ export function WizardContentPage() {
         <div className="flex items-center justify-between gap-4">
           <span className="text-sm font-medium text-obra-neutral-600">
             {t("wizard.content.stepCounter", {
-              current: showChapterLoop ? 2 : 1,
-              total: 2,
-              step: showChapterLoop
-                ? t("wizard.content.inner.chapterContent")
-                : t("wizard.content.inner.toc"),
+              current: contentInnerStepCurrent,
+              total: contentInnerStepTotal,
+              step: contentInnerStepLabel,
             })}
           </span>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            className="flex items-center gap-1"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={contentInnerStepTotal}
+            aria-valuenow={contentInnerStepCurrent}
+            aria-label={contentInnerStepLabel}
+          >
+            {Array.from({ length: contentInnerStepTotal }).map((_, index) => (
               <div
                 key={index}
                 className={`h-1.5 w-9 rounded-full transition-all ${
-                  index <= (showChapterLoop ? 1 : 0) ? "bg-obra-blue-700" : "bg-obra-blue-100"
+                  index < contentInnerStepCurrent ? "bg-obra-blue-700" : "bg-obra-blue-100"
                 }`}
               />
             ))}
@@ -1064,13 +1202,32 @@ export function WizardContentPage() {
             </p>
           ) : null}
 
-          {needsUploadAlignment && project ? (
+          {awaitingContentIntro && project ? (
+            <ContentSourceIntroPanel
+              t={t}
+              contentSource={project.content_source}
+              onSelectSource={handleIntroContentSourceSelect}
+              selectDisabled={introSourceBusy}
+            />
+          ) : null}
+
+          {needsUploadAlignment && project && !awaitingContentIntro ? (
             <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
-              <p className="font-body text-sm text-obra-blue-950">{t("wizard.content.uploadGate.body")}</p>
+              <ManuscriptUploadPanel
+                t={t}
+                projectId={project.id}
+                initialManuscript={manuscriptRow}
+                onManuscriptCommitted={setManuscriptRow}
+              />
             </div>
           ) : null}
 
-          {project && !loading && workspaceReady && !needsUploadAlignment && !showChapterLoop ? (
+          {project &&
+          !loading &&
+          workspaceReady &&
+          !awaitingContentIntro &&
+          !needsUploadAlignment &&
+          !showChapterLoop ? (
             <ContentIndexMilestone
               t={t}
               navItems={navItems}
@@ -1153,7 +1310,12 @@ export function WizardContentPage() {
             </Button>
           )}
 
-          {!showChapterLoop ? (
+          {awaitingContentIntro ? (
+            <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
+              {t("wizard.content.sourceIntro.continue")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : !showChapterLoop ? (
             <Button
               type="button"
               variant="primary"
@@ -1163,7 +1325,9 @@ export function WizardContentPage() {
               {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
               <ChevronRight className="size-4" aria-hidden />
             </Button>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
         </div>
       </div>
 
