@@ -1,7 +1,7 @@
 # generate-index — Genera el índice estructurado del ebook principal con arco narrativo
 
 **Ruta:** `prompts/content/generate-index.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `generateIndexPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `generateIndexPrompt()`  
 **Feature PRD:** `features/wizard-ai-generation/wizard-ai-generation.md`  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-08
@@ -113,7 +113,7 @@ _Nota: el README recomienda `0.3` para prompts de índice/TOC. Se usa `0.5` aqu�
 
 ## 5. System prompt
 
-_`{content_locale}`, `{chapter_count}`, y `{tone}` se interpolan en `prompts.ts` antes de enviar al modelo._
+_`{content_locale}`, `{chapter_count}`, y `{tone}` se interpolan en `_shared/prompts.ts` antes de enviar al modelo._
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
@@ -177,7 +177,7 @@ Problem: {problem}
 Generate the complete index with exactly {chapter_count} chapters.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
 - `{chapter_count}` y `{tone}` se interpolan en el system (para la lógica de reglas) y en el user template (para que el modelo lo tenga explícito en el turno del usuario)
 - Si `chapter_count` no es uno de `[6, 8, 10, 12]`, **no llamar al prompt** — validar en UI antes de la llamada; el selector de capítulos solo expone esos cuatro valores
 - Si `tone` no es uno de los 5 presets (`professional`, `friendly`, `inspirational`, `direct`, `educational`), **no llamar al prompt** — el paso Avatar y Problema en la UI lo garantiza

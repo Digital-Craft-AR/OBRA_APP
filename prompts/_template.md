@@ -1,7 +1,7 @@
 # [nombre-del-prompt] — verbo-objeto en kebab-case
 
 **Ruta:** `prompts/{carpeta}/nombre-del-prompt.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `nombreDelPromptPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `nombreDelPromptPrompt()`  
 **Feature PRD:** `features/{slug}/{slug}.md` — §sección relevante  
 **Estado:** `draft` | `production` | `deprecated`  
 **Última revisión:** YYYY-MM-DD
@@ -136,7 +136,7 @@ Problem solved: {problem}
 
 ## 7. Ejemplos few-shot
 
-_Mínimo 2 ejemplos. Deben cubrir: input típico (`es`), input mínimo o ambiguo, y al menos un locale alternativo. Estos ejemplos son los casos de test para `prompts.ts`._
+_Mínimo 2 ejemplos. Deben cubrir: input típico (`es`), input mínimo o ambiguo, y al menos un locale alternativo. Estos ejemplos son los casos de test para `_shared/prompts.ts`._
 
 ---
 

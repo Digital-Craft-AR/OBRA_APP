@@ -1,5 +1,5 @@
 /**
- * Obra prompt functions — source of truth for all AI prompt implementations.
+ * Obra prompt functions — executable prompts for Edge Functions (`supabase/functions/_shared/prompts.ts`).
  *
  * Each function maps 1:1 to a .md file in prompts/. When editing a prompt,
  * update the .md first, then update the corresponding function here.
@@ -14,14 +14,21 @@
  *   prompts/wizard/generate-bonus-titles.md → generateBonusTitlesPrompt()
  *   prompts/wizard/generate-bump-titles.md  → generateBumpTitlesPrompt()
  *   prompts/content/generate-index.md       → generateIndexPrompt()
+ *
+ * Edge/Deno copy — keep aligned with prompts/*.md (no Vite path aliases).
  */
-
-import type { ContentTone, WizardChapterCount } from "@/lib/wizard/structureTypes";
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
 export type ContentLocale = "es" | "pt-BR" | "en-US" | "en-GB";
-export type ChapterCount = WizardChapterCount;
+export type ChapterCount = 4 | 6 | 8 | 10 | 12;
+/** Matches `design_config.contentTone` / `content_tone` (issue #112). */
+export type ContentTone =
+  | "professional"
+  | "friendly"
+  | "inspirational"
+  | "direct"
+  | "educational";
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 
@@ -424,6 +431,7 @@ TONE GUIDE — apply to titles, descriptions, and key_concepts (use the exact pr
 - educational: didactic and stepwise. Teaches systematically; defines terms when needed; patient pacing for learners.
 
 WORD COUNT TARGETS by chapter_count=${vars.chapter_count}:
+- 4 chapters: ch1 ~850w | middle (2-3) ~950w each | last ~850w → ~3,600w total
 - 6 chapters: ch1 ~900w | middle (2-5) ~1100w each | last ~900w → ~6,500w total
 - 8 chapters: ch1 ~900w | middle (2-7) ~1050w each | last ~950w → ~8,000w total
 - 10 chapters: ch1 ~900w | middle (2-9) ~1000w each | last ~950w → ~9,500w total
@@ -447,7 +455,7 @@ RULES (non-negotiable):
 - chapters[].description: max 280 characters
 - chapters[].key_concepts[]: max 130 characters each
 If any field exceeds its limit, rewrite it shorter before returning. Outputs with fields exceeding limits will be rejected downstream.
-11. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: chapter_count is not one of 6/8/10/12 | tone is not one of professional|friendly|inspirational|direct|educational | topic or main_ebook_title is empty | avatar or problem contain an error field.
+11. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: chapter_count is not one of 4/6/8/10/12 | tone is not one of professional|friendly|inspirational|direct|educational | topic or main_ebook_title is empty | avatar or problem contain an error field.
 
 Example (es, chapter_count=6, tone=friendly):
 Input: topic="Cómo transformar tu hobby de velas en negocio rentable" chapter_count=6 tone=friendly main_ebook_title="Velas que se venden" avatar=(artesana 25-45 LATAM; pain: precios/ventas/diferenciación) problem=(trabaja a pérdida sin saberlo; transformation.from="artesana que cobra barato"; transformation.to="emprendedora que cobra con confianza")

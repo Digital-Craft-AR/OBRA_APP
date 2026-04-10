@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
 import type { SubscriptionStatus } from "@/entitlement/types";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
+import { toastApiFailure } from "@/lib/apiToast";
 import { CREDIT_LEDGER_PAGE_SIZE, formatCreditDelta, type CreditLedgerRow } from "@/lib/creditLedger";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -40,6 +41,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
     if (error) {
       setLedgerError(error.message);
       setRows([]);
+      toastApiFailure(t, "settings.credits.ledgerLoadError");
       return;
     }
     setRows((data ?? []) as CreditLedgerRow[]);
@@ -70,24 +72,32 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
         try {
           const body = (await error.context.json()) as { error?: string };
           if (body.error === "subscription_required") {
-            setTopUpError(t("settings.credits.topUpSubscriptionRequired"));
+            const key = "settings.credits.topUpSubscriptionRequired";
+            setTopUpError(t(key));
+            toastApiFailure(t, key);
             return;
           }
         } catch {
           /* ignore JSON parse failures */
         }
       }
-      setTopUpError(t("settings.credits.topUpError"));
+      const keyErr = "settings.credits.topUpError";
+      setTopUpError(t(keyErr));
+      toastApiFailure(t, keyErr);
       return;
     }
 
     if (data?.error === "subscription_required") {
-      setTopUpError(t("settings.credits.topUpSubscriptionRequired"));
+      const key = "settings.credits.topUpSubscriptionRequired";
+      setTopUpError(t(key));
+      toastApiFailure(t, key);
       return;
     }
 
     if (data?.error && !data.redirect_url) {
-      setTopUpError(t("settings.credits.topUpError"));
+      const keyErr = "settings.credits.topUpError";
+      setTopUpError(t(keyErr));
+      toastApiFailure(t, keyErr);
       return;
     }
 
@@ -96,7 +106,9 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
       return;
     }
 
-    setTopUpError(t("settings.credits.topUpError"));
+    const keyFallback = "settings.credits.topUpError";
+    setTopUpError(t(keyFallback));
+    toastApiFailure(t, keyFallback);
   }
 
   const localeTag = i18n.language === "pt-BR" ? "pt-BR" : "es-AR";

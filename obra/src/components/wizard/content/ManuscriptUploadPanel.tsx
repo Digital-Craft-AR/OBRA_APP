@@ -7,6 +7,7 @@ import {
   invokeManuscriptUploadParse,
   type ProjectManuscriptRow,
 } from "@/lib/wizard/manuscriptUploadApi";
+import { INVOKE_ERROR_INSUFFICIENT_CREDITS, toastApiFailure } from "@/lib/apiToast";
 import { MANUSCRIPT_ACCEPT, validateManuscriptFile } from "@/lib/wizard/manuscriptUpload";
 
 type Props = {
@@ -38,6 +39,8 @@ function mapServerErrorCodeToKey(code: string): string {
       return "wizard.content.manuscript.errorUnauthorized";
     case "network_error":
       return "wizard.content.manuscript.errorNetwork";
+    case INVOKE_ERROR_INSUFFICIENT_CREDITS:
+      return "wizard.content.manuscript.errorInsufficientCredits";
     default:
       return "wizard.content.manuscript.errorGeneric";
   }
@@ -108,7 +111,16 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
         return;
       }
       setLastFailedFile(file);
-      setServerError(t(mapServerErrorCodeToKey(result.code)));
+      const errKey = mapServerErrorCodeToKey(result.code);
+      setServerError(t(errKey));
+      toastApiFailure(
+        t,
+        errKey,
+        undefined,
+        result.code === INVOKE_ERROR_INSUFFICIENT_CREDITS
+          ? { errorCode: result.code, creditDescriptionKey: errKey }
+          : undefined,
+      );
     },
     [projectId, t, onManuscriptCommitted],
   );

@@ -2,6 +2,12 @@
 
 **Never** ship these keys to the browser or `VITE_*` env vars. Configure in **Supabase Dashboard → Edge Functions → Secrets** (or CLI `supabase secrets set`).
 
+## JWT verification (browser `functions.invoke`)
+
+`ai-optimize`, `ai-generate-index`, `ai-generate-content`, `manuscript-upload-parse`, and `reset-avatar-problem-content` use **`verify_jwt = false`** in [`config.toml`](../config.toml) and validate the caller with `createClient(url, anonKey).auth.getUser(jwt)` inside the handler. Keeping gateway JWT verification off avoids **401** responses from the Edge layer when the SPA sends a normal user session, while the handler still rejects missing or invalid tokens.
+
+Redeploy after changing `config.toml`. If you toggle “Verify JWT” in the Dashboard for a function, keep it consistent with this repo or redeploy so CLI settings apply.
+
 ## Payment provider abstraction
 
 Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter`** (`functions/_shared/payment/`). The shipped implementation is **Mercado Pago** (`MercadoPagoAdapter`); set **`PAYMENT_PROVIDER=mercadopago`** (default) or extend `getBillingAdapter()` in `factory.ts` for additional gateways. Provider-specific HTTP and signature rules stay inside the adapter; Obra domain logic (profiles, ledger, idempotency) stays in the Edge Function handlers.
@@ -10,7 +16,7 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | ------------- | --------- | ----- |
 | `PAYMENT_PROVIDER` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Optional; default `mercadopago` — selects `BillingAdapter` implementation |
 | `SUPABASE_URL` | All functions (auto) | Project URL; often injected by the platform |
-| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize` | Validates caller session via `auth.getUser` |
+| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize`, `ai-generate-index`, `ai-generate-content`, `manuscript-upload-parse`, `reset-avatar-problem-content` | Validates caller session via `auth.getUser` in handler |
 | `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize`, `ai-generate-index`, `manuscript-upload-parse` | RLS bypass for webhooks / ledger RPC / account deletion / manuscript Storage + RPC |
 | `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Production token or `TEST-…` for sandbox (`delete-account` uses it to reconcile before delete) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | **Your integrations** webhook signing secret (HMAC `x-signature`) |
@@ -27,7 +33,9 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | `MERCADOPAGO_CREDITS_PACK_TITLE` | `create-credits-checkout` | Optional; checkout line title |
 | `AI_OPTIMIZE_CREDIT_COST` | `ai-optimize` | Optional; positive integer credits debited per request (default `1`) |
 | `AI_GENERATE_INDEX_CREDIT_COST` | `ai-generate-index` | Optional; credits debited per successful TOC proposal (default `2`) |
-| `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-*` (future) | Claude text |
+| `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-index`, `ai-generate-content` (future) | Claude text |
+| `CLAUDE_MODEL` | `ai-optimize`, `ai-generate-index` | Optional; default `claude-sonnet-4-20250514` |
+| `CLAUDE_REQUEST_TIMEOUT_MS` | `ai-optimize`, `ai-generate-index` | Optional; default `120000` |
 | `GOOGLE_GENERATIVE_AI_API_KEY` / Gemini secrets | `image-generate`, Gemini calls (future) | Images |
 | `PUPPETEER_*` / PDF runtime secrets | `export-pdf` (future) | Server-side PDF |
 | `RESEND_API_KEY` | `send-auth-email` | Resend API key for localized auth email hook delivery |

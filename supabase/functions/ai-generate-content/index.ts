@@ -1,17 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { corsJson, corsOptions } from "../_shared/cors.ts";
 
 /**
  * Generates chapter body (sanitized rich HTML) for the main ebook on the AI path.
  * Validates JWT, checks ownership and frozen main index, debits credits idempotently.
  * Claude integration is pending (#26 / #55); returns deterministic stub HTML.
  */
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+const json = corsJson;
 
 function esc(s: string): string {
   return s
@@ -76,6 +72,9 @@ function stubChapterBodyHtml(
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return corsOptions();
+  }
   if (req.method !== "POST") {
     return json({ error: "method_not_allowed" }, 405);
   }
