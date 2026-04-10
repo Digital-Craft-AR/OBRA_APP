@@ -40,6 +40,7 @@ import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/m
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
+import { toastApiFailure, toastInsufficientCredits } from "@/lib/apiToast";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 import { supabase } from "@/lib/supabaseClient";
 import type { ContentSource } from "@/lib/projects";
@@ -489,7 +490,9 @@ export function WizardContentPage() {
     const res = await updateChapterDraftContent(prev.id, chapterBodyDraft);
     setChapterSaveLoading(false);
     if (!res.ok) {
-      setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+      const key = "wizard.content.chapters.errorSave";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return false;
     }
     setChapterRows((rows) =>
@@ -619,10 +622,7 @@ export function WizardContentPage() {
     if (!result.ok) {
       const code = result.code;
       if (code === "insufficient_credits") {
-        toast.error({
-          title: t("wizard.content.index.toastInsufficientCreditsTitle"),
-          description: t("wizard.content.index.errorInsufficientCredits"),
-        });
+        toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -674,6 +674,7 @@ export function WizardContentPage() {
       const code = result.code;
       if (code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
+        toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -714,26 +715,66 @@ export function WizardContentPage() {
     t,
   ]);
 
-  const handleRegenerateBonusBumpPlaceholder = useCallback(async () => {
-    if (selectedTarget.kind === "main" || selectedTarget.kind === "bump") return;
-    if (selectedTarget.kind !== "bonus") return;
+  const handleRegenerateBonusOutline = useCallback(async () => {
+    if (selectedTarget.kind !== "bonus" || !project?.id) return;
     const ebookId = packageEbookIds[selectedKey];
+    if (!ebookId) return;
+    if (needsUploadAlignment || indexFrozen) return;
     const pending = persistTimersRef.current[selectedKey];
     if (pending) {
       clearTimeout(pending);
       delete persistTimersRef.current[selectedKey];
     }
-    const title =
-      project?.bonus_items[selectedTarget.index]?.title?.trim() ||
-      t("wizard.content.nav.bonusFallback", { n: selectedTarget.index + 1 });
-    const rows = [{ id: newRowId(), title: t("wizard.content.index.singleSectionTitle", { title }) }];
-    setBonusBumpToc((prev) => ({ ...prev, [selectedKey]: rows }));
-    if (!ebookId) return;
-    const persisted = await upsertEbookDraftChaptersFromRows(ebookId, rows);
-    if (persisted.ok) {
-      setBonusBumpToc((p) => ({ ...p, [selectedKey]: persisted.rows }));
+    setActionAnnouncement(null);
+    setInsufficientCreditsToastOpen(false);
+    setInsufficientCreditsSource("index");
+    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    setGenerateLoading(true);
+    const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
+    setGenerateLoading(false);
+    if (!result.ok) {
+      const code = result.code;
+      if (code === "insufficient_credits") {
+        setInsufficientCreditsToastOpen(true);
+        toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code === "wrong_content_source") {
+        const message = t("wizard.content.index.errorWrongSource");
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: message,
+        });
+      } else {
+        const message = t("wizard.content.index.errorGenerateGeneric");
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: message,
+        });
+      }
+      return;
     }
-  }, [selectedTarget, project, packageEbookIds, selectedKey, t]);
+    const saved = await replaceEbookDraftChapters(ebookId, result.titles);
+    if (!saved.ok) {
+      const message = t("wizard.content.index.errorSaveToc");
+      toast.error({
+        title: t("wizard.content.index.regenerateOutline"),
+        description: message,
+      });
+      return;
+    }
+    const loaded = await loadEbookChapters(ebookId);
+    if (loaded.ok) {
+      setBonusBumpToc((p) => ({ ...p, [selectedKey]: loaded.rows }));
+    }
+    setActionAnnouncement(t("wizard.content.index.regenerateSuccess"));
+  }, [
+    selectedTarget.kind,
+    project?.id,
+    packageEbookIds,
+    selectedKey,
+    needsUploadAlignment,
+    indexFrozen,
+    t,
+  ]);
 
   const handleConfirmGlobalIndex = useCallback(async () => {
     if (!project?.id || !mainEbookId) return;
@@ -742,14 +783,18 @@ export function WizardContentPage() {
     const mainSync = await trySyncMainEbookTocBeforeFreeze(mainEbookId, mainTocRows);
     if (!mainSync.ok) {
       setConfirmLoading(false);
-      setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+      const key = "wizard.content.index.errorSaveToc";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return;
     }
     if (mainSync.mode === "full_replace") {
       const persisted = await upsertEbookDraftChaptersFromRows(mainEbookId, mainTocRows);
       if (!persisted.ok) {
         setConfirmLoading(false);
-        setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+        const key = "wizard.content.index.errorSaveToc";
+        setActionAnnouncement(t(key));
+        toastApiFailure(t, key);
         return;
       }
       setMainTocRows(persisted.rows);
@@ -763,7 +808,9 @@ export function WizardContentPage() {
       const persisted = await upsertEbookDraftChaptersFromRows(ebookId, rows);
       if (!persisted.ok) {
         setConfirmLoading(false);
-        setActionAnnouncement(t("wizard.content.index.errorSaveToc"));
+        const key = "wizard.content.index.errorSaveToc";
+        setActionAnnouncement(t(key));
+        toastApiFailure(t, key);
         return;
       }
       setBonusBumpToc((p) => ({ ...p, [item.key]: persisted.rows }));
@@ -771,7 +818,9 @@ export function WizardContentPage() {
         const confirmedBump = await confirmOrderBumpIndex(ebookId);
         if (!confirmedBump.ok) {
           setConfirmLoading(false);
-          setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+          const key = "wizard.content.index.errorConfirmPhase";
+          setActionAnnouncement(t(key));
+          toastApiFailure(t, key);
           return;
         }
         setBumpIndexFrozenAt((p) => ({ ...p, [item.key]: confirmedBump.frozen_at }));
@@ -781,7 +830,9 @@ export function WizardContentPage() {
     const confirmed = await confirmMainIndex(project.id);
     setConfirmLoading(false);
     if (!confirmed.ok) {
-      setActionAnnouncement(t("wizard.content.index.errorConfirmPhase"));
+      const key = "wizard.content.index.errorConfirmPhase";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return;
     }
     const now = new Date().toISOString();
@@ -809,7 +860,9 @@ export function WizardContentPage() {
     for (const id of toClear) {
       const cleared = await clearChapterBody(id);
       if (!cleared.ok) {
-        setActionAnnouncement(t("wizard.content.chapters.errorClearBody"));
+        const key = "wizard.content.chapters.errorClearBody";
+        setActionAnnouncement(t(key));
+        toastApiFailure(t, key);
         return;
       }
     }
@@ -832,7 +885,9 @@ export function WizardContentPage() {
         const res = await updateChapterDraftContent(prev.id, chapterBodyDraft);
         setChapterSaveLoading(false);
         if (!res.ok) {
-          setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+          const key = "wizard.content.chapters.errorSave";
+          setActionAnnouncement(t(key));
+          toastApiFailure(t, key);
           return;
         }
         rows = rows.map((r) =>
@@ -855,7 +910,9 @@ export function WizardContentPage() {
     const res = await updateChapterDraftContent(current.id, chapterBodyDraft);
     setChapterSaveLoading(false);
     if (!res.ok) {
-      setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+      const key = "wizard.content.chapters.errorSave";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return;
     }
     setChapterRows((rows) =>
@@ -879,16 +936,23 @@ export function WizardContentPage() {
     if (!result.ok) {
       if (result.code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
+        toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
       } else if (result.code === "wrong_content_source") {
-        setActionAnnouncement(t("wizard.content.index.errorWrongSource"));
+        const key = "wizard.content.index.errorWrongSource";
+        setActionAnnouncement(t(key));
+        toastApiFailure(t, key);
       } else {
-        setActionAnnouncement(t("wizard.content.chapters.errorGenerateGeneric"));
+        const key = "wizard.content.chapters.errorGenerateGeneric";
+        setActionAnnouncement(t(key));
+        toastApiFailure(t, key);
       }
       return;
     }
     const saved = await updateChapterDraftContent(current.id, result.content);
     if (!saved.ok) {
-      setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+      const key = "wizard.content.chapters.errorSave";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return;
     }
     setChapterBodyDraft(result.content);
@@ -914,7 +978,9 @@ export function WizardContentPage() {
       const saveRes = await updateChapterDraftContent(current.id, chapterBodyDraft);
       if (!saveRes.ok) {
         setChapterApproveLoading(false);
-        setActionAnnouncement(t("wizard.content.chapters.errorSave"));
+        const key = "wizard.content.chapters.errorSave";
+        setActionAnnouncement(t(key));
+        toastApiFailure(t, key);
         return;
       }
       setChapterRows((rows) =>
@@ -927,7 +993,9 @@ export function WizardContentPage() {
     const res = await approveChapterBody(current.id);
     setChapterApproveLoading(false);
     if (!res.ok) {
-      setActionAnnouncement(t("wizard.content.chapters.errorApprove"));
+      const key = "wizard.content.chapters.errorApprove";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return;
     }
     const now = new Date().toISOString();
@@ -1038,6 +1106,8 @@ export function WizardContentPage() {
   const tocReadOnly =
     (selectedTarget.kind === "main" &&
       (awaitingContentIntro || needsUploadAlignment || indexFrozen || !workspaceReady)) ||
+    (selectedTarget.kind === "bonus" &&
+      (awaitingContentIntro || needsUploadAlignment || indexFrozen || !workspaceReady)) ||
     (selectedTarget.kind === "bump" &&
       (awaitingContentIntro || needsUploadAlignment || Boolean(bumpIndexFrozenAt[selectedKey]) || !workspaceReady));
 
@@ -1069,6 +1139,14 @@ export function WizardContentPage() {
     awaitingContentIntro ||
     needsUploadAlignment ||
     Boolean(bumpIndexFrozenAt[selectedKey]) ||
+    !workspaceReady ||
+    generateLoading ||
+    project?.content_source !== "ai";
+
+  const regenerateDisabledBonus =
+    awaitingContentIntro ||
+    needsUploadAlignment ||
+    indexFrozen ||
     !workspaceReady ||
     generateLoading ||
     project?.content_source !== "ai";
@@ -1110,7 +1188,9 @@ export function WizardContentPage() {
     setActionAnnouncement(null);
     const reopened = await reopenGlobalIndex(project.id);
     if (!reopened.ok) {
-      setActionAnnouncement(t("wizard.content.index.errorReopenIndex"));
+      const key = "wizard.content.index.errorReopenIndex";
+      setActionAnnouncement(t(key));
+      toastApiFailure(t, key);
       return;
     }
     setGlobalIndexFrozenAt(null);
@@ -1241,14 +1321,14 @@ export function WizardContentPage() {
               onRegenerateOutline={() => {
                 if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
                 else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
-                else void handleRegenerateBonusBumpPlaceholder();
+                else void handleRegenerateBonusOutline();
               }}
               regenerateDisabled={
                 selectedTarget.kind === "main"
                   ? regenerateDisabledMain
                   : selectedTarget.kind === "bump"
                     ? regenerateDisabledBump
-                    : false
+                    : regenerateDisabledBonus
               }
               regenerateLoading={generateLoading}
               tocReadOnly={tocReadOnly}
@@ -1259,7 +1339,7 @@ export function WizardContentPage() {
               onMainTocChooseGenerate={() => {
                 if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
                 else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
-                else void handleRegenerateBonusBumpPlaceholder();
+                else void handleRegenerateBonusOutline();
               }}
             />
           ) : null}
@@ -1356,7 +1436,7 @@ export function WizardContentPage() {
           <div className="pointer-events-auto w-full max-w-toast">
             <ObraToast
               variant="error"
-              title={t("wizard.content.index.toastInsufficientCreditsTitle")}
+              title={t("toast.api.insufficientCreditsTitle")}
               description={
                 insufficientCreditsSource === "chapter"
                   ? t("wizard.content.chapters.errorInsufficientCredits")

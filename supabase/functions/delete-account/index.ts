@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { billingNeedsMercadoPagoAccessToken } from "../_shared/payment/billingEnv.ts";
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadEnv.ts";
 
@@ -46,12 +47,10 @@ Deno.serve(async (req: Request) => {
 
   const accessToken = loadMercadoPagoAccessToken();
   let billing: ReturnType<typeof getBillingAdapter> | null = null;
-  if (accessToken) {
-    try {
-      billing = getBillingAdapter();
-    } catch {
-      billing = null;
-    }
+  try {
+    billing = getBillingAdapter();
+  } catch {
+    billing = null;
   }
 
   const { data: profileBefore } = await admin
@@ -64,8 +63,11 @@ Deno.serve(async (req: Request) => {
     (profileBefore as { subscription_status?: string } | null)?.subscription_status,
   );
 
-  if (billing && accessToken) {
-    const remote = await billing.reconcileSubscriptionStatusForUser(accessToken, userId);
+  const canReconcile =
+    billing &&
+    (billingNeedsMercadoPagoAccessToken(billing) ? Boolean(accessToken) : true);
+  if (canReconcile && billing) {
+    const remote = await billing.reconcileSubscriptionStatusForUser(accessToken ?? "", userId);
     if (remote.found && remote.subscriptionStatus !== currentStatus) {
       await admin
         .from("creator_profiles")

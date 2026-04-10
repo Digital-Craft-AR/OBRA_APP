@@ -2,18 +2,29 @@
 
 **Never** ship these keys to the browser or `VITE_*` env vars. Configure in **Supabase Dashboard → Edge Functions → Secrets** (or CLI `supabase secrets set`).
 
+## JWT verification (browser `functions.invoke`)
+
+`ai-optimize`, `ai-generate-index`, `ai-generate-content`, `manuscript-upload-parse`, and `reset-avatar-problem-content` use **`verify_jwt = false`** in [`config.toml`](../config.toml) and validate the caller with `createClient(url, anonKey).auth.getUser(jwt)` inside the handler. Keeping gateway JWT verification off avoids **401** responses from the Edge layer when the SPA sends a normal user session, while the handler still rejects missing or invalid tokens.
+
+Redeploy after changing `config.toml`. If you toggle “Verify JWT” in the Dashboard for a function, keep it consistent with this repo or redeploy so CLI settings apply.
+
 ## Payment provider abstraction
 
-Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter`** (`functions/_shared/payment/`). The shipped implementation is **Mercado Pago** (`MercadoPagoAdapter`); set **`PAYMENT_PROVIDER=mercadopago`** (default) or extend `getBillingAdapter()` in `factory.ts` for additional gateways. Provider-specific HTTP and signature rules stay inside the adapter; Obra domain logic (profiles, ledger, idempotency) stays in the Edge Function handlers.
+Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter`** (`functions/_shared/payment/`). Implementations:
+
+- **`mercadopago`** (default) — `MercadoPagoAdapter` (real API).
+- **`obrapay`** — `ObraPayAdapter` (**mock only**): no Mercado Pago HTTP calls; checkout redirects straight to your return URL; reconcile marks subscription **active**. Credit top-ups call `obra_credit_ledger_apply` inside `create-credits-checkout` (no webhook). **Do not use in production.**
+
+Provider-specific HTTP and signature rules stay inside the adapter; Obra domain logic (profiles, ledger, idempotency) stays in the Edge Function handlers.
 
 | Secret / name | Consumers | Notes |
 | ------------- | --------- | ----- |
-| `PAYMENT_PROVIDER` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status` | Optional; default `mercadopago` — selects `BillingAdapter` implementation |
+| `PAYMENT_PROVIDER` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Optional; default `mercadopago`. Set `obrapay` for the mock adapter (dev/staging). |
 | `SUPABASE_URL` | All functions (auto) | Project URL; often injected by the platform |
-| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize` | Validates caller session via `auth.getUser` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize`, `ai-generate-index`, `manuscript-upload-parse` | RLS bypass for webhooks / ledger RPC / account deletion / manuscript Storage + RPC |
-| `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Production token or `TEST-…` for sandbox (`delete-account` uses it to reconcile before delete) |
-| `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | **Your integrations** webhook signing secret (HMAC `x-signature`) |
+| `SUPABASE_ANON_KEY` | `create-subscription-checkout`, `create-credits-checkout`, `reconcile-subscription-status`, `export-user-data`, `delete-account`, `ai-optimize`, `ai-generate-index`, `ai-generate-content`, `manuscript-upload-parse`, `reset-avatar-problem-content` | Validates caller session via `auth.getUser` in handler |
+| `SUPABASE_SERVICE_ROLE_KEY` | `mercadopago-webhook`, `create-credits-checkout` (ObraPay credits grant only), `reconcile-subscription-status`, `delete-account`, `export-user-data`, `ai-optimize`, `ai-generate-index`, `manuscript-upload-parse` | RLS bypass for webhooks / ledger RPC / account deletion / manuscript Storage + RPC |
+| `MERCADOPAGO_ACCESS_TOKEN` | `create-subscription-checkout`, `create-credits-checkout`, `mercadopago-webhook`, `reconcile-subscription-status`, `delete-account` | Required when `PAYMENT_PROVIDER=mercadopago`. **Omit** for `obrapay` (mock). Production token or `TEST-…` for sandbox. |
+| `MERCADOPAGO_WEBHOOK_SECRET` | `mercadopago-webhook` | Required when `PAYMENT_PROVIDER=mercadopago`. **Omit** for `obrapay`. **Your integrations** webhook signing secret (HMAC `x-signature`) |
 | `OBRA_APP_URL` | `create-subscription-checkout`, `create-credits-checkout` | Public site origin **without** trailing slash (e.g. `https://obra-app-nu.vercel.app`) — used for MP `back_urls` |
 | `MERCADOPAGO_SUBSCRIPTION_REASON` | `create-subscription-checkout` | Optional; default `Obra recurring subscription` |
 | `MERCADOPAGO_SUBSCRIPTION_AMOUNT` | `create-subscription-checkout` | Optional; monthly amount (default `100`) |
@@ -27,7 +38,9 @@ Checkout, webhooks, and subscription reconciliation go through **`BillingAdapter
 | `MERCADOPAGO_CREDITS_PACK_TITLE` | `create-credits-checkout` | Optional; checkout line title |
 | `AI_OPTIMIZE_CREDIT_COST` | `ai-optimize` | Optional; positive integer credits debited per request (default `1`) |
 | `AI_GENERATE_INDEX_CREDIT_COST` | `ai-generate-index` | Optional; credits debited per successful TOC proposal (default `2`) |
-| `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-*` (future) | Claude text |
+| `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-index`, `ai-generate-content` (future) | Claude text |
+| `CLAUDE_MODEL` | `ai-optimize`, `ai-generate-index` | Optional; default `claude-sonnet-4-20250514` |
+| `CLAUDE_REQUEST_TIMEOUT_MS` | `ai-optimize`, `ai-generate-index` | Optional; default `120000` |
 | `GOOGLE_GENERATIVE_AI_API_KEY` / Gemini secrets | `image-generate`, Gemini calls (future) | Images |
 | `PUPPETEER_*` / PDF runtime secrets | `export-pdf` (future) | Server-side PDF |
 | `RESEND_API_KEY` | `send-auth-email` | Resend API key for localized auth email hook delivery |
@@ -69,12 +82,21 @@ supabase secrets set MERCADOPAGO_CREDITS_PACK_TITLE="Obra credits (100)"
    - Copy the integration **webhook signing secret** into Supabase **`MERCADOPAGO_WEBHOOK_SECRET`** (the function validates `x-signature` + `x-request-id` and rejects unsigned calls).
 3. Use **test** credentials (`TEST-` access token) against sandbox checkout; the function picks `sandbox_init_point` when the token starts with `TEST-`.
 
+### ObraPay mock (`PAYMENT_PROVIDER=obrapay`)
+
+For local or staging without Mercado Pago credentials: set **`PAYMENT_PROVIDER=obrapay`**, **`OBRA_APP_URL`**, and **`SUPABASE_SERVICE_ROLE_KEY`** (same as other functions — needed so **`create-credits-checkout`** can post credits when you buy a pack). Subscription checkout returns your normal return URL immediately; call **`reconcile-subscription-status`** (or rely on the app’s refresh) to set **`subscription_status`** to **active**.
+
+Optional **`POST`** to **`mercadopago-webhook`** with JSON (no MP signature checks in this mode):
+
+- Activate subscription for a user: `{ "obrapay_mock": true, "topic": "subscription", "user_id": "<creator_profiles.id uuid>" }`
+- Approve a credit top-up (only if you skipped the built-in grant or are testing the webhook path): `{ "obrapay_mock": true, "topic": "payment", "external_reference": "<obra:credits:v1:… ref from checkout>" }` — **do not** combine with a normal ObraPay checkout for the same purchase, or you may credit twice (different idempotency keys).
+
 ## Data export and account deletion (#44)
 
 | Function | Auth | Behavior |
 | -------- | ---- | -------- |
 | `export-user-data` | `Authorization: Bearer <user JWT>` | Returns JSON `{ ok, data }` with `creator_profiles` row, credit ledger slice (max 1000 rows), and non-sensitive subject fields. Client downloads a `.json` file. |
-| `delete-account` | Same | Reconciles subscription via `BillingAdapter` when `MERCADOPAGO_ACCESS_TOKEN` is set, then **rejects with HTTP 409** `subscription_blocks_delete` if `creator_profiles.subscription_status` is **`active`**. Otherwise calls `auth.admin.deleteUser` (cascades profile + ledger per FKs). Logs structured events **without PII** (`user_id_prefix` only). |
+| `delete-account` | Same | Reconciles subscription via `BillingAdapter` when configured (`mercadopago` + token, or `obrapay` mock), then **rejects with HTTP 409** `subscription_blocks_delete` if `creator_profiles.subscription_status` is **`active`**. Otherwise calls `auth.admin.deleteUser` (cascades profile + ledger per FKs). Logs structured events **without PII** (`user_id_prefix` only). |
 
 Both use **`verify_jwt = false`** and validate the JWT with `auth.getUser`, like `reconcile-subscription-status`.
 

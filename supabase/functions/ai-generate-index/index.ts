@@ -1,85 +1,76 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
+import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
+import { generateBonusSectionIndexPrompt, generateIndexPrompt } from "../_shared/prompts.ts";
+import { corsJson, corsOptions } from "../_shared/cors.ts";
+import type { ChapterCount, ContentLocale, ContentTone } from "../_shared/prompts.ts";
 
-/**
- * Proposes chapter titles (TOC) for the AI path: main ebook or an order-bump ebook.
- * Validates JWT. Deducts credits via `obra_credit_ledger_apply`; Claude integration is still pending (#26 / #29).
- *
- * Content generation inputs (Structure → Design, `projects.design_config` JSON):
- * - `chapterCount` (6 | 8 | 10 | 12): main-ebook chapter count for index generation; default 8 if missing.
- * - `contentTone` (professional | friendly | inspirational | direct | educational): AI voice preset; default "friendly".
- * Legacy keys `chapter_count` / `content_tone` are accepted when parsing.
- */
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+const json = corsJson;
 
-const VALID_CONTENT_TONES = new Set([
-  "professional",
-  "friendly",
-  "inspirational",
-  "direct",
-  "educational",
-]);
+const CONTENT_LOCALES = ["es", "pt-BR", "en-US", "en-GB"] as const;
 
-/** Mirrors `normalizeDesignConfig` defaults in `obra/src/lib/wizard/structureTypes.ts`. */
-function parseIndexOptionsFromDesignConfig(designConfig: unknown): { chapterCount: number; contentTone: string } {
-  const defaultCount = 8;
-  const defaultTone = "friendly";
-  if (designConfig === null || typeof designConfig !== "object" || Array.isArray(designConfig)) {
-    return { chapterCount: defaultCount, contentTone: defaultTone };
-  }
-  const dc = designConfig as Record<string, unknown>;
-  const rawCount = dc.chapterCount !== undefined ? dc.chapterCount : dc.chapter_count;
-  const n = typeof rawCount === "number" ? rawCount : Number(rawCount);
-  const chapterCount = n === 6 || n === 8 || n === 10 || n === 12 ? n : defaultCount;
-
-  const rawTone = typeof dc.contentTone === "string" ? dc.contentTone : dc.content_tone;
-  const contentTone =
-    typeof rawTone === "string" && VALID_CONTENT_TONES.has(rawTone) ? rawTone : defaultTone;
-
-  return { chapterCount, contentTone };
+function parseContentLocale(raw: string | null | undefined): ContentLocale | null {
+  if (!raw || typeof raw !== "string") return null;
+  return (CONTENT_LOCALES as readonly string[]).includes(raw) ? (raw as ContentLocale) : null;
 }
 
 function stubChapterTitles(
   contentLocale: string,
   mainTitle: string,
   topic: string | null,
-  chapterCount: number,
+  count: number,
 ): string[] {
   const base = mainTitle.trim() || topic?.trim() || "Your ebook";
   const loc = contentLocale.toLowerCase();
-  const n = Math.max(1, Math.min(12, Math.floor(chapterCount)));
+  const n = Math.max(1, Math.min(60, Math.floor(count)));
+  const templatesPt = [
+    `Introdução — ${base}`,
+    "Desenvolvimento do conteúdo",
+    "Exemplo prático",
+    "Conclusão e próximos passos",
+  ];
+  const templatesEn = [
+    `Introduction — ${base}`,
+    "Core content",
+    "Practical example",
+    "Conclusion and next steps",
+  ];
+  const templatesEs = [
+    `Introducción — ${base}`,
+    "Desarrollo del contenido",
+    "Caso práctico",
+    "Conclusión y próximos pasos",
+  ];
+  const pick = loc.startsWith("pt") ? templatesPt : loc.startsWith("en") ? templatesEn : templatesEs;
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    out.push(pick[i % pick.length] + (i >= pick.length ? ` (${i + 1})` : ""));
+  }
+  return out;
+}
 
-  const intro = loc.startsWith("pt")
-    ? `Introdução — ${base}`
-    : loc.startsWith("en")
-      ? `Introduction — ${base}`
-      : `Introducción — ${base}`;
-  const outro = loc.startsWith("pt")
-    ? "Conclusão e próximos passos"
-    : loc.startsWith("en")
-      ? "Conclusion and next steps"
-      : "Conclusión y próximos pasos";
-  const mid = (i: number) =>
-    loc.startsWith("pt")
-      ? `Capítulo ${i}: desenvolvimento do conteúdo`
-      : loc.startsWith("en")
-        ? `Chapter ${i}: core content`
-        : `Capítulo ${i}: desarrollo del contenido`;
-
-  if (n === 1) return [intro];
-  if (n === 2) return [intro, outro];
-  const titles: string[] = [intro];
-  for (let i = 2; i < n; i++) titles.push(mid(i));
-  titles.push(outro);
+function extractChapterTitles(parsed: Record<string, unknown>, expectedCount: number): string[] | null {
+  const chapters = parsed.chapters;
+  if (!Array.isArray(chapters)) return null;
+  type Row = { number?: unknown; title?: unknown };
+  const rows: Row[] = chapters.filter((c) => typeof c === "object" && c !== null) as Row[];
+  const withNum = rows
+    .map((c) => ({
+      n: typeof c.number === "number" ? c.number : Number(c.number),
+      title: typeof c.title === "string" ? c.title.trim() : "",
+    }))
+    .filter((c) => Number.isFinite(c.n) && c.title);
+  withNum.sort((a, b) => a.n - b.n);
+  const titles = withNum.map((c) => c.title);
+  if (titles.length !== expectedCount) return null;
   return titles;
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return corsOptions();
+  }
   if (req.method !== "POST") {
     return json({ error: "method_not_allowed" }, 405);
   }
@@ -105,6 +96,19 @@ Deno.serve(async (req: Request) => {
   const projectId = typeof payload?.project_id === "string" ? payload.project_id : null;
   const clientRequestId = typeof payload?.client_request_id === "string" ? payload.client_request_id : null;
   const targetEbookId = typeof payload?.target_ebook_id === "string" ? payload.target_ebook_id : null;
+
+  const bodyChapterOverride =
+    typeof payload?.chapter_count === "number" && Number.isFinite(payload.chapter_count)
+      ? Math.floor(payload.chapter_count)
+      : typeof payload?.chapter_count === "string"
+        ? Number(payload.chapter_count)
+        : null;
+  const bodyToneOverride =
+    typeof payload?.content_tone === "string"
+      ? payload.content_tone
+      : typeof payload?.contentTone === "string"
+        ? payload.contentTone
+        : null;
 
   if (!projectId) {
     return json({ error: "invalid_payload", detail: "project_id" }, 400);
@@ -141,7 +145,10 @@ Deno.serve(async (req: Request) => {
     return json({ error: "wrong_content_source", detail: "ai_path_only" }, 400);
   }
 
-  let seedTitle = project.main_title ?? "";
+  const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
+  let seedTitle = projectMainTitle;
+  type PackageTargetKind = "order_bump" | "bonus";
+  let packageTargetKind: PackageTargetKind | null = null;
   if (targetEbookId !== null && targetEbookId !== "") {
     const { data: targetEbook, error: ebookErr } = await admin
       .from("ebooks")
@@ -153,14 +160,46 @@ Deno.serve(async (req: Request) => {
     if (ebookErr || !targetEbook) {
       return json({ error: "invalid_payload", detail: "target_ebook_not_found" }, 400);
     }
-    if (targetEbook.type !== "order_bump") {
-      return json({ error: "invalid_payload", detail: "target_ebook_not_order_bump" }, 400);
+    if (targetEbook.type !== "order_bump" && targetEbook.type !== "bonus") {
+      return json({ error: "invalid_payload", detail: "target_ebook_invalid_type" }, 400);
     }
     if (targetEbook.index_frozen_at != null) {
-      return json({ error: "index_already_frozen", detail: "order_bump" }, 400);
+      return json({ error: "index_already_frozen", detail: targetEbook.type }, 400);
     }
-    seedTitle = typeof targetEbook.title === "string" ? targetEbook.title : "";
+    packageTargetKind = targetEbook.type as PackageTargetKind;
+    seedTitle = typeof targetEbook.title === "string" ? targetEbook.title.trim() : "";
   }
+
+  const { chapterCount: designChapterCount, contentTone: designTone } = parseDesignConfigForAi(project.design_config);
+
+  let chapterCount: ChapterCount = designChapterCount;
+  if (
+    bodyChapterOverride === 4 ||
+    bodyChapterOverride === 6 ||
+    bodyChapterOverride === 8 ||
+    bodyChapterOverride === 10 ||
+    bodyChapterOverride === 12
+  ) {
+    chapterCount = bodyChapterOverride as ChapterCount;
+  }
+  if (packageTargetKind === "order_bump") {
+    chapterCount = 4;
+  }
+
+  const expectedTitleCount = packageTargetKind === "bonus" ? 1 : chapterCount;
+
+  const tone: ContentTone =
+    bodyToneOverride &&
+    ["professional", "friendly", "inspirational", "direct", "educational"].includes(bodyToneOverride)
+      ? (bodyToneOverride as ContentTone)
+      : designTone;
+
+  const contentLocale =
+    parseContentLocale(project.content_locale ?? undefined) ?? ("es" as ContentLocale);
+  const topic = typeof project.topic === "string" ? project.topic : "";
+  const avatar = typeof project.target_avatar === "string" ? project.target_avatar : "";
+  const problem = typeof project.problem === "string" ? project.problem : "";
+  const artifactTitle = seedTitle.trim() || topic || "Ebook";
 
   const rawCost = Deno.env.get("AI_GENERATE_INDEX_CREDIT_COST");
   const cost = rawCost !== undefined && rawCost !== "" ? Number(rawCost) : 2;
@@ -195,20 +234,76 @@ Deno.serve(async (req: Request) => {
     return json({ error: "ledger_failed" }, 500);
   }
 
-  const { chapterCount } = parseIndexOptionsFromDesignConfig(
-    (project as { design_config?: unknown }).design_config,
-  );
+  const useAnthropic = Boolean(Deno.env.get("ANTHROPIC_API_KEY")?.trim());
 
-  const titles = stubChapterTitles(
-    project.content_locale ?? "es",
-    seedTitle,
-    project.topic,
-    chapterCount,
-  );
+  if (!useAnthropic) {
+    const titles = stubChapterTitles(
+      project.content_locale ?? "es",
+      artifactTitle,
+      typeof project.topic === "string" ? project.topic : null,
+      expectedTitleCount,
+    );
+    return json({
+      ok: true,
+      stub: true,
+      chapters: titles.map((title) => ({ title })),
+      credits_balance_after: balanceAfter,
+    });
+  }
+
+  const promptBundle =
+    packageTargetKind === "bonus"
+      ? generateBonusSectionIndexPrompt({
+          content_locale: contentLocale,
+          topic,
+          avatar,
+          problem,
+          main_ebook_title: projectMainTitle || topic || "Ebook",
+          bonus_product_title: artifactTitle,
+          tone,
+        })
+      : generateIndexPrompt({
+          content_locale: contentLocale,
+          topic,
+          avatar,
+          problem,
+          main_ebook_title: artifactTitle,
+          chapter_count: chapterCount,
+          tone,
+        });
+
+  const ai = await callClaudeJsonText({
+    system: promptBundle.system,
+    user: promptBundle.user,
+    maxTokens: packageTargetKind === "bonus" ? 2048 : 8192,
+  });
+  if (!ai.ok) {
+    return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+  }
+
+  const parsed = parseJsonObject(ai.text);
+  if (!parsed.ok) {
+    return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+  }
+
+  const o = parsed.value;
+  if (typeof o.error === "string" && o.error === "INVALID_INPUT") {
+    return json({
+      ok: false,
+      error: "invalid_input",
+      reason: typeof o.reason === "string" ? o.reason : undefined,
+      credits_balance_after: balanceAfter,
+    }, 400);
+  }
+
+  const titles = extractChapterTitles(o, expectedTitleCount);
+  if (!titles) {
+    return json({ ok: false, error: "index_shape_mismatch", credits_balance_after: balanceAfter }, 502);
+  }
 
   return json({
     ok: true,
-    stub: true,
+    stub: false,
     chapters: titles.map((title) => ({ title })),
     credits_balance_after: balanceAfter,
   });

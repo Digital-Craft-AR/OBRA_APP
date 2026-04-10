@@ -10,7 +10,7 @@ import type {
 } from "./types.ts";
 
 /**
- * Pluggable billing / payments gateway. Implement per provider (Mercado Pago, Stripe, …).
+ * Pluggable billing / payments gateway. Implement per provider (Mercado Pago, ObraPay mock, Stripe, …).
  * Edge functions should depend only on this interface + `getBillingAdapter()`.
  */
 export interface BillingAdapter {

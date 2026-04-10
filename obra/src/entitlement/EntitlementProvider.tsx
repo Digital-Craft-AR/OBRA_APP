@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/authContext";
 import { i18n } from "@/i18n";
+import { toastApiFailure } from "@/lib/apiToast";
 import { supabase } from "@/lib/supabaseClient";
 import { isEmailVerifiedForEntitlement } from "@/lib/authEmailEntitlement";
 import { normalizeUiLocale } from "@/lib/uiLocale";
@@ -133,6 +134,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     if (fnError || fnData?.error) {
+      toastApiFailure(i18n.getFixedT(i18n.language), "entitlement.reconcileError");
       await refetchProfile();
       return;
     }

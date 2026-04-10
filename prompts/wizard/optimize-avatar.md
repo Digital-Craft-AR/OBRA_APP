@@ -1,7 +1,7 @@
 # optimize-avatar — Expande descripción cruda de audiencia en perfil de avatar completo
 
 **Ruta:** `prompts/wizard/optimize-avatar.md`  
-**Implementación:** `obra/src/lib/prompts.ts` → función `optimizeAvatarPrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → función `optimizeAvatarPrompt()`  
 **Feature PRD:** `features/wizard-shared/wizard-shared.md` — §Avatar + problem (single step)  
 **Estado:** `draft`  
 **Última revisión:** 2026-04-06
@@ -88,7 +88,7 @@ _Este prompt no recibe `{avatar}` porque él mismo lo genera. El `{topic}` es cr
 
 ## 5. System prompt
 
-_El system se construye en `prompts.ts` con `{content_locale}` ya interpolado antes de enviarlo al modelo._
+_El system se construye en `_shared/prompts.ts` con `{content_locale}` ya interpolado antes de enviarlo al modelo._
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
@@ -124,16 +124,17 @@ Audience description: {raw_input}
 Generate the complete avatar profile. Output exactly 3 pains, 3 desires, 2 objections.
 ```
 
-**Notas de implementación en `prompts.ts`:**
+**Notas de implementación en `_shared/prompts.ts`:**
 - `{content_locale}` se interpola en el system antes de enviarlo — nunca va en el user turn
 - Si `topic` está vacío, **no llamar al prompt** — validar en UI antes de la llamada. El system retornará `INVALID_INPUT` de todas formas, pero es mejor fallar antes de consumir tokens
 - `raw_input` se pasa tal cual escribe el usuario, sin limpiar ni normalizar
+- La Edge `ai-optimize` arma el campo `optimized` como texto multilínea (`description`, líneas de `demographics`, luego cada `pain` / `desire` / `objection` como bloques separados por línea en blanco); ver `supabase/functions/_shared/wizardOptimizeUnifiedText.ts` (`avatarProfileToUnifiedText`). El objeto estructurado sigue en `avatar_profile`.
 
 ---
 
 ## 7. Ejemplos few-shot
 
-_Estos tres ejemplos son los casos de test canónicos para `optimizeAvatarPrompt()` en `prompts.ts`._
+_Estos tres ejemplos son los casos de test canónicos para `optimizeAvatarPrompt()` en `_shared/prompts.ts`._
 
 ---
 

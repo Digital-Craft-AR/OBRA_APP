@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { billingNeedsMercadoPagoAccessToken } from "../_shared/payment/billingEnv.ts";
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadEnv.ts";
 
@@ -25,7 +26,7 @@ Deno.serve(async (req: Request) => {
   const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const accessToken = loadMercadoPagoAccessToken();
 
-  if (!supabaseUrl || !anonKey || !serviceRole || !accessToken) {
+  if (!supabaseUrl || !anonKey || !serviceRole) {
     return json({ error: "misconfigured" }, 500);
   }
 
@@ -35,6 +36,10 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     console.error("billing_adapter", e);
     return json({ error: "misconfigured", detail: "payment_provider" }, 500);
+  }
+
+  if (billingNeedsMercadoPagoAccessToken(billing) && !accessToken) {
+    return json({ error: "misconfigured" }, 500);
   }
 
   const authHeader = req.headers.get("Authorization");
@@ -60,7 +65,7 @@ Deno.serve(async (req: Request) => {
   let reconciledFrom: "subscription_preapproval" | "payment" | "profile" = "profile";
   let nextStatus = currentStatus;
 
-  const remote = await billing.reconcileSubscriptionStatusForUser(accessToken, userId);
+  const remote = await billing.reconcileSubscriptionStatusForUser(accessToken ?? "", userId);
   if (remote.found) {
     reconciledFrom = remote.source === "subscription" ? "subscription_preapproval" : "payment";
     nextStatus = remote.subscriptionStatus;

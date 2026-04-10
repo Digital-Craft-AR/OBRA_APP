@@ -20,6 +20,7 @@ import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { useWizardStructureFlow } from "@/hooks/wizard/useWizardStructureFlow";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import { useWizardTourState } from "@/hooks/wizard/useWizardTourState";
+import { toastApiFailure } from "@/lib/apiToast";
 import { markStructureCompleted } from "@/lib/wizard/structurePersistence";
 import { INNER_STEPS } from "@/lib/wizard/structureTypes";
 
@@ -114,14 +115,17 @@ export function WizardStructurePage() {
                   label={t("wizard.structure.topic.label")}
                   placeholder={t("wizard.structure.topic.placeholder")}
                   assistLabel={t("wizard.structure.topic.improve")}
+                  hint={
+                    [t("wizard.structure.topic.hint"), flow.topicAssistHint].filter(Boolean).join("\n\n") || undefined
+                  }
                   value={flow.topicDraft}
-                  error={flow.topicError ?? undefined}
+                  error={flow.topicError ?? flow.topicAssistError ?? undefined}
                   disabled={flow.topicSaving}
                   improving={flow.topicImproving}
                   saving={flow.topicSaving}
                   savingLabel={t("wizard.structure.topic.saving")}
-                  message={flow.topicMessage}
                   onChange={(value) => {
+                    flow.clearTopicAssistFeedback();
                     flow.setTopicDraft(value);
                     if (value.trim()) flow.setTopicError(null);
                   }}
@@ -133,24 +137,28 @@ export function WizardStructurePage() {
                 <StructureStepAvatarProblem
                   avatarLabel={t("wizard.structure.step2.avatarLabel")}
                   avatarPlaceholder={t("wizard.structure.step2.avatarPlaceholder")}
+                  avatarHint={flow.avatarAssistHint ?? undefined}
                   avatarValue={flow.avatarDraft}
-                  avatarError={flow.avatarError ?? undefined}
+                  avatarError={flow.avatarError ?? flow.avatarAssistError ?? undefined}
                   avatarImproving={flow.avatarImproving}
                   problemLabel={t("wizard.structure.step2.problemLabel")}
                   problemPlaceholder={t("wizard.structure.step2.problemPlaceholder")}
+                  problemHint={flow.problemAssistHint ?? undefined}
                   problemValue={flow.problemDraft}
-                  problemError={flow.problemError ?? undefined}
+                  problemError={flow.problemError ?? flow.problemAssistError ?? undefined}
                   problemImproving={flow.problemImproving}
                   assistLabel={t("wizard.structure.topic.improve")}
                   disabled={flow.avatarProblemSaving}
                   saving={flow.avatarProblemSaving}
                   savingLabel={t("wizard.structure.avatarProblem.saving")}
-                  message={flow.avatarProblemMessage}
+                  footerMessage={flow.avatarProblemFooterMessage}
                   onAvatarChange={(value) => {
+                    flow.clearAvatarAssistFeedback();
                     flow.setAvatarDraft(value);
                     if (value.trim()) flow.setAvatarError(null);
                   }}
                   onProblemChange={(value) => {
+                    flow.clearProblemAssistFeedback();
                     flow.setProblemDraft(value);
                     if (value.trim()) flow.setProblemError(null);
                   }}
@@ -197,11 +205,7 @@ export function WizardStructurePage() {
                   authorPlaceholder={t("wizard.structure.step4.authorPlaceholder")}
                   suggestionsLoadingLabel={t("wizard.structure.step4.suggestionsLoading")}
                   savingLabel={t("wizard.structure.step4.saving")}
-                  onSelectSuggestion={(index) => {
-                    flow.setSelectedTitleIndex(index);
-                    flow.setCustomMainTitle("");
-                    flow.setMainTitleError(null);
-                  }}
+                  onSelectSuggestion={flow.selectMainTitleFromSuggestion}
                   onRegenerate={() => void flow.generateMainTitleSuggestions()}
                   onCustomTitleChange={(value) => {
                     flow.setCustomMainTitle(value);
@@ -348,7 +352,9 @@ export function WizardStructurePage() {
                 if (result.finishedStructure && params.projectId) {
                   const marked = await markStructureCompleted(params.projectId);
                   if (!marked.ok) {
-                    setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                    const key = "wizard.structure.step7.structureMarkError";
+                    setStructureGateError(t(key));
+                    toastApiFailure(t, key);
                     return;
                   }
                   setProject((current) =>
@@ -426,7 +432,9 @@ export function WizardStructurePage() {
                     if (result.finishedStructure && params.projectId) {
                       const marked = await markStructureCompleted(params.projectId);
                       if (!marked.ok) {
-                        setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                        const key = "wizard.structure.step7.structureMarkError";
+                        setStructureGateError(t(key));
+                        toastApiFailure(t, key);
                         return;
                       }
                       setProject((current) =>
@@ -470,7 +478,9 @@ export function WizardStructurePage() {
                     if (result.finishedStructure && params.projectId) {
                       const marked = await markStructureCompleted(params.projectId);
                       if (!marked.ok) {
-                        setStructureGateError(t("wizard.structure.step7.structureMarkError"));
+                        const key = "wizard.structure.step7.structureMarkError";
+                        setStructureGateError(t(key));
+                        toastApiFailure(t, key);
                         return;
                       }
                       setProject((current) =>
