@@ -16,11 +16,12 @@
  *   prompts/content/generate-index.md       → generateIndexPrompt()
  */
 
+import type { ContentTone, WizardChapterCount } from "@/lib/wizard/structureTypes";
+
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
 export type ContentLocale = "es" | "pt-BR" | "en-US" | "en-GB";
-export type Tone = "educativo" | "calido" | "cercano" | "amigable";
-export type ChapterCount = 6 | 8 | 10 | 12;
+export type ChapterCount = WizardChapterCount;
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 
@@ -402,7 +403,7 @@ export interface GenerateIndexVars {
   problem: string;
   main_ebook_title: string;
   chapter_count: ChapterCount;
-  tone: Tone;
+  tone: ContentTone;
 }
 
 export function generateIndexPrompt(vars: GenerateIndexVars): { system: string; user: string } {
@@ -415,11 +416,12 @@ Role: generate the complete structured index (TOC) for the main ebook using all 
 
 Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language. Cross-translate avatar/problem context if it is in a different language.
 
-TONE GUIDE — apply to titles, descriptions, and key_concepts:
-- educativo: formal, structured, didactic. Authority through expertise. Impersonal or third-person constructions. Academic but accessible.
-- calido: emotional, inclusive, first-person plural ("juntos", "vamos a"). Warmth without losing rigor. Acknowledges feelings before delivering information.
-- cercano: conversational, anecdotal, direct second person ("vos" in es, "você" in pt-BR). Everyday language. Reads like advice from a friend who knows the topic deeply.
-- amigable: balanced. Professional but accessible. Expert who is also warm. Not too formal, not too casual.
+TONE GUIDE — apply to titles, descriptions, and key_concepts (use the exact preset key the user selected; keys are English, output language is ${vars.content_locale}):
+- professional: clear expert voice, structured, credible. Suitable for readers who want authority and precision without fluff.
+- friendly: warm, direct, non-corporate — like a trusted peer. Conversational but still actionable (default Obra voice).
+- inspirational: motivating and forward-looking. Emphasizes possibility and momentum without hype, fake urgency, or income promises.
+- direct: concise, no filler. Gets to the point quickly; practical imperatives and concrete next steps.
+- educational: didactic and stepwise. Teaches systematically; defines terms when needed; patient pacing for learners.
 
 WORD COUNT TARGETS by chapter_count=${vars.chapter_count}:
 - 6 chapters: ch1 ~900w | middle (2-5) ~1100w each | last ~900w → ~6,500w total
@@ -429,7 +431,7 @@ WORD COUNT TARGETS by chapter_count=${vars.chapter_count}:
 
 RULES (non-negotiable):
 1. EXACT count: output exactly ${vars.chapter_count} chapters. Never more, never fewer.
-2. VALID tone: must be one of educativo|calido|cercano|amigable. Apply consistently to titles, descriptions, and key_concepts.
+2. VALID tone: must be one of professional|friendly|inspirational|direct|educational. Apply consistently to titles, descriptions, and key_concepts.
 3. Narrative arc is mandatory: each chapter must advance the reader from problem.transformation.from toward problem.transformation.to. No disconnected or redundant chapters.
 4. Chapter 1 is the hook: validates the pain, makes the reader feel understood, opens the loop. NO heavy method delivery. ~900w.
 5. Middle chapters carry the method: each delivers ONE concrete piece of the transformation. Titles must be specific and benefit-forward. BAD: "La importancia del precio". GOOD: "Calculá el costo real de cada vela en 4 pasos".
@@ -445,10 +447,10 @@ RULES (non-negotiable):
 - chapters[].description: max 280 characters
 - chapters[].key_concepts[]: max 130 characters each
 If any field exceeds its limit, rewrite it shorter before returning. Outputs with fields exceeding limits will be rejected downstream.
-11. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: chapter_count is not one of 6/8/10/12 | tone is not one of the 4 presets | topic or main_ebook_title is empty | avatar or problem contain an error field.
+11. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: chapter_count is not one of 6/8/10/12 | tone is not one of professional|friendly|inspirational|direct|educational | topic or main_ebook_title is empty | avatar or problem contain an error field.
 
-Example (es, chapter_count=6, tone=cercano):
-Input: topic="Cómo transformar tu hobby de velas en negocio rentable" chapter_count=6 tone=cercano main_ebook_title="Velas que se venden" avatar=(artesana 25-45 LATAM; pain: precios/ventas/diferenciación) problem=(trabaja a pérdida sin saberlo; transformation.from="artesana que cobra barato"; transformation.to="emprendedora que cobra con confianza")
+Example (es, chapter_count=6, tone=friendly):
+Input: topic="Cómo transformar tu hobby de velas en negocio rentable" chapter_count=6 tone=friendly main_ebook_title="Velas que se venden" avatar=(artesana 25-45 LATAM; pain: precios/ventas/diferenciación) problem=(trabaja a pérdida sin saberlo; transformation.from="artesana que cobra barato"; transformation.to="emprendedora que cobra con confianza")
 {"title":"Velas que se venden: sistema de precios, marca y clientes que pagan lo que vale","subtitle":"Guía práctica para artesanas que quieren vivir de su taller sin cobrar barato","narrative_arc":"De artesana que trabaja a pérdida sin saberlo, a emprendedora que cobra con confianza y tiene clientes que vuelven — seis pasos concretos, sin teoría innecesaria.","chapters":[{"number":1,"title":"Por qué trabajar más no alcanza si el precio está mal","description":"Abre el loop: valida el esfuerzo y muestra el mecanismo del precio bajo como trampa estructural.","key_concepts":["El ciclo de trabajar más para ganar igual","La diferencia entre precio de venta y precio rentable","Por qué vender más volumen no resuelve el problema"],"word_count_target":900},{"number":2,"title":"Calculá el costo real de tu vela sin adivinar","description":"Método paso a paso para calcular el costo completo: materiales, tiempo y gastos que casi nadie incluye.","key_concepts":["Los 4 componentes del costo real de una vela","Cómo valuar tu tiempo sin subestimarlo","Costos fijos vs. variables: qué incluir en cada vela"],"word_count_target":1100},{"number":3,"title":"Tu precio de venta: la fórmula que sí cubre todo","description":"Cómo pasar del costo al precio final incluyendo ganancia real y margen para imprevistos.","key_concepts":["Margen mínimo vs. margen objetivo","El error de compararte con la vela importada más barata","Cómo ajustar el precio sin perder clientes actuales"],"word_count_target":1100},{"number":4,"title":"Diferenciarte sin bajar el precio: tu propuesta única","description":"Cómo construir un diferencial de marca que justifique el precio y haga irrelevante la comparación.","key_concepts":["3 tipos de diferencial artesanal que funcionan","Cómo comunicar el valor sin sonar arrogante","Tu historia como parte del producto"],"word_count_target":1100},{"number":5,"title":"Canales de venta que no dependen de las ferias","description":"Cómo vender de forma consistente sin esperar el pico de fechas especiales.","key_concepts":["Instagram como canal de venta directa","WhatsApp como canal de fidelización","Cómo armar una cartera de clientes que vuelven"],"word_count_target":1100},{"number":6,"title":"Tu taller como negocio: los próximos 90 días","description":"Consolida el método y da un plan de acción concreto para los primeros tres meses.","key_concepts":["Las 3 métricas que indican si tu negocio de velas está sano","Cómo revisar y ajustar tu precio cada trimestre","El mapa de los próximos 90 días paso a paso"],"word_count_target":900}]}`,
 
     user: `Topic: ${vars.topic}

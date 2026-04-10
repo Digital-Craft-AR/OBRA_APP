@@ -1,4 +1,6 @@
+import { useTranslation } from "react-i18next";
 import { ObraTextarea } from "@/components/obra/ObraTextarea";
+import { CONTENT_TONE_KEYS, type ContentTone } from "@/lib/wizard/structureTypes";
 
 type StructureStepAvatarProblemProps = {
   avatarLabel: string;
@@ -16,6 +18,8 @@ type StructureStepAvatarProblemProps = {
   saving: boolean;
   savingLabel: string;
   message: string | null;
+  contentTone: ContentTone;
+  onContentToneChange: (tone: ContentTone) => void;
   onAvatarChange: (value: string) => void;
   onProblemChange: (value: string) => void;
   onImproveAvatar: () => void;
@@ -38,11 +42,15 @@ export function StructureStepAvatarProblem({
   saving,
   savingLabel,
   message,
+  contentTone,
+  onContentToneChange,
   onAvatarChange,
   onProblemChange,
   onImproveAvatar,
   onImproveProblem,
 }: StructureStepAvatarProblemProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="space-y-4">
       <ObraTextarea
@@ -71,6 +79,34 @@ export function StructureStepAvatarProblem({
         aiStatus={problemImproving ? "loading" : "idle"}
         disabled={disabled}
       />
+
+      <div className="flex flex-col gap-4 pt-1">
+        <h3 className="text-sm font-semibold text-obra-blue-950">
+          {t("wizard.structure.avatarProblem.contentTone.title")}
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {CONTENT_TONE_KEYS.map((toneKey) => {
+            const selected = contentTone === toneKey;
+            return (
+              <button
+                key={toneKey}
+                type="button"
+                disabled={disabled}
+                onClick={() => onContentToneChange(toneKey)}
+                className={`min-h-[40px] min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-xl border px-3 py-2.5 text-center text-sm font-medium transition-colors sm:basis-[calc(33.333%-0.25rem)] ${
+                  selected
+                    ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-700"
+                    : "border-obra-neutral-200 bg-white text-obra-neutral-600"
+                } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+              >
+                {t(`wizard.structure.avatarProblem.contentTone.${toneKey}`)}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.avatarProblem.contentTone.helper")}</p>
+      </div>
+
       {saving ? <span className="text-xs text-obra-neutral-600">{savingLabel}</span> : null}
       <div aria-live="polite" className="text-xs text-obra-neutral-600">
         {message}

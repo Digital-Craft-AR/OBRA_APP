@@ -4,6 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 /**
  * Proposes chapter titles (TOC) for the AI path: main ebook or an order-bump ebook.
  * Validates JWT. Deducts credits via `obra_credit_ledger_apply`; Claude integration is still pending (#26 / #29).
+ *
+ * Content generation inputs (Structure → Design, `projects.design_config` JSON):
+ * - `chapterCount` (6 | 8 | 10 | 12): main-ebook chapter count for index generation; default 8 if missing.
+ * - `contentTone` (professional | friendly | inspirational | direct | educational): AI voice preset; default "friendly".
+ * Legacy keys `chapter_count` / `content_tone` are accepted when parsing.
  */
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -12,35 +17,66 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const VALID_CONTENT_TONES = new Set([
+  "professional",
+  "friendly",
+  "inspirational",
+  "direct",
+  "educational",
+]);
+
+/** Mirrors `normalizeDesignConfig` defaults in `obra/src/lib/wizard/structureTypes.ts`. */
+function parseIndexOptionsFromDesignConfig(designConfig: unknown): { chapterCount: number; contentTone: string } {
+  const defaultCount = 8;
+  const defaultTone = "friendly";
+  if (designConfig === null || typeof designConfig !== "object" || Array.isArray(designConfig)) {
+    return { chapterCount: defaultCount, contentTone: defaultTone };
+  }
+  const dc = designConfig as Record<string, unknown>;
+  const rawCount = dc.chapterCount !== undefined ? dc.chapterCount : dc.chapter_count;
+  const n = typeof rawCount === "number" ? rawCount : Number(rawCount);
+  const chapterCount = n === 6 || n === 8 || n === 10 || n === 12 ? n : defaultCount;
+
+  const rawTone = typeof dc.contentTone === "string" ? dc.contentTone : dc.content_tone;
+  const contentTone =
+    typeof rawTone === "string" && VALID_CONTENT_TONES.has(rawTone) ? rawTone : defaultTone;
+
+  return { chapterCount, contentTone };
+}
+
 function stubChapterTitles(
   contentLocale: string,
   mainTitle: string,
   topic: string | null,
+  chapterCount: number,
 ): string[] {
   const base = mainTitle.trim() || topic?.trim() || "Your ebook";
   const loc = contentLocale.toLowerCase();
-  if (loc.startsWith("pt")) {
-    return [
-      `Introdução — ${base}`,
-      "Desenvolvimento do conteúdo",
-      "Exemplo prático",
-      "Conclusão e próximos passos",
-    ];
-  }
-  if (loc.startsWith("en")) {
-    return [
-      `Introduction — ${base}`,
-      "Core content",
-      "Practical example",
-      "Conclusion and next steps",
-    ];
-  }
-  return [
-    `Introducción — ${base}`,
-    "Desarrollo del contenido",
-    "Caso práctico",
-    "Conclusión y próximos pasos",
-  ];
+  const n = Math.max(1, Math.min(12, Math.floor(chapterCount)));
+
+  const intro = loc.startsWith("pt")
+    ? `Introdução — ${base}`
+    : loc.startsWith("en")
+      ? `Introduction — ${base}`
+      : `Introducción — ${base}`;
+  const outro = loc.startsWith("pt")
+    ? "Conclusão e próximos passos"
+    : loc.startsWith("en")
+      ? "Conclusion and next steps"
+      : "Conclusión y próximos pasos";
+  const mid = (i: number) =>
+    loc.startsWith("pt")
+      ? `Capítulo ${i}: desenvolvimento do conteúdo`
+      : loc.startsWith("en")
+        ? `Chapter ${i}: core content`
+        : `Capítulo ${i}: desarrollo del contenido`;
+
+  if (n === 1) return [intro];
+  if (n === 2) return [intro, outro];
+  const titles: string[] = [intro];
+  for (let i = 2; i < n; i++) titles.push(mid(i));
+  titles.push(outro);
+  return titles;
 }
 
 Deno.serve(async (req: Request) => {
@@ -87,7 +123,7 @@ Deno.serve(async (req: Request) => {
   const { data: project, error: projectError } = await admin
     .from("projects")
     .select(
-      "id, user_id, content_source, content_locale, main_title, topic, problem, target_avatar, structure_completed_at",
+      "id, user_id, content_source, content_locale, main_title, topic, problem, target_avatar, structure_completed_at, design_config",
     )
     .eq("id", projectId)
     .maybeSingle();
@@ -159,10 +195,15 @@ Deno.serve(async (req: Request) => {
     return json({ error: "ledger_failed" }, 500);
   }
 
+  const { chapterCount } = parseIndexOptionsFromDesignConfig(
+    (project as { design_config?: unknown }).design_config,
+  );
+
   const titles = stubChapterTitles(
     project.content_locale ?? "es",
     seedTitle,
     project.topic,
+    chapterCount,
   );
 
   return json({
