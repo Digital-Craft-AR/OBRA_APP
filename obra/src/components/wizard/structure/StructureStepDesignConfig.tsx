@@ -7,6 +7,7 @@ import {
   getDesignPresetById,
   type DesignPresetId,
   type WizardDesignConfig,
+  WIZARD_CHAPTER_COUNTS,
 } from "@/lib/wizard/structureTypes";
 
 type StructureStepDesignConfigProps = {
@@ -182,6 +183,46 @@ export function StructureStepDesignConfig({ config, message, onChange }: Structu
             {t("wizard.structure.design.page.landscape")}
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <h3 className="text-sm font-semibold text-obra-blue-950">
+          {t("wizard.structure.design.chapters.title")}
+        </h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {WIZARD_CHAPTER_COUNTS.map((count) => {
+            const selected = config.chapterCount === count;
+            return (
+              <button
+                key={count}
+                type="button"
+                onClick={() => onChange({ ...config, chapterCount: count })}
+                className={`relative flex flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 text-center transition-colors ${
+                  selected
+                    ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-700"
+                    : "border-obra-neutral-200 bg-white text-obra-neutral-600"
+                }`}
+              >
+                <span className="text-sm font-semibold">{count}</span>
+                {count === 8 ? (
+                  <span
+                    className={`text-[10px] font-medium uppercase tracking-wide ${
+                      selected ? "text-obra-blue-600" : "text-obra-neutral-500"
+                    }`}
+                  >
+                    {t("wizard.structure.design.chapters.recommended")}
+                  </span>
+                ) : (
+                  <span className="h-3" aria-hidden />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-obra-neutral-700">
+          {t(`wizard.structure.design.chapters.estimate.${config.chapterCount}`)}
+        </p>
+        <p className="text-xs text-obra-neutral-500">{t("wizard.structure.design.chapters.disclaimer")}</p>
       </div>
 
       <div className="border-t border-obra-blue-100" aria-hidden />

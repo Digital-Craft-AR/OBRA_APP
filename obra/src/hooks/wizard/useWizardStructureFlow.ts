@@ -9,6 +9,7 @@ import {
 import {
   DEFAULT_DESIGN_CONFIG,
   INNER_STEPS,
+  normalizeDesignConfig,
   type ProjectRow,
   type WizardDesignConfig,
   type WizardTitleItem,
@@ -69,14 +70,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [avatarImproving, setAvatarImproving] = useState(false);
   const [problemImproving, setProblemImproving] = useState(false);
   const [avatarProblemMessage, setAvatarProblemMessage] = useState<string | null>(null);
-  const avatarProblemChanged = useMemo(() => {
-    if (!project) return false;
-    return (
-      (avatarDraft.trim() || "") !== (project.target_avatar?.trim() || "") ||
-      (problemDraft.trim() || "") !== (project.problem?.trim() || "")
-    );
-  }, [project, avatarDraft, problemDraft]);
-
 
   const [bonusCount, setBonusCount] = useState(0);
   const [bumpCount, setBumpCount] = useState(0);
@@ -101,6 +94,16 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [designConfig, setDesignConfig] = useState<WizardDesignConfig>(DEFAULT_DESIGN_CONFIG);
   const [designSaving, setDesignSaving] = useState(false);
   const [designMessage, setDesignMessage] = useState<string | null>(null);
+
+  const avatarProblemChanged = useMemo(() => {
+    if (!project) return false;
+    const savedDesign = normalizeDesignConfig(project.design_config);
+    return (
+      (avatarDraft.trim() || "") !== (project.target_avatar?.trim() || "") ||
+      (problemDraft.trim() || "") !== (project.problem?.trim() || "") ||
+      designConfig.contentTone !== savedDesign.contentTone
+    );
+  }, [project, avatarDraft, problemDraft, designConfig.contentTone]);
 
   useEffect(() => {
     if (!project) return;
@@ -205,7 +208,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const result =
       forceReset && project.structure_completed_at
         ? await resetWizardAvatarProblemAndContent(project.id, avatarDraft, problemDraft)
-        : await saveWizardAvatarProblem(project.id, avatarDraft, problemDraft);
+        : await saveWizardAvatarProblem(project.id, avatarDraft, problemDraft, designConfig);
     setAvatarProblemSaving(false);
     if (!result.ok) {
       if (forceReset) {
@@ -221,6 +224,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
             ...current,
             target_avatar: avatarDraft || null,
             problem: problemDraft || null,
+            design_config: designConfig,
           }
         : current,
     );
