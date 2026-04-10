@@ -1,7 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { billingNeedsMercadoPagoAccessToken } from "../_shared/payment/billingEnv.ts";
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import { loadMercadoPagoAccessToken, loadRecurringPlanFromEnv } from "../_shared/payment/mercadopago/loadEnv.ts";
+import type { RecurringPlanParams } from "../_shared/payment/types.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -41,16 +43,32 @@ Deno.serve(async (req: Request) => {
     return json({ error: "server_misconfigured", detail: "payment_provider" }, 500);
   }
 
-  if (!accessToken || !appUrl) {
-    return json({ error: "checkout_unavailable", detail: "missing_mercadopago_or_app_url" });
+  const needMp = billingNeedsMercadoPagoAccessToken(billing);
+  if (!appUrl) {
+    return json({ error: "checkout_unavailable", detail: "missing_obra_app_url" });
   }
   if (!/^https?:\/\//i.test(appUrl)) {
     return json({ error: "checkout_unavailable", detail: "invalid_app_url_scheme" });
   }
+  if (needMp && !accessToken) {
+    return json({ error: "checkout_unavailable", detail: "missing_mercadopago_token" });
+  }
 
-  const plan = loadRecurringPlanFromEnv();
-  if ("error" in plan) {
-    return json({ error: "server_misconfigured", detail: plan.error }, 500);
+  let plan: RecurringPlanParams;
+  if (needMp) {
+    const loaded = loadRecurringPlanFromEnv();
+    if ("error" in loaded) {
+      return json({ error: "server_misconfigured", detail: loaded.error }, 500);
+    }
+    plan = loaded;
+  } else {
+    plan = {
+      reason: "ObraPay mock subscription",
+      unitPrice: 1,
+      currencyId: "ARS",
+      frequency: 1,
+      frequencyType: "months",
+    };
   }
 
   const authHeader = req.headers.get("Authorization");
@@ -77,7 +95,7 @@ Deno.serve(async (req: Request) => {
   // Include `status=success` so returns match `CheckoutReturnPage` even if the PSP lands on path-only URLs.
   const backUrl = `${appUrl}/checkout/return?status=success`;
 
-  const result = await billing.createSubscriptionCheckout(accessToken, {
+  const result = await billing.createSubscriptionCheckout(accessToken ?? "", {
     creatorUserId: userId,
     payerEmail: userEmail,
     notificationUrl,

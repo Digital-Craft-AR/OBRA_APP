@@ -4,6 +4,11 @@ import { callClaudeJsonText, parseJsonArray, parseJsonObject } from "../_shared/
 import type { ContentLocale } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import {
+  avatarProfileToUnifiedText,
+  problemFramingToUnifiedText,
+  topicFramingToUnifiedText,
+} from "../_shared/wizardOptimizeUnifiedText.ts";
+import {
   generateBonusTitlesPrompt,
   generateBumpTitlesPrompt,
   generateEbookTitlePrompt,
@@ -202,10 +207,16 @@ Deno.serve(async (req: Request) => {
           credits_balance_after: balanceAfter,
         }, 400);
       }
-      const title = typeof o.optimized_title === "string" ? o.optimized_title.trim() : "";
-      const description = typeof o.description === "string" ? o.description.trim() : "";
+      const topicObj = o as Record<string, unknown>;
+      const title = typeof topicObj.optimized_title === "string" ? topicObj.optimized_title.trim() : "";
+      const description = typeof topicObj.description === "string" ? topicObj.description.trim() : "";
+      const unifiedTopic = topicFramingToUnifiedText(topicObj);
       const optimized =
-        title && description ? `${title}\n\n${description}` : title || description || "";
+        unifiedTopic.trim().length > 0
+          ? unifiedTopic
+          : title && description
+            ? `${title}\n\n${description}`
+            : title || description || "";
       return json({
         ok: true,
         stub: false,
@@ -215,8 +226,8 @@ Deno.serve(async (req: Request) => {
         topic_framing: {
           optimized_title: title || undefined,
           description: description || undefined,
-          niche: typeof o.niche === "string" ? o.niche : undefined,
-          angle: typeof o.angle === "string" ? o.angle : undefined,
+          niche: typeof topicObj.niche === "string" ? topicObj.niche : undefined,
+          angle: typeof topicObj.angle === "string" ? topicObj.angle : undefined,
         },
         credits_balance_after: balanceAfter,
       });
@@ -248,14 +259,17 @@ Deno.serve(async (req: Request) => {
           credits_balance_after: balanceAfter,
         }, 400);
       }
-      const optimized = JSON.stringify(o, null, 2);
+      const avatarObj = o as Record<string, unknown>;
+      const unifiedAvatar = avatarProfileToUnifiedText(avatarObj);
+      const optimized =
+        unifiedAvatar.trim().length > 0 ? unifiedAvatar : JSON.stringify(avatarObj, null, 2);
       return json({
         ok: true,
         stub: false,
         field,
         intent,
         optimized,
-        avatar_profile: o,
+        avatar_profile: avatarObj,
         credits_balance_after: balanceAfter,
       });
     }
@@ -290,14 +304,17 @@ Deno.serve(async (req: Request) => {
           credits_balance_after: balanceAfter,
         }, 400);
       }
-      const optimized = JSON.stringify(o, null, 2);
+      const framingObj = o as Record<string, unknown>;
+      const unified = problemFramingToUnifiedText(framingObj);
+      const optimized =
+        unified.trim().length > 0 ? unified : JSON.stringify(framingObj, null, 2);
       return json({
         ok: true,
         stub: false,
         field,
         intent,
         optimized,
-        problem_framing: o,
+        problem_framing: framingObj,
         credits_balance_after: balanceAfter,
       });
     }

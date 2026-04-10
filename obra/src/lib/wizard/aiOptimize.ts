@@ -19,6 +19,7 @@ type AiImproveResponse = AiOptimizeBaseResponse & {
     angle?: string;
   };
   avatar_profile?: Record<string, unknown>;
+  /** Structured problem output from the model (when `field === "problem"`). */
   problem_framing?: Record<string, unknown>;
 };
 
@@ -40,9 +41,11 @@ function newClientRequestId(): string {
 export type ImproveWizardTextResult =
   | {
       ok: true;
+      /** Topic / avatar / problem: unified multi-line text from model JSON (see `wizardOptimizeUnifiedText.ts`); not raw JSON except rare fallbacks. */
       optimized: string | null;
       topicFraming?: AiImproveResponse["topic_framing"];
       avatarProfile?: Record<string, unknown>;
+      /** Present when `field === "problem"`; structured JSON from the model. */
       problemFraming?: Record<string, unknown>;
     }
   | { ok: false; code: string | null };

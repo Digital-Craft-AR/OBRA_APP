@@ -86,6 +86,28 @@ const resources = {
       "shell.pending.checkoutStartError": "No pudimos abrir el pago. Probá de nuevo en unos minutos.",
       "shell.pending.checkoutUnavailable":
         "El pago no está disponible todavía: falta configurar Mercado Pago en el servidor (OBRA_APP_URL y credenciales).",
+      "checkout.edge.missing_obra_app_url":
+        "El servidor no tiene definida OBRA_APP_URL (URL pública de la app, con https://). Configurala en Supabase → Edge Functions → Secrets, no solo en el .env del front.",
+      "checkout.edge.missing_mercadopago_token":
+        "Falta MERCADOPAGO_ACCESS_TOKEN en los secretos de Supabase (Edge Functions). Sin ese token no se puede abrir Mercado Pago. Usá un token TEST- en sandbox o PAYMENT_PROVIDER=obrapay solo para pruebas.",
+      "checkout.edge.missing_mercadopago_or_app_url":
+        "Falta OBRA_APP_URL o MERCADOPAGO_ACCESS_TOKEN en los secretos de la Edge Function (actualizá el despliegue si ya los cargaste).",
+      "checkout.edge.invalid_app_url_scheme":
+        "OBRA_APP_URL tiene que empezar con https:// o http:// (sin espacios). Corregila en los secretos de Supabase.",
+      "checkout.edge.supabase_auth":
+        "La función de checkout no tiene SUPABASE_URL o SUPABASE_ANON_KEY en su entorno (fallo de despliegue o secretos).",
+      "checkout.edge.payment_provider":
+        "PAYMENT_PROVIDER no es válido o el adaptador de pagos falló al iniciar. Revisá secretos y el despliegue.",
+      "checkout.edge.price":
+        "Configuración inválida del plan: MERCADOPAGO_SUBSCRIPTION_AMOUNT (o MERCADOPAGO_CHECKOUT_UNIT_PRICE) debe ser un número mayor a 0.",
+      "checkout.edge.frequency":
+        "Configuración inválida del plan: MERCADOPAGO_SUBSCRIPTION_FREQUENCY debe ser un entero mayor a 0.",
+      "checkout.edge.credits_pack":
+        "Configuración inválida del pack de créditos en el servidor (MERCADOPAGO_CREDITS_PACK_CREDITS o precio). Revisá los secretos de create-credits-checkout.",
+      "checkout.edge.generic_checkout":
+        "El checkout no está disponible por una configuración del servidor. Revisá los logs de la función create-subscription-checkout en Supabase.",
+      "checkout.edge.mercadopago_provider":
+        "Mercado Pago rechazó o no devolvió el enlace de pago. Revisá el token, el país/moneda de la cuenta y los logs de la función en Supabase.",
       "shell.pending.checkoutEmailNotVerified": "Tenés que confirmar el correo antes de pagar.",
       "shell.pending.checkoutReturnedFailure":
         "El pago no se completó o fue cancelado. Podés intentar de nuevo cuando quieras.",
@@ -594,6 +616,7 @@ const resources = {
       "wizard.structure.avatarProblem.resetError":
         "No pudimos reiniciar el contenido con los nuevos parámetros. Verificá que la función reset-avatar-problem-content esté desplegada y probá de nuevo.",
       "wizard.structure.avatarProblem.improveError": "No pudimos optimizar este texto en este momento.",
+      "wizard.structure.avatarProblem.improved": "El texto fue optimizado con IA.",
       "wizard.structure.avatarProblem.improvePending":
         "La optimización se procesó, pero la respuesta textual aún está en modo stub.",
       "wizard.structure.avatarProblem.contentTone.title": "Tono del contenido con IA",
@@ -747,6 +770,13 @@ const resources = {
       "settings.credits.topUpRedirectHint": "Serás redirigido a Mercado Pago para completar el pago. Los créditos se acreditan cuando el pago queda aprobado.",
       "settings.credits.topUpError": "No pudimos iniciar el checkout. Intentá de nuevo en unos minutos.",
       "settings.credits.topUpSubscriptionRequired": "Necesitás una suscripción activa para comprar créditos extra.",
+      "settings.credits.topUpReturnSyncing":
+        "Estamos actualizando tu saldo. Los créditos se acreditan cuando Mercado Pago aprueba el pago (suele tardar unos segundos). Si no ves el cambio, tocá «Actualizar historial» o recargá la página.",
+      "settings.credits.topUpReturnedFailure":
+        "Mercado Pago indicó que el pago no se completó. Si ya cobraron el importe, esperá unos minutos o revisá el estado en tu cuenta de Mercado Pago.",
+      "settings.credits.topUpReturnedPending":
+        "El pago figura como pendiente. Los créditos se suman cuando quede aprobado; podés volver más tarde o usar «Actualizar historial».",
+      "settings.credits.topUpReturnDismiss": "Entendido",
       "settings.credits.ledgerLoadError": "No pudimos cargar el historial de créditos.",
       "settings.credits.historyHeading": "Historial",
       "settings.credits.historyEmpty": "Todavía no hay movimientos para mostrar en esta vista.",
@@ -864,6 +894,28 @@ const resources = {
       "shell.pending.checkoutStartError": "Não foi possível abrir o pagamento. Tente novamente em alguns minutos.",
       "shell.pending.checkoutUnavailable":
         "O pagamento ainda não está disponível: falta configurar o Mercado Pago no servidor (OBRA_APP_URL e credenciais).",
+      "checkout.edge.missing_obra_app_url":
+        "O servidor não tem OBRA_APP_URL (URL pública do app, com https://). Configure em Supabase → Edge Functions → Secrets, não só no .env do front.",
+      "checkout.edge.missing_mercadopago_token":
+        "Falta MERCADOPAGO_ACCESS_TOKEN nos secrets do Supabase (Edge Functions). Sem esse token o Mercado Pago não abre. Use token TEST- em sandbox ou PAYMENT_PROVIDER=obrapay só para testes.",
+      "checkout.edge.missing_mercadopago_or_app_url":
+        "Falta OBRA_APP_URL ou MERCADOPAGO_ACCESS_TOKEN nos secrets da Edge Function (faça redeploy se já tiver configurado).",
+      "checkout.edge.invalid_app_url_scheme":
+        "OBRA_APP_URL precisa começar com https:// ou http:// (sem espaços). Corrija nos secrets do Supabase.",
+      "checkout.edge.supabase_auth":
+        "A função de checkout não tem SUPABASE_URL ou SUPABASE_ANON_KEY no ambiente (falha de deploy ou secrets).",
+      "checkout.edge.payment_provider":
+        "PAYMENT_PROVIDER inválido ou falha ao iniciar o adaptador de pagamentos. Verifique secrets e o deploy.",
+      "checkout.edge.price":
+        "Plano inválido: MERCADOPAGO_SUBSCRIPTION_AMOUNT (ou MERCADOPAGO_CHECKOUT_UNIT_PRICE) deve ser um número maior que 0.",
+      "checkout.edge.frequency":
+        "Plano inválido: MERCADOPAGO_SUBSCRIPTION_FREQUENCY deve ser um inteiro maior que 0.",
+      "checkout.edge.credits_pack":
+        "Pacote de créditos inválido no servidor (MERCADOPAGO_CREDITS_PACK_CREDITS ou preço). Verifique os secrets de create-credits-checkout.",
+      "checkout.edge.generic_checkout":
+        "O checkout não está disponível por configuração do servidor. Veja os logs da função create-subscription-checkout no Supabase.",
+      "checkout.edge.mercadopago_provider":
+        "O Mercado Pago recusou ou não retornou o link de pagamento. Verifique o token, país/moeda da conta e os logs da função no Supabase.",
       "shell.pending.checkoutEmailNotVerified": "Você precisa confirmar o e-mail antes de pagar.",
       "shell.pending.checkoutReturnedFailure":
         "O pagamento não foi concluído ou foi cancelado. Você pode tentar de novo quando quiser.",
@@ -1376,6 +1428,7 @@ const resources = {
         "Não foi possível reiniciar o conteúdo com os novos parâmetros. Verifique se a função reset-avatar-problem-content está publicada e tente novamente.",
       "wizard.structure.avatarProblem.improveError":
         "Não foi possível otimizar este texto no momento.",
+      "wizard.structure.avatarProblem.improved": "O texto foi otimizado com IA.",
       "wizard.structure.avatarProblem.improvePending":
         "A otimização foi processada, mas a resposta textual ainda está em modo stub.",
       "wizard.structure.avatarProblem.contentTone.title": "Tom do conteúdo com IA",
@@ -1530,6 +1583,13 @@ const resources = {
       "settings.credits.topUpRedirectHint": "Você será redirecionado ao Mercado Pago para concluir o pagamento. Os créditos são creditados quando o pagamento é aprovado.",
       "settings.credits.topUpError": "Não foi possível iniciar o checkout. Tente novamente em alguns minutos.",
       "settings.credits.topUpSubscriptionRequired": "É necessária uma assinatura ativa para comprar créditos extras.",
+      "settings.credits.topUpReturnSyncing":
+        "Estamos atualizando seu saldo. Os créditos são creditados quando o Mercado Pago aprova o pagamento (geralmente em poucos segundos). Se não vir a alteração, use «Atualizar histórico» ou recarregue a página.",
+      "settings.credits.topUpReturnedFailure":
+        "O Mercado Pago indicou que o pagamento não foi concluído. Se a cobrança ocorreu, aguarde alguns minutos ou confira o status na sua conta do Mercado Pago.",
+      "settings.credits.topUpReturnedPending":
+        "O pagamento consta como pendente. Os créditos serão somados quando for aprovado; você pode voltar mais tarde ou usar «Atualizar histórico».",
+      "settings.credits.topUpReturnDismiss": "Entendi",
       "settings.credits.ledgerLoadError": "Não foi possível carregar o histórico de créditos.",
       "settings.credits.historyHeading": "Histórico",
       "settings.credits.historyEmpty": "Ainda não há movimentações para mostrar nesta visualização.",

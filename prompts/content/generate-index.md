@@ -16,17 +16,20 @@ Es el primer prompt del flujo de Contenido (Día 2). Se llama inmediatamente des
 
 ## 2. Inputs
 
-| Variable | Tipo | Requerido | Descripción |
-|----------|------|:---------:|-------------|
-| `{content_locale}` | `"es" \| "pt-BR" \| "en-US" \| "en-GB"` | ✅ | Locale del output — determina idioma y registro de todo el JSON |
-| `{topic}` | `string` | ✅ | `optimized_title` del output de `optimize-topic`; ancla los capítulos al nicho |
-| `{avatar}` | `string` (JSON serializado) | ✅ | Output completo de `optimize-avatar`, serializado como `JSON.stringify()` |
-| `{problem}` | `string` (JSON serializado) | ✅ | Output completo de `optimize-problem`, serializado como `JSON.stringify()` |
-| `{main_ebook_title}` | `string` | ✅ | `main_ebook.title` del output de `suggest-package`, aprobado o editado por el usuario en el wizard |
-| `{chapter_count}` | `6 \| 8 \| 10 \| 12` | ✅ | Número exacto de capítulos elegido por el usuario en el subpaso "Diseño" del wizard de Estructura |
-| `{tone}` | `"professional" \| "friendly" \| "inspirational" \| "direct" \| "educational"` | ✅ | Preset de tono (clave en inglés) elegido en el paso **Avatar y Problema** del wizard de Estructura; se persiste en `design_config.contentTone` |
+
+| Variable             | Tipo                                                                       | Requerido | Descripción                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{content_locale}`   | `"es" | "pt-BR" | "en-US" | "en-GB"`                                       | ✅         | Locale del output — determina idioma y registro de todo el JSON                                                                                |
+| `{topic}`            | `string`                                                                   | ✅         | `optimized_title` del output de `optimize-topic`; ancla los capítulos al nicho                                                                 |
+| `{avatar}`           | `string` (JSON serializado)                                                | ✅         | Output completo de `optimize-avatar`, serializado como `JSON.stringify()`                                                                      |
+| `{problem}`          | `string` (JSON serializado)                                                | ✅         | Output completo de `optimize-problem`, serializado como `JSON.stringify()`                                                                     |
+| `{main_ebook_title}` | `string`                                                                   | ✅         | `main_ebook.title` del output de `suggest-package`, aprobado o editado por el usuario en el wizard                                             |
+| `{chapter_count}`    | `6 | 8 | 10 | 12`                                                          | ✅         | Número exacto de capítulos elegido por el usuario en el subpaso "Diseño" del wizard de Estructura                                              |
+| `{tone}`             | `"professional" | "friendly" | "inspirational" | "direct" | "educational"` | ✅         | Preset de tono (clave en inglés) elegido en el paso **Avatar y Problema** del wizard de Estructura; se persiste en `design_config.contentTone` |
+
 
 **Conectividad de pipeline:**
+
 - Todos los inputs llegan ya validados desde pasos anteriores del pipeline del wizard
 - El output completo se almacena en el campo `index_json` de la tabla `ebooks` (ebook principal)
 - El campo `index_json` completo se pasa como `{index}` en cada llamada a `generateChapterPrompt()`
@@ -76,11 +79,13 @@ Es el primer prompt del flujo de Contenido (Día 2). Se llama inmediatamente des
 ```
 
 **Restricciones de conteo estrictas:**
+
 - `chapters`: exactamente `{chapter_count}` items — ni uno más, ni uno menos
 - `key_concepts` por capítulo: entre 3 y 5 strings
 - `subtitle`: puede ser `null` si el título ya es suficientemente descriptivo
 
 **Restricciones de longitud:**
+
 - `title`: max 120 caracteres
 - `subtitle`: max 140 caracteres (o `null`)
 - `narrative_arc`: max 400 caracteres
@@ -101,19 +106,21 @@ Es el primer prompt del flujo de Contenido (Día 2). Se llama inmediatamente des
 
 ## 4. Parámetros de modelo
 
-| Parámetro | Valor recomendado | Razón |
-|-----------|:-----------------:|-------|
-| **Temperatura** | `0.5` | La coherencia del arco narrativo requiere algo de estructura, pero los títulos y conceptos necesitan variedad suficiente para no generar índices idénticos entre proyectos del mismo nicho. Las reglas del system garantizan la coherencia estructural; la temperatura evita la homogeneidad. |
-| **max_tokens** | `2500` | Un índice de 12 capítulos con 5 key_concepts por capítulo ronda los 1800-2000 tokens; margen para títulos más elaborados |
-| **Modelo** | `claude-sonnet-4-6` | Requiere síntesis de todo el contexto del wizard y coherencia de arco narrativo sostenida a lo largo de 6-12 capítulos |
 
-_Nota: el README recomienda `0.3` para prompts de índice/TOC. Se usa `0.5` aquí porque la variedad entre proyectos del mismo nicho es un requisito de producto — dos proyectos de "velas artesanales" no deben generar el mismo índice._
+| Parámetro       | Valor recomendado   | Razón                                                                                                                                                                                                                                                                                         |
+| --------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Temperatura** | `0.5`               | La coherencia del arco narrativo requiere algo de estructura, pero los títulos y conceptos necesitan variedad suficiente para no generar índices idénticos entre proyectos del mismo nicho. Las reglas del system garantizan la coherencia estructural; la temperatura evita la homogeneidad. |
+| **max_tokens**  | `2500`              | Un índice de 12 capítulos con 5 key_concepts por capítulo ronda los 1800-2000 tokens; margen para títulos más elaborados                                                                                                                                                                      |
+| **Modelo**      | `claude-sonnet-4-6` | Requiere síntesis de todo el contexto del wizard y coherencia de arco narrativo sostenida a lo largo de 6-12 capítulos                                                                                                                                                                        |
+
+
+*Nota: el README recomienda `0.3` para prompts de índice/TOC. Se usa `0.5` aquí porque la variedad entre proyectos del mismo nicho es un requisito de producto — dos proyectos de "velas artesanales" no deben generar el mismo índice.*
 
 ---
 
 ## 5. System prompt
 
-_`{content_locale}`, `{chapter_count}`, y `{tone}` se interpolan en `_shared/prompts.ts` antes de enviar al modelo._
+*`{content_locale}`, `{chapter_count}`, y `{tone}` se interpolan en `_shared/prompts.ts` antes de enviar al modelo.*
 
 ```
 CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
@@ -178,6 +185,7 @@ Generate the complete index with exactly {chapter_count} chapters.
 ```
 
 **Notas de implementación en `_shared/prompts.ts`:**
+
 - `{chapter_count}` y `{tone}` se interpolan en el system (para la lógica de reglas) y en el user template (para que el modelo lo tenga explícito en el turno del usuario)
 - Si `chapter_count` no es uno de `[6, 8, 10, 12]`, **no llamar al prompt** — validar en UI antes de la llamada; el selector de capítulos solo expone esos cuatro valores
 - Si `tone` no es uno de los 5 presets (`professional`, `friendly`, `inspirational`, `direct`, `educational`), **no llamar al prompt** — el paso Avatar y Problema en la UI lo garantiza
@@ -192,13 +200,14 @@ Generate the complete index with exactly {chapter_count} chapters.
 
 ## 7. Ejemplos few-shot
 
-_Los tres ejemplos usan personajes canónicos del Día 1 del wizard para demostrar coherencia de pipeline end-to-end. Los campos `avatar` y `problem` se muestran abreviados — en producción se pasan los JSON completos._
+*Los tres ejemplos usan personajes canónicos del Día 1 del wizard para demostrar coherencia de pipeline end-to-end. Los campos `avatar` y `problem` se muestran abreviados — en producción se pasan los JSON completos.*
 
 ---
 
 ### Ejemplo 1 — `es`, 8 capítulos, tono `friendly`
 
 **Variables de input:**
+
 ```
 content_locale: "es"
 topic: "Cocina vegana para familias: cómo hacer que toda la familia coma rico, sano y sin conflictos"
@@ -224,6 +233,7 @@ problem: {
 ```
 
 **Output esperado:**
+
 ```json
 {
   "title": "Come bien, cocina vegano: recetas y estrategias para que tu familia disfrute sin darse cuenta",
@@ -329,6 +339,7 @@ problem: {
 ### Ejemplo 2 — `pt-BR`, 6 capítulos, tono `educational`
 
 **Variables de input:**
+
 ```
 content_locale: "pt-BR"
 topic: "Yoga para maiores de 40: como começar com segurança, respeitar o seu corpo e colher benefícios reais"
@@ -354,6 +365,7 @@ problem: {
 ```
 
 **Output esperado:**
+
 ```json
 {
   "title": "Yoga depois dos 40: guia prático para começar com segurança e evoluir no seu próprio ritmo",
@@ -437,6 +449,7 @@ problem: {
 ### Ejemplo 3 — `en-US`, 10 capítulos, tono `professional`
 
 **Variables de input:**
+
 ```
 content_locale: "en-US"
 topic: "Freelance writing for engineers: how to turn technical expertise into consistent writing income"
@@ -462,6 +475,7 @@ problem: {
 ```
 
 **Output esperado:**
+
 ```json
 {
   "title": "The Technical Writer's Playbook: build a freelance writing income using what you already know",
@@ -588,18 +602,20 @@ problem: {
 
 ## 8. Casos límite
 
-| Caso | Input | Comportamiento esperado |
-|------|-------|-------------------------|
-| `chapter_count` inválido | `chapter_count: 7`, `chapter_count: 5`, `chapter_count: 15` | `{"error":"INVALID_INPUT","reason":"chapter_count debe ser 6, 8, 10 o 12."}` — validar en UI antes de llamar; el selector solo expone los 4 valores válidos |
-| `tone` inválido | `tone: "neutral"`, `tone: "casual"` | `{"error":"INVALID_INPUT","reason":"tone must be professional, friendly, inspirational, direct, or educational."}` — el selector de UI lo previene |
-| `avatar` con error | `avatar` contiene campo `"error"` | No llamar al prompt — resolver el avatar en el wizard primero |
-| `problem` con error | `problem` contiene campo `"error"` | No llamar al prompt — resolver el problema en el wizard primero |
-| `main_ebook_title` vacío | `main_ebook_title: ""` | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar |
-| `topic` vacío | `topic: ""` | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar |
-| Inputs en idioma distinto al locale | `content_locale: "es"`, avatar/problem generados en `en-US` | Output completo en `es`; el modelo cross-traduce el contexto de avatar y problem |
-| `chapter_count: 12` | Máximo número de capítulos | Generar exactamente 12; aplicar ~950w para caps 2-11 y ~900w para caps 1 y 12 |
-| Topic muy amplio | `topic: "bienestar personal"` | Generar igualmente; el modelo usa avatar y problem para compensar la amplitud del topic. El `narrative_arc` se convierte en el ancla de coherencia. |
-| Usuario edita el índice antes de aprobar | Drag-and-drop, rename, add/remove capítulos en la UI | El JSON editado es el que se almacena en `index_json` y alimenta `generate-chapter`. El prompt no se vuelve a llamar por ediciones del usuario. |
+
+| Caso                                     | Input                                                       | Comportamiento esperado                                                                                                                                     |
+| ---------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chapter_count` inválido                 | `chapter_count: 7`, `chapter_count: 5`, `chapter_count: 15` | `{"error":"INVALID_INPUT","reason":"chapter_count debe ser 6, 8, 10 o 12."}` — validar en UI antes de llamar; el selector solo expone los 4 valores válidos |
+| `tone` inválido                          | `tone: "neutral"`, `tone: "casual"`                         | `{"error":"INVALID_INPUT","reason":"tone must be professional, friendly, inspirational, direct, or educational."}` — el selector de UI lo previene          |
+| `avatar` con error                       | `avatar` contiene campo `"error"`                           | No llamar al prompt — resolver el avatar en el wizard primero                                                                                               |
+| `problem` con error                      | `problem` contiene campo `"error"`                          | No llamar al prompt — resolver el problema en el wizard primero                                                                                             |
+| `main_ebook_title` vacío                 | `main_ebook_title: ""`                                      | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar                                                                                  |
+| `topic` vacío                            | `topic: ""`                                                 | `{"error":"INVALID_INPUT","reason":"..."}` — validar en UI antes de llamar                                                                                  |
+| Inputs en idioma distinto al locale      | `content_locale: "es"`, avatar/problem generados en `en-US` | Output completo en `es`; el modelo cross-traduce el contexto de avatar y problem                                                                            |
+| `chapter_count: 12`                      | Máximo número de capítulos                                  | Generar exactamente 12; aplicar ~950w para caps 2-11 y ~900w para caps 1 y 12                                                                               |
+| Topic muy amplio                         | `topic: "bienestar personal"`                               | Generar igualmente; el modelo usa avatar y problem para compensar la amplitud del topic. El `narrative_arc` se convierte en el ancla de coherencia.         |
+| Usuario edita el índice antes de aprobar | Drag-and-drop, rename, add/remove capítulos en la UI        | El JSON editado es el que se almacena en `index_json` y alimenta `generate-chapter`. El prompt no se vuelve a llamar por ediciones del usuario.             |
+
 
 ---
 
@@ -607,9 +623,11 @@ problem: {
 
 ### Historial
 
-| Fecha | Versión | Cambio | Razón |
-|-------|---------|--------|-------|
-| 2026-04-08 | v1.0 | Versión inicial | Primer prompt del flujo de Contenido (Día 2); ancla del pipeline de generación de capítulos |
+
+| Fecha      | Versión | Cambio          | Razón                                                                                       |
+| ---------- | ------- | --------------- | ------------------------------------------------------------------------------------------- |
+| 2026-04-08 | v1.0    | Versión inicial | Primer prompt del flujo de Contenido (Día 2); ancla del pipeline de generación de capítulos |
+
 
 ### Decisiones descartadas
 
@@ -622,12 +640,13 @@ problem: {
 
 ### Próximos experimentos
 
-- [ ] Testear temperatura `0.4` vs `0.5` — ¿produce arcos narrativos más coherentes o títulos más repetitivos entre proyectos del mismo nicho?
-- [ ] Evaluar si pasar `problem.sub_problems` como lista explícita en el user template (además del JSON completo de `{problem}`) mejora la asignación 1:1 de sub-problemas a capítulos
-- [ ] Medir si agregar el `angle` del topic (de `optimize-topic`) como variable explícita mejora la coherencia tonal del índice con el posicionamiento elegido
-- [ ] Testear si el ejemplo en el system prompt (6 caps, friendly) es suficiente para el caso de `chapter_count: 12` o si conviene un segundo ejemplo mini para el extremo superior
-- [ ] Evaluar si el `narrative_arc` inyectado como variable en `generate-chapter` mejora la coherencia de voz entre capítulos, o si los capítulos son suficientemente coherentes con solo el `index_json` completo como contexto
+- Testear temperatura `0.4` vs `0.5` — ¿produce arcos narrativos más coherentes o títulos más repetitivos entre proyectos del mismo nicho?
+- Evaluar si pasar `problem.sub_problems` como lista explícita en el user template (además del JSON completo de `{problem}`) mejora la asignación 1:1 de sub-problemas a capítulos
+- Medir si agregar el `angle` del topic (de `optimize-topic`) como variable explícita mejora la coherencia tonal del índice con el posicionamiento elegido
+- Testear si el ejemplo en el system prompt (6 caps, friendly) es suficiente para el caso de `chapter_count: 12` o si conviene un segundo ejemplo mini para el extremo superior
+- Evaluar si el `narrative_arc` inyectado como variable en `generate-chapter` mejora la coherencia de voz entre capítulos, o si los capítulos son suficientemente coherentes con solo el `index_json` completo como contexto
 
 ### Problemas conocidos en producción
 
-- _Ninguno registrado._
+- *Ninguno registrado.*
+

@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { parseCreditTopUpExternalReference } from "../_shared/payment/creditTopUpRef.ts";
+import { billingNeedsMercadoPagoAccessToken, billingNeedsMercadoPagoWebhookSecret } from "../_shared/payment/billingEnv.ts";
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import {
   loadMercadoPagoAccessToken,
@@ -47,7 +48,17 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-  if (!secret || !accessToken || !supabaseUrl || !serviceKey) {
+  const needMpSecret = billingNeedsMercadoPagoWebhookSecret(billing);
+  const needMpToken = billingNeedsMercadoPagoAccessToken(billing);
+  if (!supabaseUrl || !serviceKey) {
+    console.error("mercadopago_webhook_misconfigured");
+    return jsonResponse({ error: "misconfigured" }, 500);
+  }
+  if (needMpSecret && !secret) {
+    console.error("mercadopago_webhook_misconfigured");
+    return jsonResponse({ error: "misconfigured" }, 500);
+  }
+  if (needMpToken && !accessToken) {
     console.error("mercadopago_webhook_misconfigured");
     return jsonResponse({ error: "misconfigured" }, 500);
   }
@@ -56,7 +67,7 @@ Deno.serve(async (req: Request) => {
   const xRequestId = req.headers.get("x-request-id");
 
   const sigOk = billing.verifyWebhookSignature({
-    secret,
+    secret: secret ?? "",
     xSignature,
     xRequestId,
     resourceId: resource.resourceId,
@@ -92,7 +103,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (resource.topic === "subscription") {
-      const snap = await billing.fetchSubscriptionSnapshot(accessToken, resource.resourceId);
+      const snap = await billing.fetchSubscriptionSnapshot(accessToken ?? "", resource.resourceId);
       const st = snap.status ?? "unknown";
       if (st !== "authorized" && st !== "paused" && st !== "cancelled") {
         return jsonResponse({ ok: true, skipped_status: st });
@@ -100,7 +111,7 @@ Deno.serve(async (req: Request) => {
       ext = snap.externalReference;
       profileStatus = st === "authorized" ? "active" : "past_due";
     } else {
-      const snap = await billing.fetchPaymentSnapshot(accessToken, resource.resourceId);
+      const snap = await billing.fetchPaymentSnapshot(accessToken ?? "", resource.resourceId);
       if (snap.status !== "approved") {
         return jsonResponse({ ok: true, skipped_status: snap.status ?? "unknown" });
       }

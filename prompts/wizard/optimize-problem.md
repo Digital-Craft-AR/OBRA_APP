@@ -129,6 +129,7 @@ Expand the problem statement into the complete structure.
 - `{avatar}` se pasa como `JSON.stringify(avatarObject)` — el objeto completo, no solo la descripción
 - Si `{avatar}` contiene `"error"`, resolver el avatar primero
 - El output completo de este prompt se pasa como `{problem}` a `suggestPackagePrompt()`
+- La función Edge `ai-optimize` convierte el JSON en un solo string multilínea para el campo `optimized` (bloques separados por línea en blanco); ver `supabase/functions/_shared/wizardOptimizeUnifiedText.ts` (`problemFramingToUnifiedText`). El objeto estructurado sigue en `problem_framing`.
 
 ---
 

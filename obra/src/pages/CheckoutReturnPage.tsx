@@ -1,10 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  consumeCheckoutReturnMessageKey,
-  setCheckoutReturnMessageKey,
-  setCheckoutReturnPending,
-} from "@/entitlement/checkoutReturn";
+import { consumeCheckoutReturnMessageKey, setCheckoutReturnMessageKey, setCheckoutReturnPending } from "@/entitlement/checkoutReturn";
 import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
 import { parsePaymentReturnOutcome } from "@/lib/paymentReturnParams";
 
@@ -18,6 +14,13 @@ export function CheckoutReturnPage() {
 
   useEffect(() => {
     const outcome = parsePaymentReturnOutcome(searchParams);
+    const isCreditsCheckout = searchParams.get("checkout_kind") === "credits";
+
+    if (outcome === "success" && isCreditsCheckout) {
+      consumeCheckoutReturnMessageKey();
+      void navigate("/app/settings/credits?topup_return=1", { replace: true });
+      return;
+    }
 
     if (outcome === "success") {
       setCheckoutReturnPending();
@@ -27,17 +30,29 @@ export function CheckoutReturnPage() {
     }
 
     if (outcome === "failure") {
+      if (isCreditsCheckout) {
+        void navigate("/app/settings/credits?topup_return=1&topup_status=failure", { replace: true });
+        return;
+      }
       setCheckoutReturnMessageKey("shell.pending.checkoutReturnedFailure");
       void navigate("/app/pending-subscription", { replace: true });
       return;
     }
 
     if (outcome === "pending") {
+      if (isCreditsCheckout) {
+        void navigate("/app/settings/credits?topup_return=1&topup_status=pending", { replace: true });
+        return;
+      }
       setCheckoutReturnMessageKey("shell.pending.checkoutReturnedPending");
       void navigate("/app/pending-subscription", { replace: true });
       return;
     }
 
+    if (isCreditsCheckout) {
+      void navigate("/app/settings/credits", { replace: true });
+      return;
+    }
     void navigate("/app/pending-subscription", { replace: true });
   }, [navigate, searchParams]);
 
