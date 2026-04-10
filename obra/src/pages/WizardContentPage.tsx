@@ -41,6 +41,8 @@ import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUpl
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
+import { supabase } from "@/lib/supabaseClient";
+import type { ContentSource } from "@/lib/projects";
 import { toast } from "@/toast";
 
 const BANNER_STORAGE_PREFIX = "obra.content.banner.dismissed.";
@@ -123,7 +125,7 @@ export function WizardContentPage() {
   const navigate = useNavigate();
   const params = useParams<{ projectId: string }>();
 
-  const { project, loading, error } = useWizardStructureProject(
+  const { project, loading, error, setProject } = useWizardStructureProject(
     params.projectId,
     t("wizard.structure.loadError"),
   );
@@ -166,6 +168,7 @@ export function WizardContentPage() {
   const [contentSourceIntroDone, setContentSourceIntroDone] = useState(() =>
     readContentSourceIntroDone(params.projectId),
   );
+  const [introSourceBusy, setIntroSourceBusy] = useState(false);
 
   useEffect(() => {
     setContentSourceIntroDone(readContentSourceIntroDone(params.projectId));
@@ -277,12 +280,6 @@ export function WizardContentPage() {
       setBumpTocEntryResolved(bumpResolved);
       setBonusBumpToc(tocUpdates);
 
-      if (project.content_source === "upload") {
-        const ms = await fetchActiveManuscript(project.id);
-        if (cancelled) return;
-        if (ms.ok) setManuscriptRow(ms.row);
-      }
-
       setWorkspaceReady(true);
     })();
 
@@ -295,9 +292,26 @@ export function WizardContentPage() {
     project?.structure_completed_at,
     project?.bonus_count,
     project?.bump_count,
-    project?.content_source,
     t,
   ]);
+
+  useEffect(() => {
+    if (!project?.id || loading) return;
+    if (!project.structure_completed_at) return;
+    if (project.content_source !== "upload") {
+      setManuscriptRow(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchActiveManuscript(project.id).then((ms) => {
+      if (cancelled) return;
+      if (ms.ok) setManuscriptRow(ms.row);
+      else setManuscriptRow(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, project?.content_source, loading, project?.structure_completed_at]);
 
   const selectedEbookId = useMemo(() => {
     if (selectedKey === "main") return mainEbookId;
@@ -930,6 +944,46 @@ export function WizardContentPage() {
     setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
   }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, selectedEbookId]);
 
+  const handleIntroContentSourceSelect = useCallback(
+    async (source: ContentSource) => {
+      if (!project || source === project.content_source) return;
+      if (introSourceBusy) return;
+      const previousSource = project.content_source;
+      const nextPhase = source === "upload" ? "upload_alignment" : "main_index";
+      setIntroSourceBusy(true);
+      try {
+        const { error: projErr } = await supabase
+          .from("projects")
+          .update({ content_source: source })
+          .eq("id", project.id);
+        if (projErr) {
+          toast.error({
+            title: t("wizard.content.sourceIntro.updateErrorTitle"),
+            description: t("wizard.content.sourceIntro.updateError"),
+          });
+          return;
+        }
+        const { error: progErr } = await supabase
+          .from("project_content_progress")
+          .update({ current_phase: nextPhase })
+          .eq("project_id", project.id);
+        if (progErr) {
+          await supabase.from("projects").update({ content_source: previousSource }).eq("id", project.id);
+          toast.error({
+            title: t("wizard.content.sourceIntro.updateErrorTitle"),
+            description: t("wizard.content.sourceIntro.updateError"),
+          });
+          return;
+        }
+        setProject((prev) => (prev ? { ...prev, content_source: source } : null));
+        setCurrentPhase(nextPhase);
+      } finally {
+        setIntroSourceBusy(false);
+      }
+    },
+    [project, introSourceBusy, setProject, t],
+  );
+
   const handleContentIntroContinue = useCallback(() => {
     if (!params.projectId) return;
     try {
@@ -1149,7 +1203,12 @@ export function WizardContentPage() {
           ) : null}
 
           {awaitingContentIntro && project ? (
-            <ContentSourceIntroPanel t={t} contentSource={project.content_source} />
+            <ContentSourceIntroPanel
+              t={t}
+              contentSource={project.content_source}
+              onSelectSource={handleIntroContentSourceSelect}
+              selectDisabled={introSourceBusy}
+            />
           ) : null}
 
           {needsUploadAlignment && project && !awaitingContentIntro ? (
