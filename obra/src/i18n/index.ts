@@ -363,6 +363,11 @@ const resources = {
       "wizard.content.footer.backToStructure": "Volver a estructura",
       "wizard.content.footer.back": "Volver",
       "wizard.content.progress.contentLabel": "Progreso de capítulos aprobados",
+      "wizard.content.sourceIntro.title": "Origen del contenido",
+      "wizard.content.sourceIntro.subtitle":
+        "La misma elección que hiciste al crear el proyecto (dos tarjetas: IA o manuscrito). Es el paso previo al índice del paquete; continuá cuando quieras empezar a trabajar el contenido aquí.",
+      "wizard.content.sourceIntro.continue": "Continuar",
+      "wizard.content.inner.contentSource": "Origen del contenido",
       "wizard.content.inner.toc": "TOC",
       "wizard.content.inner.manuscript": "Manuscrito",
       "wizard.content.inner.packageIndex": "Índice del paquete",
@@ -1082,6 +1087,11 @@ const resources = {
       "wizard.content.footer.backToStructure": "Voltar para a estrutura",
       "wizard.content.footer.back": "Voltar",
       "wizard.content.progress.contentLabel": "Progresso de capítulos aprovados",
+      "wizard.content.sourceIntro.title": "Origem do conteúdo",
+      "wizard.content.sourceIntro.subtitle":
+        "A mesma opção escolhida ao criar o projeto (dois cartões: IA ou manuscrito). É a etapa antes do sumário do pacote; continue quando quiser começar a trabalhar o conteúdo aqui.",
+      "wizard.content.sourceIntro.continue": "Continuar",
+      "wizard.content.inner.contentSource": "Origem do conteúdo",
       "wizard.content.inner.toc": "TOC",
       "wizard.content.inner.manuscript": "Manuscrito",
       "wizard.content.inner.packageIndex": "Sumário do pacote",

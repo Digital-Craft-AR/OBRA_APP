@@ -38,11 +38,25 @@ import {
 } from "@/lib/wizard/contentIndexApi";
 import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/manuscriptUploadApi";
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
+import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 import { toast } from "@/toast";
 
 const BANNER_STORAGE_PREFIX = "obra.content.banner.dismissed.";
+
+function contentSourceIntroStorageKey(projectId: string) {
+  return `obra.content.sourceIntro.${projectId}`;
+}
+
+function readContentSourceIntroDone(projectId: string | undefined): boolean {
+  try {
+    if (typeof globalThis.sessionStorage === "undefined" || !projectId) return false;
+    return globalThis.sessionStorage.getItem(contentSourceIntroStorageKey(projectId)) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function findFirstTitleChangeWithBody(
   prev: TocChapterRow[],
@@ -149,6 +163,13 @@ export function WizardContentPage() {
     baseRows: TocChapterRow[];
   } | null>(null);
   const [manuscriptRow, setManuscriptRow] = useState<ProjectManuscriptRow | null>(null);
+  const [contentSourceIntroDone, setContentSourceIntroDone] = useState(() =>
+    readContentSourceIntroDone(params.projectId),
+  );
+
+  useEffect(() => {
+    setContentSourceIntroDone(readContentSourceIntroDone(params.projectId));
+  }, [params.projectId]);
 
   const bonusBumpTocRef = useRef(bonusBumpToc);
   bonusBumpTocRef.current = bonusBumpToc;
@@ -415,27 +436,36 @@ export function WizardContentPage() {
     currentPhase === "main_chapter" &&
     project?.content_source === "ai";
 
-  const contentInnerStepTotal = project?.content_source === "upload" ? 3 : 2;
+  const awaitingContentIntro = useMemo(
+    () => Boolean(project && workspaceReady && !contentSourceIntroDone),
+    [project, workspaceReady, contentSourceIntroDone],
+  );
+
+  const contentInnerStepTotal = project?.content_source === "upload" ? 4 : 3;
 
   const contentInnerStepCurrent = useMemo(() => {
-    if (!project) return 1;
+    if (!project || !workspaceReady) return 1;
+    if (!contentSourceIntroDone) return 1;
     if (project.content_source === "upload") {
-      if (needsUploadAlignment) return 1;
-      if (showChapterLoop) return 3;
-      return 2;
+      if (needsUploadAlignment) return 2;
+      if (showChapterLoop) return 4;
+      return 3;
     }
-    return showChapterLoop ? 2 : 1;
-  }, [project, needsUploadAlignment, showChapterLoop]);
+    if (showChapterLoop) return 3;
+    return 2;
+  }, [project, workspaceReady, contentSourceIntroDone, needsUploadAlignment, showChapterLoop]);
 
   const contentInnerStepLabel = useMemo(() => {
-    if (!project) return t("wizard.content.inner.toc");
+    if (!project || !workspaceReady) return t("wizard.content.inner.contentSource");
+    if (!contentSourceIntroDone) return t("wizard.content.inner.contentSource");
     if (project.content_source === "upload") {
-      if (contentInnerStepCurrent === 1) return t("wizard.content.inner.manuscript");
-      if (contentInnerStepCurrent === 2) return t("wizard.content.inner.packageIndex");
+      if (contentInnerStepCurrent === 2) return t("wizard.content.inner.manuscript");
+      if (contentInnerStepCurrent === 3) return t("wizard.content.inner.packageIndex");
       return t("wizard.content.inner.chapterContent");
     }
-    return showChapterLoop ? t("wizard.content.inner.chapterContent") : t("wizard.content.inner.toc");
-  }, [project, contentInnerStepCurrent, showChapterLoop, t]);
+    if (contentInnerStepCurrent === 2) return t("wizard.content.inner.toc");
+    return t("wizard.content.inner.chapterContent");
+  }, [project, workspaceReady, contentSourceIntroDone, contentInnerStepCurrent, t]);
 
   const persistCurrentChapterDraftIfDirty = useCallback(async () => {
     if (!showChapterLoop) return true;
@@ -900,6 +930,16 @@ export function WizardContentPage() {
     setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
   }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, selectedEbookId]);
 
+  const handleContentIntroContinue = useCallback(() => {
+    if (!params.projectId) return;
+    try {
+      globalThis.sessionStorage.setItem(contentSourceIntroStorageKey(params.projectId), "1");
+    } catch {
+      /* ignore */
+    }
+    setContentSourceIntroDone(true);
+  }, [params.projectId]);
+
   function dismissBanner() {
     if (!params.projectId) return;
     try {
@@ -935,18 +975,21 @@ export function WizardContentPage() {
   const confirmDisabled = !globalIndexReady;
 
   const confirmVisible =
+    contentSourceIntroDone &&
     !needsUploadAlignment &&
     !Boolean(globalIndexFrozenAt) &&
     currentPhase === "main_index" &&
     project?.content_source === "ai";
 
   const tocReadOnly =
-    (selectedTarget.kind === "main" && (needsUploadAlignment || indexFrozen || !workspaceReady)) ||
+    (selectedTarget.kind === "main" &&
+      (awaitingContentIntro || needsUploadAlignment || indexFrozen || !workspaceReady)) ||
     (selectedTarget.kind === "bump" &&
-      (needsUploadAlignment || Boolean(bumpIndexFrozenAt[selectedKey]) || !workspaceReady));
+      (awaitingContentIntro || needsUploadAlignment || Boolean(bumpIndexFrozenAt[selectedKey]) || !workspaceReady));
 
   const showMainTocEmptyChoice =
     (selectedTarget.kind === "main" &&
+      !awaitingContentIntro &&
       !needsUploadAlignment &&
       !indexFrozen &&
       currentPhase === "main_index" &&
@@ -954,12 +997,14 @@ export function WizardContentPage() {
       !tocReadOnly &&
       !tocEntryResolved) ||
     (selectedTarget.kind === "bump" &&
+      !awaitingContentIntro &&
       !needsUploadAlignment &&
       workspaceReady &&
       !Boolean(bumpIndexFrozenAt[selectedKey]) &&
       bumpTocEntryResolved[selectedKey] === false);
 
   const regenerateDisabledMain =
+    awaitingContentIntro ||
     needsUploadAlignment ||
     indexFrozen ||
     !workspaceReady ||
@@ -967,6 +1012,7 @@ export function WizardContentPage() {
     project?.content_source !== "ai";
 
   const regenerateDisabledBump =
+    awaitingContentIntro ||
     needsUploadAlignment ||
     Boolean(bumpIndexFrozenAt[selectedKey]) ||
     !workspaceReady ||
@@ -1102,7 +1148,11 @@ export function WizardContentPage() {
             </p>
           ) : null}
 
-          {needsUploadAlignment && project ? (
+          {awaitingContentIntro && project ? (
+            <ContentSourceIntroPanel t={t} contentSource={project.content_source} />
+          ) : null}
+
+          {needsUploadAlignment && project && !awaitingContentIntro ? (
             <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
               <ManuscriptUploadPanel
                 t={t}
@@ -1113,7 +1163,12 @@ export function WizardContentPage() {
             </div>
           ) : null}
 
-          {project && !loading && workspaceReady && !needsUploadAlignment && !showChapterLoop ? (
+          {project &&
+          !loading &&
+          workspaceReady &&
+          !awaitingContentIntro &&
+          !needsUploadAlignment &&
+          !showChapterLoop ? (
             <ContentIndexMilestone
               t={t}
               navItems={navItems}
@@ -1196,7 +1251,12 @@ export function WizardContentPage() {
             </Button>
           )}
 
-          {!showChapterLoop ? (
+          {awaitingContentIntro ? (
+            <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
+              {t("wizard.content.sourceIntro.continue")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : !showChapterLoop ? (
             <Button
               type="button"
               variant="primary"
@@ -1206,7 +1266,9 @@ export function WizardContentPage() {
               {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
               <ChevronRight className="size-4" aria-hidden />
             </Button>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
         </div>
       </div>
 
