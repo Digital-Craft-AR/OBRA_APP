@@ -525,6 +525,19 @@ const resources = {
       "wizard.content.manuscript.errorGeneric": "No pudimos procesar el archivo. Probá de nuevo.",
       "wizard.content.manuscript.errorInsufficientCredits":
         "No tenés créditos suficientes para completar esta operación. Recargá en Configuración → Créditos.",
+      "wizard.content.uploadHandoff.hint":
+        "Hasta que exista la alineación con propuesta de capítulos (#60), podés continuar con el texto extraído en un solo capítulo del ebook principal y congelar el índice del paquete para pasar a la edición por capítulos (sin paso duplicado de índice del ebook principal).",
+      "wizard.content.uploadHandoff.continueCta": "Continuar con el texto extraído",
+      "wizard.content.uploadHandoff.continueLoading": "Guardando…",
+      "wizard.content.uploadHandoff.defaultChapterTitle": "Manuscrito importado",
+      "wizard.content.uploadHandoff.success":
+        "Listo: el texto quedó precargado en el primer capítulo y el índice global quedó confirmado.",
+      "wizard.content.uploadHandoff.errorTitle": "No pudimos preparar el manuscrito",
+      "wizard.content.uploadHandoff.errorPrefillDownload":
+        "No pudimos leer el texto extraído desde almacenamiento privado. Verificá que la migración de permisos de Storage esté aplicada y recargá la página.",
+      "wizard.content.uploadHandoff.errorWrongPhase": "Esta acción ya no está disponible en esta fase. Recargá la página.",
+      "wizard.content.uploadHandoff.errorMainSave": "No pudimos guardar los capítulos iniciales.",
+      "wizard.content.uploadHandoff.errorGeneric": "No pudimos completar el paso. Probá de nuevo.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bonus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
@@ -1344,6 +1357,19 @@ const resources = {
       "wizard.content.manuscript.errorGeneric": "Não foi possível processar o arquivo. Tente de novo.",
       "wizard.content.manuscript.errorInsufficientCredits":
         "Você não tem créditos suficientes para concluir esta operação. Recarregue em Configurações → Créditos.",
+      "wizard.content.uploadHandoff.hint":
+        "Enquanto o alinhamento com proposta de capítulos (#60) não estiver pronto, você pode continuar com o texto extraído em um único capítulo do ebook principal e congelar o índice do pacote para ir à edição por capítulos (sem repetir o passo de índice do ebook principal).",
+      "wizard.content.uploadHandoff.continueCta": "Continuar com o texto extraído",
+      "wizard.content.uploadHandoff.continueLoading": "Salvando…",
+      "wizard.content.uploadHandoff.defaultChapterTitle": "Manuscrito importado",
+      "wizard.content.uploadHandoff.success":
+        "Pronto: o texto foi pré-carregado no primeiro capítulo e o índice global foi confirmado.",
+      "wizard.content.uploadHandoff.errorTitle": "Não foi possível preparar o manuscrito",
+      "wizard.content.uploadHandoff.errorPrefillDownload":
+        "Não foi possível ler o texto extraído do armazenamento privado. Verifique se a migração de permissões do Storage foi aplicada e recarregue a página.",
+      "wizard.content.uploadHandoff.errorWrongPhase": "Esta ação não está mais disponível nesta fase. Recarregue a página.",
+      "wizard.content.uploadHandoff.errorMainSave": "Não foi possível salvar os capítulos iniciais.",
+      "wizard.content.uploadHandoff.errorGeneric": "Não foi possível concluir a etapa. Tente novamente.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bônus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
