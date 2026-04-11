@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { LoginPage } from "@/pages/LoginPage";
+import { makeSession } from "@/test/factories";
 import { VerifyEmailPendingPage } from "@/pages/VerifyEmailPendingPage";
 
 const { signInWithOAuth, signInWithPassword } = vi.hoisted(() => ({
@@ -123,7 +124,7 @@ describe("LoginPage", () => {
 
   it("redirects to /app when already authenticated", () => {
     renderLogin({
-      session: { access_token: "x", user: { id: "u1" } } as never,
+      session: makeSession({ user: { id: "u1" } as never }),
       loading: false,
     });
     expect(screen.getByTestId("app-landed")).toBeInTheDocument();
