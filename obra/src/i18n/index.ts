@@ -400,6 +400,8 @@ const resources = {
       "wizard.structure.step5.regenerateError":
         "No pudimos regenerar este título ahora. Podés editarlo manualmente.",
       "wizard.structure.step7.saved": "Diseño base guardado.",
+      "wizard.structure.step7.savedPartial":
+        "Diseño base guardado (solo configuración). Tu base aún no tiene las columnas de plantilla o layouts: aplicá en Supabase la migración que agrega book_template_id y layout_page_assignments en projects para persistir también la plantilla.",
       "wizard.structure.step7.saveError": "No pudimos guardar el diseño base.",
       "wizard.structure.step7.continueToContent": "Ir a Contenido",
       "wizard.structure.step7.structureMarkError":
@@ -1231,6 +1233,8 @@ const resources = {
       "wizard.structure.step5.regenerateError":
         "Não foi possível regenerar este título agora. Você pode editar manualmente.",
       "wizard.structure.step7.saved": "Design base salvo.",
+      "wizard.structure.step7.savedPartial":
+        "Design base salvo (apenas configuração). Seu banco ainda não tem as colunas de template ou layouts: aplique no Supabase a migração que adiciona book_template_id e layout_page_assignments em projects para persistir também o template.",
       "wizard.structure.step7.saveError": "Não foi possível salvar o design base.",
       "wizard.structure.step7.continueToContent": "Ir para Conteúdo",
       "wizard.structure.step7.structureMarkError":
