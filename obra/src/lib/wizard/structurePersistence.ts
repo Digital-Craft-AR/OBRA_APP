@@ -98,8 +98,33 @@ export async function saveWizardBonusBumpItems(
   return { ok: !error };
 }
 
-export async function saveWizardDesignConfig(projectId: string, payload: WizardDesignPersistPayload) {
-  const { error } = await supabase
+export type SaveWizardDesignConfigResult =
+  | { ok: true; persisted: "full" | "design_and_template" | "design_only" }
+  | { ok: false };
+
+/**
+ * PostgREST / Postgres errors when the remote schema is behind (columns not migrated yet).
+ */
+export function isLikelyMissingProjectsColumnError(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const m = (error.message ?? "").toLowerCase();
+  const code = error.code ?? "";
+  if (code === "PGRST204") return true;
+  if (m.includes("schema cache")) return true;
+  if (m.includes("column") && m.includes("does not exist")) return true;
+  if (m.includes("could not find") && m.includes("column")) return true;
+  return false;
+}
+
+/**
+ * Persists design step fields. Retries with a smaller payload when the DB is missing
+ * `layout_page_assignments` and/or `book_template_id` (migrations not applied on the project yet).
+ */
+export async function saveWizardDesignConfig(
+  projectId: string,
+  payload: WizardDesignPersistPayload,
+): Promise<SaveWizardDesignConfigResult> {
+  const full = await supabase
     .from("projects")
     .update({
       design_config: payload.designConfig,
@@ -107,7 +132,32 @@ export async function saveWizardDesignConfig(projectId: string, payload: WizardD
       layout_page_assignments: payload.layoutPageAssignments,
     })
     .eq("id", projectId);
-  return { ok: !error };
+
+  if (!full.error) return { ok: true, persisted: "full" };
+
+  if (!isLikelyMissingProjectsColumnError(full.error)) return { ok: false };
+
+  const withoutLayouts = await supabase
+    .from("projects")
+    .update({
+      design_config: payload.designConfig,
+      book_template_id: payload.bookTemplateId,
+    })
+    .eq("id", projectId);
+
+  if (!withoutLayouts.error) return { ok: true, persisted: "design_and_template" };
+
+  if (!isLikelyMissingProjectsColumnError(withoutLayouts.error)) return { ok: false };
+
+  const designOnly = await supabase
+    .from("projects")
+    .update({
+      design_config: payload.designConfig,
+    })
+    .eq("id", projectId);
+
+  if (!designOnly.error) return { ok: true, persisted: "design_only" };
+  return { ok: false };
 }
 
 export async function markStructureCompleted(projectId: string) {
