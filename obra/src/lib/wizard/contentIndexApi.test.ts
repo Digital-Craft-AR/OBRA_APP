@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/supabaseClient", () => ({
+  supabase: {},
+}));
+
 import {
   MAIN_TOC_MAX_CHAPTERS,
   MAIN_TOC_MIN_CHAPTERS,

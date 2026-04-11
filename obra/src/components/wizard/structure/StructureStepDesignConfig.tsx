@@ -1,5 +1,7 @@
+import { useEffect, useMemo } from "react";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { bookTemplateIdsForGeometry, normalizeBookTemplateId } from "@obra/layout-catalog";
 import { ObraInput } from "@/components/obra/ObraInput";
 import {
   colorToRgbStyleValue,
@@ -13,6 +15,8 @@ import {
 
 type StructureStepDesignConfigProps = {
   config: WizardDesignConfig;
+  bookTemplateId: string;
+  onBookTemplateChange: (templateId: string) => void;
   message: string | null;
   onChange: (next: WizardDesignConfig) => void;
 };
@@ -32,8 +36,26 @@ function formatHexForDisplay(hex: string): string {
   return `#${t.slice(1).toUpperCase()}`;
 }
 
-export function StructureStepDesignConfig({ config, message, onChange }: StructureStepDesignConfigProps) {
+export function StructureStepDesignConfig({
+  config,
+  bookTemplateId,
+  onBookTemplateChange,
+  message,
+  onChange,
+}: StructureStepDesignConfigProps) {
   const { t } = useTranslation();
+
+  const eligibleTemplates = useMemo(
+    () => bookTemplateIdsForGeometry({ size: config.page.size, orientation: config.page.orientation }),
+    [config.page.orientation, config.page.size],
+  );
+
+  useEffect(() => {
+    if (eligibleTemplates.length === 0) return;
+    if (!eligibleTemplates.includes(bookTemplateId)) {
+      onBookTemplateChange(eligibleTemplates[0] ?? normalizeBookTemplateId(null));
+    }
+  }, [bookTemplateId, eligibleTemplates, onBookTemplateChange]);
 
   function updatePalettePreset(presetId: DesignPresetId) {
     const preset = getDesignPresetById(presetId);
@@ -56,6 +78,45 @@ export function StructureStepDesignConfig({ config, message, onChange }: Structu
 
   return (
     <section className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-obra-blue-950">
+          {t("wizard.structure.design.bookTemplate.title")}
+        </h3>
+        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.bookTemplate.subtitle")}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {eligibleTemplates.map((id) => {
+            const selected = bookTemplateId === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onBookTemplateChange(id)}
+                className={`flex w-full flex-col gap-1 rounded-xl border px-4 py-3 text-left transition-colors ${
+                  selected ? "border-obra-blue-700 bg-obra-blue-50" : "border-obra-neutral-200 bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex size-5 items-center justify-center rounded-full border ${
+                      selected ? "border-obra-blue-700 bg-obra-blue-700" : "border-obra-neutral-300 bg-white"
+                    }`}
+                    aria-hidden
+                  >
+                    {selected ? <Check className="size-3 text-white" strokeWidth={3} /> : null}
+                  </span>
+                  <span className="text-sm font-semibold text-obra-blue-950">
+                    {t(`wizard.structure.design.bookTemplate.${id}.name`)}
+                  </span>
+                </div>
+                <p className="text-xs text-obra-neutral-600">
+                  {t(`wizard.structure.design.bookTemplate.${id}.description`)}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.page.title")}</h3>
         <div className="grid grid-cols-2 gap-3">

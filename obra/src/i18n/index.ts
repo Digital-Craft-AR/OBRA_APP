@@ -323,6 +323,15 @@ const resources = {
       "wizard.structure.step7.title": "Diseño base del proyecto",
       "wizard.structure.step7.subtitle":
         "Configurá preset, paleta 60/30/10, tipografías, geometría de página y defaults de imagen.",
+      "wizard.structure.design.bookTemplate.title": "Plantilla del libro",
+      "wizard.structure.design.bookTemplate.subtitle":
+        "Define la composición base de páginas para vista previa y PDF (mismo catálogo en ambos).",
+      "wizard.structure.design.bookTemplate.classic_fixed.name": "Clásica — cuerpo fijo",
+      "wizard.structure.design.bookTemplate.classic_fixed.description":
+        "Portada, índice, apertura de capítulo y cuerpo con un layout estable y predecible.",
+      "wizard.structure.design.bookTemplate.classic_pooled.name": "Clásica — cuerpo variado",
+      "wizard.structure.design.bookTemplate.classic_pooled.description":
+        "Igual que la fija en roles principales; el cuerpo elige entre layouts compatibles de forma estable por proyecto.",
       "wizard.structure.design.page.title": "Página",
       "wizard.structure.design.page.a4Label": "A4",
       "wizard.structure.design.page.letterLabel": "Letter",
@@ -1132,6 +1141,15 @@ const resources = {
       "wizard.structure.step7.title": "Design base do projeto",
       "wizard.structure.step7.subtitle":
         "Configure preset, paleta 60/30/10, tipografias, geometria de página e defaults de imagem.",
+      "wizard.structure.design.bookTemplate.title": "Modelo do livro",
+      "wizard.structure.design.bookTemplate.subtitle":
+        "Define a composição base de páginas para prévia e PDF (o mesmo catálogo nos dois).",
+      "wizard.structure.design.bookTemplate.classic_fixed.name": "Clássica — corpo fixo",
+      "wizard.structure.design.bookTemplate.classic_fixed.description":
+        "Capa, índice, abertura de capítulo e corpo com um layout estável e previsível.",
+      "wizard.structure.design.bookTemplate.classic_pooled.name": "Clássica — corpo variado",
+      "wizard.structure.design.bookTemplate.classic_pooled.description":
+        "Igual à fixa nos papéis principais; o corpo escolhe entre layouts compatíveis de forma estável por projeto.",
       "wizard.structure.design.page.title": "Página",
       "wizard.structure.design.page.a4Label": "A4",
       "wizard.structure.design.page.letterLabel": "Letter",
