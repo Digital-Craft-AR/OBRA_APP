@@ -15,6 +15,10 @@ import {
   type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
 import {
+  computeInitialLayoutAssignments,
+  normalizeBookTemplateId,
+} from "@obra/layout-catalog";
+import {
   INVOKE_ERROR_INSUFFICIENT_CREDITS,
   toastApiFailure,
   toastInsufficientCredits,
@@ -106,6 +110,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [itemRegeneratingKey, setItemRegeneratingKey] = useState<string | null>(null);
 
   const [designConfig, setDesignConfig] = useState<WizardDesignConfig>(DEFAULT_DESIGN_CONFIG);
+  const [bookTemplateId, setBookTemplateId] = useState<string>(() => normalizeBookTemplateId(null));
   const [designSaving, setDesignSaving] = useState(false);
   const [designMessage, setDesignMessage] = useState<string | null>(null);
 
@@ -136,6 +141,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setBonusItems(normalizeItems(project.bonus_items, project.bonus_count ?? 0, "bonus"));
     setBumpItems(normalizeItems(project.bump_items, project.bump_count ?? 0, "bump"));
     setDesignConfig(project.design_config ?? DEFAULT_DESIGN_CONFIG);
+    setBookTemplateId(normalizeBookTemplateId(project.book_template_id));
 
     if (project.main_title) {
       const matchingIndex = titleSuggestions.findIndex((title) => title === project.main_title);
@@ -594,7 +600,28 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     if (!project?.id || designSaving) return false;
     setDesignSaving(true);
     setDesignMessage(null);
-    const result = await saveWizardDesignConfig(project.id, designConfig);
+    const savedDesign = normalizeDesignConfig(project.design_config);
+    const pageGeomChanged =
+      savedDesign.page.size !== designConfig.page.size ||
+      savedDesign.page.orientation !== designConfig.page.orientation;
+    const savedTemplate = normalizeBookTemplateId(project.book_template_id);
+    const nextTemplate = normalizeBookTemplateId(bookTemplateId);
+    const templateChanged = savedTemplate !== nextTemplate;
+    const existingAssignments = project.layout_page_assignments ?? {};
+    const shouldRecomputeLayouts =
+      pageGeomChanged || templateChanged || Object.keys(existingAssignments).length === 0;
+    const layoutPageAssignments = shouldRecomputeLayouts
+      ? computeInitialLayoutAssignments({
+          projectId: project.id,
+          bookTemplateId: nextTemplate,
+          geometry: designConfig.page,
+        })
+      : existingAssignments;
+    const result = await saveWizardDesignConfig(project.id, {
+      designConfig,
+      bookTemplateId: nextTemplate,
+      layoutPageAssignments,
+    });
     setDesignSaving(false);
     if (!result.ok) {
       const key = "wizard.structure.step7.saveError";
@@ -607,6 +634,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
         ? {
             ...current,
             design_config: designConfig,
+            book_template_id: nextTemplate,
+            layout_page_assignments: layoutPageAssignments,
           }
         : current,
     );
@@ -743,6 +772,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     regenerateAllItems,
     designConfig,
     setDesignConfig,
+    bookTemplateId,
+    setBookTemplateId,
     designSaving,
     designMessage,
     handleNextStep,
