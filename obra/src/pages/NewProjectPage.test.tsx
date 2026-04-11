@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { NewProjectPage } from "@/pages/NewProjectPage";
+import { makeSession } from "@/test/factories";
 
 const { insert, select, single, eq } = vi.hoisted(() => ({
   insert: vi.fn(),
@@ -32,7 +33,7 @@ function renderNewProject() {
         <AuthContext.Provider
           value={{
             loading: false,
-            session: { user: { id: "u1", email: "user@example.com" } } as never,
+            session: makeSession({ user: { id: "u1", email: "user@example.com" } as never }),
           }}
         >
           <Routes>

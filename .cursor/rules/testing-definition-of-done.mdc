@@ -1,0 +1,35 @@
+---
+description: Testing definition of done — every non-trivial logic change must ship with a matching test.
+globs:
+  - obra/src/**/*.ts
+  - obra/src/**/*.tsx
+alwaysApply: false
+---
+
+# Testing — Definition of Done
+
+For every non-trivial change to a `.ts` or `.tsx` file under `obra/src/`:
+
+1. **Add or update** a colocated `*.test.ts` / `*.test.tsx` file that covers the changed behaviour.
+2. **Run `npm run test`** in `obra/` before marking work as done. All tests must pass.
+3. **No `|| true`** or `--passWithNoTests` in CI commands.
+
+## What counts as "non-trivial"
+
+| Counts | Exceptions (tests not required) |
+|---|---|
+| New pure function or utility | Pure type files (`*.d.ts`, type-only exports) |
+| New React component with logic | Generated code or vendor output |
+| Bug fix in existing logic | Index re-export files (`index.ts` with no logic) |
+| New hook | Trivial one-liners with no branching |
+| Auth / payments / credits change | Configuration files |
+
+## Layer guidance
+
+- **Unit:** mock all I/O at the module boundary (`vi.mock`). Prefer colocated mocks over `__mocks__/`.
+- **Integration:** use MSW to intercept Supabase REST / Edge calls. Never use real Supabase credentials.
+- **E2E:** backlog (Playwright) — not required for Sprint 1.
+
+## Reference
+
+Full strategy and examples: `docs/testing/strategy.md`

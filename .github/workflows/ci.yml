@@ -27,5 +27,8 @@ jobs:
       - name: Unit tests (Vitest)
         run: npm run test
 
+      - name: Coverage check (Vitest)
+        run: npm run test:coverage
+
       - name: Production build
         run: npm run build
