@@ -8,6 +8,15 @@ import {
   type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
 
+function parseLayoutAssignments(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
 export function useWizardStructureProject(projectId: string | undefined, loadErrorMessage: string) {
   const [project, setProject] = useState<ProjectRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +33,7 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
       const { data, error: queryError } = await supabase
         .from("projects")
         .select(
-          "id, name, content_locale, content_source, topic, problem, target_avatar, bonus_count, bump_count, main_title, author, bonus_items, bump_items, design_config, structure_completed_at",
+          "id, name, content_locale, content_source, topic, problem, target_avatar, bonus_count, bump_count, main_title, author, bonus_items, bump_items, design_config, book_template_id, layout_page_assignments, structure_completed_at",
         )
         .eq("id", projectId)
         .single();
@@ -53,6 +62,8 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
             bonus_items: [],
             bump_items: [],
             design_config: DEFAULT_DESIGN_CONFIG,
+            book_template_id: null,
+            layout_page_assignments: {},
           };
           loadError = null;
         } else {
@@ -75,6 +86,10 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
             ? (row.bump_items as WizardTitleItem[])
             : [],
           design_config: normalizeDesignConfig(row.design_config ?? DEFAULT_DESIGN_CONFIG),
+          book_template_id: typeof row.book_template_id === "string" ? row.book_template_id : null,
+          layout_page_assignments: parseLayoutAssignments(
+            (row as { layout_page_assignments?: unknown }).layout_page_assignments,
+          ),
         };
         setProject(normalizedRow);
       }

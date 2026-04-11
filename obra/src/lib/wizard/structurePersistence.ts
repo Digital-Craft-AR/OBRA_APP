@@ -2,6 +2,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import type { WizardDesignConfig, WizardTitleItem } from "@/lib/wizard/structureTypes";
 
+export type WizardDesignPersistPayload = {
+  designConfig: WizardDesignConfig;
+  bookTemplateId: string;
+  layoutPageAssignments: Record<string, string>;
+};
+
 export async function saveWizardTopic(projectId: string, topic: string) {
   const { error } = await supabase.from("projects").update({ topic }).eq("id", projectId);
   return { ok: !error };
@@ -92,11 +98,13 @@ export async function saveWizardBonusBumpItems(
   return { ok: !error };
 }
 
-export async function saveWizardDesignConfig(projectId: string, designConfig: WizardDesignConfig) {
+export async function saveWizardDesignConfig(projectId: string, payload: WizardDesignPersistPayload) {
   const { error } = await supabase
     .from("projects")
     .update({
-      design_config: designConfig,
+      design_config: payload.designConfig,
+      book_template_id: payload.bookTemplateId,
+      layout_page_assignments: payload.layoutPageAssignments,
     })
     .eq("id", projectId);
   return { ok: !error };
