@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@obra/layout-catalog": fileURLToPath(new URL("../packages/layout-catalog/src/index.ts", import.meta.url)),
     },
   },
 });
