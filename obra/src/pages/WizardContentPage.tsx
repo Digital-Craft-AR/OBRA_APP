@@ -42,6 +42,7 @@ import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSour
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { toastApiFailure, toastInsufficientCredits } from "@/lib/apiToast";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
+import { makeRetryRequestIdStore } from "@/lib/wizard/retryRequestId";
 import { supabase } from "@/lib/supabaseClient";
 import type { ContentSource } from "@/lib/projects";
 import { toast } from "@/toast";
@@ -180,6 +181,7 @@ export function WizardContentPage() {
   const packageEbookIdsRef = useRef(packageEbookIds);
   packageEbookIdsRef.current = packageEbookIds;
   const persistTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const retryIds = useRef(makeRetryRequestIdStore());
   const prevSelectedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -615,7 +617,8 @@ export function WizardContentPage() {
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("index");
-    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    const opKey = "main-outline";
+    const clientRequestId = retryIds.current.getOrCreate(opKey);
     setGenerateLoading(true);
     const result = await invokeGenerateIndex(project.id, clientRequestId);
     setGenerateLoading(false);
@@ -638,6 +641,7 @@ export function WizardContentPage() {
       }
       return;
     }
+    retryIds.current.clear(opKey);
     const saved = await replaceEbookDraftChapters(mainEbookId, result.titles);
     if (!saved.ok) {
       const message = t("wizard.content.index.errorSaveToc");
@@ -666,7 +670,8 @@ export function WizardContentPage() {
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("index");
-    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    const opKey = `bump-outline:${ebookId}`;
+    const clientRequestId = retryIds.current.getOrCreate(opKey);
     setGenerateLoading(true);
     const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
     setGenerateLoading(false);
@@ -690,6 +695,7 @@ export function WizardContentPage() {
       }
       return;
     }
+    retryIds.current.clear(opKey);
     const saved = await replaceEbookDraftChapters(ebookId, result.titles);
     if (!saved.ok) {
       const message = t("wizard.content.index.errorSaveToc");
@@ -728,7 +734,8 @@ export function WizardContentPage() {
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("index");
-    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    const opKey = `bonus-outline:${ebookId}`;
+    const clientRequestId = retryIds.current.getOrCreate(opKey);
     setGenerateLoading(true);
     const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
     setGenerateLoading(false);
@@ -752,6 +759,7 @@ export function WizardContentPage() {
       }
       return;
     }
+    retryIds.current.clear(opKey);
     const saved = await replaceEbookDraftChapters(ebookId, result.titles);
     if (!saved.ok) {
       const message = t("wizard.content.index.errorSaveToc");
@@ -929,7 +937,8 @@ export function WizardContentPage() {
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
-    const clientRequestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+    const opKey = `chapter:${current.id}`;
+    const clientRequestId = retryIds.current.getOrCreate(opKey);
     setChapterGenerateLoading(true);
     const result = await invokeGenerateChapterContent(project.id, current.id, clientRequestId);
     setChapterGenerateLoading(false);
@@ -948,6 +957,7 @@ export function WizardContentPage() {
       }
       return;
     }
+    retryIds.current.clear(opKey);
     const saved = await updateChapterDraftContent(current.id, result.content);
     if (!saved.ok) {
       const key = "wizard.content.chapters.errorSave";
