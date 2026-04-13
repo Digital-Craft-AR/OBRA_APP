@@ -15,6 +15,9 @@
  *   prompts/wizard/generate-bump-titles.md  → generateBumpTitlesPrompt()
  *   prompts/content/generate-index.md              → generateIndexPrompt()
  *   prompts/content/generate-bonus-section-index.md → generateBonusSectionIndexPrompt()
+ *   prompts/content/generate-chapter.md            → generateChapterPrompt()
+ *   prompts/content/generate-bonus-chapter.md      → generateBonusChapterPrompt()
+ *   prompts/content/generate-bump-chapter.md       → generateBumpChapterPrompt()
  *
  * Edge/Deno copy — keep aligned with prompts/*.md (no Vite path aliases).
  */
@@ -473,6 +476,159 @@ Generate the complete index with exactly ${vars.chapter_count} chapters.`,
   };
 }
 
+// ─── generate-chapter ─────────────────────────────────────────────────────────
+// docs: prompts/content/generate-chapter.md (v1.0)
+
+export interface PreviousChapter {
+  number: number;
+  title: string;
+  /** Full HTML body as stored in chapters.content. */
+  content: string;
+}
+
+export interface GenerateChapterVars {
+  content_locale: ContentLocale;
+  topic: string;
+  /** Pass as JSON.stringify(avatarOutput) — full output of optimizeAvatarPrompt. */
+  avatar: string;
+  /** Pass as JSON.stringify(problemOutput) — full output of optimizeProblemPrompt. */
+  problem: string;
+  main_ebook_title: string;
+  tone: ContentTone;
+  /**
+   * Full output of generateIndexPrompt, serialized as JSON string.
+   * Must include narrative_arc and chapters[].{number, title, description, key_concepts, word_count_target}.
+   */
+  index: string;
+  chapter_number: number;
+  chapter_count: number;
+  /**
+   * Already-generated chapters in ascending order. Pass [] for chapter 1.
+   * For chapters 6+, caller may truncate older chapter HTML to save context tokens.
+   */
+  previous_chapters: PreviousChapter[];
+  /** Optional author name; omitted from prompt when null/undefined. */
+  author?: string | null;
+}
+
+interface IndexChapter {
+  number: number;
+  title: string;
+  description: string;
+  key_concepts: string[];
+  word_count_target: number;
+}
+
+interface ParsedChapterIndex {
+  chapters?: IndexChapter[];
+}
+
+function parseChapterFromIndex(indexJson: string, chapterNumber: number): IndexChapter | null {
+  try {
+    const parsed = JSON.parse(indexJson) as ParsedChapterIndex;
+    if (!parsed || !Array.isArray(parsed.chapters)) return null;
+    return parsed.chapters.find((c) => c.number === chapterNumber) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function formatKeyConceptsForPrompt(keyConcepts: string[]): string {
+  return keyConcepts.map((kc, i) => `  ${i + 1}. ${kc}`).join("\n");
+}
+
+/**
+ * Builds system + user prompts for generating one chapter body.
+ * Returns null if the index JSON cannot be parsed or the chapter_number is not found.
+ */
+export function generateChapterPrompt(
+  vars: GenerateChapterVars,
+): { system: string; user: string } | null {
+  const chapter = parseChapterFromIndex(vars.index, vars.chapter_number);
+  if (!chapter) return null;
+
+  const previousChaptersJson = JSON.stringify(
+    vars.previous_chapters.map((c) => ({ number: c.number, title: c.title, content: c.content })),
+  );
+
+  const authorLine =
+    vars.author != null && vars.author.trim().length > 0
+      ? `Author: ${vars.author.trim()}\n`
+      : "";
+
+  return {
+    system: `${CRITICAL_JSON_OBJECT}
+
+${OBRA_SYSTEM_BASE}
+
+Role: generate the full HTML body of chapter ${vars.chapter_number} of ${vars.chapter_count} for the main ebook. This content will be stored directly in the chapter editor and rendered to the reader — quality, accuracy, and coherence are non-negotiable.
+
+Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
+
+TONE GUIDE — apply consistently to every paragraph, heading, and example:
+- professional: clear expert voice, structured, credible. Suitable for readers who want authority and precision without fluff.
+- friendly: warm, direct, non-corporate — like a trusted peer. Conversational but still actionable (default Obra voice).
+- inspirational: motivating and forward-looking. Emphasizes possibility and momentum without hype, fake urgency, or income promises.
+- direct: concise, no filler. Gets to the point quickly; practical imperatives and concrete next steps.
+- educational: didactic and stepwise. Teaches systematically; defines terms when needed; patient pacing for learners.
+
+HTML OUTPUT RULES:
+1. Use only: <p>, <h2>, <h3>, <ul>, <ol>, <li>, <strong>, <em>, <blockquote>, <a>
+2. Do NOT include <h1> — the chapter title is rendered by the UI separately
+3. Do NOT add style or class attributes to any element
+4. No <br> tags — use separate <p> elements for line breaks
+5. No HTML entities for standard characters — write characters directly
+6. All opened tags must be properly closed. Well-formed HTML only.
+7. Start the content directly with the opening of the chapter body — no title repetition
+
+CONTENT RULES (non-negotiable):
+1. Cover every key_concept listed in the chapter's index entry. Each must be addressed with substance — not just mentioned.
+2. Use practical, concrete examples rooted in the avatar's real context and the ebook's topic. Examples must feel real and applicable, not generic or hypothetical.
+3. Do NOT repeat ground already covered in previous chapters. Build forward; each chapter advances the reader's knowledge.
+4. Do NOT mention bonuses, order bumps, or any other product in the package. The ebook is self-contained.
+5. Do NOT invent: no invented quotes attributed to named experts, no specific statistics with numbers, no fabricated studies or research citations. Practical domain knowledge and widely known frameworks only.
+6. Chapter 1 specifically: open by validating the reader's pain and frustration — make them feel understood before teaching anything. Open a loop that the rest of the ebook will close.
+7. Last chapter (${vars.chapter_count}): consolidate the transformation built through the ebook. Project forward with concrete next steps the reader can take independently. NEVER include external CTAs: no mention of Telegram, Instagram, email lists, coaching programs, Facebook groups, or any other channel.
+8. Middle chapters: deliver ONE concrete, actionable piece of the transformation per chapter. Practical first, theoretical second.
+9. Transitions: each chapter should end with a natural bridge that connects to what's coming — either a forward reference or a closing idea that opens the next question. Exception: last chapter.
+10. Word count: reach at least the chapter's word_count_target. You may exceed it by up to 20%, but do not fall short. If you've covered all key concepts and are below target, go deeper on examples or add a practical walkthrough before closing the chapter.
+11. Verify the information you write. If you are not confident that a claim is accurate, rephrase it as a practical framework or common pattern rather than stating it as fact.
+
+If input is missing required fields or contains error fields, return:
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`,
+
+    user: `Topic: ${vars.topic}
+Main ebook title: ${vars.main_ebook_title}
+${authorLine}Tone: ${vars.tone}
+Content locale: ${vars.content_locale}
+
+Ideal customer (avatar):
+${vars.avatar}
+
+Problem resolved:
+${vars.problem}
+
+Full ebook index (narrative arc + all chapters):
+${vars.index}
+
+Previously generated chapters:
+${previousChaptersJson}
+
+---
+
+Generate chapter ${vars.chapter_number} of ${vars.chapter_count}.
+
+Chapter to generate (from index):
+- Title: ${chapter.title}
+- Description: ${chapter.description}
+- Key concepts (must all be covered):
+${formatKeyConceptsForPrompt(chapter.key_concepts)}
+- Word count target: ${chapter.word_count_target}
+
+Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.`,
+  };
+}
+
 // ─── generate-bonus-section-index ─────────────────────────────────────────────
 // docs: prompts/content/generate-bonus-section-index.md (v1.0)
 
@@ -528,5 +684,234 @@ Avatar profile: ${vars.avatar}
 Problem: ${vars.problem}
 
 Generate exactly one section entry (chapters array length 1) for this bonus deliverable.`,
+  };
+}
+
+// ─── generate-bonus-chapter ───────────────────────────────────────────────────
+// docs: prompts/content/generate-bonus-chapter.md (v1.0)
+
+export interface GenerateBonusChapterVars {
+  content_locale: ContentLocale;
+  topic: string;
+  /** Pass as JSON.stringify(avatarOutput) — full output of optimizeAvatarPrompt. */
+  avatar: string;
+  /** Pass as JSON.stringify(problemOutput) — full output of optimizeProblemPrompt. */
+  problem: string;
+  main_ebook_title: string;
+  /** Bonus deliverable product title (ebooks.title for the bonus row). */
+  bonus_product_title: string;
+  tone: ContentTone;
+  /**
+   * Full output of generateBonusSectionIndexPrompt, serialized as JSON string.
+   * Must include chapters[0].{title, description, key_concepts, word_count_target}.
+   */
+  bonus_index: string;
+  /** Optional author name; omitted from prompt when null/undefined. */
+  author?: string | null;
+}
+
+/**
+ * Builds system + user prompts for generating the single chapter body of a bonus deliverable.
+ * Returns null if bonus_index cannot be parsed or chapter 1 is not found.
+ */
+export function generateBonusChapterPrompt(
+  vars: GenerateBonusChapterVars,
+): { system: string; user: string } | null {
+  const chapter = parseChapterFromIndex(vars.bonus_index, 1);
+  if (!chapter) return null;
+
+  const authorLine =
+    vars.author != null && vars.author.trim().length > 0
+      ? `Author: ${vars.author.trim()}\n`
+      : "";
+
+  return {
+    system: `${CRITICAL_JSON_OBJECT}
+
+${OBRA_SYSTEM_BASE}
+
+Role: generate the full HTML body of a bonus deliverable — a compact, practical tool (checklist, template, script, planner, or quick guide) that extends one specific aspect of the main ebook's method. This is NOT a chapter of the ebook; it is a standalone, immediately usable artifact of roughly 900 words.
+
+Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
+
+TONE GUIDE — apply consistently:
+- professional: clear expert voice, structured, credible. Suitable for readers who want authority and precision without fluff.
+- friendly: warm, direct, non-corporate — like a trusted peer. Conversational but still actionable (default Obra voice).
+- inspirational: motivating and forward-looking. Emphasizes possibility and momentum without hype.
+- direct: concise, no filler. Instructions and fields only — no padding.
+- educational: didactic and stepwise. Defines terms; patient pacing.
+
+HTML OUTPUT RULES:
+1. Allowed tags only: <p>, <br>, <strong>, <b>, <em>, <i>, <u>, <ul>, <ol>, <li>, <h2>, <h3>, <blockquote>, <a>, <code>
+2. Do NOT include <h1> — the bonus title is rendered by the UI separately
+3. Do NOT add style attributes to any element
+4. All opened tags must be properly closed. Well-formed HTML only.
+5. Use <code> for fillable fields in templates: <code>[field name]</code>
+6. Use <blockquote> for ready-to-use script text or highlighted examples
+7. Infer the deliverable format from the bonus_product_title and key_concepts:
+   - Checklist / list of actions → <ol> or <ul> with action items
+   - Template / planner / worksheet → structured fields with <code>[field]</code>
+   - Script / swipe copy → <blockquote> blocks with context headings <h3>
+   - Step-by-step guide → <ol> for steps, <h2> for sections
+   Start the content with a brief orientation paragraph (1–2 sentences) explaining how to use the deliverable, then deliver the tool itself.
+
+CONTENT RULES (non-negotiable):
+1. Cover every key_concept listed in the bonus index entry. Each must appear with substance — not just mentioned.
+2. The deliverable must be immediately usable by the avatar — not a summary of the ebook, not theory. The reader should be able to apply it without re-reading the ebook.
+3. Do NOT repeat or summarize content already in the main ebook. Extend or apply one specific piece of the method.
+4. Do NOT mention order bumps or any other product in the package. This deliverable is self-contained.
+5. Do NOT invent: no invented quotes, no specific statistics with numbers, no fabricated study citations.
+6. Do NOT include external CTAs: no mention of Telegram, Instagram, email lists, coaching programs, or any other channel.
+7. Word count: reach at least the word_count_target. Do not fall short. If you have covered all key concepts and are below target, add a practical example, an edge case, or a "common mistakes" section.
+8. The deliverable ends naturally — no "next steps" that reference external resources or other products.
+
+If input is missing required fields or contains error fields, return:
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`,
+
+    user: `Topic: ${vars.topic}
+Main ebook title: ${vars.main_ebook_title}
+Bonus product title: ${vars.bonus_product_title}
+${authorLine}Tone: ${vars.tone}
+Content locale: ${vars.content_locale}
+
+Ideal customer (avatar):
+${vars.avatar}
+
+Problem resolved:
+${vars.problem}
+
+Bonus index (section title + key concepts to cover):
+${vars.bonus_index}
+
+---
+
+Generate the full HTML body of this bonus deliverable.
+
+Section to generate (from index):
+- Title: ${chapter.title}
+- Description: ${chapter.description}
+- Key concepts (must all be covered):
+${formatKeyConceptsForPrompt(chapter.key_concepts)}
+- Word count target: ${chapter.word_count_target}
+
+Infer the format (checklist, template, script, guide) from the bonus_product_title and key_concepts.
+Do not include the bonus title as <h1>. Start with a brief orientation paragraph, then deliver the tool.`,
+  };
+}
+
+// ─── generate-bump-chapter ────────────────────────────────────────────────────
+// docs: prompts/content/generate-bump-chapter.md (v1.0)
+
+export interface GenerateBumpChapterVars {
+  content_locale: ContentLocale;
+  /** Pass as JSON.stringify(avatarOutput) — full output of optimizeAvatarPrompt. */
+  avatar: string;
+  /** Pass as JSON.stringify(problemOutput) — full output of optimizeProblemPrompt. */
+  problem: string;
+  /** Order bump mini-ebook title (ebooks.title for the bump row). */
+  bump_product_title: string;
+  tone: ContentTone;
+  /**
+   * Full output of generateIndexPrompt with chapter_count=4, serialized as JSON string.
+   * Must include narrative_arc and chapters[4].{number, title, description, key_concepts, word_count_target}.
+   */
+  index: string;
+  /** Chapter number to generate (1–4). */
+  chapter_number: number;
+  /**
+   * Already-generated chapters of this bump in order. Pass [] for chapter 1.
+   * Does NOT include chapters from the main ebook — the bump is standalone.
+   */
+  previous_chapters: PreviousChapter[];
+  /** Optional author name; omitted from prompt when null/undefined. */
+  author?: string | null;
+}
+
+/**
+ * Builds system + user prompts for generating one chapter body of an order bump mini-ebook.
+ * Returns null if index cannot be parsed or chapter_number is not found.
+ */
+export function generateBumpChapterPrompt(
+  vars: GenerateBumpChapterVars,
+): { system: string; user: string } | null {
+  const chapter = parseChapterFromIndex(vars.index, vars.chapter_number);
+  if (!chapter) return null;
+
+  const previousChaptersJson = JSON.stringify(
+    vars.previous_chapters.map((c) => ({ number: c.number, title: c.title, content: c.content })),
+  );
+
+  const authorLine =
+    vars.author != null && vars.author.trim().length > 0
+      ? `Author: ${vars.author.trim()}\n`
+      : "";
+
+  return {
+    system: `${CRITICAL_JSON_OBJECT}
+
+${OBRA_SYSTEM_BASE}
+
+Role: generate the full HTML body of chapter ${vars.chapter_number} of 4 for an order bump — a standalone mini-ebook on an adjacent topic for the same audience. This is an independent product: the reader does NOT need to have read the main ebook to use it. Write it accordingly.
+
+Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
+
+TONE GUIDE — apply consistently to every paragraph, heading, and example:
+- professional: clear expert voice, structured, credible. Suitable for readers who want authority and precision without fluff.
+- friendly: warm, direct, non-corporate — like a trusted peer. Conversational but still actionable (default Obra voice).
+- inspirational: motivating and forward-looking. Emphasizes possibility and momentum without hype, fake urgency, or income promises.
+- direct: concise, no filler. Gets to the point quickly; practical imperatives and concrete next steps.
+- educational: didactic and stepwise. Teaches systematically; defines terms when needed; patient pacing for learners.
+
+HTML OUTPUT RULES:
+1. Use only: <p>, <br>, <strong>, <b>, <em>, <i>, <u>, <ul>, <ol>, <li>, <h2>, <h3>, <blockquote>, <a>, <code>
+2. Do NOT include <h1> — the chapter title is rendered by the UI separately
+3. Do NOT add style attributes to any element
+4. All opened tags must be properly closed. Well-formed HTML only.
+5. Start the content directly with the chapter body — no title repetition
+
+CONTENT RULES (non-negotiable):
+1. Cover every key_concept in the chapter's index entry. Each must be addressed with substance — not just mentioned.
+2. Use practical, concrete examples relevant to the avatar and the bump's topic. The reader should be able to apply the content without any prior knowledge of the main ebook.
+3. Do NOT repeat ground already covered in previous chapters of this bump. Build forward.
+4. Do NOT mention the main ebook, bonuses, or any other product in the package. This mini-ebook is fully standalone.
+5. Do NOT invent: no invented quotes attributed to named experts, no specific statistics with numbers, no fabricated studies.
+6. Chapter 1 specifically: open by validating the reader's pain or situation in the context of THIS bump's topic. Open a loop that the next 3 chapters will close.
+7. Last chapter (4): consolidate the mini-ebook's transformation. Project forward with concrete next steps. NEVER include external CTAs: no mention of Telegram, Instagram, email lists, coaching programs, Facebook groups, or any other channel.
+8. Middle chapters (2 and 3): deliver ONE concrete, actionable piece of the transformation. Practical first, theoretical second.
+9. Transitions: each chapter (except the last) should end with a natural bridge connecting to the next.
+10. Word count: reach at least the chapter's word_count_target. Do not fall short. If you've covered all key concepts and are below target, go deeper on examples or add a practical walkthrough.
+11. Verify the information you write. If you are not confident a claim is accurate, rephrase it as a practical framework rather than a stated fact.
+
+If input is missing required fields or contains error fields, return:
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`,
+
+    user: `Bump product title: ${vars.bump_product_title}
+${authorLine}Tone: ${vars.tone}
+Content locale: ${vars.content_locale}
+
+Ideal customer (avatar):
+${vars.avatar}
+
+Problem context:
+${vars.problem}
+
+Full bump index (narrative arc + 4 chapters):
+${vars.index}
+
+Previously generated chapters of this bump:
+${previousChaptersJson}
+
+---
+
+Generate chapter ${vars.chapter_number} of 4.
+
+Chapter to generate (from index):
+- Title: ${chapter.title}
+- Description: ${chapter.description}
+- Key concepts (must all be covered):
+${formatKeyConceptsForPrompt(chapter.key_concepts)}
+- Word count target: ${chapter.word_count_target}
+
+Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.`,
   };
 }
