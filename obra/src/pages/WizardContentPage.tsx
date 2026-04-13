@@ -281,6 +281,21 @@ export function WizardContentPage() {
       setBumpTocEntryResolved(bumpResolved);
       setBonusBumpToc(tocUpdates);
 
+      // Pre-load chapter drafts when already in main_chapter phase so that
+      // ContentChapterMilestone is immediately populated when showChapterLoop
+      // becomes true. Without this, there is a race between setWorkspaceReady(true)
+      // and the separate chapter-loading effect, leaving chapterRows=[] and the
+      // editor hidden until the user switches books.
+      if (ensured.data.current_phase === "main_chapter") {
+        const initDraft = await loadEbookChaptersDraft(ensured.data.main_ebook_id);
+        if (cancelled) return;
+        if (initDraft.ok && initDraft.rows.length > 0) {
+          setChapterRows(initDraft.rows);
+          setChapterIdx(0);
+          setChapterBodyDraft(initDraft.rows[0]?.content ?? "");
+        }
+      }
+
       setWorkspaceReady(true);
     })();
 
