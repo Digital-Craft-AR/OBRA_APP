@@ -17,7 +17,10 @@
  *   prompts/content/generate-bonus-section-index.md → generateBonusSectionIndexPrompt()
  *   prompts/content/generate-chapter.md            → generateChapterPrompt()
  *   prompts/content/generate-bonus-chapter.md      → generateBonusChapterPrompt()
- *   prompts/content/generate-bump-chapter.md       → generateBumpChapterPrompt()
+ *   prompts/content/generate-bump-chapter.md        → generateBumpChapterPrompt()
+ *   prompts/content/generate-split-proposal.md      → generateSplitProposalPrompt()
+ *   prompts/images/generate-section-image-prompt.md → generateSectionImagePrompt()
+ *   prompts/images/generate-cover-image-prompt.md   → generateCoverImagePrompt()
  *
  * Edge/Deno copy — keep aligned with prompts/*.md (no Vite path aliases).
  */
@@ -914,4 +917,216 @@ ${formatKeyConceptsForPrompt(chapter.key_concepts)}
 
 Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.`,
   };
+}
+
+// ─── generateSectionImagePrompt ───────────────────────────────────────────────
+// Docs: prompts/images/generate-section-image-prompt.md
+
+export interface GenerateSectionImageVars {
+  artifact_type: "main" | "bonus" | "order_bump";
+  artifact_title: string;
+  chapter_title: string;
+  chapter_description: string;
+  key_concepts: string;
+  chapter_number: number;
+  chapter_count: number;
+  image_style: string;
+  palette_description: string;
+  content_locale: ContentLocale;
+}
+
+export function generateSectionImagePrompt(
+  vars: GenerateSectionImageVars
+): { system: string; user: string } {
+  const system = `You are a visual prompt engineer for Gemini Imagen. Your job is to write optimized image generation prompts that translate infoproduct chapter content into compelling visual compositions.
+
+OUTPUT RULES (non-negotiable):
+1. Respond with the image prompt ONLY. No explanation, no preamble, no JSON.
+2. Always write in English regardless of input language — Gemini performs best with English prompts.
+3. Length: 60 to 120 words. Concise but specific.
+4. Always include: visual composition, lighting, mood, color palette reference, style descriptor, and "No text overlays."
+5. Never include: overlaid titles, copy, logos, recognizable brand elements, or explicit faces.
+6. People: allowed as abstract figures, silhouettes, or hands — never identifiable faces.
+7. The image must feel contextually connected to the chapter's theme — not generic stock photography.
+
+STYLE GUIDE — apply the user's chosen style consistently:
+- minimalist: clean surfaces, negative space, few elements, soft light, neutral base tones
+- illustrated: hand-drawn or vector aesthetic, flat shapes, bold outlines, graphic feel
+- photography: realistic scene, natural or studio light, textured surfaces, editorial quality
+- flat: 2D graphic composition, solid color areas, geometric shapes, no shadows
+- editorial: magazine-quality, intentional composition, strong mood, typographic awareness (no actual text)
+
+COLOR PALETTE: anchor the image in ${vars.palette_description}. The palette should be felt — not every element needs to be those exact colors, but the dominant visual mood must reflect them.
+
+CHAPTER POSITION RULES:
+- Chapter 1: the image should reflect tension, a problem unsolved, or a moment before the transformation. Mood: questioning, honest, slightly melancholic but not hopeless.
+- Middle chapters: visual clarity, forward movement, concrete action or tools. Mood: focused, methodical, purposeful.
+- Last chapter: resolution, capability, light. Mood: calm confidence, arrival, new horizon.`;
+
+  const user = `Artifact type: ${vars.artifact_type}
+Artifact title: ${vars.artifact_title}
+Chapter ${vars.chapter_number} of ${vars.chapter_count}
+
+Chapter title: ${vars.chapter_title}
+Chapter description: ${vars.chapter_description}
+Key concepts: ${vars.key_concepts}
+
+Image style: ${vars.image_style}
+Color palette: ${vars.palette_description}
+Content locale: ${vars.content_locale}
+
+Generate the Gemini image prompt for this chapter's visual.`;
+
+  return { system, user };
+}
+
+// ─── generateCoverImagePrompt ─────────────────────────────────────────────────
+// Docs: prompts/images/generate-cover-image-prompt.md
+
+export interface GenerateCoverImageVars {
+  artifact_type: "main" | "bonus" | "order_bump";
+  artifact_title: string;
+  author?: string | null;
+  topic: string;
+  image_style: string;
+  palette_description: string;
+  content_locale: ContentLocale;
+}
+
+export function generateCoverImagePrompt(
+  vars: GenerateCoverImageVars
+): { system: string; user: string } {
+  const system = `You are a visual prompt engineer for Gemini Imagen specializing in book cover design. Your job is to write optimized image generation prompts that produce editorial, commercially compelling infoproduct covers.
+
+OUTPUT RULES (non-negotiable):
+1. Respond with the image prompt ONLY. No explanation, no preamble, no JSON.
+2. Always write in English regardless of input language — Gemini performs best with English prompts.
+3. Length: 70 to 130 words. Longer than section prompts — covers require explicit typographic instructions.
+4. Always start with "Vertical A4" or "Portrait A4" to anchor the composition.
+5. Always include: vertical composition structure, color palette reference, lighting, visual style, and explicit text placement instructions for the title and author (if provided).
+6. The artifact title MUST appear verbatim in quotes in the prompt — this increases Gemini's accuracy in rendering the text.
+7. Author name (if provided) always placed at the bottom of the cover — standard editorial convention.
+8. If no author is provided, omit the author line entirely.
+9. Never include: decorative frames, stock-photo collages, gradients in multiple directions, overly complex layouts.
+10. The cover must look like a premium infoproduct — not a social media graphic, not a textbook, not a stock photo.
+11. NEVER invent subtitles, taglines, or secondary text lines. The only text in the image is the artifact_title (verbatim) and the author name if provided. Do not pull phrases from the topic or any other field.
+
+MODERN QUALITY STANDARD (applies to all styles — non-negotiable):
+The cover must feel contemporary and high-production regardless of the audience or topic. Visual references: think Kinfolk magazine, modern non-fiction book design, Apple product photography, 2020s editorial design. Avoid anything that reads as: generic stock photo, clip art, 90s/2000s design, busy background textures, drop shadows on text, symmetric clip-art-style compositions, or low-fi illustration.
+Regardless of style: clean composition, intentional negative space, confident use of color, modern typography placement. The cover should feel like it belongs on the homepage of a premium online course platform.
+
+STYLE GUIDE — apply the user's chosen style to the visual elements only. The modern quality standard always applies on top:
+- minimalist: single hero object or abstract shape, generous negative space, precise lighting, ultra-clean — think modern brand identity or premium product packaging
+- illustrated: contemporary flat or semi-flat illustration — bold shapes, restrained palette, graphic confidence — think modern editorial illustration (2020s), not clip art
+- photography: high-end editorial flat-lay or scene — intentional props, precise styling, professional studio or controlled natural light — think product launch photography, not generic stock
+- flat: bold geometric composition, solid or carefully graduated color fields, strong visual hierarchy — think modern motion design stills or app icon aesthetics
+- editorial: sophisticated magazine or non-fiction book cover — strong focal image or concept, tight composition, the kind of cover that wins design awards
+
+COLOR PALETTE: anchor the entire cover in ${vars.palette_description}. For covers, the dominant color of the background must come from the palette. Title text should use a high-contrast palette color. Accent color (10%) can highlight the author name or a single detail element.
+
+COVER COMPOSITION RULES — structure the vertical space in three zones:
+- Top zone (roughly upper 40%): visual element — scene, object, illustration, or abstract graphic
+- Middle zone (title area): the title text, large and legible, in a high-contrast palette color
+- Bottom zone: author name (if provided) in a smaller size, accent color; plus generous breathing room
+
+For main ebooks: use the full three-zone structure. The visual element should evoke the book's core promise or transformation — not just the topic literally.
+For bonuses and order bumps: a more compact treatment is acceptable — the visual element can be smaller or more abstract, giving more space to the title.
+
+WHAT MAKES A COVER SELL: strong contrast between title text and background, a clear visual metaphor or mood that matches the promise, professional typography placement, and a color story that feels intentional — not random. The cover should make someone want to pick it up.`;
+
+  const authorLine = vars.author ? `\nAuthor: ${vars.author}` : "";
+
+  const user = `Artifact type: ${vars.artifact_type}
+Artifact title: ${vars.artifact_title}${authorLine}
+Topic: ${vars.topic}
+
+Image style: ${vars.image_style}
+Color palette: ${vars.palette_description}
+Content locale: ${vars.content_locale}
+
+Generate the Gemini image prompt for this infoproduct cover.`;
+
+  return { system, user };
+}
+
+// ─── generateSplitProposalPrompt ──────────────────────────────────────────────
+// Docs: prompts/content/generate-split-proposal.md
+
+export interface GenerateSplitProposalVars {
+  manuscript_text: string;
+  main_ebook_title: string;
+  topic: string;
+  content_locale: ContentLocale;
+}
+
+export function generateSplitProposalPrompt(
+  vars: GenerateSplitProposalVars
+): { system: string; user: string } {
+  const system = `${CRITICAL_JSON_OBJECT}
+
+You are Obra's manuscript analyzer. Your job is to read a plain-text manuscript and propose a chapter structure for an infoproduct ebook. The user has already written the content — you are not rewriting or summarizing it. You are identifying how it is organized and proposing clean chapter titles and precise start markers.
+
+Respond strictly in ${vars.content_locale} for titles and warnings. Output must be fully in ${vars.content_locale} regardless of input language.
+
+YOUR TASK:
+1. Read the manuscript and identify chapter boundaries — sections that represent a major, self-contained topic.
+2. For each chapter, extract the start_heading: the exact text of the heading line as it appears in the document (copy it verbatim — do not clean or rephrase it). This will be used to locate the chapter in the original text via string search.
+3. Propose a clean, readable title for each chapter for display in the alignment UI. If the heading already has a good title (e.g. "Capítulo 1: El problema del precio"), clean it to just the descriptive part ("El problema del precio"). If there is no heading title, infer one from the chapter content.
+4. Identify any non-blocking issues worth flagging as warnings.
+
+HOW TO DETECT CHAPTER BOUNDARIES:
+Primary signals (use these first):
+- Lines that read: "Capítulo N", "Chapter N", "Parte N", "Part N", "Módulo N", "Sección N", followed optionally by a title
+- Lines that read: "Introducción", "Introduction", "Prólogo", "Prefacio", "Conclusión", "Conclusion", "Epílogo"
+- Any line that is notably short (1–10 words), on its own line, and followed by body text — typical of heading formatting that may not have been preserved as markup
+
+Secondary signals (use when primary signals are absent or ambiguous):
+- Significant topic shift with a short transitional line
+- Numbered sections (1., 2., I., II.)
+- ALL CAPS short lines
+- Lines ending with a line break followed by a blank line then body text
+
+WHAT NOT TO INCLUDE AS CHAPTERS:
+- Table of contents (Índice, Contenido, Table of Contents) — skip silently
+- Acknowledgements, dedications, copyright pages, bibliography — skip silently
+- Front matter and back matter that add no instructional content
+
+OUTPUT SCHEMA RULES:
+- The field is called "order", NOT "index". order starts at 1 (not 0) and is consecutive.
+- Every chapter object must have exactly three fields: order, title, start_heading.
+
+TITLE RULES:
+- Remove the chapter number prefix from the title (e.g. "Capítulo 1: " → drop it, keep only the descriptive part)
+- If the heading has no descriptive title (just "Capítulo 3"), infer a title from the first paragraph of that chapter
+- Max 90 characters
+- Capitalize naturally for ${vars.content_locale}
+
+START_HEADING RULES:
+- Copy the heading line VERBATIM from the manuscript — do not edit, clean, or translate it
+- Include enough text to be unique in the document (typically the full heading line)
+- If the same heading appears twice (unlikely but possible), use the first occurrence
+
+WARNINGS (non-blocking — array of strings in ${vars.content_locale}):
+Flag these situations if detected:
+- A chapter that is significantly shorter than the others (under ~300 words) — user may want to merge it
+- A chapter that is very long compared to the others (over 3× the average) — user may want to split it
+- A document where no clear headings were found — inform the user that the split was inferred from content and may need manual adjustment
+- Content that appears unrelated to the ebook title/topic
+
+Do NOT warn about normal variation in chapter length, writing quality, or missing content.
+
+Return {"error": "INVALID_INPUT", "reason": "<brief in ${vars.content_locale}>"} only if manuscript_text is empty or too short to analyze (under 100 words).`;
+
+  const user = `Main ebook title: ${vars.main_ebook_title}
+Topic: ${vars.topic}
+Content locale: ${vars.content_locale}
+
+Manuscript text:
+---
+${vars.manuscript_text}
+---
+
+Analyze the manuscript and propose the chapter structure.`;
+
+  return { system, user };
 }
