@@ -301,6 +301,33 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: "index_shape_mismatch", credits_balance_after: balanceAfter }, 502);
   }
 
+  // Persist the full index JSON to the ebook row so ai-generate-content can use
+  // narrative_arc, descriptions, and key_concepts when generating chapter bodies.
+  // Best-effort: a save failure here does not abort the response.
+  {
+    let ebookIdToUpdate: string | null = null;
+    if (targetEbookId) {
+      ebookIdToUpdate = targetEbookId;
+    } else {
+      const { data: mainEbook } = await admin
+        .from("ebooks")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("type", "main")
+        .maybeSingle();
+      ebookIdToUpdate = (mainEbook?.id as string | undefined) ?? null;
+    }
+    if (ebookIdToUpdate) {
+      const { error: saveIndexErr } = await admin
+        .from("ebooks")
+        .update({ index_json: o })
+        .eq("id", ebookIdToUpdate);
+      if (saveIndexErr) {
+        console.error("index_json_save_failed", saveIndexErr.message);
+      }
+    }
+  }
+
   return json({
     ok: true,
     stub: false,

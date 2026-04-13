@@ -1,14 +1,24 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
+import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
+import { generateChapterPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import type { ContentLocale } from "../_shared/prompts.ts";
 
 /**
- * Generates chapter body (sanitized rich HTML) for package ebooks on the AI path:
- * `main` (uses project chapter count), `order_bump`, and `bonus` (typically one section).
+ * Generates chapter body (sanitized rich HTML) for the main ebook on the AI path.
  * Validates JWT, frozen index gates, ownership, debits credits idempotently.
- * Claude integration is pending (#26 / #55); returns deterministic stub HTML.
+ * Requires ebooks.index_json to be populated by ai-generate-index before calling.
  */
 const json = corsJson;
+
+const CONTENT_LOCALES = ["es", "pt-BR", "en-US", "en-GB"] as const;
+
+function parseContentLocale(raw: string | null | undefined): ContentLocale | null {
+  if (!raw || typeof raw !== "string") return null;
+  return (CONTENT_LOCALES as readonly string[]).includes(raw) ? (raw as ContentLocale) : null;
+}
 
 function esc(s: string): string {
   return s
@@ -21,7 +31,6 @@ function esc(s: string): string {
 function stubChapterBodyHtml(
   contentLocale: string,
   chapterTitle: string,
-  /** Main ebook title, or bonus/bump product title for package artifacts. */
   artifactTitle: string,
   topic: string | null,
 ): string {
@@ -120,7 +129,9 @@ Deno.serve(async (req: Request) => {
 
   const { data: project, error: projectError } = await admin
     .from("projects")
-    .select("id, user_id, content_source, content_locale, main_title, topic, structure_completed_at")
+    .select(
+      "id, user_id, content_source, content_locale, main_title, topic, problem, target_avatar, structure_completed_at, design_config",
+    )
     .eq("id", projectId)
     .maybeSingle();
 
@@ -139,7 +150,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: chapter, error: chErr } = await admin
     .from("chapters")
-    .select("id, title, ebook_id")
+    .select("id, title, sort_order, ebook_id")
     .eq("id", chapterId)
     .maybeSingle();
 
@@ -149,7 +160,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: ebook, error: ebErr } = await admin
     .from("ebooks")
-    .select("id, type, project_id, title")
+    .select("id, type, project_id, title, index_json")
     .eq("id", chapter.ebook_id as string)
     .maybeSingle();
 
@@ -222,20 +233,135 @@ Deno.serve(async (req: Request) => {
     return json({ error: "ledger_failed" }, 500);
   }
 
-  const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
-  const ebookProductTitle = typeof ebook.title === "string" ? ebook.title.trim() : "";
-  const stubBookTitle = ebookType === "main" ? projectMainTitle : ebookProductTitle;
-  const body = stubChapterBodyHtml(
-    project.content_locale ?? "es",
-    title,
-    stubBookTitle || projectMainTitle,
-    project.topic as string | null,
-  );
+  // ── Stub fallback when Anthropic is not configured ──────────────────────────
+  const useAnthropic = Boolean(Deno.env.get("ANTHROPIC_API_KEY")?.trim());
+  if (!useAnthropic) {
+    const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
+    const ebookProductTitle = typeof ebook.title === "string" ? ebook.title.trim() : "";
+    const stubBookTitle = ebookType === "main" ? projectMainTitle : ebookProductTitle;
+    const body = stubChapterBodyHtml(
+      project.content_locale ?? "es",
+      title,
+      stubBookTitle || projectMainTitle,
+      project.topic as string | null,
+    );
+    return json({ ok: true, stub: true, content: body, credits_balance_after: balanceAfter });
+  }
 
-  return json({
-    ok: true,
-    stub: true,
-    content: body,
-    credits_balance_after: balanceAfter,
+  // ── Build prompt context ─────────────────────────────────────────────────────
+  const contentLocale = parseContentLocale(project.content_locale ?? undefined) ?? ("es" as ContentLocale);
+  const { chapterCount, contentTone } = parseDesignConfigForAi(project.design_config);
+  const chapterNumber = Number(chapter.sort_order);
+
+  // index_json is stored as JSONB (object); serialize back to string for the prompt builder.
+  const rawIndexJson = ebook.index_json;
+  const indexJsonString =
+    rawIndexJson == null
+      ? null
+      : typeof rawIndexJson === "string"
+        ? rawIndexJson
+        : JSON.stringify(rawIndexJson);
+
+  if (!indexJsonString) {
+    return json(
+      { ok: false, error: "index_not_available", detail: "generate_index_first", credits_balance_after: balanceAfter },
+      400,
+    );
+  }
+
+  // Fetch all previous chapters for this ebook (sort_order < current).
+  const { data: prevRows, error: prevErr } = await admin
+    .from("chapters")
+    .select("sort_order, title, content")
+    .eq("ebook_id", chapter.ebook_id as string)
+    .lt("sort_order", chapterNumber)
+    .order("sort_order", { ascending: true });
+
+  if (prevErr) {
+    console.error("previous_chapters_fetch_failed", prevErr.message);
+  }
+
+  const previousChapters = (prevRows ?? [])
+    .filter((r) => typeof r.content === "string" && (r.content as string).trim().length > 0)
+    .map((r) => ({
+      number: Number(r.sort_order),
+      title: String(r.title ?? ""),
+      content: String(r.content),
+    }));
+
+  const promptBundle = generateChapterPrompt({
+    content_locale: contentLocale,
+    topic: typeof project.topic === "string" ? project.topic : "",
+    avatar: typeof project.target_avatar === "string" ? project.target_avatar : "",
+    problem: typeof project.problem === "string" ? project.problem : "",
+    main_ebook_title: typeof project.main_title === "string" ? project.main_title.trim() : "",
+    tone: contentTone,
+    index: indexJsonString,
+    chapter_number: chapterNumber,
+    chapter_count: chapterCount,
+    previous_chapters: previousChapters,
   });
+
+  if (!promptBundle) {
+    return json(
+      { ok: false, error: "prompt_build_failed", detail: "chapter_not_found_in_index", credits_balance_after: balanceAfter },
+      502,
+    );
+  }
+
+  // ── Call Claude ──────────────────────────────────────────────────────────────
+  const ai = await callClaudeJsonText({
+    system: promptBundle.system,
+    user: promptBundle.user,
+    maxTokens: 2500,
+  });
+
+  if (!ai.ok) {
+    return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+  }
+
+  const parsed = parseJsonObject(ai.text);
+  if (!parsed.ok) {
+    return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+  }
+
+  const o = parsed.value;
+
+  // Model returned an error object
+  if (typeof o.error === "string") {
+    return json(
+      {
+        ok: false,
+        error: "model_invalid_input",
+        message: typeof o.message === "string" ? o.message : undefined,
+        credits_balance_after: balanceAfter,
+      },
+      400,
+    );
+  }
+
+  const content = typeof o.content === "string" ? o.content.trim() : "";
+  if (!content) {
+    return json({ ok: false, error: "model_empty_content", credits_balance_after: balanceAfter }, 502);
+  }
+
+  // ── Persist to DB ────────────────────────────────────────────────────────────
+  const { error: saveErr } = await admin
+    .from("chapters")
+    .update({ content, approved_at: null })
+    .eq("id", chapterId);
+
+  if (saveErr) {
+    console.error("chapter_content_save_failed", saveErr.message);
+    // Return content anyway — client can retry the save via updateChapterDraftContent.
+    return json({
+      ok: true,
+      stub: false,
+      content,
+      credits_balance_after: balanceAfter,
+      save_warning: "db_save_failed",
+    });
+  }
+
+  return json({ ok: true, stub: false, content, credits_balance_after: balanceAfter });
 });
