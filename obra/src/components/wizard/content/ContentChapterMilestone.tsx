@@ -28,6 +28,8 @@ type ContentChapterMilestoneProps = {
   richTextResetKey: number;
   progressValue?: number;
   progressMax?: number;
+  /** When false, hides the AI-backed “Generate” action (upload path / offline). Defaults to true. */
+  showAiGenerateButton?: boolean;
 };
 
 export function ContentChapterMilestone({
@@ -51,6 +53,7 @@ export function ContentChapterMilestone({
   richTextResetKey,
   progressValue = 0,
   progressMax = 1,
+  showAiGenerateButton = true,
 }: ContentChapterMilestoneProps) {
   const navLabel = t("wizard.content.index.packageNavAria");
   const listLabel = t("wizard.content.chapters.chapterListAria");
@@ -190,15 +193,17 @@ export function ContentChapterMilestone({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              size="medium"
-              disabled={generateDisabled}
-              onClick={onGenerate}
-            >
-              {generateLoading ? t("wizard.content.chapters.generateLoading") : t("wizard.content.chapters.generate")}
-            </Button>
+            {showAiGenerateButton ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="medium"
+                disabled={generateDisabled}
+                onClick={onGenerate}
+              >
+                {generateLoading ? t("wizard.content.chapters.generateLoading") : t("wizard.content.chapters.generate")}
+              </Button>
+            ) : null}
             <Button type="button" variant="tertiary" size="medium" disabled={saveDisabled} onClick={onSave}>
               {saveLoading ? t("wizard.content.chapters.saveLoading") : t("wizard.content.chapters.save")}
             </Button>
