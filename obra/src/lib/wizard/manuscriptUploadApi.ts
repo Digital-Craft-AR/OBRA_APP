@@ -17,6 +17,8 @@ export type ProjectManuscriptRow = {
   superseded_at: string | null;
 };
 
+const MANUSCRIPT_BUCKET = "project-manuscripts";
+
 export async function fetchActiveManuscript(
   projectId: string,
 ): Promise<{ ok: true; row: ProjectManuscriptRow | null } | { ok: false; code: string }> {
@@ -39,6 +41,27 @@ export async function fetchActiveManuscript(
   }
 
   return { ok: true, row: data as ProjectManuscriptRow | null };
+}
+
+/**
+ * Downloads the normalized extracted plain text written by `manuscript-upload-parse`.
+ * Requires a Storage SELECT policy for `project-manuscripts` (see migrations).
+ */
+export async function downloadManuscriptExtractedPlainText(
+  row: ProjectManuscriptRow,
+): Promise<{ ok: true; text: string } | { ok: false; code: string }> {
+  const path = row.extracted_text_storage_path;
+  if (!path) return { ok: false, code: "missing_extracted_path" };
+
+  const { data, error } = await supabase.storage.from(MANUSCRIPT_BUCKET).download(path);
+  if (error || !data) return { ok: false, code: "download_failed" };
+
+  try {
+    const text = await data.text();
+    return { ok: true, text };
+  } catch {
+    return { ok: false, code: "decode_failed" };
+  }
 }
 
 export type ManuscriptUploadParseOk = {

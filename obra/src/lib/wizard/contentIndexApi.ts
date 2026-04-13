@@ -4,7 +4,7 @@ import {
   isChapterHtmlEffectivelyEmpty,
   sanitizeChapterHtml,
 } from "@/lib/sanitizeChapterHtml";
-import { contentNavTargetToKey } from "@/lib/wizard/contentNav";
+import { contentNavTargetToKey, type ContentPackageNavTarget } from "@/lib/wizard/contentNav";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 
 export const MAIN_TOC_MIN_CHAPTERS = 1;
@@ -447,6 +447,114 @@ export async function confirmMainIndex(projectId: string): Promise<
   if (error) return { ok: false, code: "update_failed" };
   if (!data) return { ok: false, code: "wrong_phase" };
   return { ok: true };
+}
+
+/**
+ * Replaces all chapters for an ebook with explicit titles + HTML bodies (used by upload handoff).
+ */
+export async function replaceEbookChaptersWithBodies(
+  ebookId: string,
+  chapters: { title: string; content: string | null }[],
+): Promise<{ ok: true } | { ok: false }> {
+  const { error: delError } = await supabase.from("chapters").delete().eq("ebook_id", ebookId);
+  if (delError) return { ok: false };
+
+  if (chapters.length === 0) return { ok: true };
+
+  const inserts = chapters.map((ch, index) => ({
+    ebook_id: ebookId,
+    sort_order: index + 1,
+    title: ch.title.trim() || " ",
+    content: ch.content !== null && ch.content !== "" ? sanitizeChapterHtml(ch.content) : null,
+  }));
+
+  const { error: insError } = await supabase.from("chapters").insert(inserts);
+  if (insError) return { ok: false };
+  return { ok: true };
+}
+
+export async function freezeContentProgressFromUploadAlignment(
+  projectId: string,
+): Promise<{ ok: true; global_index_frozen_at: string } | { ok: false; code: "wrong_phase" | "update_failed" }> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("project_content_progress")
+    .update({
+      main_index_frozen_at: now,
+      global_index_frozen_at: now,
+      current_phase: "main_chapter",
+      updated_at: now,
+    })
+    .eq("project_id", projectId)
+    .eq("current_phase", "upload_alignment")
+    .select("global_index_frozen_at")
+    .maybeSingle();
+
+  if (error) return { ok: false, code: "update_failed" };
+  if (!data?.global_index_frozen_at) return { ok: false, code: "wrong_phase" };
+  return { ok: true, global_index_frozen_at: data.global_index_frozen_at as string };
+}
+
+export type UploadHandoffPackageSlice = {
+  key: string;
+  target: Exclude<ContentPackageNavTarget, { kind: "main" }>;
+  rows: TocChapterRow[];
+};
+
+/**
+ * Upload path: persist bonus/bump draft TOCs, replace main chapters with prefilled bodies,
+ * then freeze indices and enter `main_chapter` without visiting the AI-path index milestone.
+ */
+export async function completeUploadManuscriptHandoff(input: {
+  projectId: string;
+  mainEbookId: string;
+  mainChapters: { title: string; contentHtml: string }[];
+  packageSlices: UploadHandoffPackageSlice[];
+  packageEbookIds: Record<string, string>;
+}): Promise<
+  | { ok: true; global_index_frozen_at: string }
+  | { ok: false; code: "wrong_phase" | "db_error" | "main_save_failed" | "package_failed" }
+> {
+  const { data: proj, error: projErr } = await supabase
+    .from("projects")
+    .select("id, content_source")
+    .eq("id", input.projectId)
+    .maybeSingle();
+
+  if (projErr || !proj?.id) return { ok: false, code: "db_error" };
+  if (proj.content_source !== "upload") return { ok: false, code: "wrong_phase" };
+
+  const { data: prog, error: progErr } = await supabase
+    .from("project_content_progress")
+    .select("current_phase")
+    .eq("project_id", input.projectId)
+    .maybeSingle();
+
+  if (progErr || prog?.current_phase !== "upload_alignment") return { ok: false, code: "wrong_phase" };
+
+  for (const slice of input.packageSlices) {
+    const ebookId = input.packageEbookIds[slice.key];
+    if (!ebookId) return { ok: false, code: "package_failed" };
+
+    const persisted = await upsertEbookDraftChaptersFromRows(ebookId, slice.rows);
+    if (!persisted.ok) return { ok: false, code: "package_failed" };
+
+    if (slice.target.kind === "bump") {
+      const confirmedBump = await confirmOrderBumpIndex(ebookId);
+      if (!confirmedBump.ok) return { ok: false, code: "package_failed" };
+    }
+  }
+
+  const mainSaved = await replaceEbookChaptersWithBodies(
+    input.mainEbookId,
+    input.mainChapters.map((c) => ({ title: c.title, content: c.contentHtml })),
+  );
+  if (!mainSaved.ok) return { ok: false, code: "main_save_failed" };
+
+  const frozen = await freezeContentProgressFromUploadAlignment(input.projectId);
+  if (!frozen.ok) return { ok: false, code: frozen.code === "wrong_phase" ? "wrong_phase" : "db_error" };
+
+  return { ok: true, global_index_frozen_at: frozen.global_index_frozen_at };
 }
 
 export async function invokeGenerateIndex(

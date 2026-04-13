@@ -629,17 +629,31 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       toastApiFailure(t, key);
       return false;
     }
-    setProject((current) =>
-      current
-        ? {
-            ...current,
-            design_config: designConfig,
-            book_template_id: nextTemplate,
-            layout_page_assignments: layoutPageAssignments,
-          }
-        : current,
+    setProject((current) => {
+      if (!current) return current;
+      if (result.persisted === "full") {
+        return {
+          ...current,
+          design_config: designConfig,
+          book_template_id: nextTemplate,
+          layout_page_assignments: layoutPageAssignments,
+        };
+      }
+      if (result.persisted === "design_and_template") {
+        return {
+          ...current,
+          design_config: designConfig,
+          book_template_id: nextTemplate,
+        };
+      }
+      return {
+        ...current,
+        design_config: designConfig,
+      };
+    });
+    setDesignMessage(
+      result.persisted === "full" ? t("wizard.structure.step7.saved") : t("wizard.structure.step7.savedPartial"),
     );
-    setDesignMessage(t("wizard.structure.step7.saved"));
     return true;
   }
 

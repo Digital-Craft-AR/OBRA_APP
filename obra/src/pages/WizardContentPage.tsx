@@ -16,10 +16,12 @@ import {
   buildContentPackageNavTargets,
   contentNavTargetToKey,
   parseContentNavKey,
+  type ContentPackageNavTarget,
 } from "@/lib/wizard/contentNav";
 import {
   approveChapterBody,
   clearChapterBody,
+  completeUploadManuscriptHandoff,
   confirmMainIndex,
   confirmOrderBumpIndex,
   ensureContentWorkspace,
@@ -36,7 +38,12 @@ import {
   validateMainTocForConfirm,
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
-import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/manuscriptUploadApi";
+import {
+  downloadManuscriptExtractedPlainText,
+  fetchActiveManuscript,
+  type ProjectManuscriptRow,
+} from "@/lib/wizard/manuscriptUploadApi";
+import { buildPackageTocRowsForUploadHandoff, plainTextToChapterHtml } from "@/lib/wizard/uploadHandoff";
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
@@ -171,6 +178,7 @@ export function WizardContentPage() {
     readContentSourceIntroDone(params.projectId),
   );
   const [introSourceBusy, setIntroSourceBusy] = useState(false);
+  const [uploadHandoffBusy, setUploadHandoffBusy] = useState(false);
 
   useEffect(() => {
     setContentSourceIntroDone(readContentSourceIntroDone(params.projectId));
@@ -451,7 +459,7 @@ export function WizardContentPage() {
     workspaceReady &&
     !needsUploadAlignment &&
     currentPhase === "main_chapter" &&
-    project?.content_source === "ai";
+    (project?.content_source === "ai" || project?.content_source === "upload");
 
   const awaitingContentIntro = useMemo(
     () => Boolean(project && workspaceReady && !contentSourceIntroDone),
@@ -1072,6 +1080,110 @@ export function WizardContentPage() {
     setContentSourceIntroDone(true);
   }, [params.projectId]);
 
+  const handleUploadHandoffContinue = useCallback(async () => {
+    if (!project?.id || !mainEbookId || !manuscriptRow) return;
+    if (project.content_source !== "upload") return;
+    if (currentPhase !== "upload_alignment") return;
+    if (uploadHandoffBusy) return;
+
+    setUploadHandoffBusy(true);
+    setActionAnnouncement(null);
+    try {
+      const extracted = await downloadManuscriptExtractedPlainText(manuscriptRow);
+      if (!extracted.ok) {
+        toast.error({
+          title: t("wizard.content.uploadHandoff.errorTitle"),
+          description: t("wizard.content.uploadHandoff.errorPrefillDownload"),
+        });
+        return;
+      }
+
+      const html = plainTextToChapterHtml(extracted.text);
+      const mainTitle =
+        project.main_title?.trim() || t("wizard.content.uploadHandoff.defaultChapterTitle");
+
+      const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
+      const packageSlices = targets
+        .filter((target): target is Exclude<ContentPackageNavTarget, { kind: "main" }> => target.kind !== "main")
+        .map((target) => {
+          const key = contentNavTargetToKey(target);
+          const rows = buildPackageTocRowsForUploadHandoff(target, bonusBumpToc[key], project);
+          return { key, target, rows };
+        });
+
+      const res = await completeUploadManuscriptHandoff({
+        projectId: project.id,
+        mainEbookId,
+        mainChapters: [{ title: mainTitle, contentHtml: html }],
+        packageSlices,
+        packageEbookIds,
+      });
+
+      if (!res.ok) {
+        const descKey =
+          res.code === "wrong_phase"
+            ? "wizard.content.uploadHandoff.errorWrongPhase"
+            : res.code === "main_save_failed"
+              ? "wizard.content.uploadHandoff.errorMainSave"
+              : "wizard.content.uploadHandoff.errorGeneric";
+        toast.error({
+          title: t("wizard.content.uploadHandoff.errorTitle"),
+          description: t(descKey),
+        });
+        return;
+      }
+
+      setGlobalIndexFrozenAt(res.global_index_frozen_at);
+      setCurrentPhase("main_chapter");
+
+      const loadedMain = await loadEbookChapters(mainEbookId);
+      if (loadedMain.ok) {
+        setMainTocRows(loadedMain.rows);
+        setTocEntryResolved(true);
+      }
+
+      const pkgMap = await fetchPackageEbookIdMap(project.id);
+      if (pkgMap.ok) {
+        setBumpIndexFrozenAt(pkgMap.bumpIndexFrozenAt);
+      }
+
+      for (const slice of packageSlices) {
+        const ebookId = packageEbookIds[slice.key];
+        if (!ebookId) continue;
+        const loaded = await loadEbookChapters(ebookId);
+        if (loaded.ok) {
+          setBonusBumpToc((p) => ({ ...p, [slice.key]: loaded.rows }));
+        }
+        if (slice.target.kind === "bump") {
+          setBumpTocEntryResolved((p) => ({ ...p, [slice.key]: true }));
+        }
+      }
+
+      const draft = await loadEbookChaptersDraft(mainEbookId);
+      if (draft.ok) {
+        setChapterRows(draft.rows);
+        setChapterIdx(0);
+        setChapterBodyDraft(draft.rows[0]?.content ?? "");
+        setChapterRichTextKey((k) => k + 1);
+      }
+
+      void refreshChapterBodyPresence();
+      setActionAnnouncement(t("wizard.content.uploadHandoff.success"));
+    } finally {
+      setUploadHandoffBusy(false);
+    }
+  }, [
+    project,
+    mainEbookId,
+    manuscriptRow,
+    currentPhase,
+    uploadHandoffBusy,
+    bonusBumpToc,
+    packageEbookIds,
+    t,
+    refreshChapterBodyPresence,
+  ]);
+
   function dismissBanner() {
     if (!params.projectId) return;
     try {
@@ -1302,13 +1414,33 @@ export function WizardContentPage() {
           ) : null}
 
           {needsUploadAlignment && project && !awaitingContentIntro ? (
-            <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
-              <ManuscriptUploadPanel
-                t={t}
-                projectId={project.id}
-                initialManuscript={manuscriptRow}
-                onManuscriptCommitted={setManuscriptRow}
-              />
+            <div className="space-y-4">
+              <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
+                <ManuscriptUploadPanel
+                  t={t}
+                  projectId={project.id}
+                  initialManuscript={manuscriptRow}
+                  onManuscriptCommitted={setManuscriptRow}
+                />
+              </div>
+
+              {manuscriptRow?.extracted_char_count != null && manuscriptRow.extracted_char_count > 0 ? (
+                <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-5 shadow-sm">
+                  <p className="font-body text-sm text-obra-neutral-600">{t("wizard.content.uploadHandoff.hint")}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      disabled={uploadHandoffBusy}
+                      onClick={() => void handleUploadHandoffContinue()}
+                    >
+                      {uploadHandoffBusy
+                        ? t("wizard.content.uploadHandoff.continueLoading")
+                        : t("wizard.content.uploadHandoff.continueCta")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -1376,6 +1508,7 @@ export function WizardContentPage() {
               richTextResetKey={chapterRichTextKey}
               progressValue={chapterProgressValue}
               progressMax={Math.max(chapterRows.length, 1)}
+              showAiGenerateButton={project?.content_source === "ai"}
             />
           ) : null}
 
@@ -1384,11 +1517,13 @@ export function WizardContentPage() {
 
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
         <div className="flex w-full min-w-0 items-center justify-between">
-          {showChapterLoop ? (
+          {showChapterLoop && project?.content_source === "ai" ? (
             <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
               <ChevronLeft className="size-4" aria-hidden />
               {t("wizard.content.index.reopenIndex")}
             </Button>
+          ) : showChapterLoop ? (
+            <span />
           ) : (
             <Button
               type="button"
