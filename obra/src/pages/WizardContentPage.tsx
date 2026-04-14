@@ -5,23 +5,21 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle } from "@/components/ui/Modal";
 import { ObraToast } from "@/components/obra/ObraToast";
-import {
-  ContentIndexMilestone,
-  type ContentNavItem,
-} from "@/components/wizard/content/ContentIndexMilestone";
+import { ContentIndexMilestone } from "@/components/wizard/content/ContentIndexMilestone";
 import { ContentChapterMilestone } from "@/components/wizard/content/ContentChapterMilestone";
+import { ContentPackSidebar } from "@/components/wizard/content/ContentPackSidebar";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
   buildContentPackageNavTargets,
   contentNavTargetToKey,
   parseContentNavKey,
+  type ContentNavItem,
   type ContentPackageNavTarget,
 } from "@/lib/wizard/contentNav";
 import {
   approveChapterBody,
   clearChapterBody,
-  completeUploadManuscriptHandoff,
   confirmMainIndex,
   confirmOrderBumpIndex,
   ensureContentWorkspace,
@@ -38,12 +36,8 @@ import {
   validateMainTocForConfirm,
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
-import {
-  downloadManuscriptExtractedPlainText,
-  fetchActiveManuscript,
-  type ProjectManuscriptRow,
-} from "@/lib/wizard/manuscriptUploadApi";
-import { buildPackageTocRowsForUploadHandoff, plainTextToChapterHtml } from "@/lib/wizard/uploadHandoff";
+import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/manuscriptUploadApi";
+import { buildPackageTocRowsForUploadHandoff } from "@/lib/wizard/uploadHandoff";
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import { ContentUploadAlignmentPanel } from "@/components/wizard/content/ContentUploadAlignmentPanel";
@@ -1216,110 +1210,6 @@ export function WizardContentPage() {
     ],
   );
 
-  const handleUploadHandoffContinue = useCallback(async () => {
-    if (!project?.id || !mainEbookId || !manuscriptRow) return;
-    if (project.content_source !== "upload") return;
-    if (currentPhase !== "upload_alignment") return;
-    if (uploadHandoffBusy) return;
-
-    setUploadHandoffBusy(true);
-    setActionAnnouncement(null);
-    try {
-      const extracted = await downloadManuscriptExtractedPlainText(manuscriptRow);
-      if (!extracted.ok) {
-        toast.error({
-          title: t("wizard.content.uploadHandoff.errorTitle"),
-          description: t("wizard.content.uploadHandoff.errorPrefillDownload"),
-        });
-        return;
-      }
-
-      const html = plainTextToChapterHtml(extracted.text);
-      const mainTitle =
-        project.main_title?.trim() || t("wizard.content.uploadHandoff.defaultChapterTitle");
-
-      const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
-      const packageSlices = targets
-        .filter((target): target is Exclude<ContentPackageNavTarget, { kind: "main" }> => target.kind !== "main")
-        .map((target) => {
-          const key = contentNavTargetToKey(target);
-          const rows = buildPackageTocRowsForUploadHandoff(target, bonusBumpToc[key], project);
-          return { key, target, rows };
-        });
-
-      const res = await completeUploadManuscriptHandoff({
-        projectId: project.id,
-        mainEbookId,
-        mainChapters: [{ title: mainTitle, contentHtml: html }],
-        packageSlices,
-        packageEbookIds,
-      });
-
-      if (!res.ok) {
-        const descKey =
-          res.code === "wrong_phase"
-            ? "wizard.content.uploadHandoff.errorWrongPhase"
-            : res.code === "main_save_failed"
-              ? "wizard.content.uploadHandoff.errorMainSave"
-              : "wizard.content.uploadHandoff.errorGeneric";
-        toast.error({
-          title: t("wizard.content.uploadHandoff.errorTitle"),
-          description: t(descKey),
-        });
-        return;
-      }
-
-      setGlobalIndexFrozenAt(res.global_index_frozen_at);
-      setCurrentPhase("main_chapter");
-
-      const loadedMain = await loadEbookChapters(mainEbookId);
-      if (loadedMain.ok) {
-        setMainTocRows(loadedMain.rows);
-        setTocEntryResolved(true);
-      }
-
-      const pkgMap = await fetchPackageEbookIdMap(project.id);
-      if (pkgMap.ok) {
-        setBumpIndexFrozenAt(pkgMap.bumpIndexFrozenAt);
-      }
-
-      for (const slice of packageSlices) {
-        const ebookId = packageEbookIds[slice.key];
-        if (!ebookId) continue;
-        const loaded = await loadEbookChapters(ebookId);
-        if (loaded.ok) {
-          setBonusBumpToc((p) => ({ ...p, [slice.key]: loaded.rows }));
-        }
-        if (slice.target.kind === "bump") {
-          setBumpTocEntryResolved((p) => ({ ...p, [slice.key]: true }));
-        }
-      }
-
-      const draft = await loadEbookChaptersDraft(mainEbookId);
-      if (draft.ok) {
-        setChapterRows(draft.rows);
-        setChapterIdx(0);
-        setChapterBodyDraft(draft.rows[0]?.content ?? "");
-        setChapterRichTextKey((k) => k + 1);
-      }
-
-      void refreshChapterBodyPresence();
-      setActionAnnouncement(t("wizard.content.uploadHandoff.success"));
-    } finally {
-      setUploadHandoffBusy(false);
-    }
-  }, [
-    project,
-    mainEbookId,
-    manuscriptRow,
-    currentPhase,
-    uploadHandoffBusy,
-    bonusBumpToc,
-    packageEbookIds,
-    t,
-    refreshChapterBodyPresence,
-  ]);
-
   function dismissBanner() {
     if (!params.projectId) return;
     try {
@@ -1465,6 +1355,8 @@ export function WizardContentPage() {
     return null;
   }
 
+  const showPackSidebar = Boolean(project && workspaceReady && !awaitingContentIntro);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
       <div className="bg-obra-blue-950 px-6 py-3">
@@ -1511,8 +1403,20 @@ export function WizardContentPage() {
         </div>
       </div>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
-        <div className="mx-auto w-full max-w-5xl px-8 py-8">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-obra-blue-50">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          {showPackSidebar ? (
+            <ContentPackSidebar
+              t={t}
+              navItems={navItems}
+              selectedKey={selectedKey}
+              onSelectKey={handleSelectPackageKey}
+              navItemDisabled={navItemDisabled}
+            />
+          ) : null}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-5xl px-8 py-8">
           {!bannerDismissed ? (
             <div
               role="region"
@@ -1561,7 +1465,10 @@ export function WizardContentPage() {
                       setManuscriptRow(row);
                       if ((row.extracted_char_count ?? 0) > 0) {
                         setManuscriptCommitted(true);
-                        toast.success({ title: t("wizard.content.manuscript.uploadedToast") });
+                        toast.success({
+                          title: t("wizard.content.manuscript.uploadedToast"),
+                          description: t("wizard.content.manuscript.uploadedToastDescription"),
+                        });
                       }
                     }}
                   />
@@ -1588,10 +1495,7 @@ export function WizardContentPage() {
           !showChapterLoop ? (
             <ContentIndexMilestone
               t={t}
-              navItems={navItems}
-              selectedKey={selectedKey}
-              onSelectKey={handleSelectPackageKey}
-              navItemDisabled={navItemDisabled}
+              selectedTarget={selectedTarget}
               panelTitle={panelCopy.title}
               panelSubtitle={panelCopy.subtitle}
               tocRows={currentTocRows}
@@ -1625,10 +1529,6 @@ export function WizardContentPage() {
           {showChapterLoop ? (
             <ContentChapterMilestone
               t={t}
-              navItems={navItems}
-              selectedKey={selectedKey}
-              onSelectKey={handleSelectPackageKey}
-              navItemDisabled={navItemDisabled}
               panelTitle={chapterPanelCopy.title}
               chapters={chapterRows}
               selectedIndex={chapterIdx}
@@ -1648,49 +1548,52 @@ export function WizardContentPage() {
             />
           ) : null}
 
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
+              <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
+                {showChapterLoop && project?.content_source === "ai" ? (
+                  <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
+                    <ChevronLeft className="size-4" aria-hidden />
+                    {t("wizard.content.index.reopenIndex")}
+                  </Button>
+                ) : showChapterLoop ? (
+                  <span />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="tertiary"
+                    onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
+                  >
+                    <ChevronLeft className="size-4" aria-hidden />
+                    {t("wizard.content.footer.backToStructure")}
+                  </Button>
+                )}
+
+                {awaitingContentIntro ? (
+                  <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
+                    {t("wizard.content.sourceIntro.continue")}
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Button>
+                ) : !showChapterLoop ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={!confirmVisible || confirmDisabled || confirmLoading}
+                    onClick={() => void handleConfirmGlobalIndex()}
+                  >
+                    {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Button>
+                ) : (
+                  <span />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
-
-      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
-        <div className="flex w-full min-w-0 items-center justify-between">
-          {showChapterLoop && project?.content_source === "ai" ? (
-            <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
-              <ChevronLeft className="size-4" aria-hidden />
-              {t("wizard.content.index.reopenIndex")}
-            </Button>
-          ) : showChapterLoop ? (
-            <span />
-          ) : (
-            <Button
-              type="button"
-              variant="tertiary"
-              onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-              {t("wizard.content.footer.backToStructure")}
-            </Button>
-          )}
-
-          {awaitingContentIntro ? (
-            <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
-              {t("wizard.content.sourceIntro.continue")}
-              <ChevronRight className="size-4" aria-hidden />
-            </Button>
-          ) : !showChapterLoop ? (
-            <Button
-              type="button"
-              variant="primary"
-              disabled={!confirmVisible || confirmDisabled || confirmLoading}
-              onClick={() => void handleConfirmGlobalIndex()}
-            >
-              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
-              <ChevronRight className="size-4" aria-hidden />
-            </Button>
-          ) : (
-            <span />
-          )}
-        </div>
-      </div>
 
       <Modal
         open={Boolean(titleChangeModal)}

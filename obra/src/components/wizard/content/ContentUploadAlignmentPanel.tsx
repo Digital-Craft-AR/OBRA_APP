@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { TFunction } from "i18next";
-import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   invokeAiSplitProposal,

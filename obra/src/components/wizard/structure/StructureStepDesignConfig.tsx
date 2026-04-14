@@ -568,34 +568,43 @@ export function StructureStepDesignConfig({
         </div>
         {config.image.mode === "ai" ? (
           <>
-            <div className="flex flex-wrap gap-3">
-              {(
-                [
-                  "illustration",
-                  "photography",
-                  "isometric",
-                  "minimalist",
-                  "watercolor",
-                ] as WizardDesignConfig["image"]["style"][]
-              ).map((style) => (
-                <button
-                  key={style}
-                  type="button"
-                  onClick={() =>
-                    onChange({
-                      ...config,
-                      image: { ...config.image, style },
-                    })
-                  }
-                  className={`rounded-full border px-2 py-1 text-xs transition-colors ${
-                    config.image.style === style
-                      ? "border-obra-blue-700 bg-obra-blue-50 font-semibold text-obra-blue-900"
-                      : "border-obra-neutral-200 bg-white text-obra-neutral-600"
-                  }`}
-                >
-                  {t(`wizard.structure.design.images.style.${style}`)}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-obra-blue-950">
+                {t("wizard.structure.design.images.styleTitle")}
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    "illustration",
+                    "photography",
+                    "isometric",
+                    "minimalist",
+                    "watercolor",
+                  ] as WizardDesignConfig["image"]["style"][]
+                ).map((style) => {
+                  const selected = config.image.style === style;
+                  return (
+                    <button
+                      key={style}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        onChange({
+                          ...config,
+                          image: { ...config.image, style },
+                        })
+                      }
+                      className={`rounded-full border-2 px-4 py-2.5 font-body text-sm font-medium transition-colors ${
+                        selected
+                          ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950 shadow-sm"
+                          : "border-obra-neutral-200 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60"
+                      }`}
+                    >
+                      {t(`wizard.structure.design.images.style.${style}`)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="rounded-input border border-obra-blue-100 bg-obra-blue-50 px-3 py-2 text-xs text-obra-neutral-600">
               {t("wizard.structure.design.images.note")}
