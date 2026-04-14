@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
 import { ObraInput } from "@/components/obra/ObraInput";
-import { ProjectSummaryCard, type ProjectSummaryCardModel } from "@/components/projects/ProjectSummaryCard";
+import { ProjectSummaryCard, type ProjectSummaryCardModel, type ProjectCardActions } from "@/components/projects/ProjectSummaryCard";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { usePersistentSidebarCollapsed } from "@/hooks/usePersistentSidebarCollapsed";
 import { Button } from "@/components/ui/Button";
@@ -91,6 +91,22 @@ export function DashboardPage() {
   const [tabProjects, setTabProjects] = useState<ProjectSummaryCardModel[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+
+  // Rename modal
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  // Archive confirm
+  const [archiveTargetId, setArchiveTargetId] = useState<string | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  // Trash confirm
+  const [trashTargetId, setTrashTargetId] = useState<string | null>(null);
+  const [trashLoading, setTrashLoading] = useState(false);
+  const [trashError, setTrashError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,6 +222,73 @@ export function DashboardPage() {
   async function signOut() {
     await supabase.auth.signOut();
   }
+
+  function openRenameModal(id: string, currentName: string) {
+    setRenameTarget({ id, name: currentName });
+    setRenameValue(currentName);
+    setRenameError(null);
+  }
+
+  async function submitRename() {
+    if (!renameTarget || renameLoading) return;
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    setRenameLoading(true);
+    setRenameError(null);
+    const { error } = await supabase
+      .from("projects")
+      .update({ name: trimmed })
+      .eq("id", renameTarget.id);
+    setRenameLoading(false);
+    if (error) {
+      setRenameError(t("projects.rename.error"));
+      return;
+    }
+    setTabProjects((prev) =>
+      prev.map((p) => (p.id === renameTarget.id ? { ...p, name: trimmed } : p)),
+    );
+    setRenameTarget(null);
+  }
+
+  async function submitArchive() {
+    if (!archiveTargetId || archiveLoading) return;
+    setArchiveLoading(true);
+    setArchiveError(null);
+    const { error } = await supabase
+      .from("projects")
+      .update({ lifecycle_status: "archived" })
+      .eq("id", archiveTargetId);
+    setArchiveLoading(false);
+    if (error) {
+      setArchiveError(t("projects.archive.error"));
+      return;
+    }
+    setTabProjects((prev) => prev.filter((p) => p.id !== archiveTargetId));
+    setArchiveTargetId(null);
+  }
+
+  async function submitMoveToTrash() {
+    if (!trashTargetId || trashLoading) return;
+    setTrashLoading(true);
+    setTrashError(null);
+    const { error } = await supabase
+      .from("projects")
+      .update({ lifecycle_status: "trash" })
+      .eq("id", trashTargetId);
+    setTrashLoading(false);
+    if (error) {
+      setTrashError(t("projects.trash.error"));
+      return;
+    }
+    setTabProjects((prev) => prev.filter((p) => p.id !== trashTargetId));
+    setTrashTargetId(null);
+  }
+
+  const cardActions: ProjectCardActions = {
+    onRename: openRenameModal,
+    onArchive: (id) => { setArchiveError(null); setArchiveTargetId(id); },
+    onMoveToTrash: (id) => { setTrashError(null); setTrashTargetId(id); },
+  };
 
   function openNewProjectModal() {
     setProjectCreateError(null);
@@ -418,14 +501,25 @@ export function DashboardPage() {
                 </p>
               ) : null}
 
+              {lifecycleTab === "trash" ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {t("projects.trash.notice")}
+                </p>
+              ) : null}
+
               {projectsLoading ? (
                 <p className="text-obra-neutral-600">{t("projects.loading")}</p>
               ) : tabProjects.length === 0 ? (
                 <p className="text-obra-neutral-600">{t(`projects.empty.${lifecycleTab}`)}</p>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {tabProjects.map((p) => (
-                    <ProjectSummaryCard key={p.id} project={p} t={t} />
+                    <ProjectSummaryCard
+                      key={p.id}
+                      project={p}
+                      t={t}
+                      actions={lifecycleTab === "active" ? cardActions : undefined}
+                    />
                   ))}
                 </div>
               )}
@@ -439,6 +533,108 @@ export function DashboardPage() {
           ) : null}
         </div>
       </main>
+
+      {/* Rename modal */}
+      <Modal
+        open={renameTarget !== null}
+        onClose={() => setRenameTarget(null)}
+        closeLabel={t("wizard.modal.close")}
+      >
+        <ModalHead>
+          <div>
+            <ModalTitle>{t("projects.rename.title")}</ModalTitle>
+          </div>
+        </ModalHead>
+        <ModalContent>
+          <ObraInput
+            id="project-rename"
+            label={t("projects.rename.label")}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void submitRename(); }}
+          />
+          {renameError ? (
+            <p role="alert" className="mt-3 text-sm text-red-600">{renameError}</p>
+          ) : null}
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" onClick={() => setRenameTarget(null)} disabled={renameLoading}>
+            {t("projects.rename.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => void submitRename()}
+            disabled={renameLoading || !renameValue.trim()}
+          >
+            {t("projects.rename.save")}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Archive confirm */}
+      <Modal
+        open={archiveTargetId !== null}
+        onClose={() => setArchiveTargetId(null)}
+        closeLabel={t("wizard.modal.close")}
+      >
+        <ModalHead>
+          <div>
+            <ModalTitle>{t("projects.archive.title")}</ModalTitle>
+          </div>
+        </ModalHead>
+        <ModalContent>
+          <p>{t("projects.archive.body")}</p>
+          {archiveError ? (
+            <p role="alert" className="mt-3 text-sm text-red-600">{archiveError}</p>
+          ) : null}
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" onClick={() => setArchiveTargetId(null)} disabled={archiveLoading}>
+            {t("projects.archive.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void submitArchive()}
+            disabled={archiveLoading}
+          >
+            {t("projects.archive.confirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Move to trash confirm */}
+      <Modal
+        open={trashTargetId !== null}
+        onClose={() => setTrashTargetId(null)}
+        closeLabel={t("wizard.modal.close")}
+      >
+        <ModalHead>
+          <div>
+            <ModalTitle>{t("projects.trash.title")}</ModalTitle>
+          </div>
+        </ModalHead>
+        <ModalContent>
+          <p>{t("projects.trash.body")}</p>
+          {trashError ? (
+            <p role="alert" className="mt-3 text-sm text-red-600">{trashError}</p>
+          ) : null}
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" onClick={() => setTrashTargetId(null)} disabled={trashLoading}>
+            {t("projects.trash.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => void submitMoveToTrash()}
+            disabled={trashLoading}
+          >
+            {t("projects.trash.confirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       <Modal
         open={showNewProjectModal}

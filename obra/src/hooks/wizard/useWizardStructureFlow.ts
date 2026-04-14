@@ -448,8 +448,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     (index: number) => {
       const title = titleSuggestions[index];
       if (typeof title !== "string" || !title.trim()) return;
+      setSelectedTitleIndex(index);
       setCustomMainTitle(title.trim());
-      setSelectedTitleIndex(null);
       setMainTitleError(null);
     },
     [titleSuggestions],

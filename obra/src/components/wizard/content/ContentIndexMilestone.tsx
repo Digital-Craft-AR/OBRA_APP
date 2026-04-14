@@ -196,7 +196,7 @@ export function ContentIndexMilestone({
         ) : null}
 
         {showMainTocEmptyChoice ? (
-          <div className="rounded-xl border border-obra-neutral-200 bg-white px-5 py-6 shadow-sm">
+          <div className="rounded-card border border-obra-neutral-200 bg-white px-5 py-6">
             <p className="mb-5 font-body text-sm text-obra-blue-950">{t("wizard.content.index.emptyTocPrompt")}</p>
             <div className="flex flex-wrap gap-3">
               {mainTocEmptyShowGenerate ? (
@@ -249,7 +249,7 @@ export function ContentIndexMilestone({
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
                   className={[
-                    "rounded-xl border bg-white px-4 py-3 shadow-sm transition-colors",
+                    "rounded-card border bg-white px-4 py-3 transition-colors",
                     dragOverIndex === index ? "border-obra-blue-400 bg-obra-blue-50/40" : "border-obra-neutral-200",
                   ].join(" ")}
                 >
@@ -291,7 +291,7 @@ export function ContentIndexMilestone({
               ) : (
                 <li
                   key={row.id}
-                  className="rounded-xl border border-obra-neutral-200 bg-white p-4 shadow-sm"
+                  className="rounded-card border border-obra-neutral-200 bg-white p-4"
                 >
                   <ObraInput
                     id={`toc-${row.id}`}

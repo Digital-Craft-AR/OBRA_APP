@@ -90,7 +90,7 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
   }, []);
 
   return (
-    <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
+    <div className="rounded-card border border-obra-neutral-200 bg-white px-4 py-6">
       {/* ── Idle — oculto; autoStart dispara la generación automáticamente al montar ── */}
       {/* {stage === "idle" && (
         <div className="flex flex-col gap-4">

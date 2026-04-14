@@ -17,7 +17,7 @@ type Props = {
 export function ContentSourceIntroPanel({ t, contentSource, onSelectSource, selectDisabled }: Props) {
   const interactive = Boolean(onSelectSource);
   return (
-    <div className="rounded-card border border-obra-blue-100 bg-white px-5 py-8 shadow-sm">
+    <div className="rounded-card border border-obra-neutral-200 bg-white px-5 py-8">
       <header className="mb-6 space-y-2">
         <h2 className="font-display text-2xl text-obra-blue-950">{t("wizard.create.sourceChoice.title")}</h2>
         <p className="text-sm text-obra-neutral-600">{t("wizard.content.sourceIntro.subtitle")}</p>

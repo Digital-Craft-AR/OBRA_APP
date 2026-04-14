@@ -16,6 +16,7 @@ const greenPrimary = "bg-obra-green-400 text-obra-blue-950 hover:brightness-105"
 export const buttonSizeClass = {
   medium: "h-10 px-5",
   small: "h-8 px-4",
+  icon: "size-8 p-0",
 } as const;
 
 /** Variant mapping by visual mode (`light` by default). */

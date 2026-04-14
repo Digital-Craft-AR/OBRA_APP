@@ -103,7 +103,7 @@ export function ChapterRichTextEditor({
   return (
     <div
       className={[
-        "rounded-xl border border-obra-neutral-200 bg-white shadow-sm transition-colors",
+        "rounded-card border border-obra-neutral-200 bg-white transition-colors",
         disabled ? "cursor-not-allowed opacity-50" : "focus-within:border-obra-blue-400 focus-within:ring-2 focus-within:ring-obra-blue-400/30",
       ].join(" ")}
     >

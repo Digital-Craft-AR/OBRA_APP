@@ -95,18 +95,15 @@ export function StructureStepDesignConfig({
                   selected ? "border-obra-blue-700 bg-obra-blue-50" : "border-obra-neutral-200 bg-white"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`flex size-5 items-center justify-center rounded-full border ${
-                      selected ? "border-obra-blue-700 bg-obra-blue-700" : "border-obra-neutral-300 bg-white"
-                    }`}
-                    aria-hidden
-                  >
-                    {selected ? <Check className="size-3 text-white" strokeWidth={3} /> : null}
-                  </span>
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-obra-blue-950">
                     {t(`wizard.structure.design.bookTemplate.${id}.name`)}
                   </span>
+                  {selected ? (
+                    <Check className="size-4 shrink-0 text-obra-blue-700" aria-hidden />
+                  ) : (
+                    <span className="size-4 shrink-0" aria-hidden />
+                  )}
                 </div>
                 <p className="text-xs text-obra-neutral-600">
                   {t(`wizard.structure.design.bookTemplate.${id}.description`)}
@@ -220,13 +217,18 @@ export function StructureStepDesignConfig({
                 page: { ...config.page, orientation: "portrait" },
               })
             }
-            className={`rounded-xl border px-4 py-3 text-center text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
               config.page.orientation === "portrait"
                 ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-700"
                 : "border-obra-neutral-200 bg-white text-obra-neutral-600"
             }`}
           >
             {t("wizard.structure.design.page.portrait")}
+            {config.page.orientation === "portrait" ? (
+              <Check className="size-4 shrink-0 text-obra-blue-700" aria-hidden />
+            ) : (
+              <span className="size-4 shrink-0" aria-hidden />
+            )}
           </button>
           <button
             type="button"
@@ -236,13 +238,18 @@ export function StructureStepDesignConfig({
                 page: { ...config.page, orientation: "landscape" },
               })
             }
-            className={`rounded-xl border px-4 py-3 text-center text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
               config.page.orientation === "landscape"
                 ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-700"
                 : "border-obra-neutral-200 bg-white text-obra-neutral-600"
             }`}
           >
             {t("wizard.structure.design.page.landscape")}
+            {config.page.orientation === "landscape" ? (
+              <Check className="size-4 shrink-0 text-obra-blue-700" aria-hidden />
+            ) : (
+              <span className="size-4 shrink-0" aria-hidden />
+            )}
           </button>
         </div>
       </div>
@@ -266,6 +273,9 @@ export function StructureStepDesignConfig({
                     : "border-obra-neutral-200 bg-white text-obra-neutral-600"
                 }`}
               >
+                {selected ? (
+                  <Check className="absolute right-2 top-2 size-3 text-obra-blue-700" aria-hidden />
+                ) : null}
                 <span className="text-sm font-semibold tabular-nums">{count}</span>
                 {isRecommended ? (
                   <span
@@ -297,45 +307,54 @@ export function StructureStepDesignConfig({
         </h3>
         <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.palette.subtitle")}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {DESIGN_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => updatePalettePreset(preset.id)}
-              className={`rounded-card border px-2.5 py-2 text-center ${
-                config.paletteMode === "preset" && config.palettePresetId === preset.id
-                  ? "border-obra-blue-100 bg-obra-blue-50"
-                  : "border-obra-neutral-200 bg-white"
-              }`}
-            >
-              <div className="mb-2 flex flex-wrap items-center justify-center gap-1">
-                <span
-                  className="size-5 rounded-full border border-obra-blue-100"
-                  style={{ backgroundColor: colorToRgbStyleValue(preset.palette.primary) }}
-                />
-                <span
-                  className="size-5 rounded-full border border-obra-blue-100"
-                  style={{ backgroundColor: colorToRgbStyleValue(preset.palette.secondary) }}
-                />
-                <span
-                  className="size-5 rounded-full border border-obra-blue-100"
-                  style={{ backgroundColor: colorToRgbStyleValue(preset.palette.accent) }}
-                />
-              </div>
-              <p className="text-xs font-semibold text-obra-blue-950">
-                {t(`wizard.structure.design.preset.${preset.id}.name`)}
-              </p>
-            </button>
-          ))}
+          {DESIGN_PRESETS.map((preset) => {
+            const isSelected = config.paletteMode === "preset" && config.palettePresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => updatePalettePreset(preset.id)}
+                className={`relative rounded-card border px-2.5 py-2 text-center ${
+                  isSelected
+                    ? "border-obra-blue-700 bg-obra-blue-50"
+                    : "border-obra-neutral-200 bg-white"
+                }`}
+              >
+                {isSelected ? (
+                  <Check className="absolute right-1 top-1 size-4 text-obra-blue-700" aria-hidden />
+                ) : null}
+                <div className="mb-2 flex flex-wrap items-center justify-center gap-1">
+                  <span
+                    className="size-5 rounded-full border border-obra-blue-100"
+                    style={{ backgroundColor: colorToRgbStyleValue(preset.palette.primary) }}
+                  />
+                  <span
+                    className="size-5 rounded-full border border-obra-blue-100"
+                    style={{ backgroundColor: colorToRgbStyleValue(preset.palette.secondary) }}
+                  />
+                  <span
+                    className="size-5 rounded-full border border-obra-blue-100"
+                    style={{ backgroundColor: colorToRgbStyleValue(preset.palette.accent) }}
+                  />
+                </div>
+                <p className="text-xs font-semibold text-obra-blue-950">
+                  {t(`wizard.structure.design.preset.${preset.id}.name`)}
+                </p>
+              </button>
+            );
+          })}
           <button
             type="button"
             onClick={enableCustomPalette}
-            className={`rounded-card border px-2.5 py-2 text-center ${
+            className={`relative rounded-card border px-2.5 py-2 text-center ${
               config.paletteMode === "custom"
-                ? "border-obra-blue-100 bg-obra-blue-50"
+                ? "border-obra-blue-700 bg-obra-blue-50"
                 : "border-obra-neutral-200 bg-white"
             }`}
           >
+            {config.paletteMode === "custom" ? (
+              <Check className="absolute right-1 top-1 size-4 text-obra-blue-700" aria-hidden />
+            ) : null}
             <div className="mb-2 flex flex-wrap items-center justify-center gap-1">
               {PERSONALIZED_PALETTE_SWATCHES.map((hex) => (
                 <span
@@ -568,10 +587,10 @@ export function StructureStepDesignConfig({
                       image: { ...config.image, style },
                     })
                   }
-                  className={`text-xs ${
+                  className={`rounded-full border px-2 py-1 text-xs transition-colors ${
                     config.image.style === style
-                      ? "rounded-full border border-obra-blue-100 bg-obra-blue-50 px-2 py-1 text-obra-blue-900 font-semibold"
-                      : "text-obra-neutral-600"
+                      ? "border-obra-blue-700 bg-obra-blue-50 font-semibold text-obra-blue-900"
+                      : "border-obra-neutral-200 bg-white text-obra-neutral-600"
                   }`}
                 >
                   {t(`wizard.structure.design.images.style.${style}`)}
