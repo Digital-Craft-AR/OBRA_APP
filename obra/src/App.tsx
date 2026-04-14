@@ -19,6 +19,7 @@ import { CheckoutReturnPage } from "@/pages/CheckoutReturnPage";
 import { VerifyEmailPendingPage } from "@/pages/VerifyEmailPendingPage";
 import { NewProjectPage } from "@/pages/NewProjectPage";
 import { WizardContentPage } from "@/pages/WizardContentPage";
+import { WizardPreviewPage } from "@/pages/WizardPreviewPage";
 import { WizardStructurePage } from "@/pages/WizardStructurePage";
 
 export function App() {
@@ -44,6 +45,7 @@ export function App() {
           <Route path="projects/new" element={<NewProjectPage />} />
           <Route path="projects/:projectId/wizard" element={<WizardStructurePage />} />
           <Route path="projects/:projectId/content" element={<WizardContentPage />} />
+          <Route path="projects/:projectId/preview" element={<WizardPreviewPage />} />
           <Route path="settings" element={<Navigate to="/app/settings/profile" replace />} />
           <Route path="settings/:section" element={<SettingsPage />} />
         </Route>
