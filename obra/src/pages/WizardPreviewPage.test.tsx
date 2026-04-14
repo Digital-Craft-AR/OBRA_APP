@@ -47,29 +47,37 @@ const chaptersData = [
   { id: "ch-1", title: "Introducción", sort_order: 1, content: "<p>Hola</p>", approved_at: null },
 ];
 
-// Supabase mock: supports chained .from().select().eq().single() and
-// .from().select().eq().order() patterns used by the page.
+// Supabase mock: supports chained .from().select().eq().single(),
+// .from().select().eq().order(), and .from().select().eq().maybeSingle() patterns.
 const mockChains = vi.hoisted(() => {
   const single = vi.fn();
+  const maybeSingle = vi.fn();
   const order = vi.fn();
   const eqChain = vi.fn();
   const selectChain = vi.fn();
   const inChain = vi.fn();
+  const isChain = vi.fn();
 
-  return { single, order, eqChain, selectChain, inChain };
+  return { single, maybeSingle, order, eqChain, selectChain, inChain, isChain };
 });
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
-    from: vi.fn((table: string) => ({
+    from: vi.fn((_table: string) => ({
       select: vi.fn(() => ({
-        eq: vi.fn((col: string) => ({
+        eq: vi.fn((_col: string) => ({
           single: mockChains.single,
+          maybeSingle: mockChains.maybeSingle,
           order: mockChains.order,
           in: mockChains.inChain,
+          eq: vi.fn(() => ({
+            maybeSingle: mockChains.maybeSingle,
+            is: vi.fn(() => ({ maybeSingle: mockChains.maybeSingle })),
+          })),
         })),
         in: mockChains.inChain,
       })),
+      update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
     })),
   },
 }));
@@ -98,11 +106,14 @@ function renderPreviewPage() {
 describe("WizardPreviewPage", () => {
   beforeEach(() => {
     mockChains.single.mockReset();
+    mockChains.maybeSingle.mockReset();
     mockChains.order.mockReset();
     mockChains.inChain.mockReset();
 
     // Default: project loads successfully, ebooks load, chapters load
     mockChains.single.mockResolvedValue({ data: projectData, error: null });
+    // maybeSingle is used for publish_status and cover image queries
+    mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "draft" }, error: null });
     mockChains.order.mockImplementation(() => {
       // Distinguish ebooks vs chapters query by inspection not possible in this mock;
       // first call is ebooks (from project id), second is chapters (from ebook id).

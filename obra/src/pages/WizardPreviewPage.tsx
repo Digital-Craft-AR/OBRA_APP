@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, FileDown } from "lucide-react";
+import { ChevronLeft, FileDown, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -102,11 +102,14 @@ export function WizardPreviewPage() {
   const [chaptersLoading, setChaptersLoading] = useState(false);
 
   const [exportLoading, setExportLoading] = useState(false);
+  const [zipLoading, setZipLoading] = useState(false);
+  const [zipError, setZipError] = useState<string | null>(null);
+  const [publishStatus, setPublishStatus] = useState<"draft" | "published" | "modified">("draft");
 
   // Image slots state: imageId → { status, signedUrl }
   const [imageSlots, setImageSlots] = useState<Record<string, { status: ImageSlotStatus; url: string | null }>>({});
 
-  // Load ebooks once project is ready
+  // Load ebooks + publish_status once project is ready
   useEffect(() => {
     if (!project?.id) return;
     let cancelled = false;
@@ -114,15 +117,26 @@ export function WizardPreviewPage() {
     async function load() {
       setEbooksLoading(true);
       setEbooksError(null);
-      const result = await loadProjectEbooks(project!.id);
+      const [ebooksResult, projectStatusResult] = await Promise.all([
+        loadProjectEbooks(project!.id),
+        supabase
+          .from("projects")
+          .select("publish_status")
+          .eq("id", project!.id)
+          .maybeSingle(),
+      ]);
       if (cancelled) return;
-      if (!result.ok) {
+      if (!ebooksResult.ok) {
         setEbooksError(t("wizard.preview.error.load"));
       } else {
-        setEbooks(result.rows);
-        if (result.rows.length > 0 && !selectedEbookId) {
-          setSelectedEbookId(result.rows[0].id);
+        setEbooks(ebooksResult.rows);
+        if (ebooksResult.rows.length > 0 && !selectedEbookId) {
+          setSelectedEbookId(ebooksResult.rows[0].id);
         }
+      }
+      const status = (projectStatusResult.data as { publish_status?: string } | null)?.publish_status;
+      if (status === "published" || status === "modified" || status === "draft") {
+        setPublishStatus(status);
       }
       setEbooksLoading(false);
     }
@@ -208,10 +222,40 @@ export function WizardPreviewPage() {
       a.href = data.signedUrl as string;
       a.download = `${project.main_title ?? "ebook"}.pdf`;
       a.click();
+      // Mark as published after first successful export
+      setPublishStatus((prev) => (prev === "draft" ? "published" : prev));
+      await supabase
+        .from("projects")
+        .update({ publish_status: "published" })
+        .eq("id", project.id);
     } finally {
       setExportLoading(false);
     }
   }, [project?.id, project?.main_title, selectedEbookId]);
+
+  const handleExportZip = useCallback(async () => {
+    if (!project?.id) return;
+    setZipLoading(true);
+    setZipError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("export-zip", {
+        body: { projectId: project.id },
+      });
+      if (error || !data?.ok || !data?.signedUrl) {
+        console.error("export_zip_error", error ?? data?.error);
+        setZipError(t("wizard.preview.export.zipError"));
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = data.signedUrl as string;
+      a.download = (data.filename as string | undefined) ?? `${project.main_title ?? "project"}.zip`;
+      a.click();
+      // export-zip also marks published server-side; sync local state
+      setPublishStatus("published");
+    } finally {
+      setZipLoading(false);
+    }
+  }, [project?.id, project?.main_title, t]);
 
   const selectedEbook = ebooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
@@ -352,25 +396,55 @@ export function WizardPreviewPage() {
 
       {/* Footer */}
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
-        <div className="flex w-full min-w-0 items-center justify-between">
-          <Button
-            type="button"
-            variant="tertiary"
-            onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/content`)}
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-            {t("wizard.preview.footer.backToContent")}
-          </Button>
+        <div className="flex w-full min-w-0 flex-col gap-3">
+          {zipError ? (
+            <p role="alert" className="text-xs text-red-600">{zipError}</p>
+          ) : null}
+          <div className="flex w-full min-w-0 items-center justify-between gap-4">
+            <Button
+              type="button"
+              variant="tertiary"
+              onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/content`)}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              {t("wizard.preview.footer.backToContent")}
+            </Button>
 
-          <Button
-            type="button"
-            variant="primary"
-            disabled={!selectedEbook || exportLoading}
-            onClick={() => void handleExportPdf()}
-          >
-            <FileDown className="size-4" aria-hidden />
-            {exportLoading ? "…" : t("wizard.preview.export.pdf")}
-          </Button>
+            <div className="flex items-center gap-2">
+              {publishStatus === "published" || publishStatus === "modified" ? (
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    publishStatus === "published"
+                      ? "bg-obra-green-400/20 text-obra-blue-950"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {t(`wizard.preview.publishStatus.${publishStatus}`)}
+                </span>
+              ) : null}
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                disabled={!project?.id || zipLoading}
+                onClick={() => void handleExportZip()}
+              >
+                <Package className="size-4" aria-hidden />
+                {zipLoading ? "…" : t("wizard.preview.export.zip")}
+              </Button>
+
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!selectedEbook || exportLoading}
+                onClick={() => void handleExportPdf()}
+              >
+                <FileDown className="size-4" aria-hidden />
+                {exportLoading ? "…" : t("wizard.preview.export.pdf")}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

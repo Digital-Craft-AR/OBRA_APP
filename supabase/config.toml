@@ -66,3 +66,7 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = false
+
+# JWT validated inside handler via auth.getUser; same pattern as export-pdf.
+[functions.export-zip]
+verify_jwt = false
