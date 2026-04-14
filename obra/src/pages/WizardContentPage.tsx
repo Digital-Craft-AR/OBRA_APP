@@ -36,7 +36,10 @@ import {
   validateMainTocForConfirm,
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
-import { fetchActiveManuscript, type ProjectManuscriptRow } from "@/lib/wizard/manuscriptUploadApi";
+import {
+  fetchActiveManuscript,
+  type ProjectManuscriptRow,
+} from "@/lib/wizard/manuscriptUploadApi";
 import { buildPackageTocRowsForUploadHandoff } from "@/lib/wizard/uploadHandoff";
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
