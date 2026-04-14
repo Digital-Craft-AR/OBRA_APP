@@ -74,3 +74,91 @@ export async function getSignedImageUrl(storagePath: string): Promise<string | n
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
 }
+
+export type UploadImageResult =
+  | { ok: true; signedUrl: string; storagePath: string }
+  | { ok: false; code: string };
+
+/**
+ * Uploads a local File to the project-images bucket and records the slot in
+ * project_images. Uses the browser Supabase client (RLS enforced).
+ *
+ * Storage path: `{projectId}/{slotKey}.{ext}`
+ * Table: upserts project_images via select-then-update/insert (partial indexes
+ * cannot be targeted by .upsert onConflict in the JS client).
+ */
+export async function uploadImage(args: {
+  projectId: string;
+  slotKey: string;
+  file: File;
+  ebookId?: string;
+  chapterId?: string;
+}): Promise<UploadImageResult> {
+  const { projectId, slotKey, file, ebookId, chapterId } = args;
+
+  // Derive a stable storage path from projectId + slotKey
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const storagePath = ebookId
+    ? `${projectId}/${ebookId}/${slotKey}.${ext}`
+    : `${projectId}/${slotKey}.${ext}`;
+
+  // Upload (upsert) to Storage
+  const { error: uploadErr } = await supabase.storage
+    .from("project-images")
+    .upload(storagePath, file, { upsert: true, contentType: file.type });
+
+  if (uploadErr) return { ok: false, code: "upload_failed" };
+
+  // Upsert project_images row using select-then-update/insert
+  // (partial unique indexes can't be targeted by .upsert onConflict)
+  const isCover = slotKey === "cover_art" && !ebookId && !chapterId;
+  let existingId: string | null = null;
+
+  if (isCover) {
+    const { data } = await supabase
+      .from("project_images")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("slot_key", slotKey)
+      .is("ebook_id", null)
+      .is("chapter_id", null)
+      .maybeSingle();
+    existingId = (data as { id: string } | null)?.id ?? null;
+  } else {
+    let q = supabase
+      .from("project_images")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("slot_key", slotKey);
+    if (ebookId) q = q.eq("ebook_id", ebookId); else q = q.is("ebook_id", null);
+    if (chapterId) q = q.eq("chapter_id", chapterId); else q = q.is("chapter_id", null);
+    const { data } = await q.maybeSingle();
+    existingId = (data as { id: string } | null)?.id ?? null;
+  }
+
+  if (existingId) {
+    const { error } = await supabase
+      .from("project_images")
+      .update({ storage_path: storagePath, status: "done", error_detail: null, updated_at: new Date().toISOString() })
+      .eq("id", existingId);
+    if (error) return { ok: false, code: "db_update_failed" };
+  } else {
+    const { error } = await supabase
+      .from("project_images")
+      .insert({
+        project_id: projectId,
+        ebook_id: ebookId ?? null,
+        chapter_id: chapterId ?? null,
+        slot_key: slotKey,
+        layout_id: slotKey === "cover_art" ? "layout_cover_v1" : "layout_body_a",
+        storage_path: storagePath,
+        status: "done",
+      });
+    if (error) return { ok: false, code: "db_insert_failed" };
+  }
+
+  const signedUrl = await getSignedImageUrl(storagePath);
+  if (!signedUrl) return { ok: false, code: "signed_url_failed" };
+
+  return { ok: true, signedUrl, storagePath };
+}

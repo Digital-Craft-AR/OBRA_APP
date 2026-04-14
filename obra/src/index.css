@@ -327,6 +327,19 @@
   font-size: 0.875rem;
 }
 
+/* Page number — bottom-right, body pages only (not cover / TOC / chapter opener) */
+.preview-page-number {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 1rem;
+  font-size: 0.6875rem;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Image slot management UI ────────────────────────────────────────────── */
 /* Shown in the preview sidebar/overlay next to image-bearing layout sections. */
 

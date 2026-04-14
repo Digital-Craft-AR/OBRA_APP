@@ -169,31 +169,67 @@ Deno.serve(async (req: Request) => {
   const accentColor = palette.accent ?? "#c8e62b";
   const locale = typeof project.content_locale === "string" ? project.content_locale : "es";
 
-  // Mark slot as generating
-  const imageUpsert = {
-    project_id: projectId,
-    ebook_id: ebookId ?? null,
-    chapter_id: chapterId ?? null,
-    slot_key: slotKey,
-    layout_id: slotKey === "cover_art" ? "layout_cover_v1" : "layout_body_a",
-    status: "generating",
-    storage_path: null,
-    error_detail: null,
-    updated_at: new Date().toISOString(),
-  };
+  // Upsert project_images row as "generating".
+  // The unique indexes are partial (WHERE ebook_id IS NULL …) so Supabase JS
+  // .upsert({ onConflict }) cannot target them directly.
+  // Instead: try SELECT first, then UPDATE or INSERT.
+  let imageId: string;
+  {
+    const isCover = slotKey === "cover_art" && !ebookId && !chapterId;
+    let existingId: string | null = null;
 
-  const { data: imageRow, error: upsertErr } = await admin
-    .from("project_images")
-    .upsert(imageUpsert, { onConflict: slotKey === "cover_art" ? "project_id,slot_key" : "project_id,ebook_id,chapter_id,slot_key" })
-    .select("id")
-    .single();
+    if (isCover) {
+      const { data } = await admin
+        .from("project_images")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("slot_key", slotKey)
+        .is("ebook_id", null)
+        .is("chapter_id", null)
+        .maybeSingle();
+      existingId = (data as { id: string } | null)?.id ?? null;
+    } else {
+      const q = admin
+        .from("project_images")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("slot_key", slotKey);
+      if (ebookId) q.eq("ebook_id", ebookId); else q.is("ebook_id", null);
+      if (chapterId) q.eq("chapter_id", chapterId); else q.is("chapter_id", null);
+      const { data } = await q.maybeSingle();
+      existingId = (data as { id: string } | null)?.id ?? null;
+    }
 
-  if (upsertErr || !imageRow?.id) {
-    console.error("project_images_upsert", upsertErr);
-    return json({ error: "db_error" }, 500);
+    if (existingId) {
+      const { error: updErr } = await admin
+        .from("project_images")
+        .update({ status: "generating", storage_path: null, error_detail: null, updated_at: new Date().toISOString() })
+        .eq("id", existingId);
+      if (updErr) {
+        console.error("project_images_update", updErr);
+        return json({ error: "db_error" }, 500);
+      }
+      imageId = existingId;
+    } else {
+      const { data: newRow, error: insErr } = await admin
+        .from("project_images")
+        .insert({
+          project_id: projectId,
+          ebook_id: ebookId ?? null,
+          chapter_id: chapterId ?? null,
+          slot_key: slotKey,
+          layout_id: slotKey === "cover_art" ? "layout_cover_v1" : "layout_body_a",
+          status: "generating",
+        })
+        .select("id")
+        .single();
+      if (insErr || !newRow?.id) {
+        console.error("project_images_insert", insErr);
+        return json({ error: "db_error" }, 500);
+      }
+      imageId = (newRow as { id: string }).id;
+    }
   }
-
-  const imageId = imageRow.id as string;
 
   // Build prompt
   let prompt: string;

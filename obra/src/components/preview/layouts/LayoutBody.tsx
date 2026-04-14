@@ -3,9 +3,11 @@ type Props = {
   /** Sanitized rich HTML from chapters.content */
   contentHtml: string | null;
   imageUrl?: string | null;
+  /** 1-based page number shown bottom-right. Omit on cover, TOC, chapter openers. */
+  pageNumber?: number;
 };
 
-export function LayoutBody({ chapterTitle, contentHtml, imageUrl }: Props) {
+export function LayoutBody({ chapterTitle, contentHtml, imageUrl, pageNumber }: Props) {
   return (
     <section className="preview-page preview-body" aria-label={chapterTitle}>
       {imageUrl ? (
@@ -23,6 +25,11 @@ export function LayoutBody({ chapterTitle, contentHtml, imageUrl }: Props) {
           —
         </p>
       )}
+      {pageNumber !== undefined ? (
+        <span className="preview-page-number" aria-label={`Page ${pageNumber}`}>
+          {pageNumber}
+        </span>
+      ) : null}
     </section>
   );
 }
