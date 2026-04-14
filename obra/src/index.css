@@ -124,7 +124,11 @@
 .preview-page {
   position: relative;
   width: 100%;
-  min-height: 28rem;
+  /* Fixed height = chosen page type (A4 / Letter, portrait / landscape).
+     --preview-page-aspect-ratio is injected by PreviewDocument.tsx from design_config.
+     Content that exceeds the page height is clipped — mirrors print/PDF behavior.
+     Fallback 210/297 = A4 portrait. */
+  aspect-ratio: var(--preview-page-aspect-ratio, 210 / 297);
   overflow: hidden;
   border-radius: 0.5rem;
   background: white;
@@ -134,12 +138,12 @@
   break-after: page;
 }
 
-/* Cover */
+/* Cover — height is fixed by parent .preview-page aspect-ratio */
 .preview-cover {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-height: 36rem;
+  height: 100%;
   padding: 0;
   overflow: hidden;
 }
@@ -224,12 +228,12 @@
   color: #888;
 }
 
-/* Chapter opener */
+/* Chapter opener — height is fixed by parent .preview-page aspect-ratio */
 .preview-chapter-opener {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 14rem;
+  height: 100%;
   padding: 2.5rem 2rem;
   background: var(--preview-color-secondary, #e8f0f7);
 }
