@@ -193,11 +193,25 @@ export function WizardPreviewPage() {
   }, [project?.id]);
 
   const handleExportPdf = useCallback(async () => {
-    // Stub: PDF export Edge Function is implemented in #65.
+    if (!project?.id || !selectedEbookId) return;
     setExportLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setExportLoading(false);
-  }, []);
+    try {
+      const { data, error } = await supabase.functions.invoke("export-pdf", {
+        body: { projectId: project.id, ebookId: selectedEbookId },
+      });
+      if (error || !data?.ok || !data?.signedUrl) {
+        console.error("export_pdf_error", error ?? data?.error);
+        return;
+      }
+      // Trigger browser download
+      const a = document.createElement("a");
+      a.href = data.signedUrl as string;
+      a.download = `${project.main_title ?? "ebook"}.pdf`;
+      a.click();
+    } finally {
+      setExportLoading(false);
+    }
+  }, [project?.id, project?.main_title, selectedEbookId]);
 
   const selectedEbook = ebooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];

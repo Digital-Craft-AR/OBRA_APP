@@ -52,8 +52,10 @@ verify_jwt = false
 [functions.reset-avatar-problem-content]
 verify_jwt = false
 
+# JWT validated inside handler via auth.getUser (same pattern as other functions).
+# verify_jwt=false avoids 401 from the Edge layer when the browser sends a valid session.
 [functions.export-pdf]
-verify_jwt = true
+verify_jwt = false
 
 # JWT validated inside handler via auth.getUser; Gemini key never in client.
 [functions.image-generate]
