@@ -1216,110 +1216,6 @@ export function WizardContentPage() {
     ],
   );
 
-  const handleUploadHandoffContinue = useCallback(async () => {
-    if (!project?.id || !mainEbookId || !manuscriptRow) return;
-    if (project.content_source !== "upload") return;
-    if (currentPhase !== "upload_alignment") return;
-    if (uploadHandoffBusy) return;
-
-    setUploadHandoffBusy(true);
-    setActionAnnouncement(null);
-    try {
-      const extracted = await downloadManuscriptExtractedPlainText(manuscriptRow);
-      if (!extracted.ok) {
-        toast.error({
-          title: t("wizard.content.uploadHandoff.errorTitle"),
-          description: t("wizard.content.uploadHandoff.errorPrefillDownload"),
-        });
-        return;
-      }
-
-      const html = plainTextToChapterHtml(extracted.text);
-      const mainTitle =
-        project.main_title?.trim() || t("wizard.content.uploadHandoff.defaultChapterTitle");
-
-      const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
-      const packageSlices = targets
-        .filter((target): target is Exclude<ContentPackageNavTarget, { kind: "main" }> => target.kind !== "main")
-        .map((target) => {
-          const key = contentNavTargetToKey(target);
-          const rows = buildPackageTocRowsForUploadHandoff(target, bonusBumpToc[key], project);
-          return { key, target, rows };
-        });
-
-      const res = await completeUploadManuscriptHandoff({
-        projectId: project.id,
-        mainEbookId,
-        mainChapters: [{ title: mainTitle, contentHtml: html }],
-        packageSlices,
-        packageEbookIds,
-      });
-
-      if (!res.ok) {
-        const descKey =
-          res.code === "wrong_phase"
-            ? "wizard.content.uploadHandoff.errorWrongPhase"
-            : res.code === "main_save_failed"
-              ? "wizard.content.uploadHandoff.errorMainSave"
-              : "wizard.content.uploadHandoff.errorGeneric";
-        toast.error({
-          title: t("wizard.content.uploadHandoff.errorTitle"),
-          description: t(descKey),
-        });
-        return;
-      }
-
-      setGlobalIndexFrozenAt(res.global_index_frozen_at);
-      setCurrentPhase("main_chapter");
-
-      const loadedMain = await loadEbookChapters(mainEbookId);
-      if (loadedMain.ok) {
-        setMainTocRows(loadedMain.rows);
-        setTocEntryResolved(true);
-      }
-
-      const pkgMap = await fetchPackageEbookIdMap(project.id);
-      if (pkgMap.ok) {
-        setBumpIndexFrozenAt(pkgMap.bumpIndexFrozenAt);
-      }
-
-      for (const slice of packageSlices) {
-        const ebookId = packageEbookIds[slice.key];
-        if (!ebookId) continue;
-        const loaded = await loadEbookChapters(ebookId);
-        if (loaded.ok) {
-          setBonusBumpToc((p) => ({ ...p, [slice.key]: loaded.rows }));
-        }
-        if (slice.target.kind === "bump") {
-          setBumpTocEntryResolved((p) => ({ ...p, [slice.key]: true }));
-        }
-      }
-
-      const draft = await loadEbookChaptersDraft(mainEbookId);
-      if (draft.ok) {
-        setChapterRows(draft.rows);
-        setChapterIdx(0);
-        setChapterBodyDraft(draft.rows[0]?.content ?? "");
-        setChapterRichTextKey((k) => k + 1);
-      }
-
-      void refreshChapterBodyPresence();
-      setActionAnnouncement(t("wizard.content.uploadHandoff.success"));
-    } finally {
-      setUploadHandoffBusy(false);
-    }
-  }, [
-    project,
-    mainEbookId,
-    manuscriptRow,
-    currentPhase,
-    uploadHandoffBusy,
-    bonusBumpToc,
-    packageEbookIds,
-    t,
-    refreshChapterBodyPresence,
-  ]);
-
   function dismissBanner() {
     if (!params.projectId) return;
     try {
@@ -1561,7 +1457,7 @@ export function WizardContentPage() {
                       setManuscriptRow(row);
                       if ((row.extracted_char_count ?? 0) > 0) {
                         setManuscriptCommitted(true);
-                        toast.success({ title: t("wizard.content.manuscript.uploadedToast") });
+                        toast.success({ title: t("wizard.content.manuscript.uploadedToast"), description: "" });
                       }
                     }}
                   />
