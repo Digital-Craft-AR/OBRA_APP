@@ -322,3 +322,45 @@
   color: #bbb;
   font-size: 0.875rem;
 }
+
+/* ── Image slot management UI ────────────────────────────────────────────── */
+/* Shown in the preview sidebar/overlay next to image-bearing layout sections. */
+
+.preview-image-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-obra-blue-50);
+  border: 1px dashed var(--color-obra-blue-100);
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.preview-image-slot__display {
+  overflow: hidden;
+  border-radius: 0.375rem;
+  max-height: 10rem;
+}
+
+.preview-image-slot__img {
+  width: 100%;
+  height: 10rem;
+  object-fit: cover;
+}
+
+.preview-image-slot__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 6rem;
+  background: var(--color-obra-blue-100);
+  border-radius: 0.375rem;
+}
+
+.preview-image-slot__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

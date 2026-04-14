@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { resolveCanonicalLayoutId } from "@obra/layout-catalog";
 import type { WizardDesignConfig } from "@/lib/wizard/structureTypes";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
+import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import { LayoutCover } from "./layouts/LayoutCover";
 import { LayoutToc } from "./layouts/LayoutToc";
 import { LayoutChapterOpener } from "./layouts/LayoutChapterOpener";
@@ -26,8 +27,19 @@ type Props = {
 /**
  * Renders the full document for one deliverable (main ebook, bonus, or bump).
  *
- * CSS custom properties are injected on the root element from `designConfig`.
- * Layout components reference these vars; print CSS mirrors them for PDF output.
+ * ## Design system
+ * CSS custom properties (`--preview-color-*`, `--preview-font-*`) are injected
+ * inline from `designConfig.palette` and `designConfig.fonts`. All layout
+ * components reference these vars — no hard-coded colors.
+ *
+ * ## Print / PDF pagination assumptions (see #63, #65)
+ * - `@page` rule sets paper size + margin from `designConfig.page`.
+ * - Each `.preview-page` has `break-after: page` so Puppeteer inserts page
+ *   breaks between layout sections.
+ * - Margin: 20mm on all sides (MVP; no bleed/crop marks in v1.0).
+ * - Font rendering: Puppeteer must run with `--font-render-hinting=none` and
+ *   the project fonts loaded via the same Google Fonts URL injected here.
+ *   The PDF Edge Function mirrors this `@page` CSS at render time.
  */
 export function PreviewDocument({
   ebook,
@@ -37,6 +49,13 @@ export function PreviewDocument({
   layoutPageAssignments,
   coverImageUrl,
 }: Props) {
+  // Load project fonts if they differ from the base app fonts already in index.html
+  const fontFamilies = useMemo(
+    () => [designConfig.fonts.heading, designConfig.fonts.body] as const,
+    [designConfig.fonts.heading, designConfig.fonts.body],
+  );
+  useGoogleFonts(fontFamilies);
+
   const cssVars = useMemo<React.CSSProperties>(() => {
     const p = designConfig.palette;
     const f = designConfig.fonts;
