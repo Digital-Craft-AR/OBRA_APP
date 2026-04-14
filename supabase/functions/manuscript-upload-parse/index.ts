@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import mammoth from "npm:mammoth@1.8.0";
+import { Buffer } from "node:buffer";
 import { extractText } from "npm:unpdf@0.12.1";
 
 /**
@@ -50,7 +51,8 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 }
 
 async function parseDocx(arrayBuffer: ArrayBuffer): Promise<string> {
-  const { value } = await mammoth.extractRawText({ arrayBuffer });
+  const buffer = Buffer.from(arrayBuffer);
+  const { value } = await mammoth.extractRawText({ buffer });
   return typeof value === "string" ? value : "";
 }
 
@@ -218,13 +220,15 @@ Deno.serve(async (req: Request) => {
         }
         plainText = r.text;
       }
-    } catch {
-      console.log(
+    } catch (e) {
+      console.error(
         JSON.stringify({
           event: "manuscript_upload_parse",
           outcome: "parse_failed",
           project_id: projectId,
           mime,
+          error_message: e instanceof Error ? e.message : String(e),
+          error_stack: e instanceof Error ? e.stack : undefined,
           duration_ms: Math.round(performance.now() - started),
         }),
       );

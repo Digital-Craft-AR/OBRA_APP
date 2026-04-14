@@ -29,6 +29,7 @@ export async function callClaudeJsonText(args: {
   system: string;
   user: string;
   maxTokens: number;
+  temperature?: number;
 }): Promise<ClaudeResult> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -52,6 +53,7 @@ export async function callClaudeJsonText(args: {
       body: JSON.stringify({
         model,
         max_tokens: args.maxTokens,
+        ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
         system: args.system,
         messages: [{ role: "user", content: args.user }],
       }),

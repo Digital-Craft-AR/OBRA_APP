@@ -46,6 +46,11 @@ import {
 import { buildPackageTocRowsForUploadHandoff, plainTextToChapterHtml } from "@/lib/wizard/uploadHandoff";
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
+import { ContentUploadAlignmentPanel } from "@/components/wizard/content/ContentUploadAlignmentPanel";
+import {
+  invokeApproveAlignment,
+  type SplitProposalChapter,
+} from "@/lib/wizard/splitProposalApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 import { toastApiFailure, toastInsufficientCredits } from "@/lib/apiToast";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
@@ -174,6 +179,13 @@ export function WizardContentPage() {
     baseRows: TocChapterRow[];
   } | null>(null);
   const [manuscriptRow, setManuscriptRow] = useState<ProjectManuscriptRow | null>(null);
+  const [manuscriptCommitted, setManuscriptCommitted] = useState(false);
+  // Sync manuscriptCommitted from DB-loaded manuscriptRow so refreshes don't lose the alignment panel.
+  useEffect(() => {
+    if ((manuscriptRow?.extracted_char_count ?? 0) > 0) {
+      setManuscriptCommitted(true);
+    }
+  }, [manuscriptRow]);
   const [contentSourceIntroDone, setContentSourceIntroDone] = useState(() =>
     readContentSourceIntroDone(params.projectId),
   );
@@ -1095,6 +1107,115 @@ export function WizardContentPage() {
     setContentSourceIntroDone(true);
   }, [params.projectId]);
 
+  const handleAlignmentApproved = useCallback(
+    async (approvedChapters: SplitProposalChapter[]) => {
+      if (!project?.id || !mainEbookId) return;
+      if (project.content_source !== "upload") return;
+      if (currentPhase !== "upload_alignment") return;
+      if (uploadHandoffBusy) return;
+
+      setUploadHandoffBusy(true);
+      setActionAnnouncement(null);
+      try {
+        // 1. Call edge function: slices manuscript, creates chapters, advances phase to main_chapter
+        const res = await invokeApproveAlignment(project.id, approvedChapters);
+        if (!res.ok) {
+          const descKey =
+            res.code === "wrong_phase"
+              ? "wizard.content.splitProposal.errorWrongPhase"
+              : res.code === "manuscript_not_found"
+                ? "wizard.content.splitProposal.errorManuscript"
+                : "wizard.content.splitProposal.errorApproveGeneric";
+          toast.error({
+            title: t("wizard.content.uploadHandoff.errorTitle"),
+            description: t(descKey),
+          });
+          return;
+        }
+
+        // 2. Set global_index_frozen_at (approve-alignment doesn't set this column)
+        const now = new Date().toISOString();
+        await supabase
+          .from("project_content_progress")
+          .update({ global_index_frozen_at: now })
+          .eq("project_id", project.id);
+
+        // 3. Persist default TOC rows for bonus/bump ebooks
+        const targets = buildContentPackageNavTargets(project.bonus_count, project.bump_count);
+        const packageSlices = targets
+          .filter(
+            (target): target is Exclude<ContentPackageNavTarget, { kind: "main" }> =>
+              target.kind !== "main",
+          )
+          .map((target) => {
+            const key = contentNavTargetToKey(target);
+            const rows = buildPackageTocRowsForUploadHandoff(target, bonusBumpToc[key], project);
+            return { key, target, rows };
+          });
+
+        for (const slice of packageSlices) {
+          const ebookId = packageEbookIds[slice.key];
+          if (!ebookId) continue;
+          await upsertEbookDraftChaptersFromRows(ebookId, slice.rows);
+          if (slice.target.kind === "bump") {
+            await confirmOrderBumpIndex(ebookId);
+          }
+        }
+
+        // 4. Update local state
+        setGlobalIndexFrozenAt(now);
+        setCurrentPhase("main_chapter");
+
+        const loadedMain = await loadEbookChapters(mainEbookId);
+        if (loadedMain.ok) {
+          setMainTocRows(loadedMain.rows);
+          setTocEntryResolved(true);
+        }
+
+        const pkgMap = await fetchPackageEbookIdMap(project.id);
+        if (pkgMap.ok) {
+          setBumpIndexFrozenAt(pkgMap.bumpIndexFrozenAt);
+        }
+
+        for (const slice of packageSlices) {
+          const ebookId = packageEbookIds[slice.key];
+          if (!ebookId) continue;
+          const loaded = await loadEbookChapters(ebookId);
+          if (loaded.ok) {
+            setBonusBumpToc((p) => ({ ...p, [slice.key]: loaded.rows }));
+          }
+          if (slice.target.kind === "bump") {
+            setBumpTocEntryResolved((p) => ({ ...p, [slice.key]: true }));
+          }
+        }
+
+        // 5. Load chapter drafts for ContentChapterMilestone
+        const draft = await loadEbookChaptersDraft(mainEbookId);
+        if (draft.ok) {
+          setChapterRows(draft.rows);
+          setChapterIdx(0);
+          setChapterBodyDraft(draft.rows[0]?.content ?? "");
+          setChapterRichTextKey((k) => k + 1);
+        }
+
+        void refreshChapterBodyPresence();
+        setActionAnnouncement(t("wizard.content.splitProposal.approveSuccess"));
+      } finally {
+        setUploadHandoffBusy(false);
+      }
+    },
+    [
+      project,
+      mainEbookId,
+      currentPhase,
+      uploadHandoffBusy,
+      bonusBumpToc,
+      packageEbookIds,
+      t,
+      refreshChapterBodyPresence,
+    ],
+  );
+
   const handleUploadHandoffContinue = useCallback(async () => {
     if (!project?.id || !mainEbookId || !manuscriptRow) return;
     if (project.content_source !== "upload") return;
@@ -1430,31 +1551,31 @@ export function WizardContentPage() {
 
           {needsUploadAlignment && project && !awaitingContentIntro ? (
             <div className="space-y-4">
-              <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
-                <ManuscriptUploadPanel
+              {!manuscriptCommitted && (
+                <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
+                  <ManuscriptUploadPanel
+                    t={t}
+                    projectId={project.id}
+                    initialManuscript={manuscriptRow}
+                    onManuscriptCommitted={(row) => {
+                      setManuscriptRow(row);
+                      if ((row.extracted_char_count ?? 0) > 0) {
+                        setManuscriptCommitted(true);
+                        toast.success({ title: t("wizard.content.manuscript.uploadedToast") });
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {manuscriptCommitted && manuscriptRow?.extracted_char_count != null && manuscriptRow.extracted_char_count > 0 ? (
+                <ContentUploadAlignmentPanel
                   t={t}
                   projectId={project.id}
-                  initialManuscript={manuscriptRow}
-                  onManuscriptCommitted={setManuscriptRow}
+                  onApprove={handleAlignmentApproved}
+                  approvalBusy={uploadHandoffBusy}
+                  autoStart
                 />
-              </div>
-
-              {manuscriptRow?.extracted_char_count != null && manuscriptRow.extracted_char_count > 0 ? (
-                <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-5 shadow-sm">
-                  <p className="font-body text-sm text-obra-neutral-600">{t("wizard.content.uploadHandoff.hint")}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="primary"
-                      disabled={uploadHandoffBusy}
-                      onClick={() => void handleUploadHandoffContinue()}
-                    >
-                      {uploadHandoffBusy
-                        ? t("wizard.content.uploadHandoff.continueLoading")
-                        : t("wizard.content.uploadHandoff.continueCta")}
-                    </Button>
-                  </div>
-                </div>
               ) : null}
             </div>
           ) : null}

@@ -17,7 +17,8 @@ import {
   ModalSubtitle,
   ModalTitle,
 } from "@/components/ui/Modal";
-import type { ContentLocale } from "@/lib/projects";
+import type { ContentLocale, ContentSource } from "@/lib/projects";
+import { ContentSourceCards } from "@/components/wizard/content/ContentSourceCards";
 import type { ProjectContentProgressPhase, ProjectLifecycleTab } from "@/lib/projectDashboard";
 import { projectLifecycleTabLabel } from "@/lib/projectDashboard";
 import { supabase } from "@/lib/supabaseClient";
@@ -78,9 +79,10 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const { sidebarCollapsed, setSidebarCollapsed } = usePersistentSidebarCollapsed();
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-  const [projectStep, setProjectStep] = useState<1 | 2>(1);
+  const [projectStep, setProjectStep] = useState<1 | 2 | 3>(1);
   const [projectName, setProjectName] = useState("");
   const [projectLocale, setProjectLocale] = useState<ContentLocale>("es");
+  const [projectSource, setProjectSource] = useState<ContentSource>("ai");
   const [creatingProject, setCreatingProject] = useState(false);
   const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
 
@@ -209,6 +211,7 @@ export function DashboardPage() {
     setProjectCreateError(null);
     setProjectName("");
     setProjectLocale("es");
+    setProjectSource("ai");
     setProjectStep(1);
     setShowNewProjectModal(true);
   }
@@ -229,7 +232,7 @@ export function DashboardPage() {
         user_id: session.user.id,
         name: trimmedName,
         content_locale: projectLocale,
-        content_source: "ai",
+        content_source: projectSource,
         design_config: DEFAULT_DESIGN_CONFIG,
         lifecycle_status: "active",
       })
@@ -247,6 +250,10 @@ export function DashboardPage() {
 
     setShowNewProjectModal(false);
     setTotalProjectCount((c) => (c == null ? 1 : c + 1));
+    // Mark content source intro as done so the wizard skips the redundant intro panel.
+    try {
+      sessionStorage.setItem(`obra.content.sourceIntro.${data.id}`, "1");
+    } catch { /* ignore */ }
     navigate(`/app/projects/${data.id}/wizard`);
   }
 
@@ -442,7 +449,11 @@ export function DashboardPage() {
           <div>
             <ModalTitle>{t("wizard.modal.title")}</ModalTitle>
             <ModalSubtitle>
-              {projectStep === 1 ? t("wizard.modal.stepName") : t("wizard.modal.stepLocale")}
+              {projectStep === 1
+              ? t("wizard.modal.stepName")
+              : projectStep === 2
+                ? t("wizard.modal.stepLocale")
+                : t("wizard.modal.stepSource")}
             </ModalSubtitle>
           </div>
         </ModalHead>
@@ -459,7 +470,7 @@ export function DashboardPage() {
                 hint={t("wizard.modal.nameHint")}
               />
             </div>
-          ) : (
+          ) : projectStep === 2 ? (
             <div className="space-y-5">
               <p className="text-xs text-obra-neutral-600">{t("wizard.modal.localeHint")}</p>
               <div className="grid grid-cols-2 gap-3">
@@ -498,6 +509,16 @@ export function DashboardPage() {
                 })}
               </div>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-obra-neutral-600">{t("wizard.modal.sourceHint")}</p>
+              <ContentSourceCards
+                t={t}
+                value={projectSource}
+                variant="select"
+                onSelect={setProjectSource}
+              />
+            </div>
           )}
 
           {projectCreateError ? (
@@ -513,17 +534,36 @@ export function DashboardPage() {
               {t("wizard.modal.cancel")}
             </Button>
           ) : (
-            <Button type="button" variant="tertiary" onClick={() => setProjectStep(1)} disabled={creatingProject}>
+            <Button
+              type="button"
+              variant="tertiary"
+              onClick={() => setProjectStep((s) => (s - 1) as 1 | 2 | 3)}
+              disabled={creatingProject}
+            >
               {t("wizard.modal.back")}
             </Button>
           )}
 
           {projectStep === 1 ? (
-            <Button type="button" variant="secondary" onClick={() => setProjectStep(2)} disabled={!projectName.trim()}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setProjectStep(2)}
+              disabled={!projectName.trim()}
+            >
+              {t("wizard.modal.next")}
+            </Button>
+          ) : projectStep === 2 ? (
+            <Button type="button" variant="secondary" onClick={() => setProjectStep(3)}>
               {t("wizard.modal.next")}
             </Button>
           ) : (
-            <Button type="button" variant="primary" onClick={() => void createProjectFromModal()} disabled={creatingProject}>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void createProjectFromModal()}
+              disabled={creatingProject}
+            >
               {creatingProject ? t("wizard.modal.creating") : t("wizard.modal.create")}
             </Button>
           )}
