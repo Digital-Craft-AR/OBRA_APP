@@ -70,3 +70,23 @@ verify_jwt = false
 # JWT validated inside handler via auth.getUser; same pattern as export-pdf.
 [functions.export-zip]
 verify_jwt = false
+
+# ── Storage buckets ───────────────────────────────────────────────────────────
+# Buckets are private by default (public = false); access via signed URLs only.
+# RLS policies are defined in migrations (project_images table) and inside
+# Edge Function handlers (service role key for project-pdfs / project-zips).
+
+[storage.buckets.project-images]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+[storage.buckets.project-pdfs]
+public = false
+file_size_limit = "55MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets.project-zips]
+public = false
+file_size_limit = "200MiB"
+allowed_mime_types = ["application/zip"]
