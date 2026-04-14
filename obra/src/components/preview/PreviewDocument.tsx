@@ -56,16 +56,20 @@ export function PreviewDocument({
   );
   useGoogleFonts(fontFamilies);
 
+  // Physical page dimensions in mm (orientation-adjusted).
+  // Shared between CSS vars injection and the LayoutBody page-break computation.
+  const pageDimsMm = useMemo(() => {
+    const { size, orientation } = designConfig.page;
+    const base = size === "letter" ? { w: 215.9, h: 279.4 } : { w: 210, h: 297 };
+    return orientation === "landscape"
+      ? { w: base.h, h: base.w }
+      : base;
+  }, [designConfig.page]);
+
   const cssVars = useMemo<React.CSSProperties>(() => {
     const p = designConfig.palette;
     const f = designConfig.fonts;
-    const { size, orientation } = designConfig.page;
-
-    // Physical page dimensions in mm — used for aspect-ratio in the screen preview.
-    const dims = size === "letter"
-      ? { w: 215.9, h: 279.4 }
-      : { w: 210, h: 297 }; // a4 default
-    const [w, h] = orientation === "landscape" ? [dims.h, dims.w] : [dims.w, dims.h];
+    const { w, h } = pageDimsMm;
 
     return {
       "--preview-color-primary": p.primary,
@@ -75,7 +79,7 @@ export function PreviewDocument({
       "--preview-font-body": `"${f.body}", sans-serif`,
       "--preview-page-aspect-ratio": `${w} / ${h}`,
     } as React.CSSProperties;
-  }, [designConfig]);
+  }, [designConfig, pageDimsMm]);
 
   const printCss = useMemo(() => {
     const { size, orientation } = designConfig.page;
@@ -122,6 +126,7 @@ export function PreviewDocument({
             chapterTitle={chapter.title}
             contentHtml={chapter.content}
             pageNumber={idx + 1}
+            pageDimsMm={pageDimsMm}
           />
         </div>
       ))}

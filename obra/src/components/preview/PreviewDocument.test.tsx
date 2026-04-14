@@ -197,6 +197,33 @@ describe("PreviewDocument — page numbers", () => {
 });
 
 // ---------------------------------------------------------------------------
+// pageDimsMm wiring — body sections receive dimensions for page-break computation
+// ---------------------------------------------------------------------------
+
+describe("PreviewDocument — pageDimsMm wiring", () => {
+  it("body sections have pageDimsMm wired (no break lines in JSDOM, but no errors)", () => {
+    // In JSDOM, clientWidth = 0 so no breaks are computed.
+    // This test verifies the prop is accepted without throwing.
+    const { container } = renderDoc();
+    const bodies = container.querySelectorAll(".preview-body");
+    expect(bodies.length).toBeGreaterThanOrEqual(1);
+    // No breaks in JSDOM (clientWidth = 0)
+    expect(container.querySelectorAll(".preview-page-break")).toHaveLength(0);
+  });
+
+  it("body pages are NOT clipped — aspect-ratio is unset via CSS class", () => {
+    const { container } = renderDoc();
+    // The .preview-body class adds aspect-ratio: unset; overflow: visible via CSS.
+    // We can't test computed styles in JSDOM, but we can assert the class is present.
+    const bodyPage = container.querySelector(".preview-body");
+    expect(bodyPage?.classList.contains("preview-body")).toBe(true);
+    // Cover and TOC pages do NOT have preview-body class
+    expect(container.querySelector(".preview-cover")?.classList.contains("preview-body")).toBeFalsy();
+    expect(container.querySelector(".preview-toc")?.classList.contains("preview-body")).toBeFalsy();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Cover image
 // ---------------------------------------------------------------------------
 

@@ -264,6 +264,37 @@
   color: var(--preview-color-primary, #204970);
 }
 
+/* Chapter body pages — content is NOT clipped; they grow to fit their content.
+   Visual page-break rules (.preview-page-break) are injected by LayoutBody at
+   each page-height interval so the creator can see where PDF pages would fall.
+   Cover, TOC and chapter-opener pages keep the fixed aspect-ratio from .preview-page. */
+.preview-body {
+  aspect-ratio: unset;
+  overflow: visible;
+  /* Ensure the section is at least as tall as its content even when it has
+     no explicit height. padding is already inherited from .preview-page. */
+  height: auto;
+}
+
+/* Visual page-break indicator — a dashed horizontal rule drawn at each page
+   boundary inside .preview-body. Hidden in print; Puppeteer uses @page CSS. */
+.preview-page-break {
+  position: absolute;
+  left: -2rem; /* extend to the padded edge of .preview-page */
+  right: -2rem;
+  height: 0;
+  border-top: 1px dashed #c8d4de;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+@media print {
+  .preview-page-break {
+    display: none;
+  }
+}
+
 /* Chapter body */
 .preview-body__hero-slot {
   margin: -2rem -2rem 1.5rem;
