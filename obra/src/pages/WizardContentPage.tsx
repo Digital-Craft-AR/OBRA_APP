@@ -21,7 +21,6 @@ import {
 import {
   approveChapterBody,
   clearChapterBody,
-  completeUploadManuscriptHandoff,
   confirmMainIndex,
   confirmOrderBumpIndex,
   ensureContentWorkspace,
@@ -39,11 +38,10 @@ import {
   type ChapterDraftRow,
 } from "@/lib/wizard/contentIndexApi";
 import {
-  downloadManuscriptExtractedPlainText,
   fetchActiveManuscript,
   type ProjectManuscriptRow,
 } from "@/lib/wizard/manuscriptUploadApi";
-import { buildPackageTocRowsForUploadHandoff, plainTextToChapterHtml } from "@/lib/wizard/uploadHandoff";
+import { buildPackageTocRowsForUploadHandoff } from "@/lib/wizard/uploadHandoff";
 import { ManuscriptUploadPanel } from "@/components/wizard/content/ManuscriptUploadPanel";
 import { ContentSourceIntroPanel } from "@/components/wizard/content/ContentSourceIntroPanel";
 import { ContentUploadAlignmentPanel } from "@/components/wizard/content/ContentUploadAlignmentPanel";
