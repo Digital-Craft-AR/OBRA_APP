@@ -314,67 +314,49 @@ export function WizardPreviewPage() {
         <WizardGlobalStepper steps={globalSteps} />
       </div>
 
-      {/* Page header */}
-      <div className="border-b border-obra-blue-100 px-8 py-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-xl font-semibold text-obra-blue-950">
-              {t("wizard.preview.title")}
-            </h1>
-            <p className="mt-0.5 text-sm text-obra-neutral-600">{t("wizard.preview.subtitle")}</p>
-          </div>
-          <Button
-            type="button"
-            variant="tertiary"
-            size="small"
-            onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/content`)}
-          >
-            {t("wizard.preview.editContent")}
-          </Button>
-        </div>
-      </div>
+      {/* Main area — same pattern as WizardContentPage */}
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
+        <div className="mx-auto w-full max-w-5xl px-8 py-8">
 
-      {/* Main area: deliverable sidebar + preview content */}
-      <main className="flex min-h-0 flex-1 overflow-hidden bg-obra-blue-50">
-        <div className="flex min-h-0 w-full flex-col lg:flex-row">
+          {/* Sidebar + content — same flex pattern as ContentChapterMilestone */}
+          <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
 
-          {/* Deliverable sidebar — same icon-button pattern as ContentChapterMilestone */}
-          {ebooks.length > 0 ? (
-            <nav
-              aria-label={t("wizard.preview.ebooksNav")}
-              className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 bg-white px-4 py-3 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-3 lg:py-4"
-            >
-              <ul className="flex flex-row gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
-                {ebooks.map((ebook) => {
-                  const isCurrent = ebook.id === selectedEbookId;
-                  const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? Tag : Book;
-                  return (
-                    <li key={ebook.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectEbook(ebook.id)}
-                        title={tabLabel(ebook)}
-                        aria-label={tabLabel(ebook)}
-                        aria-current={isCurrent ? "page" : undefined}
-                        className={[
-                          "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
-                          isCurrent
-                            ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
-                            : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
-                        ].join(" ")}
-                      >
-                        <Icon className="size-5 shrink-0" aria-hidden />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          ) : null}
+            {/* Deliverable sidebar — icon buttons, no background, inside centered content */}
+            {ebooks.length > 0 ? (
+              <nav
+                aria-label={t("wizard.preview.ebooksNav")}
+                className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 pb-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
+              >
+                <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
+                  {ebooks.map((ebook) => {
+                    const isCurrent = ebook.id === selectedEbookId;
+                    const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? Tag : Book;
+                    return (
+                      <li key={ebook.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectEbook(ebook.id)}
+                          title={tabLabel(ebook)}
+                          aria-label={tabLabel(ebook)}
+                          aria-current={isCurrent ? "page" : undefined}
+                          className={[
+                            "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
+                            isCurrent
+                              ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
+                              : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
+                          ].join(" ")}
+                        >
+                          <Icon className="size-5 shrink-0" aria-hidden />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            ) : null}
 
-          {/* Preview content — scrollable */}
-          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-8">
-            <div className="mx-auto w-full max-w-3xl">
+            {/* Preview content */}
+            <div className="min-w-0 flex-1">
               {isLoading ? (
                 <p className="text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
               ) : hasError ? (
@@ -420,8 +402,8 @@ export function WizardPreviewPage() {
                 </>
               ) : null}
             </div>
-          </div>
 
+          </div>
         </div>
       </main>
 

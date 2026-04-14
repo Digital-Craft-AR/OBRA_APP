@@ -131,15 +131,16 @@ describe("WizardPreviewPage", () => {
     expect(stepLabels.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("shows the page title and subtitle", async () => {
+  it("shows 'Vista previa' label in the global stepper", async () => {
     renderPreviewPage();
-    expect(await screen.findByRole("heading", { name: /Vista previa/i })).toBeTruthy();
-    expect(await screen.findByText(/Así lucirá tu producto final/i)).toBeTruthy();
+    // The stepper renders the step label; heading and subtitle were removed per design
+    const labels = await screen.findAllByText(/Vista previa/i);
+    expect(labels.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("shows edit content button that links back to content step", async () => {
+  it("shows back-to-content button in the footer", async () => {
     renderPreviewPage();
-    expect(await screen.findByRole("button", { name: /Editar contenido/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Volver al contenido/i })).toBeTruthy();
   });
 
   it("shows export PDF button in footer", async () => {
