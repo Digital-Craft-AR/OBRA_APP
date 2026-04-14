@@ -5,8 +5,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { PreviewDocument, type EbookPreviewData } from "@/components/preview/PreviewDocument";
+import { ImageSlot } from "@/components/preview/ImageSlot";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
+import {
+  generateImage,
+  getSignedImageUrl,
+  loadProjectImages,
+  type ImageSlotStatus,
+  type ProjectImageRow,
+} from "@/lib/preview/imageSlotApi";
 import { supabase } from "@/lib/supabaseClient";
 
 type EbookRow = {
@@ -15,6 +23,12 @@ type EbookRow = {
   type: "main" | "bonus" | "order_bump";
   package_ordinal: number;
 };
+
+/** Stable key for the imageSlots map (matches ProjectImageRow unique constraints). */
+function rowSlotKey(row: ProjectImageRow): string {
+  if (row.slot_key === "cover_art" && !row.ebook_id) return "cover_art";
+  return `${row.ebook_id ?? ""}:${row.chapter_id ?? ""}:${row.slot_key}`;
+}
 
 async function loadProjectEbooks(projectId: string): Promise<{ ok: true; rows: EbookRow[] } | { ok: false }> {
   const { data, error } = await supabase
@@ -89,6 +103,9 @@ export function WizardPreviewPage() {
 
   const [exportLoading, setExportLoading] = useState(false);
 
+  // Image slots state: imageId → { status, signedUrl }
+  const [imageSlots, setImageSlots] = useState<Record<string, { status: ImageSlotStatus; url: string | null }>>({});
+
   // Load ebooks once project is ready
   useEffect(() => {
     if (!project?.id) return;
@@ -138,9 +155,42 @@ export function WizardPreviewPage() {
     };
   }, [selectedEbookId, chaptersCache]);
 
+  // Load existing image slots when project is loaded
+  useEffect(() => {
+    if (!project?.id) return;
+    let cancelled = false;
+    async function load() {
+      const result = await loadProjectImages(project!.id);
+      if (cancelled || !result.ok) return;
+      const slots: Record<string, { status: ImageSlotStatus; url: string | null }> = {};
+      for (const row of result.rows) {
+        const key = rowSlotKey(row);
+        const url = row.storage_path && row.status === "done"
+          ? await getSignedImageUrl(row.storage_path)
+          : null;
+        slots[key] = { status: row.status, url };
+      }
+      if (!cancelled) setImageSlots(slots);
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSelectEbook = useCallback((id: string) => {
     setSelectedEbookId(id);
   }, []);
+
+  const handleGenerateCover = useCallback(async (instruction?: string) => {
+    if (!project?.id) return;
+    const key = "cover_art";
+    setImageSlots((prev) => ({ ...prev, [key]: { status: "generating", url: prev[key]?.url ?? null } }));
+    const result = await generateImage({ projectId: project.id, slotKey: "cover_art", instruction });
+    if (result.ok) {
+      setImageSlots((prev) => ({ ...prev, [key]: { status: "done", url: result.signedUrl } }));
+    } else {
+      setImageSlots((prev) => ({ ...prev, [key]: { status: "error", url: prev[key]?.url ?? null } }));
+    }
+  }, [project?.id]);
 
   const handleExportPdf = useCallback(async () => {
     // Stub: PDF export Edge Function is implemented in #65.
@@ -251,12 +301,35 @@ export function WizardPreviewPage() {
               {chaptersLoading ? (
                 <p className="mb-4 text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
               ) : null}
+
+              {/* Cover image slot (main ebook only) */}
+              {selectedEbook?.type === "main" ? (
+                <div className="mb-4">
+                  <ImageSlot
+                    slotKey="cover_art"
+                    status={imageSlots["cover_art"]?.status ?? "idle"}
+                    imageUrl={imageSlots["cover_art"]?.url ?? null}
+                    maxKb={2048}
+                    onGenerate={(instruction) => void handleGenerateCover(instruction)}
+                    onUpload={() => {
+                      // Upload path for cover image (#64 follow-up — stub here)
+                    }}
+                    onRemove={
+                      imageSlots["cover_art"]?.url
+                        ? () => setImageSlots((prev) => ({ ...prev, cover_art: { status: "pending", url: null } }))
+                        : undefined
+                    }
+                  />
+                </div>
+              ) : null}
+
               <PreviewDocument
                 ebook={ebookPreviewData}
                 chapters={selectedChapters}
                 designConfig={project.design_config}
                 author={project.author}
                 layoutPageAssignments={project.layout_page_assignments}
+                coverImageUrl={imageSlots["cover_art"]?.url ?? null}
               />
             </>
           ) : null}

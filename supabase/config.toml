@@ -55,6 +55,10 @@ verify_jwt = false
 [functions.export-pdf]
 verify_jwt = true
 
+# JWT validated inside handler via auth.getUser; Gemini key never in client.
+[functions.image-generate]
+verify_jwt = false
+
 [functions.export-user-data]
 verify_jwt = false
 

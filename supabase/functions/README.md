@@ -41,8 +41,10 @@ Provider-specific HTTP and signature rules stay inside the adapter; Obra domain 
 | `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-index`, `ai-generate-content` (future) | Claude text |
 | `CLAUDE_MODEL` | `ai-optimize`, `ai-generate-index` | Optional; default `claude-sonnet-4-20250514` |
 | `CLAUDE_REQUEST_TIMEOUT_MS` | `ai-optimize`, `ai-generate-index` | Optional; default `120000` |
-| `GOOGLE_GENERATIVE_AI_API_KEY` / Gemini secrets | `image-generate`, Gemini calls (future) | Images |
-| `PUPPETEER_*` / PDF runtime secrets | `export-pdf` (future) | Server-side PDF |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | `image-generate` | Gemini Imagen API key. **Never** expose to client. |
+| `GEMINI_IMAGE_MODEL` | `image-generate` | Optional; default `imagen-3.0-generate-002`. |
+| `IMAGE_GENERATE_CREDIT_COST` | `image-generate` | Optional; credits debited per successful image (default `3`). |
+| `PUPPETEER_*` / PDF runtime secrets | `export-pdf` | Server-side PDF. |
 | `RESEND_API_KEY` | `send-auth-email` | Resend API key for localized auth email hook delivery |
 | `RESEND_FROM_EMAIL` | `send-auth-email` | Verified sender address/domain in Resend |
 
@@ -113,6 +115,7 @@ supabase functions deploy export-user-data
 supabase functions deploy delete-account
 supabase functions deploy send-auth-email
 supabase functions deploy ai-optimize
+supabase functions deploy image-generate
 supabase functions deploy export-pdf
 ```
 
