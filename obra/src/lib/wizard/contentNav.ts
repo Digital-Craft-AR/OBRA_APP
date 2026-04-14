@@ -3,6 +3,16 @@ export type ContentPackageNavTarget =
   | { kind: "bonus"; index: number }
   | { kind: "bump"; index: number };
 
+/** One row in the Content wizard pack sidebar (main + bonuses + bumps). */
+export type ContentNavItem = {
+  key: string;
+  /** Ebook / bonus / bump title for native tooltip and accessible name. */
+  navTitle: string;
+  target: ContentPackageNavTarget;
+  /** True when every chapter in that artifact is approved (or index confirmed where applicable). */
+  tocConfirmed?: boolean;
+};
+
 /** Stable key for React state maps and selection persistence. */
 export function contentNavTargetToKey(target: ContentPackageNavTarget): string {
   if (target.kind === "main") return "main";
