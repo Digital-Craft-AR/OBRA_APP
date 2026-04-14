@@ -5,17 +5,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle } from "@/components/ui/Modal";
 import { ObraToast } from "@/components/obra/ObraToast";
-import {
-  ContentIndexMilestone,
-  type ContentNavItem,
-} from "@/components/wizard/content/ContentIndexMilestone";
+import { ContentIndexMilestone } from "@/components/wizard/content/ContentIndexMilestone";
 import { ContentChapterMilestone } from "@/components/wizard/content/ContentChapterMilestone";
+import { ContentPackSidebar } from "@/components/wizard/content/ContentPackSidebar";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
   buildContentPackageNavTargets,
   contentNavTargetToKey,
   parseContentNavKey,
+  type ContentNavItem,
   type ContentPackageNavTarget,
 } from "@/lib/wizard/contentNav";
 import {
@@ -1359,6 +1358,8 @@ export function WizardContentPage() {
     return null;
   }
 
+  const showPackSidebar = Boolean(project && workspaceReady && !awaitingContentIntro);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
       <div className="bg-obra-blue-950 px-6 py-3">
@@ -1405,8 +1406,20 @@ export function WizardContentPage() {
         </div>
       </div>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
-        <div className="mx-auto w-full max-w-5xl px-8 py-8">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-obra-blue-50">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          {showPackSidebar ? (
+            <ContentPackSidebar
+              t={t}
+              navItems={navItems}
+              selectedKey={selectedKey}
+              onSelectKey={handleSelectPackageKey}
+              navItemDisabled={navItemDisabled}
+            />
+          ) : null}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-5xl px-8 py-8">
           {!bannerDismissed ? (
             <div
               role="region"
@@ -1455,7 +1468,10 @@ export function WizardContentPage() {
                       setManuscriptRow(row);
                       if ((row.extracted_char_count ?? 0) > 0) {
                         setManuscriptCommitted(true);
-                        toast.success({ title: t("wizard.content.manuscript.uploadedToast"), description: "" });
+                        toast.success({
+                          title: t("wizard.content.manuscript.uploadedToast"),
+                          description: t("wizard.content.manuscript.uploadedToastDescription"),
+                        });
                       }
                     }}
                   />
@@ -1482,10 +1498,7 @@ export function WizardContentPage() {
           !showChapterLoop ? (
             <ContentIndexMilestone
               t={t}
-              navItems={navItems}
-              selectedKey={selectedKey}
-              onSelectKey={handleSelectPackageKey}
-              navItemDisabled={navItemDisabled}
+              selectedTarget={selectedTarget}
               panelTitle={panelCopy.title}
               panelSubtitle={panelCopy.subtitle}
               tocRows={currentTocRows}
@@ -1519,10 +1532,6 @@ export function WizardContentPage() {
           {showChapterLoop ? (
             <ContentChapterMilestone
               t={t}
-              navItems={navItems}
-              selectedKey={selectedKey}
-              onSelectKey={handleSelectPackageKey}
-              navItemDisabled={navItemDisabled}
               panelTitle={chapterPanelCopy.title}
               chapters={chapterRows}
               selectedIndex={chapterIdx}
@@ -1542,49 +1551,52 @@ export function WizardContentPage() {
             />
           ) : null}
 
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
+              <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
+                {showChapterLoop && project?.content_source === "ai" ? (
+                  <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
+                    <ChevronLeft className="size-4" aria-hidden />
+                    {t("wizard.content.index.reopenIndex")}
+                  </Button>
+                ) : showChapterLoop ? (
+                  <span />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="tertiary"
+                    onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
+                  >
+                    <ChevronLeft className="size-4" aria-hidden />
+                    {t("wizard.content.footer.backToStructure")}
+                  </Button>
+                )}
+
+                {awaitingContentIntro ? (
+                  <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
+                    {t("wizard.content.sourceIntro.continue")}
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Button>
+                ) : !showChapterLoop ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={!confirmVisible || confirmDisabled || confirmLoading}
+                    onClick={() => void handleConfirmGlobalIndex()}
+                  >
+                    {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Button>
+                ) : (
+                  <span />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
-
-      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
-        <div className="flex w-full min-w-0 items-center justify-between">
-          {showChapterLoop && project?.content_source === "ai" ? (
-            <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
-              <ChevronLeft className="size-4" aria-hidden />
-              {t("wizard.content.index.reopenIndex")}
-            </Button>
-          ) : showChapterLoop ? (
-            <span />
-          ) : (
-            <Button
-              type="button"
-              variant="tertiary"
-              onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-              {t("wizard.content.footer.backToStructure")}
-            </Button>
-          )}
-
-          {awaitingContentIntro ? (
-            <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
-              {t("wizard.content.sourceIntro.continue")}
-              <ChevronRight className="size-4" aria-hidden />
-            </Button>
-          ) : !showChapterLoop ? (
-            <Button
-              type="button"
-              variant="primary"
-              disabled={!confirmVisible || confirmDisabled || confirmLoading}
-              onClick={() => void handleConfirmGlobalIndex()}
-            >
-              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
-              <ChevronRight className="size-4" aria-hidden />
-            </Button>
-          ) : (
-            <span />
-          )}
-        </div>
-      </div>
 
       <Modal
         open={Boolean(titleChangeModal)}
