@@ -59,12 +59,21 @@ export function PreviewDocument({
   const cssVars = useMemo<React.CSSProperties>(() => {
     const p = designConfig.palette;
     const f = designConfig.fonts;
+    const { size, orientation } = designConfig.page;
+
+    // Physical page dimensions in mm — used for aspect-ratio in the screen preview.
+    const dims = size === "letter"
+      ? { w: 215.9, h: 279.4 }
+      : { w: 210, h: 297 }; // a4 default
+    const [w, h] = orientation === "landscape" ? [dims.h, dims.w] : [dims.w, dims.h];
+
     return {
       "--preview-color-primary": p.primary,
       "--preview-color-secondary": p.secondary,
       "--preview-color-accent": p.accent,
       "--preview-font-heading": `"${f.heading}", serif`,
       "--preview-font-body": `"${f.body}", sans-serif`,
+      "--preview-page-aspect-ratio": `${w} / ${h}`,
     } as React.CSSProperties;
   }, [designConfig]);
 
