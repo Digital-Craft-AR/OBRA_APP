@@ -961,7 +961,16 @@ export function WizardContentPage() {
     setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
     void refreshChapterBodyPresence();
     setActionAnnouncement(t("wizard.content.chapters.saveSuccess"));
-  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey]);
+    // Mark project as modified if it was already published (content changed after export).
+    // Conditional update: only applies when publish_status = 'published', no-op otherwise.
+    if (project?.id) {
+      void supabase
+        .from("projects")
+        .update({ publish_status: "modified" })
+        .eq("id", project.id)
+        .eq("publish_status", "published");
+    }
+  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, project?.id]);
 
   const handleGenerateChapter = useCallback(async () => {
     const current = chapterRows[chapterIdx];
@@ -1332,6 +1341,12 @@ export function WizardContentPage() {
     [chapterRows],
   );
 
+  /** True when every artifact (main + bonuses + bumps) has all its chapters approved. */
+  const allArtifactsApproved = useMemo(
+    () => navItems.length > 0 && navItems.every((item) => item.tocConfirmed),
+    [navItems],
+  );
+
   const handleEditIndexFromFooter = useCallback(async () => {
     if (!project?.id) return;
     const persisted = await persistCurrentChapterDraftIfDirty();
@@ -1597,6 +1612,56 @@ export function WizardContentPage() {
           </div>
         </div>
       </main>
+
+      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
+        <div className="flex w-full min-w-0 items-center justify-between">
+          {showChapterLoop && project?.content_source === "ai" ? (
+            <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
+              <ChevronLeft className="size-4" aria-hidden />
+              {t("wizard.content.index.reopenIndex")}
+            </Button>
+          ) : showChapterLoop ? (
+            <span />
+          ) : (
+            <Button
+              type="button"
+              variant="tertiary"
+              onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              {t("wizard.content.footer.backToStructure")}
+            </Button>
+          )}
+
+          {awaitingContentIntro ? (
+            <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
+              {t("wizard.content.sourceIntro.continue")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : !showChapterLoop ? (
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!confirmVisible || confirmDisabled || confirmLoading}
+              onClick={() => void handleConfirmGlobalIndex()}
+            >
+              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!allArtifactsApproved}
+              title={!allArtifactsApproved ? t("wizard.content.footer.previewDisabledHint") : undefined}
+              onClick={() => void navigate(`/app/projects/${params.projectId ?? ""}/preview`)}
+            >
+              {t("wizard.content.footer.goToPreview")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          )}
+        </div>
+      </div>
 
       <Modal
         open={Boolean(titleChangeModal)}
