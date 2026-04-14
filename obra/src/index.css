@@ -264,16 +264,14 @@
   color: var(--preview-color-primary, #204970);
 }
 
-/* Chapter body pages — content is NOT clipped; they grow to fit their content.
-   Visual page-break rules (.preview-page-break) are injected by LayoutBody at
-   each page-height interval so the creator can see where PDF pages would fall.
-   Cover, TOC and chapter-opener pages keep the fixed aspect-ratio from .preview-page. */
+/* Chapter body pages — content flows freely across as many pages as needed.
+   .preview-page sets aspect-ratio which acts as a min-height (CSS height:auto
+   means the box is at least aspect-ratio tall and grows with content).
+   Changing only overflow to visible lets long chapters show all their text
+   while short chapters keep the full one-page look.
+   Cover, TOC and chapter-opener pages keep the overflow:hidden from .preview-page. */
 .preview-body {
-  aspect-ratio: unset;
   overflow: visible;
-  /* Ensure the section is at least as tall as its content even when it has
-     no explicit height. padding is already inherited from .preview-page. */
-  height: auto;
 }
 
 /* Visual page-break indicator — a dashed horizontal rule drawn at each page
