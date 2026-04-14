@@ -44,7 +44,7 @@ Provider-specific HTTP and signature rules stay inside the adapter; Obra domain 
 | `GOOGLE_GENERATIVE_AI_API_KEY` | `image-generate` | Gemini Imagen API key. **Never** expose to client. |
 | `GEMINI_IMAGE_MODEL` | `image-generate` | Optional; default `imagen-3.0-generate-002`. |
 | `IMAGE_GENERATE_CREDIT_COST` | `image-generate` | Optional; credits debited per successful image (default `3`). |
-| `PUPPETEER_*` / PDF runtime secrets | `export-pdf` | Server-side PDF. |
+| `PUPPETEER_EXECUTABLE_PATH` | `export-pdf` | Absolute path to Chromium binary on the Edge Function host. Set via `supabase secrets set PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. |
 | `RESEND_API_KEY` | `send-auth-email` | Resend API key for localized auth email hook delivery |
 | `RESEND_FROM_EMAIL` | `send-auth-email` | Verified sender address/domain in Resend |
 
