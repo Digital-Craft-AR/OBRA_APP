@@ -468,6 +468,8 @@ const resources = {
       "wizard.structure.avatarReset.modal.confirmFresh": "Sí, reiniciar contenido",
       "wizard.content.footer.backToStructure": "Volver a estructura",
       "wizard.content.footer.back": "Volver",
+      "wizard.content.footer.goToPreview": "Ir a Vista previa",
+      "wizard.content.footer.previewDisabledHint": "Aprobá todos los capítulos de todos los productos para continuar",
       "wizard.content.progress.contentLabel": "Progreso de capítulos aprobados",
       "wizard.content.sourceIntro.title": "Origen del contenido",
       "wizard.content.sourceIntro.subtitle":
@@ -1379,6 +1381,8 @@ const resources = {
       "wizard.structure.avatarReset.modal.confirmFresh": "Sim, reiniciar conteúdo",
       "wizard.content.footer.backToStructure": "Voltar para a estrutura",
       "wizard.content.footer.back": "Voltar",
+      "wizard.content.footer.goToPreview": "Ir para Prévia",
+      "wizard.content.footer.previewDisabledHint": "Aprove todos os capítulos de todos os produtos para continuar",
       "wizard.content.progress.contentLabel": "Progresso de capítulos aprovados",
       "wizard.content.sourceIntro.title": "Origem do conteúdo",
       "wizard.content.sourceIntro.subtitle":
