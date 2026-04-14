@@ -59,3 +59,47 @@ describe("usesMultiChapterContentNavTarget", () => {
     expect(usesMultiChapterContentNavTarget({ kind: "bonus", index: 0 })).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// allArtifactsApproved logic
+//
+// This mirrors the WizardContentPage useMemo:
+//   navItems.length > 0 && navItems.every((item) => item.tocConfirmed)
+// Tested here as a pure helper to avoid mounting the full page component.
+// ---------------------------------------------------------------------------
+
+function allArtifactsApproved(navItems: Array<{ tocConfirmed?: boolean }>): boolean {
+  return navItems.length > 0 && navItems.every((item) => item.tocConfirmed);
+}
+
+describe("allArtifactsApproved (WizardContentPage gate logic)", () => {
+  it("returns false when navItems is empty", () => {
+    expect(allArtifactsApproved([])).toBe(false);
+  });
+
+  it("returns false when any item is not confirmed", () => {
+    expect(allArtifactsApproved([{ tocConfirmed: true }, { tocConfirmed: false }])).toBe(false);
+  });
+
+  it("returns false when all items are unconfirmed", () => {
+    expect(allArtifactsApproved([{ tocConfirmed: false }, { tocConfirmed: false }])).toBe(false);
+  });
+
+  it("returns false when tocConfirmed is undefined", () => {
+    expect(allArtifactsApproved([{}])).toBe(false);
+  });
+
+  it("returns true when all items are confirmed", () => {
+    expect(
+      allArtifactsApproved([
+        { tocConfirmed: true },
+        { tocConfirmed: true },
+        { tocConfirmed: true },
+      ]),
+    ).toBe(true);
+  });
+
+  it("returns true for a single confirmed item", () => {
+    expect(allArtifactsApproved([{ tocConfirmed: true }])).toBe(true);
+  });
+});
