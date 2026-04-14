@@ -9,9 +9,94 @@ import type { ContentLocale } from "../_shared/prompts.ts";
 /**
  * Generates chapter body (sanitized rich HTML) for the main ebook on the AI path.
  * Validates JWT, frozen index gates, ownership, debits credits idempotently.
- * Requires ebooks.index_json to be populated by ai-generate-index before calling.
+ * Prefers `ebooks.index_json` from ai-generate-index; if missing, synthesizes a minimal
+ * outline from persisted chapter titles (then backfills `index_json` best-effort).
  */
 const json = corsJson;
+
+type AdminClient = ReturnType<typeof createClient>;
+
+function indexJsonStringFromRow(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t || t === "null") return null;
+    try {
+      const p = JSON.parse(t) as { chapters?: unknown };
+      if (!Array.isArray(p.chapters) || p.chapters.length === 0) return null;
+    } catch {
+      return null;
+    }
+    return t;
+  }
+  if (typeof raw === "object") {
+    const o = raw as { chapters?: unknown };
+    if (Array.isArray(o.chapters) && o.chapters.length > 0) {
+      return JSON.stringify(raw);
+    }
+    return null;
+  }
+  return null;
+}
+
+/**
+ * When `index_json` was never saved (or only `{}`), build a minimal structure from chapter
+ * rows so prompts can run, and persist it for subsequent calls.
+ */
+async function resolveIndexJsonForGeneration(
+  admin: AdminClient,
+  ebookId: string,
+  ebookType: string,
+  rawIndexJson: unknown,
+): Promise<{ jsonString: string; backfilled: boolean } | null> {
+  const direct = indexJsonStringFromRow(rawIndexJson);
+  if (direct) return { jsonString: direct, backfilled: false };
+
+  const { data: rows, error } = await admin
+    .from("chapters")
+    .select("sort_order, title")
+    .eq("ebook_id", ebookId)
+    .order("sort_order", { ascending: true });
+
+  if (error || !rows?.length) return null;
+
+  const wordDefault = ebookType === "bonus" ? 900 : 1200;
+  const chapters = rows
+    .map((r) => {
+      const sortOrder = Number(r.sort_order);
+      const title = String(r.title ?? "").trim() || " ";
+      if (!Number.isFinite(sortOrder) || sortOrder < 1) return null;
+      return {
+        number: sortOrder,
+        title,
+        description:
+          `Develop "${title}" with concrete examples tied to the reader avatar and ebook topic.`,
+        key_concepts: [`Core ideas for: ${title}`, "Practical application for the reader"],
+        word_count_target: wordDefault,
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+
+  if (chapters.length === 0) return null;
+
+  const payload = {
+    narrative_arc:
+      "Synthesized from confirmed chapter titles (full AI outline was missing). Regenerate the outline in Content to replace this placeholder.",
+    chapters,
+  };
+  const jsonString = JSON.stringify(payload);
+  const { error: saveErr } = await admin.from("ebooks").update({ index_json: payload }).eq("id", ebookId);
+  if (saveErr) {
+    console.error("index_json_backfill_save_failed", saveErr.message);
+  } else {
+    console.warn("index_json_backfilled_from_chapters", { ebookId, chapterCount: chapters.length });
+  }
+  return { jsonString, backfilled: true };
+}
+
+/** Returned with `chapter_not_found` so local devs know why rows are missing. */
+const CHAPTER_LOOKUP_HINT =
+  "Edge functions use SUPABASE_URL from their environment. If `supabase functions serve` points at the local API (127.0.0.1) while the app uses your hosted project, the function queries an empty local DB — copy the same SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY as in obra/.env into supabase/functions/.env (or link the project) so both hit one database.";
 
 const CONTENT_LOCALES = ["es", "pt-BR", "en-US", "en-GB"] as const;
 
@@ -105,8 +190,6 @@ Deno.serve(async (req: Request) => {
   if (!authHeader?.startsWith("Bearer ")) {
     return json({ error: "unauthorized", detail: "missing_bearer" }, 401);
   }
-  const jwt = authHeader.slice(7);
-
   const payload = await req.json().catch(() => null);
   const projectId = typeof payload?.project_id === "string" ? payload.project_id : null;
   const chapterId = typeof payload?.chapter_id === "string" ? payload.chapter_id : null;
@@ -116,11 +199,13 @@ Deno.serve(async (req: Request) => {
     return json({ error: "invalid_payload", detail: "project_id_and_chapter_id" }, 400);
   }
 
-  const pub = createClient(supabaseUrl, anonKey);
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
   const {
     data: { user },
     error: userError,
-  } = await pub.auth.getUser(jwt);
+  } = await userClient.auth.getUser();
   if (userError || !user) {
     return json({ error: "unauthorized", detail: "invalid_or_expired_session" }, 401);
   }
@@ -154,8 +239,35 @@ Deno.serve(async (req: Request) => {
     .eq("id", chapterId)
     .maybeSingle();
 
-  if (chErr || !chapter?.ebook_id) {
-    return json({ error: "chapter_not_found" }, 404);
+  if (chErr) {
+    console.error("chapter_lookup_failed", chErr.message, { projectId, chapterId });
+    return json(
+      { error: "chapter_not_found", detail: "lookup_failed", hint: CHAPTER_LOOKUP_HINT },
+      404,
+    );
+  }
+  if (!chapter) {
+    console.error("chapter_not_found_no_row", {
+      projectId,
+      chapterId,
+      supabaseHost: (() => {
+        try {
+          return new URL(supabaseUrl).host;
+        } catch {
+          return "invalid_url";
+        }
+      })(),
+    });
+    return json(
+      { error: "chapter_not_found", detail: "no_row", hint: CHAPTER_LOOKUP_HINT },
+      404,
+    );
+  }
+  if (!chapter.ebook_id) {
+    return json(
+      { error: "chapter_not_found", detail: "missing_ebook_id", hint: CHAPTER_LOOKUP_HINT },
+      404,
+    );
   }
 
   const { data: ebook, error: ebErr } = await admin
@@ -164,8 +276,32 @@ Deno.serve(async (req: Request) => {
     .eq("id", chapter.ebook_id as string)
     .maybeSingle();
 
-  if (ebErr || !ebook) {
-    return json({ error: "chapter_not_found" }, 404);
+  if (ebErr) {
+    const msg = ebErr.message ?? String(ebErr);
+    console.error("ebook_lookup_failed", msg, { ebookId: chapter.ebook_id });
+    const schemaHint =
+      /index_json|column.*does not exist|42703/i.test(msg)
+        ? "The hosted database is missing column public.ebooks.index_json. Apply migration 20260422000000_ebooks_index_json.sql (or run pending Supabase migrations), then retry."
+        : CHAPTER_LOOKUP_HINT;
+    return json(
+      {
+        error: "ebook_lookup_failed",
+        detail: msg.slice(0, 400),
+        hint: schemaHint,
+      },
+      500,
+    );
+  }
+  if (!ebook) {
+    console.error("ebook_row_missing", { ebookId: chapter.ebook_id, chapterId });
+    return json(
+      {
+        error: "chapter_not_found",
+        detail: "ebook_missing",
+        hint: "Chapter references an ebook_id that does not exist (orphan row or wrong environment).",
+      },
+      404,
+    );
   }
   if (ebook.project_id !== projectId) {
     return json({ error: "forbidden", detail: "chapter_ebook_mismatch" }, 403);
@@ -212,6 +348,64 @@ Deno.serve(async (req: Request) => {
       ? `ai-gen-content:${user.id}:${projectId}:${chapterId}:${clientRequestId}`
       : `ai-gen-content:${user.id}:${projectId}:${chapterId}:${crypto.randomUUID()}`;
 
+  const useAnthropic = Boolean(Deno.env.get("ANTHROPIC_API_KEY")?.trim());
+
+  // ── Stub path (no index_json required) — debit credits then return ─────────
+  if (!useAnthropic) {
+    const delta = -Math.floor(cost);
+    const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
+      p_creator_id: user.id,
+      p_delta: delta,
+      p_reason: "consumption",
+      p_idempotency_key: idempotencyKey,
+      p_project_id: projectId,
+    });
+
+    if (rpcErr) {
+      const msg = rpcErr.message ?? "";
+      if (msg.includes("insufficient credits")) {
+        return json({ error: "insufficient_credits" }, 402);
+      }
+      if (msg.includes("creator profile not found")) {
+        return json({ error: "profile_not_found" }, 400);
+      }
+      console.error("obra_credit_ledger_apply", rpcErr);
+      return json({ error: "ledger_failed" }, 500);
+    }
+
+    const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
+    const ebookProductTitle = typeof ebook.title === "string" ? ebook.title.trim() : "";
+    const stubBookTitle = ebookType === "main" ? projectMainTitle : ebookProductTitle;
+    const body = stubChapterBodyHtml(
+      project.content_locale ?? "es",
+      title,
+      stubBookTitle || projectMainTitle,
+      project.topic as string | null,
+    );
+    return json({ ok: true, stub: true, content: body, credits_balance_after: balanceAfter });
+  }
+
+  // ── Anthropic path: resolve index BEFORE debiting credits ───────────────────
+  const indexResolved = await resolveIndexJsonForGeneration(
+    admin,
+    chapter.ebook_id as string,
+    ebookType,
+    ebook.index_json,
+  );
+  if (!indexResolved) {
+    return json(
+      {
+        ok: false,
+        error: "index_not_available",
+        detail: "generate_index_first",
+        hint:
+          "No usable outline in ebooks.index_json and no chapter titles to synthesize from. Regenerate the outline for this ebook in the Content step, or confirm the table of contents so chapters exist.",
+      },
+      400,
+    );
+  }
+  const indexJsonString = indexResolved.jsonString;
+
   const delta = -Math.floor(cost);
   const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
     p_creator_id: user.id,
@@ -233,41 +427,10 @@ Deno.serve(async (req: Request) => {
     return json({ error: "ledger_failed" }, 500);
   }
 
-  // ── Stub fallback when Anthropic is not configured ──────────────────────────
-  const useAnthropic = Boolean(Deno.env.get("ANTHROPIC_API_KEY")?.trim());
-  if (!useAnthropic) {
-    const projectMainTitle = typeof project.main_title === "string" ? project.main_title.trim() : "";
-    const ebookProductTitle = typeof ebook.title === "string" ? ebook.title.trim() : "";
-    const stubBookTitle = ebookType === "main" ? projectMainTitle : ebookProductTitle;
-    const body = stubChapterBodyHtml(
-      project.content_locale ?? "es",
-      title,
-      stubBookTitle || projectMainTitle,
-      project.topic as string | null,
-    );
-    return json({ ok: true, stub: true, content: body, credits_balance_after: balanceAfter });
-  }
-
   // ── Build prompt context ─────────────────────────────────────────────────────
   const contentLocale = parseContentLocale(project.content_locale ?? undefined) ?? ("es" as ContentLocale);
   const { chapterCount, contentTone } = parseDesignConfigForAi(project.design_config);
   const chapterNumber = Number(chapter.sort_order);
-
-  // index_json is stored as JSONB (object); serialize back to string for the prompt builder.
-  const rawIndexJson = ebook.index_json;
-  const indexJsonString =
-    rawIndexJson == null
-      ? null
-      : typeof rawIndexJson === "string"
-        ? rawIndexJson
-        : JSON.stringify(rawIndexJson);
-
-  if (!indexJsonString) {
-    return json(
-      { ok: false, error: "index_not_available", detail: "generate_index_first", credits_balance_after: balanceAfter },
-      400,
-    );
-  }
 
   // Fetch all previous chapters for this ebook (sort_order < current).
   const { data: prevRows, error: prevErr } = await admin
@@ -366,8 +529,18 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const content = typeof o.content === "string" ? o.content.trim() : "";
+  // Primary key is "content"; fall back to other common names Claude may use when
+  // the prompt schema was ambiguous (html, body, chapter_html, text).
+  const FALLBACK_KEYS = ["html", "body", "chapter_html", "chapter", "text"] as const;
+  const rawContent: unknown =
+    o.content ??
+    FALLBACK_KEYS.reduce<unknown>(
+      (found, k) => (found !== undefined ? found : o[k]),
+      undefined,
+    );
+  const content = typeof rawContent === "string" ? rawContent.trim() : "";
   if (!content) {
+    console.error("model_empty_content", { keys: Object.keys(o) });
     return json({ ok: false, error: "model_empty_content", credits_balance_after: balanceAfter }, 502);
   }
 

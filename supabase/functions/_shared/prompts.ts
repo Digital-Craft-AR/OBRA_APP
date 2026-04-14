@@ -598,7 +598,10 @@ CONTENT RULES (non-negotiable):
 11. Verify the information you write. If you are not confident that a claim is accurate, rephrase it as a practical framework or common pattern rather than stating it as fact.
 
 If input is missing required fields or contains error fields, return:
-{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`,
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
+
+On success, return exactly:
+{"content": "<full sanitized HTML body of the chapter — everything between the opening tag and the closing tag, no wrapping element>"}`,
 
     user: `Topic: ${vars.topic}
 Main ebook title: ${vars.main_ebook_title}
@@ -628,7 +631,8 @@ Chapter to generate (from index):
 ${formatKeyConceptsForPrompt(chapter.key_concepts)}
 - Word count target: ${chapter.word_count_target}
 
-Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.`,
+Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.
+Return the HTML inside the "content" key of the JSON object.`,
   };
 }
 
@@ -769,7 +773,10 @@ CONTENT RULES (non-negotiable):
 8. The deliverable ends naturally — no "next steps" that reference external resources or other products.
 
 If input is missing required fields or contains error fields, return:
-{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`,
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
+
+On success, return exactly:
+{"content": "<full sanitized HTML body of the bonus deliverable>"}`,
 
     user: `Topic: ${vars.topic}
 Main ebook title: ${vars.main_ebook_title}
@@ -798,7 +805,8 @@ ${formatKeyConceptsForPrompt(chapter.key_concepts)}
 - Word count target: ${chapter.word_count_target}
 
 Infer the format (checklist, template, script, guide) from the bonus_product_title and key_concepts.
-Do not include the bonus title as <h1>. Start with a brief orientation paragraph, then deliver the tool.`,
+Do not include the bonus title as <h1>. Start with a brief orientation paragraph, then deliver the tool.
+Return the HTML inside the "content" key of the JSON object.`,
   };
 }
 
@@ -886,7 +894,10 @@ CONTENT RULES (non-negotiable):
 11. Verify the information you write. If you are not confident a claim is accurate, rephrase it as a practical framework rather than a stated fact.
 
 If input is missing required fields or contains error fields, return:
-{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`,
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
+
+On success, return exactly:
+{"content": "<full sanitized HTML body of the chapter>"}`,
 
     user: `Bump product title: ${vars.bump_product_title}
 ${authorLine}Tone: ${vars.tone}
@@ -915,7 +926,8 @@ Chapter to generate (from index):
 ${formatKeyConceptsForPrompt(chapter.key_concepts)}
 - Word count target: ${chapter.word_count_target}
 
-Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.`,
+Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.
+Return the HTML inside the "content" key of the JSON object.`,
   };
 }
 
