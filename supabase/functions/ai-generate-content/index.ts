@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
 import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
-import { generateChapterPrompt } from "../_shared/prompts.ts";
+import { generateChapterPrompt, generateBonusChapterPrompt, generateBumpChapterPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import type { ContentLocale } from "../_shared/prompts.ts";
 
@@ -289,18 +289,44 @@ Deno.serve(async (req: Request) => {
       content: String(r.content),
     }));
 
-  const promptBundle = generateChapterPrompt({
-    content_locale: contentLocale,
-    topic: typeof project.topic === "string" ? project.topic : "",
-    avatar: typeof project.target_avatar === "string" ? project.target_avatar : "",
-    problem: typeof project.problem === "string" ? project.problem : "",
-    main_ebook_title: typeof project.main_title === "string" ? project.main_title.trim() : "",
-    tone: contentTone,
-    index: indexJsonString,
-    chapter_number: chapterNumber,
-    chapter_count: chapterCount,
-    previous_chapters: previousChapters,
-  });
+  let promptBundle;
+  if (ebookType === "bonus") {
+    promptBundle = generateBonusChapterPrompt({
+      content_locale: contentLocale,
+      topic: typeof project.topic === "string" ? project.topic : "",
+      avatar: typeof project.target_avatar === "string" ? project.target_avatar : "",
+      problem: typeof project.problem === "string" ? project.problem : "",
+      main_ebook_title: typeof project.main_title === "string" ? project.main_title.trim() : "",
+      bonus_product_title: typeof ebook.title === "string" ? ebook.title.trim() : "",
+      tone: contentTone,
+      bonus_index: indexJsonString,
+    });
+  } else if (ebookType === "order_bump") {
+    promptBundle = generateBumpChapterPrompt({
+      content_locale: contentLocale,
+      avatar: typeof project.target_avatar === "string" ? project.target_avatar : "",
+      problem: typeof project.problem === "string" ? project.problem : "",
+      bump_product_title: typeof ebook.title === "string" ? ebook.title.trim() : "",
+      tone: contentTone,
+      index: indexJsonString,
+      chapter_number: chapterNumber,
+      previous_chapters: previousChapters,
+    });
+  } else {
+    // main ebook
+    promptBundle = generateChapterPrompt({
+      content_locale: contentLocale,
+      topic: typeof project.topic === "string" ? project.topic : "",
+      avatar: typeof project.target_avatar === "string" ? project.target_avatar : "",
+      problem: typeof project.problem === "string" ? project.problem : "",
+      main_ebook_title: typeof project.main_title === "string" ? project.main_title.trim() : "",
+      tone: contentTone,
+      index: indexJsonString,
+      chapter_number: chapterNumber,
+      chapter_count: chapterCount,
+      previous_chapters: previousChapters,
+    });
+  }
 
   if (!promptBundle) {
     return json(
