@@ -15,40 +15,6 @@ function parseContentLocale(raw: string | null | undefined): ContentLocale | nul
   return (CONTENT_LOCALES as readonly string[]).includes(raw) ? (raw as ContentLocale) : null;
 }
 
-function stubChapterTitles(
-  contentLocale: string,
-  mainTitle: string,
-  topic: string | null,
-  count: number,
-): string[] {
-  const base = mainTitle.trim() || topic?.trim() || "Your ebook";
-  const loc = contentLocale.toLowerCase();
-  const n = Math.max(1, Math.min(60, Math.floor(count)));
-  const templatesPt = [
-    `Introdução — ${base}`,
-    "Desenvolvimento do conteúdo",
-    "Exemplo prático",
-    "Conclusão e próximos passos",
-  ];
-  const templatesEn = [
-    `Introduction — ${base}`,
-    "Core content",
-    "Practical example",
-    "Conclusion and next steps",
-  ];
-  const templatesEs = [
-    `Introducción — ${base}`,
-    "Desarrollo del contenido",
-    "Caso práctico",
-    "Conclusión y próximos pasos",
-  ];
-  const pick = loc.startsWith("pt") ? templatesPt : loc.startsWith("en") ? templatesEn : templatesEs;
-  const out: string[] = [];
-  for (let i = 0; i < n; i++) {
-    out.push(pick[i % pick.length] + (i >= pick.length ? ` (${i + 1})` : ""));
-  }
-  return out;
-}
 
 function extractChapterTitles(parsed: Record<string, unknown>, expectedCount: number): string[] | null {
   const chapters = parsed.chapters;
@@ -234,21 +200,8 @@ Deno.serve(async (req: Request) => {
     return json({ error: "ledger_failed" }, 500);
   }
 
-  const useAnthropic = Boolean(Deno.env.get("ANTHROPIC_API_KEY")?.trim());
-
-  if (!useAnthropic) {
-    const titles = stubChapterTitles(
-      project.content_locale ?? "es",
-      artifactTitle,
-      typeof project.topic === "string" ? project.topic : null,
-      expectedTitleCount,
-    );
-    return json({
-      ok: true,
-      stub: true,
-      chapters: titles.map((title) => ({ title })),
-      credits_balance_after: balanceAfter,
-    });
+  if (!Deno.env.get("ANTHROPIC_API_KEY")?.trim()) {
+    return json({ error: "ai_not_configured", detail: "anthropic" }, 503);
   }
 
   const promptBundle =
