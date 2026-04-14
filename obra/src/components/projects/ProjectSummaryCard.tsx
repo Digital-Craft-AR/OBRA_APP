@@ -1,6 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import { Link } from "react-router-dom";
+import { MoreHorizontal } from "lucide-react";
 import { ObraBadge } from "@/components/obra/ObraBadge";
+import { Button } from "@/components/ui/Button";
 import { formatProjectUpdatedRelative } from "@/lib/projectRelativeTime";
 import {
   resolveProjectEditorPath,
@@ -22,39 +25,138 @@ export type ProjectSummaryCardModel = {
   content_phase: ProjectContentProgressPhase | null;
 };
 
+export type ProjectCardActions = {
+  onRename: (id: string, currentName: string) => void;
+  onArchive: (id: string) => void;
+  onMoveToTrash: (id: string) => void;
+};
+
 const statusVariant = {
   "projects.status.structure": "draft",
   "projects.status.content": "warning",
   "projects.status.done": "published",
 } as const;
 
-export function ProjectSummaryCard({ project, t }: { project: ProjectSummaryCardModel; t: TFunction }) {
+function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunction; actions: ProjectCardActions }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <Button
+        type="button"
+        variant="tertiary"
+        size="icon"
+        aria-label={t("projects.card.menuAria")}
+        aria-expanded={open}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+      >
+        <MoreHorizontal className="size-4" aria-hidden />
+      </Button>
+
+      {open ? (
+        <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-card border border-obra-neutral-200 bg-white py-1 shadow-md">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              actions.onRename(id, name);
+            }}
+            className="flex w-full items-center px-4 py-2 text-left text-sm text-obra-blue-950 hover:bg-obra-blue-50"
+          >
+            {t("projects.card.rename")}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              actions.onArchive(id);
+            }}
+            className="flex w-full items-center px-4 py-2 text-left text-sm text-obra-blue-950 hover:bg-obra-blue-50"
+          >
+            {t("projects.card.archive")}
+          </button>
+          <div className="my-1 border-t border-obra-blue-50" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              actions.onMoveToTrash(id);
+            }}
+            className="flex w-full items-center px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+          >
+            {t("projects.card.moveToTrash")}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ProjectSummaryCard({
+  project,
+  t,
+  actions,
+}: {
+  project: ProjectSummaryCardModel;
+  t: TFunction;
+  actions?: ProjectCardActions;
+}) {
   const statusKey = resolveProjectStatusLabelKey(project.structure_completed_at, project.content_phase);
   const variant = statusVariant[statusKey];
   const href = resolveProjectEditorPath(project.id, project.structure_completed_at, project.content_phase);
-  const title = project.main_title?.trim() || project.name;
+  const ebookTitle = project.main_title?.trim() || null;
   const { primary, secondary, accent } = project.design_config.palette;
 
   return (
-    <Link
-      to={href}
-      className={`${contentCardClass} flex h-full flex-col gap-3 p-4 no-underline transition-shadow hover:shadow-md`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="font-body text-xs text-obra-neutral-600">{formatProjectUpdatedRelative(project.updated_at, t)}</p>
+    <div className={`${contentCardClass} flex h-full flex-col`}>
+      <div className="flex items-center gap-2">
+        <p className="flex-1 font-body text-xs text-obra-neutral-600">{formatProjectUpdatedRelative(project.updated_at, t)}</p>
         <ObraBadge variant={variant}>{t(statusKey)}</ObraBadge>
+        {actions ? <CardMenu id={project.id} name={project.name} t={t} actions={actions} /> : null}
       </div>
-      <h2 className="font-display text-lg font-semibold leading-snug text-obra-blue-950">{title}</h2>
-      <div className="mt-auto flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5" aria-label={t("projects.card.paletteAria")}>
-          <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: primary }} />
-          <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: secondary }} />
-          <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: accent }} />
+      <Link
+        to={href}
+        className="flex flex-1 flex-col gap-3 pt-2 no-underline"
+      >
+        <div className="flex flex-col gap-1">
+          <h2 className="font-display text-lg font-semibold leading-snug text-obra-blue-950">{project.name}</h2>
+          {ebookTitle ? (
+            <p className="font-body text-xs text-obra-neutral-500">
+              <span className="font-semibold">{t("projects.card.ebookTitleLabel")}</span>{" "}
+              {ebookTitle}
+            </p>
+          ) : null}
         </div>
-        <p className="font-body text-xs text-obra-neutral-600">
-          {t("projects.card.packageMeta", { bonus: project.bonus_count, bump: project.bump_count })}
-        </p>
-      </div>
-    </Link>
+        <div className="mt-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5" aria-label={t("projects.card.paletteAria")}>
+            <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: primary }} />
+            <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: secondary }} />
+            <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: accent }} />
+          </div>
+          <p className="font-body text-xs text-obra-neutral-600">
+            {t("projects.card.packageMeta", { bonus: project.bonus_count, bump: project.bump_count })}
+          </p>
+        </div>
+      </Link>
+    </div>
   );
 }

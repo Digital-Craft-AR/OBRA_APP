@@ -1517,7 +1517,7 @@ export function WizardContentPage() {
             <div
               role="region"
               aria-label={t("wizard.content.banner.regionAria")}
-              className="mb-6 rounded-card border border-obra-blue-100 bg-white px-4 py-3 shadow-sm"
+              className="mb-6 rounded-card border border-obra-neutral-200 bg-white px-4 py-3"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-body text-sm text-obra-blue-950">{t("wizard.content.banner.body")}</p>
@@ -1552,7 +1552,7 @@ export function WizardContentPage() {
           {needsUploadAlignment && project && !awaitingContentIntro ? (
             <div className="space-y-4">
               {!manuscriptCommitted && (
-                <div className="rounded-card border border-obra-blue-100 bg-white px-4 py-6 shadow-sm">
+                <div className="rounded-card border border-obra-neutral-200 bg-white px-4 py-6">
                   <ManuscriptUploadPanel
                     t={t}
                     projectId={project.id}

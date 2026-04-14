@@ -20,12 +20,12 @@ export const tokens = {
 
 export const radius = {
   input: "8px",
-  card: "12px",
+  card: "1.5rem",
   modal: "16px",
 } as const;
 
 export const shadows = {
-  card: "0px 1px 3px rgba(15,36,56,0.08), 0px 1px 2px rgba(15,36,56,0.04)",
+  card: "none",
   cardHover: "0px 4px 12px rgba(15,36,56,0.12), 0px 2px 4px rgba(15,36,56,0.06)",
 } as const;
 

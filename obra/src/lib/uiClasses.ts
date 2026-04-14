@@ -4,7 +4,7 @@
 
 /** Shared white card for auth + entitlement blocking shells (same max width, padding, radius). */
 const authAndShellCardClass =
-  "flex w-full max-w-auth-card flex-col gap-6 rounded-2xl border border-obra-blue-100 bg-white p-10 shadow-card";
+  "flex w-full max-w-auth-card flex-col gap-6 rounded-card border border-obra-neutral-200 bg-white p-10";
 
 /** Auth card — matches Figma login (`figma_make` / mac-latte figma.site): rounded-2xl, p-10, flex gap-6 */
 export const authCardClass = authAndShellCardClass;
@@ -21,4 +21,4 @@ export const shellPanelClass = authAndShellCardClass;
 
 /** Dashboard / app content card */
 export const contentCardClass =
-  "max-w-lg rounded-card border border-obra-blue-100 bg-white p-6 shadow-card";
+  "max-w-lg rounded-card border border-obra-neutral-200 bg-white p-6";

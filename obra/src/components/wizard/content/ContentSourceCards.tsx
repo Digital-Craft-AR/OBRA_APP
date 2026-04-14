@@ -79,8 +79,8 @@ export function ContentSourceCards({ t, value, variant, onSelect, disabled = fal
         const selected = value === option;
         const interactive = variant === "select" && Boolean(onSelect);
         const surface = selected
-          ? "border-2 border-obra-blue-700 bg-obra-blue-50 shadow-sm"
-          : "border border-obra-blue-100 bg-white hover:border-obra-blue-300";
+          ? "border-2 border-obra-blue-700 bg-obra-blue-50"
+          : "border border-obra-neutral-200 bg-white hover:border-obra-blue-300";
 
         if (interactive) {
           return (
