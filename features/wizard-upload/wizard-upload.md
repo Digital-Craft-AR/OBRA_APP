@@ -2,7 +2,7 @@
 
 **Product:** Obra (obra.app)  
 **Feature slug:** `wizard-upload`  
-**Status:** Draft  
+**Status:** Frontend implementado — Backend completo  
 **Parent reference:** `PRD_Obra.md` (limits, credits, locales, import rules §4)  
 **Related:** `features/wizard-ai-generation/wizard-ai-generation.md` (shared **Contenido** milestones **after** alignment: chapter loop with prefill → bonuses → bumps); `features/wizard-shared/wizard-shared.md` (handoff **into** this flow after design); `features/wizard-preview/wizard-preview.md` (same **Preview** step as the AI branch after Content)
 
@@ -124,13 +124,25 @@ Without a dedicated spec, teams mix concerns: file ingestion, extraction, LLM-as
 
 ## Frontend Tasks
 
-1. **Upload screen:** file input with drag-and-drop (if product-standard), format and size messaging, disabled state during processing, error surfaces for each master PRD error class.
-2. **Loading / progress** for synchronous parse + first split; prevent double submission; implement **one auto-retry** and **Retry** button for transient failures.
-3. **Alignment UI:** list or structured editor for proposed chapters; actions to rename, reorder, merge, split; primary **Approve alignment** and secondary **Regenerate split proposal** with credit transparency.
-4. **Replace file** affordance **only before** approval; confirm discard of in-progress parse/alignment when swapping files.
-5. **Post-approval:** transition UI into `**wizard-ai-generation`** shell (first chapter with prefill)—routing and state flags per orchestration spec.
-6. **Accessibility:** labels, focus order, `aria-live` for async results, keyboard path through alignment actions.
-7. **i18n:** all user-visible strings via translation keys (ES / pt-BR UI).
+1. ✅ **Upload screen:** `ManuscriptUploadPanel` — drag-and-drop, validación de formato/tamaño, estado disabled durante procesamiento, errores por código de servidor. El panel se oculta automáticamente tras el upload exitoso (ya no muestra card de "N caracteres extraídos" — esa info llega como toast).
+2. ✅ **Auto-start del split proposal:** al completar el upload, `WizardContentPage` muestra un toast de éxito y setea `manuscriptCommitted = true`; `ContentUploadAlignmentPanel` monta con `autoStart={true}` y dispara `invokeAiSplitProposal` automáticamente sin que el usuario tenga que presionar ningún botón. La card idle ("Propuesta de capítulos con IA") está comentada — se puede reactivar en el futuro.
+3. ✅ **Persistencia de estado tras refresh:** `WizardContentPage` tiene un `useEffect` que sincroniza `manuscriptCommitted` desde `manuscriptRow` cargado de DB. Si el manuscrito ya existe (extracted_char_count > 0) al cargar la página, el panel de upload se oculta y el de alignment monta con `autoStart` — Claude vuelve a analizar el texto (sin costo de créditos hasta approve).
+4. ✅ **Loading / progress:** spinner en `ContentUploadAlignmentPanel` (stage: `generating`) durante la llamada a Claude; botón Retry en el estado de error; no double-submit por guard `uploadHandoffBusy`.
+5. ✅ **Alignment UI:** `ContentUploadAlignmentPanel` (stage: `review`) — lista de capítulos con título editable, marcador de texto truncado, warnings de Claude, **Aprobar y continuar** (primario) y **Generar nueva propuesta** (secundario).
+6. ✅ **Replace file:** `ManuscriptUploadPanel` muestra el drop zone solo antes de la aprobación (`!manuscriptCommitted`); una vez en `main_chapter` el panel no aparece.
+7. ✅ **Post-approval:** `handleAlignmentApproved` en `WizardContentPage` — llama a `approve-alignment`, setea `global_index_frozen_at`, persiste TOC de bonus/bumps, carga chapter drafts y transiciona a `ContentChapterMilestone`.
+8. ⚠️ **Accessibility:** `aria-live` en estado generating; labels en inputs de título; falta auditoría completa de focus order en alignment.
+9. ✅ **i18n:** todas las strings bajo `wizard.content.splitProposal.*` en ES y pt-BR; `wizard.content.manuscript.*` completo incluyendo `uploadedToast`.
+
+### Archivos implementados
+
+| Archivo | Rol |
+|---|---|
+| `obra/src/lib/wizard/splitProposalApi.ts` | `invokeAiSplitProposal` + `invokeApproveAlignment` |
+| `obra/src/components/wizard/content/ContentUploadAlignmentPanel.tsx` | UI completa: (idle comentado) → generating → review → error; prop `autoStart` |
+| `obra/src/pages/WizardContentPage.tsx` | `handleAlignmentApproved`; `manuscriptCommitted` state + useEffect de sincronización desde DB; toast de éxito post-upload |
+| `supabase/functions/manuscript-upload-parse/index.ts` | Fix: catch loguea `error_message` + `error_stack`; mammoth recibe `Buffer.from(arrayBuffer)` en vez de `{ arrayBuffer }` |
+| `supabase/config.toml` | `verify_jwt = false` para `ai-split-proposal` y `approve-alignment` |
 
 ---
 

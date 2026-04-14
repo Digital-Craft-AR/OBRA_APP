@@ -18,13 +18,15 @@ Creators need a guided, AI-assisted path from “new project” to a coherent in
 
 **File upload for existing content is not part of this wizard:** the user chooses at project creation whether content will later come from **pure AI** or from an **uploaded file** (`.docx`/`.pdf`), but the **upload step runs only after** the design step, as part of the **content** phase (see `PRD_Obra.md` §4).
 
+**Implementation note (2026-04-13):** `content_source` is selected in **step 3 of the new-project modal** (`DashboardPage`) — after name and `content_locale` — and saved to `projects.content_source` at INSERT. The wizard-shared flow does not present a source-selection screen; it receives `content_source` as already committed on the project row.
+
 Without explicit product rules, teams risk inconsistent UX (e.g. regenerating text users considered “done”), ambiguous state when counts change, or preview diverging from PDF output.
 
 ---
 
 ## Solution
 
-**Shared onboarding** (this PRD) runs **after** the user creates a project, chooses **`content_locale`**, and selects **content source: IA** or **Upload** (upload happens later). It is the **same path** for both until **design** is complete.
+**Shared onboarding** (this PRD) runs **after** the user creates a project, chooses **`content_locale`**, and selects **content source: IA** or **Upload** — all three choices happen in the **new-project modal** before the wizard launches. This wizard is the **same path** for both sources until **design** is complete.
 
 The wizard is a **linear sequence of steps** with:
 

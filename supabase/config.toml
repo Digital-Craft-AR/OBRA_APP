@@ -41,6 +41,13 @@ verify_jwt = false
 [functions.manuscript-upload-parse]
 verify_jwt = false
 
+# JWT validated inside handler via auth.getUser (same pattern).
+[functions.ai-split-proposal]
+verify_jwt = false
+
+[functions.approve-alignment]
+verify_jwt = false
+
 # Validates session inside handler via auth.getUser (same pattern as export-user-data).
 [functions.reset-avatar-problem-content]
 verify_jwt = false

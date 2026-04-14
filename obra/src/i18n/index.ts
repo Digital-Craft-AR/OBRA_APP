@@ -254,8 +254,10 @@ const resources = {
       "wizard.create.error":
         "No pudimos crear el proyecto. Revisá que la migración de projects esté aplicada.",
       "wizard.modal.title": "Nuevo proyecto",
-      "wizard.modal.stepName": "Paso 1 de 2 — Nombre",
-      "wizard.modal.stepLocale": "Paso 2 de 2 — Idioma del contenido",
+      "wizard.modal.stepName": "Paso 1 de 3 — Nombre",
+      "wizard.modal.stepLocale": "Paso 2 de 3 — Idioma del contenido",
+      "wizard.modal.stepSource": "Paso 3 de 3 — Método de creación",
+      "wizard.modal.sourceHint": "Elegí cómo vas a generar el contenido de tu ebook. Podés cambiar el método hasta subir el primer archivo o confirmar el índice.",
       "wizard.modal.close": "Cerrar",
       "wizard.modal.nameLabel": "Nombre del proyecto",
       "wizard.modal.namePlaceholder": "Ej: Guía completa de velas aromáticas",
@@ -511,6 +513,7 @@ const resources = {
       "wizard.content.manuscript.retry": "Intentar de nuevo",
       "wizard.content.manuscript.pickAnotherFile": "Cargar otro archivo",
       "wizard.content.manuscript.successStats": "Listo: extrajimos {{count}} caracteres de texto. El archivo quedó guardado de forma privada.",
+      "wizard.content.manuscript.uploadedToast": "Archivo subido. Analizando capítulos…",
       "wizard.content.manuscript.nextSplitStub":
         "El paso siguiente (propuesta de capítulos con IA y alineación) se conectará cuando el servicio de lenguaje esté disponible (#59).",
       "wizard.content.manuscript.errorTooLarge": "El archivo supera 10 MB. Reducí el tamaño o dividí el contenido.",
@@ -540,6 +543,34 @@ const resources = {
       "wizard.content.uploadHandoff.errorWrongPhase": "Esta acción ya no está disponible en esta fase. Recargá la página.",
       "wizard.content.uploadHandoff.errorMainSave": "No pudimos guardar los capítulos iniciales.",
       "wizard.content.uploadHandoff.errorGeneric": "No pudimos completar el paso. Probá de nuevo.",
+      "wizard.content.splitProposal.title": "Propuesta de capítulos",
+      "wizard.content.splitProposal.subtitle":
+        "La IA analizará tu manuscrito y propondrá cómo dividirlo en capítulos.",
+      "wizard.content.splitProposal.generateCta": "Generar propuesta",
+      "wizard.content.splitProposal.generating": "Analizando manuscrito…",
+      "wizard.content.splitProposal.reviewTitle": "Revisá la propuesta de capítulos",
+      "wizard.content.splitProposal.reviewSubtitle":
+        "La IA detectó {{count}} capítulos. Editá los títulos si es necesario y aprobá para continuar.",
+      "wizard.content.splitProposal.warningsTitle": "Avisos",
+      "wizard.content.splitProposal.markerLabel": "Marcador:",
+      "wizard.content.splitProposal.chapterTitleLabel": "Título del capítulo {{n}}",
+      "wizard.content.splitProposal.chaptersAria": "Capítulos propuestos",
+      "wizard.content.splitProposal.approveCta": "Aprobar y continuar",
+      "wizard.content.splitProposal.approveLoading": "Guardando…",
+      "wizard.content.splitProposal.regenerateCta": "Generar nueva propuesta",
+      "wizard.content.splitProposal.retryCta": "Intentar de nuevo",
+      "wizard.content.splitProposal.errorTitle": "No pudimos generar la propuesta",
+      "wizard.content.splitProposal.errorGeneric": "Algo salió mal. Intentá de nuevo.",
+      "wizard.content.splitProposal.errorManuscript":
+        "No encontramos el manuscrito. Subí el archivo antes de continuar.",
+      "wizard.content.splitProposal.errorEmptyTitle":
+        "Todos los capítulos necesitan un título antes de aprobar.",
+      "wizard.content.splitProposal.errorWrongPhase":
+        "Esta acción ya no está disponible en esta fase. Recargá la página.",
+      "wizard.content.splitProposal.errorApproveGeneric":
+        "No pudimos aprobar la estructura. Probá de nuevo.",
+      "wizard.content.splitProposal.approveSuccess":
+        "Listo: la estructura quedó aprobada y los capítulos están precargados con el texto del manuscrito.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bonus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",
@@ -1087,8 +1118,10 @@ const resources = {
       "wizard.create.error":
         "Não foi possível criar o projeto. Verifique se a migration de projects foi aplicada.",
       "wizard.modal.title": "Novo projeto",
-      "wizard.modal.stepName": "Passo 1 de 2 — Nome",
-      "wizard.modal.stepLocale": "Passo 2 de 2 — Idioma do conteúdo",
+      "wizard.modal.stepName": "Passo 1 de 3 — Nome",
+      "wizard.modal.stepLocale": "Passo 2 de 3 — Idioma do conteúdo",
+      "wizard.modal.stepSource": "Passo 3 de 3 — Método de criação",
+      "wizard.modal.sourceHint": "Escolha como vai gerar o conteúdo do seu ebook. Você pode mudar o método até fazer o upload do primeiro arquivo ou confirmar o índice.",
       "wizard.modal.close": "Fechar",
       "wizard.modal.nameLabel": "Nome do projeto",
       "wizard.modal.namePlaceholder": "Ex: Guia completo de velas aromáticas",
@@ -1344,6 +1377,7 @@ const resources = {
       "wizard.content.manuscript.retry": "Tentar de novo",
       "wizard.content.manuscript.pickAnotherFile": "Carregar outro arquivo",
       "wizard.content.manuscript.successStats": "Pronto: extraímos {{count}} caracteres de texto. O arquivo foi salvo de forma privada.",
+      "wizard.content.manuscript.uploadedToast": "Arquivo enviado. Analisando capítulos…",
       "wizard.content.manuscript.nextSplitStub":
         "A próxima etapa (proposta de capítulos com IA e alinhamento) será ligada quando o serviço de linguagem estiver disponível (#59).",
       "wizard.content.manuscript.errorTooLarge": "O arquivo passa de 10 MB. Reduza o tamanho ou divida o conteúdo.",
@@ -1374,6 +1408,34 @@ const resources = {
       "wizard.content.uploadHandoff.errorWrongPhase": "Esta ação não está mais disponível nesta fase. Recarregue a página.",
       "wizard.content.uploadHandoff.errorMainSave": "Não foi possível salvar os capítulos iniciais.",
       "wizard.content.uploadHandoff.errorGeneric": "Não foi possível concluir a etapa. Tente novamente.",
+      "wizard.content.splitProposal.title": "Proposta de capítulos",
+      "wizard.content.splitProposal.subtitle":
+        "A IA vai analisar seu manuscrito e propor como dividi-lo em capítulos.",
+      "wizard.content.splitProposal.generateCta": "Gerar proposta",
+      "wizard.content.splitProposal.generating": "Analisando manuscrito…",
+      "wizard.content.splitProposal.reviewTitle": "Revise a proposta de capítulos",
+      "wizard.content.splitProposal.reviewSubtitle":
+        "A IA detectou {{count}} capítulos. Edite os títulos se necessário e aprove para continuar.",
+      "wizard.content.splitProposal.warningsTitle": "Avisos",
+      "wizard.content.splitProposal.markerLabel": "Marcador:",
+      "wizard.content.splitProposal.chapterTitleLabel": "Título do capítulo {{n}}",
+      "wizard.content.splitProposal.chaptersAria": "Capítulos propostos",
+      "wizard.content.splitProposal.approveCta": "Aprovar e continuar",
+      "wizard.content.splitProposal.approveLoading": "Salvando…",
+      "wizard.content.splitProposal.regenerateCta": "Gerar nova proposta",
+      "wizard.content.splitProposal.retryCta": "Tentar novamente",
+      "wizard.content.splitProposal.errorTitle": "Não conseguimos gerar a proposta",
+      "wizard.content.splitProposal.errorGeneric": "Algo deu errado. Tente novamente.",
+      "wizard.content.splitProposal.errorManuscript":
+        "Não encontramos o manuscrito. Faça o upload do arquivo antes de continuar.",
+      "wizard.content.splitProposal.errorEmptyTitle":
+        "Todos os capítulos precisam de um título antes de aprovar.",
+      "wizard.content.splitProposal.errorWrongPhase":
+        "Esta ação não está mais disponível nesta fase. Recarregue a página.",
+      "wizard.content.splitProposal.errorApproveGeneric":
+        "Não foi possível aprovar a estrutura. Tente novamente.",
+      "wizard.content.splitProposal.approveSuccess":
+        "Pronto: a estrutura foi aprovada e os capítulos estão pré-carregados com o texto do manuscrito.",
       "wizard.content.nav.mainEbook": "Ebook principal",
       "wizard.content.nav.bonus": "Bônus {{n}} — {{title}}",
       "wizard.content.nav.orderBump": "Order bump {{n}} — {{title}}",

@@ -216,16 +216,17 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
         onChange={onFileChange}
       />
 
-      {hasParseSuccess ? (
+      {/* Success card oculta — el padre muestra un toast y avanza al alignment panel automáticamente */}
+      {/* {hasParseSuccess ? (
         <div role="status" aria-live="polite" className="rounded-card border border-obra-blue-100 bg-obra-blue-50/60 px-5 py-6">
           <p className="font-body text-sm font-medium text-obra-blue-950">
             {t("wizard.content.manuscript.successStats", {
               count: extractedCount ?? 0,
             })}
           </p>
-          <p className="mt-2 font-body text-sm text-obra-neutral-600">{t("wizard.content.manuscript.nextSplitStub")}</p>
         </div>
-      ) : (
+      ) : ( */}
+      {!hasParseSuccess && (
         <>
           <div
             id={dropZoneId}
@@ -341,3 +342,4 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
     </div>
   );
 }
+
