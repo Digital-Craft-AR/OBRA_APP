@@ -121,6 +121,7 @@ export function PreviewDocument({
           <LayoutBody
             chapterTitle={chapter.title}
             contentHtml={chapter.content}
+            pageNumber={idx + 1}
           />
         </div>
       ))}

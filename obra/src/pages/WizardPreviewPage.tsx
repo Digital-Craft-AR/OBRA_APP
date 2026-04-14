@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, FileDown, Package } from "lucide-react";
+import { Book, ChevronLeft, FileDown, Gift, Package, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ import {
   generateImage,
   getSignedImageUrl,
   loadProjectImages,
+  uploadImage,
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
@@ -194,6 +195,18 @@ export function WizardPreviewPage() {
     setSelectedEbookId(id);
   }, []);
 
+  const handleUploadCover = useCallback(async (file: File) => {
+    if (!project?.id) return;
+    const key = "cover_art";
+    setImageSlots((prev) => ({ ...prev, [key]: { status: "generating", url: prev[key]?.url ?? null } }));
+    const result = await uploadImage({ projectId: project.id, slotKey: "cover_art", file });
+    if (result.ok) {
+      setImageSlots((prev) => ({ ...prev, [key]: { status: "done", url: result.signedUrl } }));
+    } else {
+      setImageSlots((prev) => ({ ...prev, [key]: { status: "error", url: prev[key]?.url ?? null } }));
+    }
+  }, [project?.id]);
+
   const handleGenerateCover = useCallback(async (instruction?: string) => {
     if (!project?.id) return;
     const key = "cover_art";
@@ -321,76 +334,94 @@ export function WizardPreviewPage() {
         </div>
       </div>
 
-      {/* Deliverable tabs */}
-      {ebooks.length > 0 ? (
-        <div className="flex gap-1 overflow-x-auto border-b border-obra-blue-100 px-8">
-          {ebooks.map((ebook) => (
-            <button
-              key={ebook.id}
-              type="button"
-              onClick={() => handleSelectEbook(ebook.id)}
-              className={`shrink-0 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
-                ebook.id === selectedEbookId
-                  ? "border-obra-blue-900 text-obra-blue-950"
-                  : "border-transparent text-obra-neutral-600 hover:text-obra-blue-950"
-              }`}
-              aria-selected={ebook.id === selectedEbookId}
+      {/* Main area: deliverable sidebar + preview content */}
+      <main className="flex min-h-0 flex-1 overflow-hidden bg-obra-blue-50">
+        <div className="flex min-h-0 w-full flex-col lg:flex-row">
+
+          {/* Deliverable sidebar — same icon-button pattern as ContentChapterMilestone */}
+          {ebooks.length > 0 ? (
+            <nav
+              aria-label={t("wizard.preview.ebooksNav")}
+              className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 bg-white px-4 py-3 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-3 lg:py-4"
             >
-              {tabLabel(ebook)}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Main preview area */}
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
-        <div className="mx-auto w-full max-w-3xl px-6 py-8">
-          {isLoading ? (
-            <p className="text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
-          ) : hasError ? (
-            <p
-              role="alert"
-              className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {projectError ?? ebooksError}
-            </p>
-          ) : project && ebookPreviewData ? (
-            <>
-              {chaptersLoading ? (
-                <p className="mb-4 text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
-              ) : null}
-
-              {/* Cover image slot (main ebook only) */}
-              {selectedEbook?.type === "main" ? (
-                <div className="mb-4">
-                  <ImageSlot
-                    slotKey="cover_art"
-                    status={imageSlots["cover_art"]?.status ?? "idle"}
-                    imageUrl={imageSlots["cover_art"]?.url ?? null}
-                    maxKb={2048}
-                    onGenerate={(instruction) => void handleGenerateCover(instruction)}
-                    onUpload={() => {
-                      // Upload path for cover image (#64 follow-up — stub here)
-                    }}
-                    onRemove={
-                      imageSlots["cover_art"]?.url
-                        ? () => setImageSlots((prev) => ({ ...prev, cover_art: { status: "pending", url: null } }))
-                        : undefined
-                    }
-                  />
-                </div>
-              ) : null}
-
-              <PreviewDocument
-                ebook={ebookPreviewData}
-                chapters={selectedChapters}
-                designConfig={project.design_config}
-                author={project.author}
-                layoutPageAssignments={project.layout_page_assignments}
-                coverImageUrl={imageSlots["cover_art"]?.url ?? null}
-              />
-            </>
+              <ul className="flex flex-row gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+                {ebooks.map((ebook) => {
+                  const isCurrent = ebook.id === selectedEbookId;
+                  const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? Tag : Book;
+                  return (
+                    <li key={ebook.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectEbook(ebook.id)}
+                        title={tabLabel(ebook)}
+                        aria-label={tabLabel(ebook)}
+                        aria-current={isCurrent ? "page" : undefined}
+                        className={[
+                          "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
+                          isCurrent
+                            ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
+                            : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
+                        ].join(" ")}
+                      >
+                        <Icon className="size-5 shrink-0" aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
           ) : null}
+
+          {/* Preview content — scrollable */}
+          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-8">
+            <div className="mx-auto w-full max-w-3xl">
+              {isLoading ? (
+                <p className="text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
+              ) : hasError ? (
+                <p
+                  role="alert"
+                  className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {projectError ?? ebooksError}
+                </p>
+              ) : project && ebookPreviewData ? (
+                <>
+                  {chaptersLoading ? (
+                    <p className="mb-4 text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
+                  ) : null}
+
+                  {/* Cover image slot (main ebook only) */}
+                  {selectedEbook?.type === "main" ? (
+                    <div className="mb-4">
+                      <ImageSlot
+                        slotKey="cover_art"
+                        status={imageSlots["cover_art"]?.status ?? "idle"}
+                        imageUrl={imageSlots["cover_art"]?.url ?? null}
+                        maxKb={2048}
+                        onGenerate={(instruction) => void handleGenerateCover(instruction)}
+                        onUpload={(file) => void handleUploadCover(file)}
+                        onRemove={
+                          imageSlots["cover_art"]?.url
+                            ? () => setImageSlots((prev) => ({ ...prev, cover_art: { status: "pending", url: null } }))
+                            : undefined
+                        }
+                      />
+                    </div>
+                  ) : null}
+
+                  <PreviewDocument
+                    ebook={ebookPreviewData}
+                    chapters={selectedChapters}
+                    designConfig={project.design_config}
+                    author={project.author}
+                    layoutPageAssignments={project.layout_page_assignments}
+                    coverImageUrl={imageSlots["cover_art"]?.url ?? null}
+                  />
+                </>
+              ) : null}
+            </div>
+          </div>
+
         </div>
       </main>
 
