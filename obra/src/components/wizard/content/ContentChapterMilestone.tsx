@@ -1,17 +1,12 @@
-import { Book, Check, Gift } from "lucide-react";
+import { Check } from "lucide-react";
 import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/Button";
 import { ChapterRichTextEditor } from "@/components/obra/ChapterRichTextEditor";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
-import type { ContentNavItem } from "@/components/wizard/content/ContentIndexMilestone";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 
 type ContentChapterMilestoneProps = {
   t: TFunction;
-  navItems: ContentNavItem[];
-  selectedKey: string;
-  onSelectKey: (key: string) => void;
-  navItemDisabled?: (key: string) => boolean;
   panelTitle: string;
   chapters: ChapterDraftRow[];
   selectedIndex: number;
@@ -34,10 +29,6 @@ type ContentChapterMilestoneProps = {
 
 export function ContentChapterMilestone({
   t,
-  navItems,
-  selectedKey,
-  onSelectKey,
-  navItemDisabled,
   panelTitle,
   chapters,
   selectedIndex,
@@ -55,7 +46,6 @@ export function ContentChapterMilestone({
   progressMax = 1,
   showAiGenerateButton = true,
 }: ContentChapterMilestoneProps) {
-  const navLabel = t("wizard.content.index.packageNavAria");
   const listLabel = t("wizard.content.chapters.chapterListAria");
   const current = chapters[selectedIndex];
   const dirty = current ? !chapterHtmlEquals(bodyValue, current.content ?? "") : false;
@@ -70,57 +60,7 @@ export function ContentChapterMilestone({
   const progressPercent = Math.round((safeValue / safeMax) * 100);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
-      <nav
-        aria-label={navLabel}
-        className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 pb-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
-      >
-        <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
-          {navItems.map((item) => {
-            const isCurrent = item.key === selectedKey;
-            const disabled = navItemDisabled?.(item.key) ?? false;
-            const Icon = item.target.kind === "bonus" ? Gift : Book;
-            const accessLabel = item.tocConfirmed
-              ? `${item.navTitle}. ${t("wizard.content.index.packageTocConfirmedAria")}`
-              : item.navTitle;
-            const titleAttr = item.tocConfirmed
-              ? `${item.navTitle} — ${t("wizard.content.index.packageTocConfirmedAria")}`
-              : item.navTitle;
-            return (
-              <li key={item.key}>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  title={titleAttr}
-                  aria-label={accessLabel}
-                  onClick={() => {
-                    if (!disabled) onSelectKey(item.key);
-                  }}
-                  aria-current={isCurrent ? "page" : undefined}
-                  className={[
-                    "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
-                    disabled ? "cursor-not-allowed opacity-50" : "",
-                    isCurrent
-                      ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
-                      : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
-                  ].join(" ")}
-                >
-                  <Icon className="size-5 shrink-0" aria-hidden />
-                  {item.tocConfirmed ? (
-                    <Check
-                      className="pointer-events-none absolute bottom-0.5 right-0.5 size-2.5 text-obra-green-600 drop-shadow-[0_0_1px_rgba(255,255,255,0.9)]"
-                      strokeWidth={3}
-                      aria-hidden
-                    />
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
+    <div className="flex min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
         <nav aria-label={listLabel} className="flex w-full shrink-0 flex-col gap-1 lg:w-52">
           <ol className="flex flex-col gap-1">
             {chapters.map((ch, index) => {
@@ -219,7 +159,6 @@ export function ContentChapterMilestone({
           </div>
           <p className="font-body text-xs text-obra-neutral-600">{t("wizard.content.chapters.toolbarHint")}</p>
         </section>
-      </div>
     </div>
   );
 }

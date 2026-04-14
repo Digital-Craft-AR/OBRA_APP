@@ -1,4 +1,4 @@
-import { Book, Check, Gift, GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useState, type DragEvent } from "react";
 import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/Button";
@@ -7,24 +7,14 @@ import { usesMultiChapterContentNavTarget, type ContentPackageNavTarget } from "
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
 
 export type { TocChapterRow } from "@/lib/wizard/tocTypes";
+export type { ContentNavItem } from "@/lib/wizard/contentNav";
 
 const TOC_DND_MIME = "application/x-obra-toc-index";
 
-export type ContentNavItem = {
-  key: string;
-  /** Ebook / bonus / bump title for native tooltip and accessible name. */
-  navTitle: string;
-  target: ContentPackageNavTarget;
-  /** Main ebook: set when the table of contents was confirmed (frozen). */
-  tocConfirmed?: boolean;
-};
-
 type ContentIndexMilestoneProps = {
   t: TFunction;
-  navItems: ContentNavItem[];
-  selectedKey: string;
-  onSelectKey: (key: string) => void;
-  navItemDisabled?: (key: string) => boolean;
+  /** Which package artifact is being edited (drives single-section vs multi-chapter TOC UI). */
+  selectedTarget: ContentPackageNavTarget;
   panelTitle: string;
   panelSubtitle: string;
   tocRows: TocChapterRow[];
@@ -56,10 +46,7 @@ function reorderTocRows(rows: TocChapterRow[], from: number, to: number): TocCha
 
 export function ContentIndexMilestone({
   t,
-  navItems,
-  selectedKey,
-  onSelectKey,
-  navItemDisabled,
+  selectedTarget,
   panelTitle,
   panelSubtitle,
   tocRows,
@@ -75,8 +62,7 @@ export function ContentIndexMilestone({
   onMainTocChooseGenerate,
   showRegenerateToolbar = true,
 }: ContentIndexMilestoneProps) {
-  const selected = navItems.find((item) => item.key === selectedKey) ?? navItems[0];
-  const usesChapterList = selected ? usesMultiChapterContentNavTarget(selected.target) : false;
+  const usesChapterList = usesMultiChapterContentNavTarget(selectedTarget);
   const readOnly = Boolean(tocReadOnly);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -124,64 +110,13 @@ export function ContentIndexMilestone({
     setDragOverIndex(null);
   }, []);
 
-  const navLabel = t("wizard.content.index.packageNavAria");
   const hideRegenerateToolbar = Boolean(showMainTocEmptyChoice);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
-      <nav
-        aria-label={navLabel}
-        className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 pb-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
-      >
-        <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
-          {navItems.map((item) => {
-            const isCurrent = item.key === selectedKey;
-            const disabled = navItemDisabled?.(item.key) ?? false;
-            const Icon = item.target.kind === "bonus" ? Gift : Book;
-            const accessLabel = item.tocConfirmed
-              ? `${item.navTitle}. ${t("wizard.content.index.packageTocConfirmedAria")}`
-              : item.navTitle;
-            const titleAttr = item.tocConfirmed
-              ? `${item.navTitle} — ${t("wizard.content.index.packageTocConfirmedAria")}`
-              : item.navTitle;
-            return (
-              <li key={item.key}>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  title={titleAttr}
-                  aria-label={accessLabel}
-                  onClick={() => {
-                    if (!disabled) onSelectKey(item.key);
-                  }}
-                  aria-current={isCurrent ? "page" : undefined}
-                  className={[
-                    "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
-                    disabled ? "cursor-not-allowed opacity-50" : "",
-                    isCurrent
-                      ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
-                      : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
-                  ].join(" ")}
-                >
-                  <Icon className="size-5 shrink-0" aria-hidden />
-                  {item.tocConfirmed ? (
-                    <Check
-                      className="pointer-events-none absolute bottom-0.5 right-0.5 size-2.5 text-obra-green-600 drop-shadow-[0_0_1px_rgba(255,255,255,0.9)]"
-                      strokeWidth={3}
-                      aria-hidden
-                    />
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <section
-        aria-labelledby="content-toc-heading"
-        className="flex min-w-0 flex-1 flex-col gap-4"
-      >
+    <section
+      aria-labelledby="content-toc-heading"
+      className="flex min-w-0 flex-1 flex-col gap-4"
+    >
         <div className="space-y-1">
           <h2 id="content-toc-heading" className="font-display text-xl text-obra-blue-950">
             {panelTitle}
@@ -316,7 +251,6 @@ export function ContentIndexMilestone({
           </div>
         ) : null}
 
-      </section>
-    </div>
+    </section>
   );
 }

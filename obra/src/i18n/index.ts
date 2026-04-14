@@ -396,6 +396,7 @@ const resources = {
       "wizard.structure.design.typography.bodyPlaceholder": "Ej: Inter",
       "wizard.structure.design.typography.headingSample": "El arte de crear",
       "wizard.structure.design.typography.bodySample": "Texto de ejemplo legible",
+      "wizard.structure.design.images.styleTitle": "Estilo visual de las imágenes",
       "wizard.structure.design.images.title": "Imágenes",
       "wizard.structure.design.images.aiMode": "Generadas con IA",
       "wizard.structure.design.images.aiModeHint": "La IA crea las imágenes en la vista previa.",
@@ -535,6 +536,7 @@ const resources = {
       "wizard.content.manuscript.pickAnotherFile": "Cargar otro archivo",
       "wizard.content.manuscript.successStats": "Listo: extrajimos {{count}} caracteres de texto. El archivo quedó guardado de forma privada.",
       "wizard.content.manuscript.uploadedToast": "Archivo subido. Analizando capítulos…",
+      "wizard.content.manuscript.uploadedToastDescription": "Podés seguir con la alineación del manuscrito.",
       "wizard.content.manuscript.nextSplitStub":
         "El paso siguiente (propuesta de capítulos con IA y alineación) se conectará cuando el servicio de lenguaje esté disponible (#59).",
       "wizard.content.manuscript.errorTooLarge": "El archivo supera 10 MB. Reducí el tamaño o dividí el contenido.",
@@ -599,6 +601,7 @@ const resources = {
       "wizard.content.nav.bumpFallback": "Bump {{n}}",
       "wizard.content.index.packageTocConfirmedAria": "Índice confirmado",
       "wizard.content.index.packageNavAria": "Contenido del paquete",
+      "wizard.content.packSidebar.heading": "Tu paquete",
       "wizard.content.index.emptyTocPrompt":
         "Todavía no hay capítulos en el índice. Elegí cómo querés empezar.",
       "wizard.content.index.emptyTocGenerate": "Generar esquema",
@@ -1281,6 +1284,7 @@ const resources = {
       "wizard.structure.design.typography.bodyPlaceholder": "Ex.: Inter",
       "wizard.structure.design.typography.headingSample": "A arte de criar",
       "wizard.structure.design.typography.bodySample": "Texto de exemplo legível",
+      "wizard.structure.design.images.styleTitle": "Estilo visual das imagens",
       "wizard.structure.design.images.title": "Imagens",
       "wizard.structure.design.images.aiMode": "Geradas com IA",
       "wizard.structure.design.images.aiModeHint": "A IA cria as imagens na etapa de prévia.",
@@ -1420,6 +1424,7 @@ const resources = {
       "wizard.content.manuscript.pickAnotherFile": "Carregar outro arquivo",
       "wizard.content.manuscript.successStats": "Pronto: extraímos {{count}} caracteres de texto. O arquivo foi salvo de forma privada.",
       "wizard.content.manuscript.uploadedToast": "Arquivo enviado. Analisando capítulos…",
+      "wizard.content.manuscript.uploadedToastDescription": "Você pode seguir com o alinhamento do manuscrito.",
       "wizard.content.manuscript.nextSplitStub":
         "A próxima etapa (proposta de capítulos com IA e alinhamento) será ligada quando o serviço de linguagem estiver disponível (#59).",
       "wizard.content.manuscript.errorTooLarge": "O arquivo passa de 10 MB. Reduza o tamanho ou divida o conteúdo.",
@@ -1485,6 +1490,7 @@ const resources = {
       "wizard.content.nav.bumpFallback": "Bump {{n}}",
       "wizard.content.index.packageTocConfirmedAria": "Sumário confirmado",
       "wizard.content.index.packageNavAria": "Conteúdo do pacote",
+      "wizard.content.packSidebar.heading": "Seu pacote",
       "wizard.content.index.emptyTocPrompt":
         "Ainda não há capítulos no sumário. Escolha como quer começar.",
       "wizard.content.index.emptyTocGenerate": "Gerar esquema",
