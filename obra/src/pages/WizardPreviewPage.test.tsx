@@ -1,0 +1,161 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { I18nextProvider } from "react-i18next";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthContext } from "@/auth/authContext";
+import { i18n } from "@/i18n";
+import { WizardPreviewPage } from "@/pages/WizardPreviewPage";
+import { makeSession } from "@/test/factories";
+
+// Minimal project row matching ProjectRow shape expected by useWizardStructureProject
+const PROJECT_ID = "project-preview-test";
+const projectData = {
+  id: PROJECT_ID,
+  name: "My Ebook",
+  content_locale: "es",
+  content_source: "ai",
+  topic: "Finanzas personales",
+  problem: null,
+  target_avatar: null,
+  bonus_count: 1,
+  bump_count: 0,
+  main_title: "Finanzas para todos",
+  author: "Ana García",
+  bonus_items: [{ title: "Bonus 1" }],
+  bump_items: [],
+  design_config: {
+    chapterCount: 6,
+    contentTone: "friendly",
+    paletteMode: "preset",
+    palettePresetId: "oceanic",
+    palette: { primary: "#204970", secondary: "#e8f0f7", accent: "#c8e62b" },
+    fonts: { heading: "Fraunces", body: "Plus Jakarta Sans" },
+    page: { size: "a4", orientation: "portrait" },
+    image: { mode: "ai", style: "illustration" },
+  },
+  book_template_id: "classic_fixed",
+  layout_page_assignments: { "main:cover": "layout_cover_v1", "main:body": "layout_body_a" },
+  structure_completed_at: "2024-01-10T00:00:00.000Z",
+};
+
+const ebooksData = [
+  { id: "ebook-main", title: "Finanzas para todos", type: "main", package_ordinal: 0 },
+  { id: "ebook-bonus-0", title: "Bonus 1", type: "bonus", package_ordinal: 0 },
+];
+
+const chaptersData = [
+  { id: "ch-1", title: "Introducción", sort_order: 1, content: "<p>Hola</p>", approved_at: null },
+];
+
+// Supabase mock: supports chained .from().select().eq().single() and
+// .from().select().eq().order() patterns used by the page.
+const mockChains = vi.hoisted(() => {
+  const single = vi.fn();
+  const order = vi.fn();
+  const eqChain = vi.fn();
+  const selectChain = vi.fn();
+  const inChain = vi.fn();
+
+  return { single, order, eqChain, selectChain, inChain };
+});
+
+vi.mock("@/lib/supabaseClient", () => ({
+  supabase: {
+    from: vi.fn((table: string) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn((col: string) => ({
+          single: mockChains.single,
+          order: mockChains.order,
+          in: mockChains.inChain,
+        })),
+        in: mockChains.inChain,
+      })),
+    })),
+  },
+}));
+
+function renderPreviewPage() {
+  return render(
+    <I18nextProvider i18n={i18n}>
+      <MemoryRouter initialEntries={[`/app/projects/${PROJECT_ID}/preview`]}>
+        <AuthContext.Provider
+          value={{
+            loading: false,
+            session: makeSession({ user: { id: "u1", email: "user@example.com" } as never }),
+          }}
+        >
+          <Routes>
+            <Route path="/app/projects/:projectId/preview" element={<WizardPreviewPage />} />
+            <Route path="/app/projects/:projectId/content" element={<div data-testid="content-page" />} />
+            <Route path="/app/dashboard" element={<div data-testid="dashboard-page" />} />
+          </Routes>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </I18nextProvider>,
+  );
+}
+
+describe("WizardPreviewPage", () => {
+  beforeEach(() => {
+    mockChains.single.mockReset();
+    mockChains.order.mockReset();
+    mockChains.inChain.mockReset();
+
+    // Default: project loads successfully, ebooks load, chapters load
+    mockChains.single.mockResolvedValue({ data: projectData, error: null });
+    mockChains.order.mockImplementation(() => {
+      // Distinguish ebooks vs chapters query by inspection not possible in this mock;
+      // first call is ebooks (from project id), second is chapters (from ebook id).
+      // We use a call counter approach.
+      const callCount = mockChains.order.mock.calls.length;
+      if (callCount <= 1) return Promise.resolve({ data: ebooksData, error: null });
+      return Promise.resolve({ data: chaptersData, error: null });
+    });
+  });
+
+  it("renders global stepper with preview step active", async () => {
+    renderPreviewPage();
+    // Steps 1 and 2 should show as completed, step 3 (Vista previa) active
+    const stepLabels = await screen.findAllByText(/Vista previa/i);
+    expect(stepLabels.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows the page title and subtitle", async () => {
+    renderPreviewPage();
+    expect(await screen.findByRole("heading", { name: /Vista previa/i })).toBeTruthy();
+    expect(await screen.findByText(/Así lucirá tu producto final/i)).toBeTruthy();
+  });
+
+  it("shows edit content button that links back to content step", async () => {
+    renderPreviewPage();
+    expect(await screen.findByRole("button", { name: /Editar contenido/i })).toBeTruthy();
+  });
+
+  it("shows export PDF button in footer", async () => {
+    renderPreviewPage();
+    expect(await screen.findByRole("button", { name: /Exportar PDF/i })).toBeTruthy();
+  });
+
+  it("shows deliverable tabs when ebooks are loaded", async () => {
+    renderPreviewPage();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Ebook principal/i })).toBeTruthy();
+    });
+    expect(screen.getByRole("button", { name: /Bonus 1/i })).toBeTruthy();
+  });
+
+  it("shows loading state initially", () => {
+    // Make project load hang
+    mockChains.single.mockReturnValue(new Promise(() => {}));
+    renderPreviewPage();
+    expect(screen.getByText(/Cargando vista previa/i)).toBeTruthy();
+  });
+
+  it("shows error state when project load fails", async () => {
+    mockChains.single.mockResolvedValue({ data: null, error: { message: "not found" } });
+    renderPreviewPage();
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeTruthy();
+    });
+  });
+});
