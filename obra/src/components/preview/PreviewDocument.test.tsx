@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { WizardDesignConfig } from "@/lib/wizard/structureTypes";
 import { PreviewDocument } from "./PreviewDocument";
 
 // Mock Google Fonts hook — no external network calls in tests
@@ -17,7 +18,7 @@ vi.mock("@obra/layout-catalog", () => ({
 // ---------------------------------------------------------------------------
 
 const baseDesignConfig = {
-  chapterCount: 3,
+  chapterCount: 6 as const,
   contentTone: "friendly" as const,
   paletteMode: "preset" as const,
   palettePresetId: "oceanic",
@@ -25,7 +26,7 @@ const baseDesignConfig = {
   fonts: { heading: "Fraunces", body: "Plus Jakarta Sans" },
   page: { size: "a4" as const, orientation: "portrait" as const },
   image: { mode: "ai" as const, style: "illustration" },
-};
+} as const satisfies WizardDesignConfig;
 
 const baseEbook = {
   id: "ebook-main",
