@@ -19,12 +19,12 @@ port = 3000
 
 # Your Supabase project URL
 # Example: https://xyzabc123.supabase.co
-SUPABASE_URL = "https://your-project.supabase.co"
+SUPABASE_URL = ""
 
 # Service Role Key (MUST be marked as Secret in Railway dashboard)
 # Get from: https://app.supabase.com → Settings → API → Service role key
 # This allows the worker to access all tables and bypass RLS
-SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+SUPABASE_SERVICE_ROLE_KEY = "sb_secret_4eBLzQaWipR3KD7_aUCA5Q_LwWWiqsk"
 
 # Storage bucket name for PDF uploads
 # Must exist in Supabase Storage
@@ -46,7 +46,7 @@ PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
 
 # Secret token for authorizing cron job requests
 # Must match the Authorization: Bearer header in cron trigger
-CRON_SECRET = "your-very-secret-token"
+CRON_SECRET = "1f82fe2d4e44f7e1f9dea0fbd1ad9ce9756142fe4f277b364921c5a11f54df31"
 
 # ============================================================================
 # ENVIRONMENT & LOGGING
