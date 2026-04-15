@@ -1,0 +1,29 @@
+# Railway Configuration for PDF Export Worker
+# Reference: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "dockerfile"
+buildCommand = "npm ci"
+
+[deploy]
+startCommand = "node index.js"
+healthchecks = { readiness = { path = "/health", interval = 30 } }
+
+# Port configuration
+port = 3000
+
+[environmentVariables]
+PORT = "3000"
+NODE_ENV = "production"
+LOG_LEVEL = "info"
+
+# Memory and resource limits
+[deploy.limits]
+cpus = "0.5"
+memory = "512MB"
+
+# Cron Job Configuration
+[[crons]]
+name = "Process PDF Export Jobs"
+schedule = "*/30 * * * *"  # Every 30 seconds
+command = "curl -X POST http://localhost:3000/process -H 'Authorization: Bearer $CRON_SECRET' -H 'Content-Type: application/json'"
