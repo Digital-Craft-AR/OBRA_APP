@@ -29,6 +29,8 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
       if (!projectId) return;
       setLoading(true);
       setError(null);
+      // Avoid showing the previous project's row while the new id is loading (SPA navigations).
+      setProject(null);
 
       const { data, error: queryError } = await supabase
         .from("projects")
