@@ -98,6 +98,19 @@ export function WizardPreviewPage() {
   const [ebooksLoading, setEbooksLoading] = useState(false);
   const [ebooksError, setEbooksError] = useState<string | null>(null);
 
+  /** Only deliverables configured on the project (avoids stale extra ebook rows in the nav). */
+  const visibleEbooks = useMemo(() => {
+    if (!project) return ebooks;
+    const bonusN = Math.max(0, Math.floor(Number(project.bonus_count) || 0));
+    const bumpN = Math.max(0, Math.floor(Number(project.bump_count) || 0));
+    return ebooks.filter((e) => {
+      if (e.type === "main") return true;
+      if (e.type === "bonus") return e.package_ordinal >= 0 && e.package_ordinal < bonusN;
+      if (e.type === "order_bump") return e.package_ordinal >= 0 && e.package_ordinal < bumpN;
+      return false;
+    });
+  }, [ebooks, project]);
+
   const [selectedEbookId, setSelectedEbookId] = useState<string | null>(null);
   const [chaptersCache, setChaptersCache] = useState<Record<string, ChapterDraftRow[]>>({});
   const [chaptersLoading, setChaptersLoading] = useState(false);
@@ -191,6 +204,15 @@ export function WizardPreviewPage() {
     return () => { cancelled = true; };
   }, [project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // If counts shrank or rows are stale, keep selection on a visible deliverable.
+  useEffect(() => {
+    if (visibleEbooks.length === 0) return;
+    const stillThere = selectedEbookId && visibleEbooks.some((e) => e.id === selectedEbookId);
+    if (!stillThere) {
+      setSelectedEbookId(visibleEbooks[0]!.id);
+    }
+  }, [visibleEbooks, selectedEbookId]);
+
   const handleSelectEbook = useCallback((id: string) => {
     setSelectedEbookId(id);
   }, []);
@@ -270,7 +292,7 @@ export function WizardPreviewPage() {
     }
   }, [project?.id, project?.main_title, t]);
 
-  const selectedEbook = ebooks.find((e) => e.id === selectedEbookId) ?? null;
+  const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
   const tabLabel = useCallback(
@@ -322,13 +344,13 @@ export function WizardPreviewPage() {
           <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
 
             {/* Deliverable sidebar — icon buttons, no background, inside centered content */}
-            {ebooks.length > 0 ? (
+            {visibleEbooks.length > 0 ? (
               <nav
                 aria-label={t("wizard.preview.ebooksNav")}
                 className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 pb-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
               >
                 <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
-                  {ebooks.map((ebook) => {
+                  {visibleEbooks.map((ebook) => {
                     const isCurrent = ebook.id === selectedEbookId;
                     const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? Tag : Book;
                     return (
@@ -380,6 +402,7 @@ export function WizardPreviewPage() {
                         status={imageSlots["cover_art"]?.status ?? "idle"}
                         imageUrl={imageSlots["cover_art"]?.url ?? null}
                         maxKb={2048}
+                        disabled={imageSlots["cover_art"]?.status === "generating"}
                         onGenerate={(instruction) => void handleGenerateCover(instruction)}
                         onUpload={(file) => void handleUploadCover(file)}
                         onRemove={

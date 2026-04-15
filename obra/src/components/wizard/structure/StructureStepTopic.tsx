@@ -43,7 +43,7 @@ export function StructureStepTopic({
         onAssist={onAssist}
         assistLabel={assistLabel}
         aiStatus={improving ? "loading" : "idle"}
-        disabled={disabled}
+        disabled={disabled || improving}
       />
       <div className="flex items-center gap-3">
         {saving ? <span className="text-xs text-obra-neutral-600">{savingLabel}</span> : null}
