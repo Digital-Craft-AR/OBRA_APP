@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Runtime stage
 FROM node:20-slim
@@ -52,9 +52,9 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
-# Use non-root user already present in the base image
-RUN chown -R node:node /app
-USER node
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

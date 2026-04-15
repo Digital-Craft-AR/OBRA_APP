@@ -3,7 +3,7 @@
 
 [build]
 builder = "dockerfile"
-buildCommand = "npm ci"
+buildCommand = "npm ci --omit=dev"
 
 [deploy]
 startCommand = "node index.js"
