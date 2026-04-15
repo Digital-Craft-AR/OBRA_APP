@@ -52,9 +52,9 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# Use non-root user already present in the base image
+RUN chown -R node:node /app
+USER node
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
