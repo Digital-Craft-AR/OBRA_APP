@@ -277,6 +277,15 @@ Deno.serve(async (req: Request) => {
         .eq("id", ebookIdToUpdate);
       if (saveIndexErr) {
         console.error("index_json_save_failed", saveIndexErr.message);
+        return json(
+          {
+            ok: false,
+            error: "index_persist_failed",
+            detail: saveIndexErr.message?.slice(0, 240) ?? "save_failed",
+            credits_balance_after: balanceAfter,
+          },
+          500,
+        );
       }
     }
   }

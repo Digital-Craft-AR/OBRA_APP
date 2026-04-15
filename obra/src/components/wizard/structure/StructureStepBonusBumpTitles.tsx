@@ -32,7 +32,7 @@ function sectionRow(
 ) {
   const key = `${kind}-${index}`;
   const isLoading = loadingKey === key;
-  const isRegeneratingAll = loadingKey === `${kind}-all`;
+  const aiBusy = loadingKey !== null;
   return (
     <div key={key} className="rounded-card bg-obra-neutral-100 px-4 py-3">
       <div className="flex items-center gap-3 text-xs">
@@ -46,13 +46,14 @@ function sectionRow(
             value={item.title}
             onChange={(event) => onChangeTitle(index, event.target.value)}
             placeholder={`Write ${kind} title`}
-            className="h-9 w-full border-0 border-b border-obra-neutral-300 bg-transparent px-0 text-xs text-obra-blue-950 outline-none focus:border-obra-blue-700"
+            disabled={aiBusy}
+            className="h-9 w-full border-0 border-b border-obra-neutral-300 bg-transparent px-0 text-xs text-obra-blue-950 outline-none focus:border-obra-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
         <button
           type="button"
-          disabled={item.locked || isLoading || isRegeneratingAll}
+          disabled={item.locked || loadingKey !== null}
           onClick={() => onRegenerate(index)}
           className="size-8 p-0 flex items-center justify-center bg-transparent border-0 text-obra-neutral-400 hover:text-obra-blue-900 disabled:opacity-50"
           aria-label={`Regenerate ${kind} ${index + 1}`}
@@ -61,8 +62,9 @@ function sectionRow(
         </button>
         <button
           type="button"
+          disabled={aiBusy}
           onClick={() => onToggleLock(index)}
-          className={`size-8 p-0 flex items-center justify-center bg-transparent border-0 ${
+          className={`size-8 p-0 flex items-center justify-center bg-transparent border-0 disabled:cursor-not-allowed disabled:opacity-50 ${
             item.locked ? "text-obra-blue-900" : "text-obra-neutral-400"
           }`}
           aria-label={`${item.locked ? "Unlock" : "Lock"} ${kind} ${index + 1}`}
@@ -102,7 +104,7 @@ export function StructureStepBonusBumpTitles({
             <button
               type="button"
               onClick={onRegenerateAllBonus}
-              disabled={loadingKey === "bonus-all"}
+              disabled={loadingKey !== null}
               className="inline-flex items-center gap-2 text-sm text-obra-blue-900 hover:text-obra-blue-950 disabled:opacity-50"
             >
               <RotateCw className={`size-4 ${loadingKey === "bonus-all" ? "animate-spin" : ""}`} aria-hidden />
@@ -130,7 +132,7 @@ export function StructureStepBonusBumpTitles({
             <button
               type="button"
               onClick={onRegenerateAllBump}
-              disabled={loadingKey === "bump-all"}
+              disabled={loadingKey !== null}
               className="inline-flex items-center gap-2 text-sm text-obra-blue-900 hover:text-obra-blue-950 disabled:opacity-50"
             >
               <RotateCw className={`size-4 ${loadingKey === "bump-all" ? "animate-spin" : ""}`} aria-hidden />

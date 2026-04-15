@@ -5,7 +5,10 @@ import { corsJson, corsOptions } from "../_shared/cors.ts";
 /**
  * Generates or regenerates a cover/section image for a project deliverable.
  *
- * - Uses Google Gemini Imagen API (GOOGLE_GENERATIVE_AI_API_KEY) — key never in client.
+ * - Uses Gemini native image generation via REST `generateContent` (no npm SDK — the JS SDK
+ *   pulls `.d.ts` graph edges that break Supabase Edge / Deno boot). See:
+ *   https://ai.google.dev/gemini-api/docs/image-generation
+ * - API key: GOOGLE_GENERATIVE_AI_API_KEY (never exposed to the client).
  * - Stores optimized image in the `project-images` Storage bucket.
  * - Debits credits via obra_credit_ledger_apply on success only.
  * - Marks the project_images row: generating → done | error.
@@ -28,7 +31,8 @@ const IMAGE_GENERATE_CREDIT_COST = (() => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 3;
 })();
 
-const GEMINI_MODEL = Deno.env.get("GEMINI_IMAGE_MODEL") ?? "imagen-3.0-generate-002";
+/** Default: Nano Banana 2 (Gemini 3.1 Flash Image) per image-generation docs. */
+const GEMINI_MODEL = Deno.env.get("GEMINI_IMAGE_MODEL") ?? "gemini-3.1-flash-image-preview";
 
 function getGeminiApiKey(): string | null {
   const k = Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY");
@@ -62,46 +66,79 @@ function buildHeroPrompt(opts: {
   return opts.instruction ? `${base} Additional guidance: ${opts.instruction}` : base;
 }
 
-interface GeminiImageResponse {
-  predictions?: Array<{
-    bytesBase64Encoded?: string;
-    mimeType?: string;
-  }>;
-  error?: { message?: string };
+type GeminiInlinePart = {
+  inlineData?: { mimeType?: string; data?: string };
+  inline_data?: { mime_type?: string; data?: string };
+};
+
+function readInlineFromPart(part: GeminiInlinePart): { base64: string; mimeType: string } | null {
+  const camel = part.inlineData;
+  if (camel && typeof camel.data === "string" && camel.data.length > 0) {
+    return { base64: camel.data, mimeType: typeof camel.mimeType === "string" ? camel.mimeType : "image/png" };
+  }
+  const snake = part.inline_data;
+  if (snake && typeof snake.data === "string" && snake.data.length > 0) {
+    return { base64: snake.data, mimeType: typeof snake.mime_type === "string" ? snake.mime_type : "image/png" };
+  }
+  return null;
 }
 
-async function callGeminiImagen(
+async function callGeminiNativeImageRest(
   apiKey: string,
+  model: string,
   prompt: string,
 ): Promise<{ ok: true; base64: string; mimeType: string } | { ok: false; error: string }> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:predict?key=${apiKey}`;
+  const endpoint =
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
-        instances: [{ prompt }],
-        parameters: { sampleCount: 1 },
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ["IMAGE"],
+        },
       }),
     });
   } catch (err) {
-    console.error("gemini_imagen_fetch_error", err);
+    console.error("gemini_image_fetch_error", err);
     return { ok: false, error: "gemini_network_error" };
   }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error("gemini_imagen_http_error", res.status, body.slice(0, 200));
+    console.error("gemini_image_http_error", res.status, body.slice(0, 400));
     return { ok: false, error: `gemini_http_${res.status}` };
   }
 
-  const data = (await res.json()) as GeminiImageResponse;
-  const pred = data.predictions?.[0];
-  if (!pred?.bytesBase64Encoded) {
+  let parsed: unknown;
+  try {
+    parsed = await res.json();
+  } catch {
+    return { ok: false, error: "gemini_invalid_json" };
+  }
+
+  const root = parsed as Record<string, unknown>;
+  const candidates = root.candidates as unknown[] | undefined;
+  const c0 = candidates?.[0] as Record<string, unknown> | undefined;
+  const content = c0?.content as Record<string, unknown> | undefined;
+  const parts = content?.parts as GeminiInlinePart[] | undefined;
+  if (!parts?.length) {
+    console.error("gemini_no_candidates", JSON.stringify(parsed).slice(0, 500));
     return { ok: false, error: "gemini_empty_response" };
   }
-  return { ok: true, base64: pred.bytesBase64Encoded, mimeType: pred.mimeType ?? "image/png" };
+
+  for (const part of parts) {
+    const img = readInlineFromPart(part);
+    if (img) return { ok: true, base64: img.base64, mimeType: img.mimeType };
+  }
+  return { ok: false, error: "gemini_no_image_part" };
 }
 
 Deno.serve(async (req: Request) => {
@@ -259,8 +296,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Call Gemini Imagen
-  const geminiResult = await callGeminiImagen(apiKey, prompt);
+  const geminiResult = await callGeminiNativeImageRest(apiKey, GEMINI_MODEL, prompt);
 
   if (!geminiResult.ok) {
     await admin

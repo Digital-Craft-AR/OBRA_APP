@@ -354,14 +354,25 @@ export function WizardContentPage() {
   }, [selectedKey, mainEbookId, packageEbookIds]);
 
   useEffect(() => {
-    if (!selectedEbookId || currentPhase !== "main_chapter") return;
-    // Avoid showing stale chapter progress from the previously selected artifact
-    // while the next artifact's chapters are loading.
+    if (currentPhase !== "main_chapter") return;
+
+    const targetEbookId = selectedKey === "main" ? mainEbookId : packageEbookIds[selectedKey] ?? null;
+
+    // When switching bonus/bump before package ebook ids are ready, `selectedEbookId` was null and
+    // this effect returned early without clearing — leaving main-ebook chapter IDs in state.
+    // That caused ai-generate-content "chapter_not_found" / saves that targeted the wrong rows.
+    if (!targetEbookId) {
+      setChapterRows([]);
+      setChapterIdx(0);
+      setChapterBodyDraft("");
+      return;
+    }
+
     setChapterRows([]);
     setChapterIdx(0);
     setChapterBodyDraft("");
     let cancelled = false;
-    void loadEbookChaptersDraft(selectedEbookId).then((r) => {
+    void loadEbookChaptersDraft(targetEbookId).then((r) => {
       if (cancelled || !r.ok) return;
       setChapterRows(r.rows);
       setChapterIdx(0);
@@ -371,7 +382,7 @@ export function WizardContentPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedEbookId, currentPhase]);
+  }, [selectedKey, mainEbookId, packageEbookIds, currentPhase]);
 
   const refreshChapterBodyPresence = useCallback(async () => {
     if (!mainEbookId) return;
@@ -485,16 +496,51 @@ export function WizardContentPage() {
     currentPhase === "main_chapter" &&
     (project?.content_source === "ai" || project?.content_source === "upload");
 
+  /**
+   * Intro is also "done" when server progress has clearly moved past the first-time choice,
+   * so we do not flash it on dashboard → content navigations without sessionStorage (or after
+   * clearing storage) when the user is already in upload alignment, chapter phase, or past index freeze.
+   */
+  const introSkippableByServerProgress = useMemo(
+    () =>
+      Boolean(
+        workspaceReady &&
+          (currentPhase === "upload_alignment" ||
+            currentPhase === "main_chapter" ||
+            Boolean(globalIndexFrozenAt)),
+      ),
+    [workspaceReady, currentPhase, globalIndexFrozenAt],
+  );
+
+  const effectiveContentIntroDone = contentSourceIntroDone || introSkippableByServerProgress;
+
+  useEffect(() => {
+    if (!params.projectId || !introSkippableByServerProgress || contentSourceIntroDone) return;
+    try {
+      globalThis.sessionStorage.setItem(contentSourceIntroStorageKey(params.projectId), "1");
+    } catch {
+      /* ignore */
+    }
+    setContentSourceIntroDone(true);
+  }, [params.projectId, introSkippableByServerProgress, contentSourceIntroDone]);
+
   const awaitingContentIntro = useMemo(
-    () => Boolean(project && workspaceReady && !contentSourceIntroDone),
-    [project, workspaceReady, contentSourceIntroDone],
+    () =>
+      Boolean(
+        project &&
+          project.id === params.projectId &&
+          !loading &&
+          workspaceReady &&
+          !effectiveContentIntroDone,
+      ),
+    [project, params.projectId, loading, workspaceReady, effectiveContentIntroDone],
   );
 
   const contentInnerStepTotal = project?.content_source === "upload" ? 4 : 3;
 
   const contentInnerStepCurrent = useMemo(() => {
     if (!project || !workspaceReady) return 1;
-    if (!contentSourceIntroDone) return 1;
+    if (!effectiveContentIntroDone) return 1;
     if (project.content_source === "upload") {
       if (needsUploadAlignment) return 2;
       if (showChapterLoop) return 4;
@@ -502,11 +548,11 @@ export function WizardContentPage() {
     }
     if (showChapterLoop) return 3;
     return 2;
-  }, [project, workspaceReady, contentSourceIntroDone, needsUploadAlignment, showChapterLoop]);
+  }, [project, workspaceReady, effectiveContentIntroDone, needsUploadAlignment, showChapterLoop]);
 
   const contentInnerStepLabel = useMemo(() => {
     if (!project || !workspaceReady) return t("wizard.content.inner.contentSource");
-    if (!contentSourceIntroDone) return t("wizard.content.inner.contentSource");
+    if (!effectiveContentIntroDone) return t("wizard.content.inner.contentSource");
     if (project.content_source === "upload") {
       if (contentInnerStepCurrent === 2) return t("wizard.content.inner.manuscript");
       if (contentInnerStepCurrent === 3) return t("wizard.content.inner.packageIndex");
@@ -514,7 +560,7 @@ export function WizardContentPage() {
     }
     if (contentInnerStepCurrent === 2) return t("wizard.content.inner.toc");
     return t("wizard.content.inner.chapterContent");
-  }, [project, workspaceReady, contentSourceIntroDone, contentInnerStepCurrent, t]);
+  }, [project, workspaceReady, effectiveContentIntroDone, contentInnerStepCurrent, t]);
 
   const persistCurrentChapterDraftIfDirty = useCallback(async () => {
     if (!showChapterLoop) return true;
@@ -639,8 +685,9 @@ export function WizardContentPage() {
   );
 
   const navItemDisabled = useCallback(
-    (key: string) => needsUploadAlignment && key !== "main",
-    [needsUploadAlignment],
+    (key: string) =>
+      (needsUploadAlignment && key !== "main") || generateLoading || chapterGenerateLoading,
+    [needsUploadAlignment, generateLoading, chapterGenerateLoading],
   );
 
   const handleRegenerateMainOutline = useCallback(async () => {
@@ -993,8 +1040,16 @@ export function WizardContentPage() {
         toastApiFailure(t, key);
       } else {
         const key = "wizard.content.chapters.errorGenerateGeneric";
-        setActionAnnouncement(t(key));
-        toastApiFailure(t, key);
+        if (result.message) {
+          setActionAnnouncement(result.message);
+          toast.error({
+            title: t(key),
+            description: result.message,
+          });
+        } else {
+          setActionAnnouncement(t(key));
+          toastApiFailure(t, key);
+        }
       }
       return;
     }
@@ -1257,7 +1312,7 @@ export function WizardContentPage() {
   const confirmDisabled = !globalIndexReady;
 
   const confirmVisible =
-    contentSourceIntroDone &&
+    effectiveContentIntroDone &&
     !needsUploadAlignment &&
     !Boolean(globalIndexFrozenAt) &&
     currentPhase === "main_index" &&

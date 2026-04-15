@@ -50,11 +50,14 @@ export function ContentChapterMilestone({
   const current = chapters[selectedIndex];
   const dirty = current ? !chapterHtmlEquals(bodyValue, current.content ?? "") : false;
   const generateDisabled = generateLoading || !current?.title?.trim();
-  const saveDisabled = saveLoading || !dirty;
+  const saveDisabled = saveLoading || !dirty || generateLoading;
   /** Approve persists unsaved text then sets approved_at; only disabled when already approved with no edits. */
   const alreadyApprovedClean = Boolean(current?.approved_at) && !dirty;
   const approveDisabled =
-    approveLoading || isChapterHtmlEffectivelyEmpty(bodyValue) || alreadyApprovedClean;
+    approveLoading ||
+    generateLoading ||
+    isChapterHtmlEffectivelyEmpty(bodyValue) ||
+    alreadyApprovedClean;
   const safeMax = Math.max(1, progressMax);
   const safeValue = Math.min(Math.max(progressValue, 0), safeMax);
   const progressPercent = Math.round((safeValue / safeMax) * 100);
@@ -69,10 +72,12 @@ export function ContentChapterMilestone({
                 <li key={ch.id}>
                   <button
                     type="button"
+                    disabled={generateLoading}
                     onClick={() => onSelectChapterIndex(index)}
                     aria-current={isSel ? "true" : undefined}
                     className={[
                       "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left font-body text-sm transition-colors",
+                      generateLoading ? "cursor-not-allowed opacity-50" : "",
                       isSel
                         ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
                         : "border-transparent bg-white text-obra-neutral-700 hover:border-obra-blue-200 hover:bg-obra-blue-50/50",
@@ -127,7 +132,7 @@ export function ContentChapterMilestone({
               key={`${current.id}-${richTextResetKey}`}
               value={bodyValue}
               onChange={onBodyChange}
-              disabled={false}
+              disabled={generateLoading}
               placeholder={t("wizard.content.chapters.bodyPlaceholder")}
             />
           ) : null}

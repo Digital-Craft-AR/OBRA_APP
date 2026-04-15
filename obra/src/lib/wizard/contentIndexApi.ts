@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
+import { getFunctionsInvokeErrorBody, getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import {
   isChapterHtmlEffectivelyEmpty,
   sanitizeChapterHtml,
@@ -40,6 +40,7 @@ export type GenerateChapterContentResponse = {
   content?: string;
   credits_balance_after?: number;
   error?: string;
+  message?: string;
 };
 
 export function validateMainTocForConfirm(rows: { title: string }[]): "ok" | "too_few" | "too_many" | "empty_title" {
@@ -605,7 +606,7 @@ export async function invokeGenerateChapterContent(
   clientRequestId: string,
 ): Promise<
   | { ok: true; content: string; creditsBalanceAfter?: number }
-  | { ok: false; code: string }
+  | { ok: false; code: string; message?: string }
 > {
   const { data, error } = await supabase.functions.invoke<GenerateChapterContentResponse>("ai-generate-content", {
     body: {
@@ -616,12 +617,20 @@ export async function invokeGenerateChapterContent(
   });
 
   if (error) {
-    const code = await getFunctionsInvokeErrorCode(error);
-    return { ok: false, code: code ?? "invoke_failed" };
+    const body = await getFunctionsInvokeErrorBody(error);
+    const main = typeof body?.error === "string" ? body.error : null;
+    const detail = typeof body?.detail === "string" ? body.detail : null;
+    const codeFromBody = main && detail ? `${main}:${detail}` : main;
+    const code = codeFromBody ?? "invoke_failed";
+    const message =
+      typeof body?.message === "string" && body.message.trim().length > 0 ? body.message.trim() : undefined;
+    return message ? { ok: false, code, message } : { ok: false, code };
   }
   if (!data?.ok || typeof data.content !== "string" || isChapterHtmlEffectivelyEmpty(data.content)) {
     const err = typeof data?.error === "string" ? data.error : "bad_response";
-    return { ok: false, code: err };
+    const message =
+      typeof data?.message === "string" && data.message.trim().length > 0 ? data.message.trim() : undefined;
+    return message ? { ok: false, code: err, message } : { ok: false, code: err };
   }
   return {
     ok: true,
