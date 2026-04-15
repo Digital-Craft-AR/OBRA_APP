@@ -1,0 +1,4 @@
+# Procfile for Railway deployment
+# Reference: https://devcenter.heroku.com/articles/procfile
+
+web: node index.js

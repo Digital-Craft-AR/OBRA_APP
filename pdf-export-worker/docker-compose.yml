@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  pdf-export-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      LOG_LEVEL: debug
+
+      # Supabase Configuration (update with your values)
+      SUPABASE_URL: ${SUPABASE_URL:-https://your-project.supabase.co}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-your-service-role-key}
+      PROJECT_PDFS_BUCKET: project-pdfs
+
+      # Puppeteer Configuration
+      PUPPETEER_TIMEOUT_MS: 55000
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+
+      # Cron Security
+      CRON_SECRET: ${CRON_SECRET:-dev-secret-token}
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits for local development
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    volumes:
+      # Optional: mount node_modules if needed
+      # - ./node_modules:/app/node_modules
+
+    restart: unless-stopped
