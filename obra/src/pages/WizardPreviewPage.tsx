@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
+import { ExportPdfModal } from "@/components/wizard/ExportPdfModal";
 import { PreviewDocument, type EbookPreviewData } from "@/components/preview/PreviewDocument";
 import { ImageSlot } from "@/components/preview/ImageSlot";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
@@ -16,6 +17,7 @@ import {
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
+import { queuePdfExport, getErrorMessage } from "@/utils/pdf-export";
 import { supabase } from "@/lib/supabaseClient";
 
 type EbookRow = {
@@ -116,6 +118,10 @@ export function WizardPreviewPage() {
   const [chaptersLoading, setChaptersLoading] = useState(false);
 
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
   const [zipLoading, setZipLoading] = useState(false);
   const [zipError, setZipError] = useState<string | null>(null);
   const [publishStatus, setPublishStatus] = useState<"draft" | "published" | "modified">("draft");
@@ -243,30 +249,32 @@ export function WizardPreviewPage() {
 
   const handleExportPdf = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
+
     setExportLoading(true);
+    setExportError(null);
+
     try {
-      const { data, error } = await supabase.functions.invoke("export-pdf", {
-        body: { projectId: project.id, ebookId: selectedEbookId },
-      });
-      if (error || !data?.ok || !data?.signedUrl) {
-        console.error("export_pdf_error", error ?? data?.error);
-        return;
-      }
-      // Trigger browser download
-      const a = document.createElement("a");
-      a.href = data.signedUrl as string;
-      a.download = `${project.main_title ?? "ebook"}.pdf`;
-      a.click();
-      // Mark as published after first successful export
+      // Queue PDF export job (Railway will process it asynchronously)
+      const result = await queuePdfExport(project.id, selectedEbookId);
+
+      // Open modal to show progress
+      setExportJobId(result.jobId);
+      setIsExportModalOpen(true);
+
+      // Mark as published after first successful queue
       setPublishStatus((prev) => (prev === "draft" ? "published" : prev));
       await supabase
         .from("projects")
         .update({ publish_status: "published" })
         .eq("id", project.id);
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      setExportError(errorMsg);
+      console.error("export_pdf_queue_error", err);
     } finally {
       setExportLoading(false);
     }
-  }, [project?.id, project?.main_title, selectedEbookId]);
+  }, [project?.id, selectedEbookId]);
 
   const handleExportZip = useCallback(async () => {
     if (!project?.id) return;
@@ -430,9 +438,24 @@ export function WizardPreviewPage() {
         </div>
       </main>
 
+      {/* Export PDF Modal */}
+      <ExportPdfModal
+        isOpen={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        jobId={exportJobId}
+        projectTitle={project?.main_title ?? "ebook"}
+        onSuccess={(pdfUrl) => {
+          // Optional: Auto-download on success
+          // OR just close the modal and let user click download
+        }}
+      />
+
       {/* Footer */}
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
         <div className="flex w-full min-w-0 flex-col gap-3">
+          {exportError ? (
+            <p role="alert" className="text-xs text-red-600">{exportError}</p>
+          ) : null}
           {zipError ? (
             <p role="alert" className="text-xs text-red-600">{zipError}</p>
           ) : null}
