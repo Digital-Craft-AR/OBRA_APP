@@ -5,25 +5,68 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+
+    container_name: pdf-export-worker
+
     ports:
       - "3000:3000"
+
     environment:
-      NODE_ENV: development
-      PORT: 3000
-      LOG_LEVEL: debug
+      # ========================================================================
+      # SUPABASE CONFIGURATION
+      # ========================================================================
+      # Get these from: https://app.supabase.com → Select project → Settings → API
 
-      # Supabase Configuration (update with your values)
+      # Your Supabase project URL
+      # Example: https://xyzabc123.supabase.co
       SUPABASE_URL: ${SUPABASE_URL:-https://your-project.supabase.co}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-your-service-role-key}
-      PROJECT_PDFS_BUCKET: project-pdfs
 
-      # Puppeteer Configuration
-      PUPPETEER_TIMEOUT_MS: 55000
+      # Service Role Key (for full database access, bypasses RLS)
+      # Get from: https://app.supabase.com → Settings → API → Service role key
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...}
+
+      # Anon key (optional, for public/authenticated access)
+      # Get from: https://app.supabase.com → Settings → API → Anon public key
+      # SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+
+      # Storage bucket for PDF uploads
+      PROJECT_PDFS_BUCKET: ${PROJECT_PDFS_BUCKET:-project-pdfs}
+
+      # ========================================================================
+      # PUPPETEER CONFIGURATION
+      # ========================================================================
+
+      # Timeout for PDF rendering (milliseconds)
+      PUPPETEER_TIMEOUT_MS: ${PUPPETEER_TIMEOUT_MS:-55000}
+
+      # Path to Chromium in Docker container
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
 
-      # Cron Security
+      # ========================================================================
+      # CRON SECURITY
+      # ========================================================================
+
+      # Secret token for cron authorization
       CRON_SECRET: ${CRON_SECRET:-dev-secret-token}
 
+      # ========================================================================
+      # ENVIRONMENT & LOGGING
+      # ========================================================================
+
+      # Node environment (development for local testing)
+      NODE_ENV: ${NODE_ENV:-development}
+
+      # Log level: debug, info, warn, error
+      # Use debug for local development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+
+      # Express port
+      PORT: 3000
+
+      # Railway environment (ignored locally)
+      # RAILWAY_ENVIRONMENT: development
+
+    # Health check to verify container is running
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -41,8 +84,35 @@ services:
           cpus: '0.5'
           memory: 512M
 
-    volumes:
-      # Optional: mount node_modules if needed
-      # - ./node_modules:/app/node_modules
-
+    # Auto-restart on failure
     restart: unless-stopped
+
+    # Optional volumes for development
+    # volumes:
+    #   - ./src:/app/src  # Hot-reload source code changes
+    #   - ./node_modules:/app/node_modules
+
+# ============================================================================
+# HOW TO USE
+# ============================================================================
+#
+# 1. Create a .env file with your values:
+#    cp .env.example .env
+#    # Edit .env with your Supabase credentials
+#
+# 2. Start the container:
+#    docker-compose up --build
+#
+# 3. Test the health endpoint:
+#    curl http://localhost:3000/health
+#
+# 4. Test manual processing:
+#    curl -X POST http://localhost:3000/process \
+#      -H "Authorization: Bearer dev-secret-token" \
+#      -H "Content-Type: application/json"
+#
+# 5. View logs:
+#    docker-compose logs -f
+#
+# 6. Stop the container:
+#    docker-compose down
