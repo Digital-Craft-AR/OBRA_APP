@@ -64,6 +64,8 @@ export function ContentIndexMilestone({
 }: ContentIndexMilestoneProps) {
   const usesChapterList = usesMultiChapterContentNavTarget(selectedTarget);
   const readOnly = Boolean(tocReadOnly);
+  const tocAiBusy = Boolean(regenerateLoading);
+  const tocFieldsLocked = readOnly || tocAiBusy;
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   function updateRow(id: string, title: string) {
@@ -145,7 +147,13 @@ export function ContentIndexMilestone({
                   {regenerateLoading ? t("wizard.content.index.regenerateLoading") : t("wizard.content.index.emptyTocGenerate")}
                 </Button>
               ) : null}
-              <Button type="button" variant="tertiary" size="medium" onClick={() => onMainTocChooseManual?.()}>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="medium"
+                disabled={tocAiBusy}
+                onClick={() => onMainTocChooseManual?.()}
+              >
                 {t("wizard.content.index.emptyTocManual")}
               </Button>
             </div>
@@ -189,7 +197,7 @@ export function ContentIndexMilestone({
                   ].join(" ")}
                 >
                   <div className="flex items-center gap-3">
-                    {!readOnly ? (
+                    {!readOnly && !tocAiBusy ? (
                       <span
                         draggable
                         onDragStart={(e) => handleDragStart(e, index)}
@@ -206,11 +214,11 @@ export function ContentIndexMilestone({
                       value={row.title}
                       onChange={(event) => updateRow(row.id, event.target.value)}
                       placeholder={t("wizard.content.index.chapterTitlePlaceholder")}
-                      disabled={readOnly}
+                      disabled={tocFieldsLocked}
                       aria-label={t("wizard.content.index.chapterTitleLabel", { index: index + 1 })}
                       className="min-w-0 flex-1 border-0 bg-transparent py-1 font-body text-sm text-obra-blue-950 outline-none placeholder:text-obra-neutral-400 focus:ring-0 disabled:cursor-not-allowed disabled:opacity-40"
                     />
-                    {!readOnly ? (
+                    {!readOnly && !tocAiBusy ? (
                       <button
                         type="button"
                         className="shrink-0 rounded-md p-2 text-obra-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -234,7 +242,7 @@ export function ContentIndexMilestone({
                     value={row.title}
                     onChange={(event) => updateRow(row.id, event.target.value)}
                     placeholder={t("wizard.content.index.chapterTitlePlaceholder")}
-                    disabled={readOnly}
+                    disabled={tocFieldsLocked}
                   />
                 </li>
               )
@@ -242,7 +250,7 @@ export function ContentIndexMilestone({
           </ol>
         ) : null}
 
-        {usesChapterList && !readOnly && !showMainTocEmptyChoice ? (
+        {usesChapterList && !readOnly && !tocAiBusy && !showMainTocEmptyChoice ? (
           <div>
             <Button type="button" variant="tertiary" size="medium" onClick={addRow}>
               <Plus className="size-4" aria-hidden />

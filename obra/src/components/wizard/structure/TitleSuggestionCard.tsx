@@ -4,14 +4,18 @@ type TitleSuggestionCardProps = {
   title: string;
   selected: boolean;
   onSelect: () => void;
+  disabled?: boolean;
 };
 
-export function TitleSuggestionCard({ title, selected, onSelect }: TitleSuggestionCardProps) {
+export function TitleSuggestionCard({ title, selected, onSelect, disabled = false }: TitleSuggestionCardProps) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onSelect}
       className={`rounded-card border p-4 text-left transition-colors ${
+        disabled ? "cursor-not-allowed opacity-50" : ""
+      } ${
         selected
           ? "border-obra-blue-700 bg-obra-blue-50"
           : "border-obra-neutral-200 bg-white hover:border-obra-blue-700/50"

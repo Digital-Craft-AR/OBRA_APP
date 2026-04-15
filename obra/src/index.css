@@ -110,3 +110,303 @@
   pointer-events: none;
   color: var(--color-obra-neutral-400);
 }
+
+/* ── Preview document layout ─────────────────────────────────────────────── */
+/* Scoped under .preview-document to avoid leaking into app shell.            */
+/* CSS custom properties (--preview-color-*, --preview-font-*) are injected  */
+/* by PreviewDocument.tsx from project design_config at runtime.              */
+
+.preview-document {
+  font-family: var(--preview-font-body, "Plus Jakarta Sans", sans-serif);
+  color: #1a1a1a;
+}
+
+.preview-page {
+  position: relative;
+  width: 100%;
+  /* Fixed height = chosen page type (A4 / Letter, portrait / landscape).
+     --preview-page-aspect-ratio is injected by PreviewDocument.tsx from design_config.
+     Content that exceeds the page height is clipped — mirrors print/PDF behavior.
+     Fallback 210/297 = A4 portrait. */
+  aspect-ratio: var(--preview-page-aspect-ratio, 210 / 297);
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+  padding: 2rem;
+  break-after: page;
+}
+
+/* Cover — height is fixed by parent .preview-page aspect-ratio */
+.preview-cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.preview-cover__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.6;
+}
+
+.preview-cover__art-placeholder {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, transparent 40%, rgba(0, 0, 0, 0.35));
+}
+
+.preview-cover__text {
+  position: relative;
+  padding: 2.5rem;
+  color: white;
+}
+
+.preview-cover__title {
+  font-family: var(--preview-font-heading, "Fraunces", serif);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.preview-cover__author {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin: 0;
+}
+
+/* Table of contents */
+.preview-toc__heading {
+  font-family: var(--preview-font-heading, "Fraunces", serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: var(--preview-color-primary, #204970);
+}
+
+.preview-toc__ebook-title {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0 0 1.25rem;
+}
+
+.preview-toc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview-toc__entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  border-bottom: 1px dotted #ddd;
+  padding-bottom: 0.375rem;
+}
+
+.preview-toc__entry-title {
+  flex: 1;
+}
+
+.preview-toc__entry-page {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: #888;
+}
+
+/* Chapter opener — height is fixed by parent .preview-page aspect-ratio */
+.preview-chapter-opener {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 2.5rem 2rem;
+  background: var(--preview-color-secondary, #e8f0f7);
+}
+
+.preview-chapter-opener__accent {
+  width: 3rem;
+  height: 4px;
+  border-radius: 2px;
+  margin-bottom: 1rem;
+}
+
+.preview-chapter-opener__number {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--preview-color-primary, #204970);
+  margin: 0 0 0.5rem;
+  opacity: 0.7;
+}
+
+.preview-chapter-opener__title {
+  font-family: var(--preview-font-heading, "Fraunces", serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  color: var(--preview-color-primary, #204970);
+}
+
+/* Chapter body pages — content flows freely across as many pages as needed.
+   .preview-page sets aspect-ratio which acts as a min-height (CSS height:auto
+   means the box is at least aspect-ratio tall and grows with content).
+   Changing only overflow to visible lets long chapters show all their text
+   while short chapters keep the full one-page look.
+   Cover, TOC and chapter-opener pages keep the overflow:hidden from .preview-page. */
+.preview-body {
+  overflow: visible;
+}
+
+/* Visual page-break indicator — a dashed horizontal rule drawn at each page
+   boundary inside .preview-body. Hidden in print; Puppeteer uses @page CSS. */
+.preview-page-break {
+  position: absolute;
+  left: -2rem; /* extend to the padded edge of .preview-page */
+  right: -2rem;
+  height: 0;
+  border-top: 1px dashed #c8d4de;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+@media print {
+  .preview-page-break {
+    display: none;
+  }
+}
+
+/* Chapter body */
+.preview-body__hero-slot {
+  margin: -2rem -2rem 1.5rem;
+  overflow: hidden;
+  max-height: 14rem;
+}
+
+.preview-body__hero-img {
+  width: 100%;
+  height: 14rem;
+  object-fit: cover;
+}
+
+.preview-body__content {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.preview-body__content h2 {
+  font-family: var(--preview-font-heading, "Fraunces", serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1.25em 0 0.5em;
+  color: var(--preview-color-primary, #204970);
+}
+
+.preview-body__content h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+  color: var(--preview-color-primary, #204970);
+}
+
+.preview-body__content p {
+  margin: 0 0 0.875em;
+}
+
+.preview-body__content ul,
+.preview-body__content ol {
+  margin: 0 0 0.875em 1.5rem;
+  padding: 0;
+}
+
+.preview-body__content li {
+  margin-bottom: 0.25em;
+}
+
+.preview-body__content blockquote {
+  margin: 0.75em 0;
+  padding: 0.5rem 1rem;
+  border-left: 3px solid var(--preview-color-accent, #c8e62b);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.preview-body__content strong {
+  font-weight: 600;
+}
+
+.preview-body__empty {
+  color: #bbb;
+  font-size: 0.875rem;
+}
+
+/* Page number — bottom-right, body pages only (not cover / TOC / chapter opener) */
+.preview-page-number {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 1rem;
+  font-size: 0.6875rem;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Image slot management UI ────────────────────────────────────────────── */
+/* Shown in the preview sidebar/overlay next to image-bearing layout sections. */
+
+.preview-image-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-obra-blue-50);
+  border: 1px dashed var(--color-obra-blue-100);
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.preview-image-slot__display {
+  overflow: hidden;
+  border-radius: 0.375rem;
+  max-height: 10rem;
+}
+
+.preview-image-slot__img {
+  width: 100%;
+  height: 10rem;
+  object-fit: cover;
+}
+
+.preview-image-slot__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 6rem;
+  background: var(--color-obra-blue-100);
+  border-radius: 0.375rem;
+}
+
+.preview-image-slot__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

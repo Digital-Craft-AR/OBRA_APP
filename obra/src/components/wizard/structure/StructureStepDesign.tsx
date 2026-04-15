@@ -76,6 +76,7 @@ export function StructureStepDesign({
                   key={title}
                   title={title}
                   selected={selectedTitleIndex === index}
+                  disabled={suggestionsLoading || saving}
                   onSelect={() => onSelectSuggestion(index)}
                 />
               ))}
@@ -88,6 +89,7 @@ export function StructureStepDesign({
                     key={title}
                     title={title}
                     selected={selectedTitleIndex === realIndex}
+                    disabled={suggestionsLoading || saving}
                     onSelect={() => onSelectSuggestion(realIndex)}
                   />
                 );
@@ -116,6 +118,7 @@ export function StructureStepDesign({
           onChange={(event) => onCustomTitleChange(event.target.value)}
           placeholder={customTitlePlaceholder}
           error={mainTitleError}
+          disabled={suggestionsLoading || saving}
         />
 
         <ObraInput
@@ -124,6 +127,7 @@ export function StructureStepDesign({
           value={authorDraft}
           onChange={(event) => onAuthorChange(event.target.value)}
           placeholder={authorPlaceholder}
+          disabled={suggestionsLoading || saving}
         />
       </div>
 

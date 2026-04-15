@@ -69,7 +69,7 @@ export function StructureStepAvatarProblem({
         onAssist={onImproveAvatar}
         assistLabel={assistLabel}
         aiStatus={avatarImproving ? "loading" : "idle"}
-        disabled={disabled}
+        disabled={disabled || avatarImproving || problemImproving}
       />
       <ObraTextarea
         id="wizard-problem"
@@ -83,7 +83,7 @@ export function StructureStepAvatarProblem({
         onAssist={onImproveProblem}
         assistLabel={assistLabel}
         aiStatus={problemImproving ? "loading" : "idle"}
-        disabled={disabled}
+        disabled={disabled || avatarImproving || problemImproving}
       />
 
       <div className="flex flex-col gap-4 pt-1">
@@ -97,7 +97,7 @@ export function StructureStepAvatarProblem({
               <button
                 key={toneKey}
                 type="button"
-                disabled={disabled}
+                disabled={disabled || avatarImproving || problemImproving}
                 onClick={() => onContentToneChange(toneKey)}
                 className={`min-h-[40px] min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-xl border px-3 py-2.5 text-center text-sm font-medium transition-colors sm:basis-[calc(33.333%-0.25rem)] ${
                   selected
