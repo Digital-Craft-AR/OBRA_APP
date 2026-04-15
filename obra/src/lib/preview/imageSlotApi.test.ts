@@ -12,14 +12,6 @@ const mockFrom = vi.hoisted(() => vi.fn());
 const mockFunctions = vi.hoisted(() => ({ invoke: vi.fn() }));
 const mockAuth = vi.hoisted(() => ({ getSession: vi.fn() }));
 
-// Chain helpers re-created per-call so each test can set up independent chains.
-// We expose them here so tests can configure per-case behaviour.
-const mockChains = vi.hoisted(() => ({
-  maybySingle: vi.fn(),
-  update: vi.fn(),
-  insert: vi.fn(),
-}));
-
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
     storage: {

@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { LayoutBody } from "./LayoutBody";
 
 // ResizeObserver is stubbed in src/test/setup.ts (no-op); clientWidth / clientHeight
