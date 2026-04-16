@@ -444,9 +444,8 @@ export function WizardPreviewPage() {
         onOpenChange={setIsExportModalOpen}
         jobId={exportJobId}
         projectTitle={project?.main_title ?? "ebook"}
-        onSuccess={(pdfUrl) => {
-          // Optional: Auto-download on success
-          // OR just close the modal and let user click download
+        onSuccess={() => {
+          // Optional: Auto-download on success, or rely on modal download action
         }}
       />
 
