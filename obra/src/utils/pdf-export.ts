@@ -5,7 +5,7 @@
  * for asynchronous PDF export workflow.
  */
 
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabaseClient";
 
 export interface PdfExportJob {
   id: string;
