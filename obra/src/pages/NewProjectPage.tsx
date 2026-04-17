@@ -3,6 +3,7 @@ import { ChevronLeft, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
+import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useAuth } from "@/auth/authContext";
 import { supabase } from "@/lib/supabaseClient";
 import type { ContentLocale, ContentSource } from "@/lib/projects";
@@ -117,11 +118,7 @@ export function NewProjectPage() {
           />
         </section>
 
-        {errorMessage ? (
-          <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : null}
+        {errorMessage ? <ObraAlert variant="error" title={errorMessage} /> : null}
 
         <div className="flex items-center justify-between border-t border-obra-blue-100 pt-5">
           <Button variant="tertiary" onClick={() => navigate("/app/dashboard")} disabled={isSubmitting}>

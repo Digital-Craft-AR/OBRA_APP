@@ -10,15 +10,15 @@ export function StructureStepInnerProgress({
   totalSteps,
 }: StructureStepInnerProgressProps) {
   return (
-    <div className="shrink-0 border-b border-obra-blue-100 px-8 py-3">
+    <div className="shrink-0 border-b border-obra-blue-800/50 bg-obra-blue-950 px-8 py-2.5">
       <div className="flex items-center justify-between gap-4">
-        <span className="text-sm font-medium text-obra-neutral-600">{stepCounterLabel}</span>
+        <span className="text-xs font-medium text-white/60">{stepCounterLabel}</span>
         <div className="flex items-center gap-1">
           {Array.from({ length: totalSteps }).map((_, index) => (
             <div
               key={index}
-              className={`h-1.5 w-9 rounded-full transition-all ${
-                index <= currentStep ? "bg-obra-blue-700" : "bg-obra-blue-100"
+              className={`h-1 w-8 rounded-full transition-all ${
+                index <= currentStep ? "bg-obra-green-400" : "bg-white/20"
               }`}
             />
           ))}

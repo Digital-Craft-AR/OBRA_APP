@@ -39,6 +39,21 @@ Repetir para `approve-alignment`.
 
 ---
 
+### Edge Function — Deploy inicial de `generate-document-template`
+
+```bash
+npx supabase functions deploy generate-document-template --project-ref spmnqozkpjhcskxnavbf
+```
+
+**Config de JWT en el dashboard:**  
+Supabase Dashboard → Edge Functions → `generate-document-template` → Settings → desactivar **JWT verification**
+
+**Qué hace:** genera el HTML shell del documento llamando a Claude con el design system del proyecto. El frontend lo llama al entrar al step 3 y cachea el resultado en `ebooks.html_shell`.
+
+**Migración asociada:** `20260426000000_ebooks_html_shell.sql` — ya aplicada.
+
+---
+
 ### Edge Function — Redeploy de `manuscript-upload-parse` (fix mammoth + error logging)
 
 ```bash
@@ -51,7 +66,11 @@ npx supabase functions deploy manuscript-upload-parse --project-ref spmnqozkpjhc
 
 ## Aplicado
 
-_(Mover acá los ítems una vez deployados, con fecha)_
+### 2026-04-17 — Edge Functions `generate-document-template` + `export-pdf`
+
+- `generate-document-template`: genera HTML shell con Claude, guarda en `ebooks.html_shell`
+- `export-pdf`: actualizado para usar `html_shell` + `injectAll()` (mismo HTML que el preview); fallback a `buildDocumentHtml()` si no hay shell
+- Migración `20260426000000_ebooks_html_shell.sql` aplicada manualmente en el dashboard
 
 ---
 
