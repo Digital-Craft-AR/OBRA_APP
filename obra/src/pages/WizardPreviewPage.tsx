@@ -89,11 +89,11 @@ export function WizardPreviewPage() {
 
   const globalSteps = useMemo(
     () => [
-      { id: 1, label: t("wizard.stepper.structure"), status: "completed" as const },
-      { id: 2, label: t("wizard.stepper.content"), status: "completed" as const },
+      { id: 1, label: t("wizard.stepper.structure"), status: "completed" as const, onClick: () => navigate(`/app/projects/${params.projectId ?? ""}/structure`) },
+      { id: 2, label: t("wizard.stepper.content"), status: "completed" as const, onClick: () => navigate(`/app/projects/${params.projectId ?? ""}/content`) },
       { id: 3, label: t("wizard.stepper.preview"), status: "active" as const },
     ],
-    [t],
+    [t, navigate, params.projectId],
   );
 
   const [ebooks, setEbooks] = useState<EbookRow[]>([]);

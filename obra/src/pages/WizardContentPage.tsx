@@ -1289,11 +1289,11 @@ export function WizardContentPage() {
 
   const globalSteps = useMemo(
     () => [
-      { id: 1, label: t("wizard.stepper.structure"), status: "completed" as const },
+      { id: 1, label: t("wizard.stepper.structure"), status: "completed" as const, onClick: () => navigate(`/app/projects/${params.projectId ?? ""}/structure`) },
       { id: 2, label: t("wizard.stepper.content"), status: "active" as const },
       { id: 3, label: t("wizard.stepper.preview"), status: "upcoming" as const },
     ],
-    [t],
+    [t, navigate, params.projectId],
   );
 
   const mainTocValidation = validateMainTocForConfirm(mainTocRows);
