@@ -444,9 +444,6 @@ export function WizardPreviewPage() {
         onOpenChange={setIsExportModalOpen}
         jobId={exportJobId}
         projectTitle={project?.main_title ?? "ebook"}
-        onSuccess={() => {
-          // Optional: Auto-download on success, or rely on modal download action
-        }}
       />
 
       {/* Footer */}

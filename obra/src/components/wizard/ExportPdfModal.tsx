@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, ModalContent, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { AlertCircle, CheckCircle2, Loader2, DownloadCloud } from "lucide-react";
@@ -20,7 +20,8 @@ export type ExportPdfModalProps = {
  * - Success with download button
  * - Error state with retry option
  *
- * Polls job status every 3 seconds until completion or error
+ * Polls job status every 3 seconds until reaching a terminal state
+ * (completed or failed), then stops polling.
  */
 export function ExportPdfModal({
   isOpen,
@@ -33,6 +34,13 @@ export function ExportPdfModal({
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
+  // Keep a stable ref to onSuccess so the polling effect doesn't re-run on every
+  // parent render (onSuccess is often an inline arrow function).
+  const onSuccessRef = useRef(onSuccess);
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
+
   // Estimate time remaining based on job creation time
   useEffect(() => {
     if (!job || job.status === "completed" || job.status === "failed") return;
@@ -40,54 +48,71 @@ export function ExportPdfModal({
     const createdAt = new Date(job.createdAt).getTime();
     const now = Date.now();
     const elapsedSeconds = Math.floor((now - createdAt) / 1000);
-    const estimatedTotal = 60; // From queue response
+    const estimatedTotal = 60;
     const remaining = Math.max(0, estimatedTotal - elapsedSeconds);
 
     setTimeRemaining(remaining);
   }, [job]);
 
-  // Poll job status
+  // Poll job status — stops automatically when job reaches a terminal state.
   useEffect(() => {
-    if (!isOpen || !jobId) {
-      return;
-    }
+    if (!isOpen || !jobId) return;
 
-    // Fetch initial job state
+    // isDone tracks whether we've reached a terminal state inside this effect
+    // closure so we can skip further polling without waiting for a state update.
+    let isDone = false;
+
     const fetchJob = async () => {
+      if (isDone) return;
+
       try {
         const currentJob = await checkPdfStatus(jobId);
+
+        if (isDone) return; // guard against stale calls after cleanup
+
         setJob(currentJob);
         setError(null);
 
-        // Stop polling if job is complete
         if (currentJob.status === "completed") {
-          if (onSuccess && currentJob.pdfUrl) {
-            onSuccess(currentJob.pdfUrl);
+          isDone = true;
+          if (currentJob.pdfUrl) {
+            onSuccessRef.current?.(currentJob.pdfUrl);
+          } else {
+            // Worker marked job completed but didn't store a PDF URL.
+            // Log for diagnostics — remove once root cause is fixed.
+            console.warn("[ExportPdfModal] job completed but pdf_url is null", currentJob);
+            setError("El PDF se generó pero el link de descarga no está disponible. Exportá de nuevo.");
           }
         } else if (currentJob.status === "failed") {
+          isDone = true;
           setError(currentJob.errorMessage || "PDF generation failed");
         }
       } catch (err) {
-        setError(getErrorMessage(err));
+        if (!isDone) {
+          setError(getErrorMessage(err));
+          isDone = true; // stop polling on unexpected errors too
+        }
       }
     };
 
     void fetchJob();
 
-    // Set up polling interval (3 seconds)
     const pollInterval = setInterval(() => {
       void fetchJob();
     }, 3000);
 
-    return () => clearInterval(pollInterval);
-  }, [isOpen, jobId, onSuccess]);
+    return () => {
+      isDone = true;
+      clearInterval(pollInterval);
+    };
+  }, [isOpen, jobId]); // intentionally omit onSuccess — use onSuccessRef instead
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setJob(null);
     setError(null);
     setTimeRemaining(null);
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
   const handleDownload = () => {
     if (!job?.pdfUrl) return;
@@ -104,9 +129,14 @@ export function ExportPdfModal({
   const handleRetry = () => {
     setError(null);
     setJob(null);
-    // Let the parent component handle retry by creating a new job
     handleClose();
   };
+
+  // Derived booleans to keep the JSX readable
+  const isProcessing =
+    (job?.status === "pending" || job?.status === "processing") && !error;
+  const isCompleted = job?.status === "completed" && !!job.pdfUrl && !error;
+  const hasError = !!error;
 
   return (
     <Modal open={isOpen} onClose={handleClose} closeLabel="Close PDF export">
@@ -116,7 +146,7 @@ export function ExportPdfModal({
 
       <ModalContent className="space-y-4">
         {/* Processing State */}
-        {job?.status === "processing" || (job?.status === "pending" && !error) ? (
+        {isProcessing ? (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="size-8 animate-spin text-obra-green-400" />
             <div className="space-y-1 text-center">
@@ -131,7 +161,7 @@ export function ExportPdfModal({
         ) : null}
 
         {/* Success State */}
-        {job?.status === "completed" && job?.pdfUrl ? (
+        {isCompleted ? (
           <div className="flex flex-col items-center gap-4 py-6">
             <CheckCircle2 className="size-8 text-obra-green-400" />
             <div className="space-y-1 text-center">
@@ -141,8 +171,8 @@ export function ExportPdfModal({
           </div>
         ) : null}
 
-        {/* Error State */}
-        {error && (
+        {/* Error State — covers both worker failures and completed-but-no-url */}
+        {hasError ? (
           <div className="flex flex-col items-center gap-4 py-6">
             <AlertCircle className="size-8 text-red-500" />
             <div className="space-y-1 text-center">
@@ -150,11 +180,11 @@ export function ExportPdfModal({
               <p className="text-xs text-obra-neutral-600">{error}</p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-4">
-          {job?.status === "completed" && job?.pdfUrl ? (
+          {isCompleted ? (
             <>
               <Button onClick={handleDownload} className="flex-1 gap-2" variant="primary">
                 <DownloadCloud className="size-4" />
@@ -164,7 +194,7 @@ export function ExportPdfModal({
                 Close
               </Button>
             </>
-          ) : error ? (
+          ) : hasError ? (
             <>
               <Button onClick={handleRetry} className="flex-1" variant="primary">
                 Try Again
