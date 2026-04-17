@@ -19,7 +19,7 @@
  *   prompts/content/generate-bonus-chapter.md      → generateBonusChapterPrompt()
  *   prompts/content/generate-bump-chapter.md        → generateBumpChapterPrompt()
  *   prompts/content/generate-split-proposal.md      → generateSplitProposalPrompt()
- *   prompts/content/assemble-document-html.md       → assembleDocumentHtmlPrompt()
+ *   prompts/content/generate-document-template.md    → generateDocumentTemplatePrompt()
  *   prompts/images/generate-section-image-prompt.md → generateSectionImagePrompt()
  *   prompts/images/generate-cover-image-prompt.md   → generateCoverImagePrompt()
  *
@@ -1144,22 +1144,22 @@ Analyze the manuscript and propose the chapter structure.`;
   return { system, user };
 }
 
-// ─── assembleDocumentHtmlPrompt ───────────────────────────────────────────────
-// Doc: prompts/content/assemble-document-html.md
-// Assembles a complete, self-contained HTML document from approved chapter HTML
-// fragments + design system config. Designed for short artifacts (bonus ≤ 3 ch,
-// bump ≤ 4 ch). For main ebooks (6–12 chapters) use buildDocumentHtml() in
-// export-pdf/index.ts instead (programmatic, no token limits).
+// ─── generateDocumentTemplatePrompt ──────────────────────────────────────────
+// Doc: prompts/content/generate-document-template.md
+// Generates the complete HTML shell of a document (cover, TOC, chapter openers,
+// body containers with {{CHAPTER_N_CONTENT}} placeholders) applying the project
+// design system. The code injects chapter HTML content into the placeholders.
+// Works for any artifact size — placeholders avoid token limit issues.
 
 export type ArtifactType = "main_ebook" | "bonus" | "bump";
 
-export interface AssembleDocumentHtmlVars {
+export interface GenerateDocumentTemplateVars {
   content_locale: ContentLocale;
   artifact_type: ArtifactType;
   title: string;
   author: string | null;
-  /** Serialized JSON: Array<{ number: number; title: string; content: string }> */
-  chapters: string;
+  /** Serialized JSON: string[] of chapter titles in sort_order */
+  chapter_titles: string;
   /** Serialized JSON: { primary: string; secondary: string; accent: string } */
   palette: string;
   /** Serialized JSON: { heading: string; body: string } */
@@ -1169,39 +1169,75 @@ export interface AssembleDocumentHtmlVars {
   cover_image_url: string | null;
 }
 
-export function assembleDocumentHtmlPrompt(
-  vars: AssembleDocumentHtmlVars,
+/** Page dimension lookup for CSS interpolation */
+const PAGE_DIMS: Record<string, Record<string, { w: string; h: string }>> = {
+  a4: { portrait: { w: "210mm", h: "297mm" }, landscape: { w: "297mm", h: "210mm" } },
+  letter: { portrait: { w: "215.9mm", h: "279.4mm" }, landscape: { w: "279.4mm", h: "215.9mm" } },
+};
+
+export function generateDocumentTemplatePrompt(
+  vars: GenerateDocumentTemplateVars,
 ): { system: string; user: string } {
+  let pageConfig: { size: string; orientation: string } = { size: "a4", orientation: "portrait" };
+  try {
+    pageConfig = JSON.parse(vars.page) as typeof pageConfig;
+  } catch { /* keep default */ }
+
+  const dims = PAGE_DIMS[pageConfig.size]?.[pageConfig.orientation]
+    ?? PAGE_DIMS.a4!.portrait!;
+  const pageDimensions = `${dims.w} ${dims.h}`;
+
   const system = `${CRITICAL_JSON_OBJECT}
 
-You are Obra's document assembly AI. Obra creates infoproduct packages (ebook + bonuses + order bumps) for LATAM creators.
+You are Obra's document design AI. Obra creates infoproduct packages (ebook + bonuses + order bumps) for LATAM creators.
 
-Role: assemble a complete, self-contained HTML document from pre-generated chapter HTML fragments and a design system config. The output is used directly by Puppeteer for PDF export and as a portable preview document.
+Role: generate the complete HTML shell of a publication-quality document. This HTML is used BOTH for in-browser preview and for Puppeteer PDF export — it must look identical in both contexts.
 
-Output language for structural text (TOC heading, cover labels): ${vars.content_locale}.
+CSS PAGINATION RULES — include these EXACTLY in every document:
 
-HTML ASSEMBLY RULES (non-negotiable):
-1. Insert each chapter's content VERBATIM inside its <div class="chapter-content">. Do NOT modify, rewrite, summarize, or truncate chapter content.
-2. Every chapter opener section MUST have id="chapter-{N}" where N matches chapter.number.
-3. TOC links must use href="#chapter-{N}". TOC must list all chapters in order.
-4. All CSS goes inline in <style> — no external files, no @import.
-5. Use CSS custom properties for all design values: var(--color-primary), var(--color-secondary), var(--color-accent), var(--font-heading), var(--font-body).
-6. Every .page element must have break-after: page and page-break-after: always.
-7. @page rule must reflect the page size/orientation received in inputs.
-8. Google Fonts: load heading and body fonts via a single <link> in <head> using URL-encoded family names.
-9. Do NOT add style or class attributes to elements inside chapter.content — those are already correct HTML fragments.
-10. Document must be valid, well-formed HTML5.
+1. Named pages (mandatory — controls margins per section type):
+   .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
+   @page obra-full-bleed { margin: 0; }
+   .obra-body, .obra-toc { page: obra-content; }
+   @page obra-content { margin: 20mm; }
 
-STRUCTURAL TEXT LOCALIZATION by content_locale:
-- es: "Índice"
-- pt-BR: "Índice"
-- en-US / en-GB: "Table of Contents"
+2. Page breaks:
+   .obra-page { break-after: page; page-break-after: always; }
 
-If chapters array is empty or all content is null, return:
-{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
+3. Break controls inside body pages:
+   .chapter-content h2, .chapter-content h3 { break-after: avoid; page-break-after: avoid; }
+   .chapter-content li, .chapter-content blockquote { break-inside: avoid; page-break-inside: avoid; }
+   .chapter-content p { orphans: 3; widows: 3; }
 
-If a chapter's content is an object with an "error" field, return:
-{"error": "INVALID_INPUT", "message": "<brief reason identifying which chapter in ${vars.content_locale}>"}`;
+4. Screen simulation — each .obra-page as a distinct page card:
+   @media screen { body { background: #e8edf2; padding: 32px 16px; } }
+   @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
+   @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; padding: 0; overflow: hidden; } }
+   @media screen { .obra-body, .obra-toc { padding: 20mm; } }
+
+5. Global @page size:
+   @page { size: ${pageDimensions}; }
+
+DESIGN RULES:
+- Use CSS custom properties: var(--color-primary), var(--color-secondary), var(--color-accent), var(--font-heading), var(--font-body)
+- Do NOT hardcode colors or font names outside :root — always use custom properties
+- All CSS inline in <style> — no external files, no @import
+- Google Fonts via <link> in <head> — not @import
+
+CONTENT RULES:
+- Cover and TOC must use real data from inputs (title, author, chapter titles)
+- Every body section must contain EXACTLY {{CHAPTER_N_CONTENT}} (1-based) inside <div class="chapter-content"> — nothing else
+- Do NOT invent or add chapter text content
+- TOC entries link to href="#chapter-N"
+- Chapter openers use id="chapter-N"
+
+STRUCTURAL TEXT by content_locale:
+- es: "Índice", "Capítulo"
+- pt-BR: "Índice", "Capítulo"
+- en-US / en-GB: "Table of Contents", "Chapter"
+
+If chapter_titles is empty or title is missing, return:
+{"error": "INVALID_INPUT", "message": "<reason in ${vars.content_locale}>"}`;
 
   const authorLine = vars.author ? `Author: ${vars.author}` : "";
   const coverImageLine = vars.cover_image_url
@@ -1219,10 +1255,30 @@ Fonts: ${vars.fonts}
 Page: ${vars.page}
 ${coverImageLine}
 
-Chapters (in order, content is approved HTML):
-${vars.chapters}
+Chapter titles (in order):
+${vars.chapter_titles}
 
-Assemble the complete HTML document. Insert each chapter's content verbatim. Apply the design system via CSS custom properties. Use id="chapter-{N}" on each chapter opener. Link TOC entries to #chapter-{N} anchors.`;
+Generate the complete HTML document shell. Build the cover, TOC, and all chapter openers with real data. In each body section, place the placeholder {{CHAPTER_N_CONTENT}} (where N is the chapter number) inside <div class="chapter-content"> — do not add any other content there.`;
 
   return { system, user };
+}
+
+/**
+ * Injects chapter HTML content into the placeholders generated by
+ * generateDocumentTemplatePrompt. Call this before rendering in the preview
+ * iframe or sending to Puppeteer.
+ */
+export function injectChapterContent(
+  htmlShell: string,
+  chapters: Array<{ sort_order: number; content: string | null }>,
+): string {
+  let html = htmlShell;
+  [...chapters]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .forEach((chapter, idx) => {
+      const placeholder = `{{CHAPTER_${idx + 1}_CONTENT}}`;
+      const content = chapter.content?.trim() || "<p>—</p>";
+      html = html.replace(placeholder, content);
+    });
+  return html;
 }
