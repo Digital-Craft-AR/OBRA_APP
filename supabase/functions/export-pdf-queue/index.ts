@@ -201,13 +201,11 @@ Deno.serve(async (req: Request) => {
     }
 
     if (existingJobs && existingJobs.length > 0) {
+      // An export is already running — return its ID so the frontend can open
+      // the modal and track progress, instead of showing an error.
       return corsJson(
-        {
-          error: "duplicate_job",
-          detail: "A PDF export is already in progress for this ebook",
-          jobId: existingJobs[0].id,
-        },
-        409,
+        { jobId: existingJobs[0].id, estimatedSeconds: 60 } satisfies ExportPdfQueueResponse,
+        200,
       );
     }
 

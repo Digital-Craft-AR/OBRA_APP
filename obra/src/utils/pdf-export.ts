@@ -186,8 +186,6 @@ export function getErrorMessage(error: PdfExportError | unknown): string {
       return "You don't have permission to export this PDF.";
     case "forbidden":
       return "You don't own this project.";
-    case "duplicate_job":
-      return "A PDF export is already in progress. Please wait.";
     case "invalid_json":
     case "missing_fields":
       return "Invalid request. Please try again.";
