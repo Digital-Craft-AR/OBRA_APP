@@ -132,9 +132,11 @@ export function ExportPdfModal({
     handleClose();
   };
 
-  // Derived booleans to keep the JSX readable
+  // Derived booleans to keep the JSX readable.
+  // While job is null (first fetch not yet returned) we also show the spinner.
   const isProcessing =
-    (job?.status === "pending" || job?.status === "processing") && !error;
+    (!job && !error) ||
+    ((job?.status === "pending" || job?.status === "processing") && !error);
   const isCompleted = job?.status === "completed" && !!job.pdfUrl && !error;
   const hasError = !!error;
 
