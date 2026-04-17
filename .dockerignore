@@ -1,0 +1,17 @@
+# Exclude node_modules from all packages (large, rebuilt in Docker)
+obra/node_modules
+node_modules
+
+# Exclude local env files with secrets
+.env
+.env.local
+
+# Git and IDE metadata
+.git
+.claude
+.cursor
+.vscode
+
+# Build artifacts
+obra/dist
+obra/.vite
