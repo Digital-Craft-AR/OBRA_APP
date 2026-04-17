@@ -338,7 +338,7 @@ export function WizardPreviewPage() {
 
       {/* Main area — same pattern as WizardContentPage */}
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
-        <div className="mx-auto w-full max-w-5xl px-8 py-8">
+        <div className="w-full">
 
           {/* Sidebar + content — same flex pattern as ContentChapterMilestone */}
           <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
@@ -347,7 +347,7 @@ export function WizardPreviewPage() {
             {visibleEbooks.length > 0 ? (
               <nav
                 aria-label={t("wizard.preview.ebooksNav")}
-                className="flex w-full shrink-0 flex-col gap-1 border-b border-obra-blue-100 pb-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
+                className="flex w-full shrink-0 flex-col items-center gap-1 border-b border-obra-blue-100 px-4 py-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-6 lg:py-6"
               >
                 <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
                   {visibleEbooks.map((ebook) => {
@@ -378,7 +378,7 @@ export function WizardPreviewPage() {
             ) : null}
 
             {/* Preview content */}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 mx-auto max-w-[1024px] py-3 pr-6">
               {isLoading ? (
                 <p className="text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
               ) : hasError ? (
