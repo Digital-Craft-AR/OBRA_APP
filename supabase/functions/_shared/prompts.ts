@@ -19,6 +19,7 @@
  *   prompts/content/generate-bonus-chapter.md      → generateBonusChapterPrompt()
  *   prompts/content/generate-bump-chapter.md        → generateBumpChapterPrompt()
  *   prompts/content/generate-split-proposal.md      → generateSplitProposalPrompt()
+ *   prompts/content/assemble-document-html.md       → assembleDocumentHtmlPrompt()
  *   prompts/images/generate-section-image-prompt.md → generateSectionImagePrompt()
  *   prompts/images/generate-cover-image-prompt.md   → generateCoverImagePrompt()
  *
@@ -1139,6 +1140,89 @@ ${vars.manuscript_text}
 ---
 
 Analyze the manuscript and propose the chapter structure.`;
+
+  return { system, user };
+}
+
+// ─── assembleDocumentHtmlPrompt ───────────────────────────────────────────────
+// Doc: prompts/content/assemble-document-html.md
+// Assembles a complete, self-contained HTML document from approved chapter HTML
+// fragments + design system config. Designed for short artifacts (bonus ≤ 3 ch,
+// bump ≤ 4 ch). For main ebooks (6–12 chapters) use buildDocumentHtml() in
+// export-pdf/index.ts instead (programmatic, no token limits).
+
+export type ArtifactType = "main_ebook" | "bonus" | "bump";
+
+export interface AssembleDocumentHtmlVars {
+  content_locale: ContentLocale;
+  artifact_type: ArtifactType;
+  title: string;
+  author: string | null;
+  /** Serialized JSON: Array<{ number: number; title: string; content: string }> */
+  chapters: string;
+  /** Serialized JSON: { primary: string; secondary: string; accent: string } */
+  palette: string;
+  /** Serialized JSON: { heading: string; body: string } */
+  fonts: string;
+  /** Serialized JSON: { size: "a4" | "letter"; orientation: "portrait" | "landscape" } */
+  page: string;
+  cover_image_url: string | null;
+}
+
+export function assembleDocumentHtmlPrompt(
+  vars: AssembleDocumentHtmlVars,
+): { system: string; user: string } {
+  const system = `${CRITICAL_JSON_OBJECT}
+
+You are Obra's document assembly AI. Obra creates infoproduct packages (ebook + bonuses + order bumps) for LATAM creators.
+
+Role: assemble a complete, self-contained HTML document from pre-generated chapter HTML fragments and a design system config. The output is used directly by Puppeteer for PDF export and as a portable preview document.
+
+Output language for structural text (TOC heading, cover labels): ${vars.content_locale}.
+
+HTML ASSEMBLY RULES (non-negotiable):
+1. Insert each chapter's content VERBATIM inside its <div class="chapter-content">. Do NOT modify, rewrite, summarize, or truncate chapter content.
+2. Every chapter opener section MUST have id="chapter-{N}" where N matches chapter.number.
+3. TOC links must use href="#chapter-{N}". TOC must list all chapters in order.
+4. All CSS goes inline in <style> — no external files, no @import.
+5. Use CSS custom properties for all design values: var(--color-primary), var(--color-secondary), var(--color-accent), var(--font-heading), var(--font-body).
+6. Every .page element must have break-after: page and page-break-after: always.
+7. @page rule must reflect the page size/orientation received in inputs.
+8. Google Fonts: load heading and body fonts via a single <link> in <head> using URL-encoded family names.
+9. Do NOT add style or class attributes to elements inside chapter.content — those are already correct HTML fragments.
+10. Document must be valid, well-formed HTML5.
+
+STRUCTURAL TEXT LOCALIZATION by content_locale:
+- es: "Índice"
+- pt-BR: "Índice"
+- en-US / en-GB: "Table of Contents"
+
+If chapters array is empty or all content is null, return:
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
+
+If a chapter's content is an object with an "error" field, return:
+{"error": "INVALID_INPUT", "message": "<brief reason identifying which chapter in ${vars.content_locale}>"}`;
+
+  const authorLine = vars.author ? `Author: ${vars.author}` : "";
+  const coverImageLine = vars.cover_image_url
+    ? `Cover image URL: ${vars.cover_image_url}`
+    : "Cover image URL: null";
+
+  const user = `Artifact type: ${vars.artifact_type}
+Title: ${vars.title}
+${authorLine}
+Content locale: ${vars.content_locale}
+
+Design system:
+Palette: ${vars.palette}
+Fonts: ${vars.fonts}
+Page: ${vars.page}
+${coverImageLine}
+
+Chapters (in order, content is approved HTML):
+${vars.chapters}
+
+Assemble the complete HTML document. Insert each chapter's content verbatim. Apply the design system via CSS custom properties. Use id="chapter-{N}" on each chapter opener. Link TOC entries to #chapter-{N} anchors.`;
 
   return { system, user };
 }
