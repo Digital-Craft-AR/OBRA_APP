@@ -28,7 +28,6 @@ export function ContentPackSidebar({
   navItemDisabled,
 }: ContentPackSidebarProps) {
   const navLabel = t("wizard.content.index.packageNavAria");
-  const heading = t("wizard.content.packSidebar.heading");
 
   function renderItem(item: ContentNavItem) {
     const isCurrent = item.key === selectedKey;
