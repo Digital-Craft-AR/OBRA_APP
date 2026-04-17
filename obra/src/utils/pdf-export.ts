@@ -23,6 +23,10 @@ export interface PdfExportJob {
 
 export interface QueuePdfExportResponse {
   jobId: string;
+  /**
+   * Estimated seconds until the PDF is ready.
+   * 0 means an existing up-to-date PDF was found and the job is already completed.
+   */
   estimatedSeconds: number;
 }
 
