@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { corsJson, corsOptions } from "../_shared/cors.ts";
 
 interface ExportPdfQueueRequest {
   projectId: string;
@@ -28,12 +29,13 @@ interface ExportPdfQueueResponse {
  * - 500: Server error
  */
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return corsOptions();
+  }
+
   // Only POST allowed
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "method_not_allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return corsJson({ error: "method_not_allowed" }, 405);
   }
 
   try {
@@ -42,28 +44,19 @@ Deno.serve(async (req: Request) => {
     try {
       body = await req.json();
     } catch {
-      return new Response(
-        JSON.stringify({ error: "invalid_json", detail: "Request body must be valid JSON" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return corsJson({ error: "invalid_json", detail: "Request body must be valid JSON" }, 400);
     }
 
     // Validate input
     const { projectId, ebookId } = body;
     if (!projectId || !ebookId) {
-      return new Response(
-        JSON.stringify({ error: "missing_fields", detail: "projectId and ebookId required" }),
-        { status: 422, headers: { "Content-Type": "application/json" } }
-      );
+      return corsJson({ error: "missing_fields", detail: "projectId and ebookId required" }, 422);
     }
 
     // Get authenticated user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "unauthorized", detail: "Missing Authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return corsJson({ error: "unauthorized", detail: "Missing Authorization header" }, 401);
     }
 
     // Create Supabase client with user's JWT
@@ -72,10 +65,7 @@ Deno.serve(async (req: Request) => {
 
     if (!supabaseUrl || !supabaseKey) {
       console.error("Missing Supabase environment variables");
-      return new Response(JSON.stringify({ error: "server_error" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return corsJson({ error: "server_error" }, 500);
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -87,10 +77,7 @@ Deno.serve(async (req: Request) => {
     // Verify user is authenticated
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized", detail: "Invalid token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return corsJson({ error: "unauthorized", detail: "Invalid token" }, 401);
     }
 
     const userId = authData.user.id;
@@ -103,17 +90,11 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (projectError || !projectData) {
-      return new Response(
-        JSON.stringify({ error: "not_found", detail: "Project not found" }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      );
+      return corsJson({ error: "not_found", detail: "Project not found" }, 404);
     }
 
     if (projectData.user_id !== userId) {
-      return new Response(
-        JSON.stringify({ error: "forbidden", detail: "You don't own this project" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+      return corsJson({ error: "forbidden", detail: "You don't own this project" }, 403);
     }
 
     // Verify ebook belongs to project
@@ -125,10 +106,7 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (ebookError || !ebookData) {
-      return new Response(
-        JSON.stringify({ error: "not_found", detail: "Ebook not found in this project" }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      );
+      return corsJson({ error: "not_found", detail: "Ebook not found in this project" }, 404);
     }
 
     // Check if there's already a pending job for this ebook (prevent spam)
@@ -142,20 +120,17 @@ Deno.serve(async (req: Request) => {
 
     if (existingError) {
       console.error("Error checking existing jobs:", existingError);
-      return new Response(JSON.stringify({ error: "server_error" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return corsJson({ error: "server_error" }, 500);
     }
 
     if (existingJobs && existingJobs.length > 0) {
-      return new Response(
-        JSON.stringify({
+      return corsJson(
+        {
           error: "duplicate_job",
           detail: "A PDF export is already in progress for this ebook",
           jobId: existingJobs[0].id,
-        }),
-        { status: 409, headers: { "Content-Type": "application/json" } }
+        },
+        409,
       );
     }
 
@@ -175,10 +150,7 @@ Deno.serve(async (req: Request) => {
 
     if (createError || !newJob) {
       console.error("Error creating PDF job:", createError);
-      return new Response(JSON.stringify({ error: "server_error" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return corsJson({ error: "server_error" }, 500);
     }
 
     // Estimate render time based on content (rough heuristic)
@@ -191,15 +163,9 @@ Deno.serve(async (req: Request) => {
       estimatedSeconds,
     };
 
-    return new Response(JSON.stringify(response), {
-      status: 201,
-      headers: { "Content-Type": "application/json" },
-    });
+    return corsJson(response, 201);
   } catch (error) {
     console.error("Unexpected error in export-pdf-queue:", error);
-    return new Response(JSON.stringify({ error: "server_error", detail: String(error) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return corsJson({ error: "server_error", detail: String(error) }, 500);
   }
 });
