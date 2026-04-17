@@ -1,8 +1,8 @@
 # Backend architecture (Obra)
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Last update:** April 2026  
-**Scope:** Supabase/Postgres/Storage, Edge Functions, backend operations, logging, and idempotency.
+**Scope:** Supabase/Postgres/Storage, Edge Functions, Railway PDF worker, backend operations, logging, and idempotency.
 
 ## 0) Implementation work order
 
@@ -19,8 +19,8 @@
 - External providers are reached from Edge Functions only:
   - Anthropic Claude API (text generation)
   - Google Gemini API (image generation / Nano Banana family)
-  - Puppeteer runtime for PDF export
   - Mercado Pago webhooks and subscription events
+- **PDF rendering runs in a separate Railway worker** (`Digital-Craft-AR/obra-pdf-export`), not inside Supabase Edge Functions (Puppeteer cannot run in the Deno/Edge runtime). The worker polls `pdf_export_jobs` via cron, fetches `ebooks.html_shell` + signed image URLs, and renders with Puppeteer.
 - API keys are never exposed to the browser.
 
 ## 2) Data platform and infra baseline
@@ -47,8 +47,10 @@ Core tables and responsibilities:
 - Identity/profile: `auth.users`, `creator_profiles` (Obra-owned row; see [`../development/auth-rls-baseline.md`](../development/auth-rls-baseline.md))
 - Project root: `projects`, `project_structure_drafts`
 - Design/content artifacts: `design_systems`, `ebooks`, `chapters`, `images`
+  - `ebooks` carries `html_shell` (TEXT) and `shell_meta` (JSONB) — Claude-generated HTML document with placeholders; `shell_meta` tracks `{chapter_count, page_size, page_orientation, generated_at}` for staleness detection
 - Content progression: `project_content_progress`, `project_manuscripts`
 - Content chat scope: `content_chat_threads`, `content_chat_messages`
+- Export jobs: `pdf_export_jobs` — polled by Railway worker; tracks status, retries, `pdf_url`, `render_duration_ms`
 - Optional post-MVP area: `landing_pages`
 
 Hard backend invariants:
@@ -83,14 +85,21 @@ Primary functions:
 - `ai-optimize`: optimize short wizard inputs
 - `ai-generate-index`: TOC proposal for **main**, **`bonus`** (single section title), or **`order_bump`** ebook (`target_ebook_id` optional in body; **stub titles** + credit debit; **post-MVP:** optional chat-turn wrapper)
 - `ai-generate-content`: chapter body generation (rich HTML fragment; client sanitizes before `chapters.content` persist)
-- `ai-generate-html`: design-aware HTML composition/generation
+- `generate-document-template`: generates the full HTML shell for an ebook using Claude (temp 0.2, 8192 tokens). Accepts `{projectId, ebookId}`, applies design system (palette, fonts, page config), outputs `html_shell` with `{{TOC_ENTRIES}}`, `{{CHAPTER_N_TITLE}}`, `{{CHAPTER_N_CONTENT}}` placeholders and image slots (`data-slot-key`, `data-slot-description`). Persists result to `ebooks.html_shell` + `shell_meta`; touches `updated_at` to bust PDF export cache. JWT verification disabled in prod.
+- `export-pdf-queue`: checks for pending `pdf_export_jobs`, compares `ebooks.updated_at` + latest `chapters.updated_at` vs `completed_at` to decide reuse vs new render; enqueues new job if stale. **Does not run Puppeteer** — that is the Railway worker's responsibility.
 - `image-generate`: Gemini image generation, then Storage persist + `images` row
 - `parse-document`: upload branch text extraction (`.docx`, text-layer PDF, no OCR in MVP)
-- `export-pdf`: ebook HTML to PDF pipeline via Puppeteer
 - `mercadopago-webhook`: payment/subscription events, credits/subscription updates
 - `export-user-data`: portability package generation
 - `delete-account`: account deletion orchestration
 - `purge-deleted-projects`: scheduled hard-delete after retention window
+
+**Railway worker** (`Digital-Craft-AR/obra-pdf-export`, deployed on Railway):
+- Cron job polls `pdf_export_jobs` for `status = 'pending'`; processes up to 5 per batch; max 3 retries per job
+- Fetches `ebooks.html_shell` + all `project_images` → builds signed URL map (slot_key → URL)
+- If `html_shell` present: strips browser-only overlay CSS/JS, calls `injectAll()` (pure JS), passes to Puppeteer
+- Fallback: `buildDocumentHtml()` for ebooks without a shell
+- Uploads PDF to Storage; writes signed URL + `render_duration_ms` back to `pdf_export_jobs`
 
 ## 6) Reliability and idempotency rules
 
