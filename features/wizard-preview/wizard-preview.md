@@ -96,21 +96,30 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ## Implementation Decisions
 
-### Data and rendering model
+### Data and rendering model (MVP — HTML shell approach)
 
-- **Canonical content** remains **structured JSON**; HTML templates are **render functions** that map JSON + design + layout selection + resolved image URLs into DOM/HTML for **in-app preview** and **PDF HTML** input.
-- **Image slots** are **first-class records** (stable ids, layout slot keys, storage URL of optimized asset, optional generation metadata), not inferred by scraping HTML.
-- **Book template:** persist **`book_template_id`** on the **project** (selection UX lives with **Structure / Design**; keep `wizard-shared` aligned). **Layout assignment:** resolve **`layout_variant_id`** per **eligible logical page** using **template role bindings** (fixed layout and/or internal pool + selection mode); persist the resolved id on the logical page. Optionally persist **`layout_catalog_version`** on the project or page for deploy alignment. **No RNG seed** in MVP. **Retired layout ids** resolve via **`replacedBy`** at render time (see [`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)). **Changing `book_template_id`** after content exists requires an explicit product policy (warnings, slot invalidation, or re-resolve)—document in API/UX before shipping.
-- **Chapter structure:** each chapter starts with a **chapter opener** page (layout id from the project’s **book template** for the opener role) preceded by a **page break**; following pages use **continuation** layouts per the same **book template** (role bindings), consistent with multi-page flow.
+> **Note:** The book template / layout registry / pools architecture described in earlier drafts is **post-MVP**. The MVP uses a Claude-generated HTML shell approach described below.
+
+- **HTML shell** (`ebooks.html_shell`): Claude generates a full HTML document for each ebook via the `generate-document-template` Edge Function. The shell encodes the project’s design system (palette, fonts, page size/orientation) and contains structural placeholders:
+  - `{{TOC_ENTRIES}}` — table of contents list items
+  - `{{CHAPTER_N_TITLE}}` / `{{CHAPTER_N_CONTENT}}` — per-chapter slots (N = 1-based sort order)
+  - `<div data-slot-key="…" data-slot-type="…" data-slot-description="…">` — image slots
+- **`injectAll(htmlShell, { chapters, images })`** — pure function (no Claude call) run client-side on every render. Replaces all placeholders with current chapter data and signed image URLs. Same function runs in the Railway PDF worker.
+- **Staleness check** (`shell_meta: { chapter_count, page_size, page_orientation, generated_at }`): shell is regenerated only when structure changes (chapter count or page config). Text edits in Content never trigger regeneration.
+- **Same HTML for preview and PDF:** `ebooks.html_shell` is the single source of truth for both `<iframe srcdoc>` preview and the Railway Puppeteer worker — no divergence between what the user sees and what gets exported.
+- **Image slots** are defined by the Claude-generated shell; slot keys follow the convention `cover` (cover art), `chapter_N_image`, etc. The DB stores images in `project_images` with `slot_key` matching the HTML attribute. The mapping `cover_art` (DB) ↔ `cover` (HTML) is normalized in `injectAll()`.
+- **Post-MVP:** book template / layout registry / pools architecture for structured multi-layout documents (see [`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)).
 
 ### Styling and PDF
 
-- **Design system → CSS:** project tokens map to **CSS variables** and/or constrained utility classes; templates reference **contractual class names** only.
-- **PDF engine** (e.g. headless browser) consumes the **same HTML/CSS contract** as preview; **print** styles enforce **page breaks** and avoid clipping body text; multi-page reflow is the default.
+- **Design system → CSS:** project tokens are inlined into the HTML shell as CSS custom properties (`--color-primary`, `--color-secondary`, `--color-accent`, `--font-display`, `--font-body`). Google Fonts are loaded via `<link>` in the shell.
+- **PDF engine:** Puppeteer (Railway worker, `Digital-Craft-AR/obra-pdf-export`) renders the same `html_shell` after `injectAll()`. `@page` rules and `page-break-after` / `break-after` in the shell CSS control pagination. `@media screen` adds card simulation for in-app preview; Puppeteer uses the print path.
+- **Named CSS pages:** `obra-full-bleed` (zero margin, for cover/chapter-opener full-bleed images) and `obra-content` (20mm margin, for body/TOC pages).
 
 ### Images pipeline
 
-- On **entering Preview**, enqueue **missing** slot URLs according to `**image_mode`**; **auto-run** jobs; on **reload**, only **still-empty** slots enqueue again.
+- **Image slot interactions (MVP):** slots inside the `<iframe>` have a hover overlay (injected CSS + JS) with three actions: upload from disk, generate with AI (opens modal with instruction field), remove. Actions are communicated to the React parent via `postMessage` (`obra:slot:file`, `obra:slot:generate`, `obra:slot:remove`). The parent handles Storage upload, Gemini generation, and DB write; `injectAll()` re-runs with the new signed URL.
+- On **entering Preview**, enqueue **missing** slot URLs according to `image_mode`; **auto-run** jobs; on **reload**, only **still-empty** slots enqueue again.
 - **Uploads:** validate **KB max** and **layout max dimensions/aspect**; persist **single optimized** derivative; reject or downscale per product rules.
 - **AI regenerate:** optional **short user instruction**; **preview** result; **confirm** to commit; credits on **successful** persist; **idempotency** keys for retries.
 
@@ -138,10 +147,10 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 ### Deep modules (stable surfaces)
 
-- **Layout registry:** internal catalog of **book templates** (`bookTemplates`), **layouts** (**tags**, slot schemas, page size/orientation), and **pools** (optional building blocks referenced by templates); **source of truth in the monorepo** (manifest + code), shared by preview and PDF worker ([`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)).
-- **Render pipeline:** `renderPage(project, entity, layoutId, contentJson, assets) → HTML fragment` shared by preview iframe and PDF builder.
-- **Image slot service:** enqueue, upload normalize, AI regenerate with preview/confirm, storage URL write-back to canonical model.
-- **Export service:** orchestrate PDF generation per deliverable, ZIP packaging, error aggregation.
+- **HTML shell pipeline:** `generate-document-template` (Edge Function) → `ebooks.html_shell` + `shell_meta` → `fetchOrGenerateShell()` (client) → `injectAll()` (client + Railway worker) → `<iframe srcdoc>` / Puppeteer.
+- **Image slot service:** `project_images` table (slot_key → storage_path); signed URLs fetched at render time; slot interactions via postMessage in preview.
+- **Export service:** `export-pdf-queue` Edge Function enqueues jobs; Railway worker renders and uploads; `pdf_export_jobs` tracks state, retries, and signed delivery URL.
+- **Post-MVP — Layout registry:** book templates, layout catalog, and pools ([`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)) for structured multi-layout documents.
 
 ---
 
