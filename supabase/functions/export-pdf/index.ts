@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { injectAll } from "../_shared/prompts.ts";
 
 /**
  * Renders a single ebook artifact as PDF using Puppeteer.
@@ -345,10 +346,10 @@ Deno.serve(async (req: Request) => {
   if (projErr || !project) return json({ error: "not_found" }, 404);
   if (project.user_id !== userId) return json({ error: "forbidden" }, 403);
 
-  // Load ebook
+  // Load ebook (including html_shell if available)
   const { data: ebook, error: ebookErr } = await admin
     .from("ebooks")
-    .select("id, title, type")
+    .select("id, title, type, html_shell")
     .eq("id", ebookId)
     .eq("project_id", projectId)
     .maybeSingle();
@@ -365,56 +366,71 @@ Deno.serve(async (req: Request) => {
   if (chaptersErr) return json({ error: "db_error" }, 500);
 
   const chapters = (chaptersData ?? []).map((ch) => ({
+    id: typeof ch.id === "string" ? ch.id : "",
     title: typeof ch.title === "string" ? ch.title : "",
+    sort_order: typeof ch.sort_order === "number" ? ch.sort_order : 0,
     content: typeof ch.content === "string" ? ch.content : null,
   }));
 
-  // Load cover image signed URL if available
-  let coverImageUrl: string | null = null;
-  const { data: coverImage } = await admin
+  // Load all project images for this ebook (cover + chapter slots)
+  const { data: imageRows } = await admin
     .from("project_images")
-    .select("storage_path, status")
+    .select("slot_key, ebook_id, storage_path, status")
     .eq("project_id", projectId)
-    .eq("slot_key", "cover_art")
-    .is("ebook_id", null)
-    .maybeSingle();
+    .eq("status", "done");
 
-  if (coverImage?.status === "done" && coverImage?.storage_path) {
+  // Build slot-key → signed URL map (HTML slot key convention)
+  const imageUrls: Record<string, string> = {};
+  for (const row of (imageRows ?? []) as Array<{ slot_key: string; ebook_id: string | null; storage_path: string | null; status: string }>) {
+    if (!row.storage_path) continue;
     const { data: signed } = await admin.storage
       .from("project-images")
-      .createSignedUrl(coverImage.storage_path as string, 3600);
-    coverImageUrl = signed?.signedUrl ?? null;
+      .createSignedUrl(row.storage_path, 3600);
+    if (!signed?.signedUrl) continue;
+    // Map DB slot keys → HTML slot keys used by Claude
+    const htmlKey = row.slot_key === "cover_art" ? "cover" : row.slot_key;
+    imageUrls[htmlKey] = signed.signedUrl;
   }
 
-  // Parse design_config
-  const dc = (project.design_config ?? {}) as Record<string, unknown>;
-  const palette = (dc.palette as { primary: string; secondary: string; accent: string } | null) ?? {
-    primary: "#204970",
-    secondary: "#e8f0f7",
-    accent: "#c8e62b",
-  };
-  const fonts = (dc.fonts as { heading: string; body: string } | null) ?? {
-    heading: "Fraunces",
-    body: "Plus Jakarta Sans",
-  };
-  const page = (dc.page as { size: string; orientation: string } | null) ?? {
-    size: "a4",
-    orientation: "portrait",
-  };
+  // ── Build HTML ──
+  // Preferred: use the Claude-generated html_shell (same as preview).
+  // Fallback: programmatic buildDocumentHtml() for ebooks without a shell yet.
 
-  // Build HTML
-  const html = buildDocumentHtml({
-    title:
-      typeof project.main_title === "string"
+  let html: string;
+  const htmlShell = typeof ebook.html_shell === "string" ? ebook.html_shell : null;
+
+  if (htmlShell) {
+    // Strip the interactive slot UI JS/CSS injected for the browser preview —
+    // Puppeteer doesn't need hover overlays or postMessage handlers.
+    let shell = htmlShell
+      .replace(/<style id="obra-slot-ui">[\s\S]*?<\/style>/i, "")
+      .replace(/<script id="obra-slot-ui-js">[\s\S]*?<\/script>/i, "");
+
+    html = injectAll(shell, { chapters, images: imageUrls });
+  } else {
+    // Legacy fallback — no shell generated yet
+    const dc = (project.design_config ?? {}) as Record<string, unknown>;
+    const palette = (dc.palette as { primary: string; secondary: string; accent: string } | null) ?? {
+      primary: "#204970", secondary: "#e8f0f7", accent: "#c8e62b",
+    };
+    const fonts = (dc.fonts as { heading: string; body: string } | null) ?? {
+      heading: "Fraunces", body: "Plus Jakarta Sans",
+    };
+    const page = (dc.page as { size: string; orientation: string } | null) ?? {
+      size: "a4", orientation: "portrait",
+    };
+    html = buildDocumentHtml({
+      title: typeof project.main_title === "string"
         ? project.main_title
         : (ebook.title as string | null) ?? "Ebook",
-    author: typeof project.author === "string" ? project.author : null,
-    chapters,
-    palette,
-    fonts,
-    page,
-    coverImageUrl,
-  });
+      author: typeof project.author === "string" ? project.author : null,
+      chapters,
+      palette,
+      fonts,
+      page,
+      coverImageUrl: imageUrls["cover"] ?? null,
+    });
+  }
 
   // Render PDF with hard timeout
   const pdfPromise = renderPdf(html);
