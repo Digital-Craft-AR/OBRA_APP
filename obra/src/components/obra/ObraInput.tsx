@@ -18,7 +18,7 @@ export function ObraInput({ label, hint, error, id, className = "", ...props }: 
   const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <label htmlFor={inputId} className="font-body text-sm font-medium text-obra-blue-950">
         {label}
       </label>

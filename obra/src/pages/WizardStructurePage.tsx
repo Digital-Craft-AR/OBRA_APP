@@ -17,6 +17,8 @@ import { StructureStepPackage } from "@/components/wizard/structure/StructureSte
 import { StructureStepTopic } from "@/components/wizard/structure/StructureStepTopic";
 import { WizardGuidedTour } from "@/components/wizard/WizardGuidedTour";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
+import { ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useWizardStructureFlow } from "@/hooks/wizard/useWizardStructureFlow";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import { useWizardTourState } from "@/hooks/wizard/useWizardTourState";
@@ -68,19 +70,16 @@ export function WizardStructurePage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
-      <div className="px-6 py-3 bg-obra-blue-950">
+      <div className="relative border-b border-obra-blue-800/50 bg-obra-blue-900 px-8 py-4">
         <button
           type="button"
           onClick={() => navigate("/app/dashboard")}
-          className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white"
+          className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
         >
           <ChevronLeft className="size-3.5" aria-hidden />
           {t("wizard.structure.back")}
         </button>
-      </div>
-
-      <div className="border-b border-obra-blue-100 px-8 py-5">
-        <WizardGlobalStepper steps={globalSteps} />
+        <WizardGlobalStepper steps={globalSteps} dark />
       </div>
 
       <StructureStepInnerProgress
@@ -96,17 +95,9 @@ export function WizardStructurePage() {
       <main className="flex flex-1 min-h-0 flex-col overflow-y-auto">
         <StructureStepTitleBlock title={flow.stepTitle} subtitle={flow.stepSubtitle} />
         <div className="mx-auto w-full max-w-3xl px-8 pb-10">
-          {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
-          {error ? (
-            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-          {structureGateError ? (
-            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {structureGateError}
-            </p>
-          ) : null}
+          {loading ? <ObraSpinner size="lg" className="py-16" /> : null}
+          {error ? <ObraAlert variant="error" title={error} className="mb-4" /> : null}
+          {structureGateError ? <ObraAlert variant="error" title={structureGateError} className="mb-4" /> : null}
 
           {project && !loading ? (
             <div className="space-y-5">
@@ -322,7 +313,7 @@ export function WizardStructurePage() {
         </div>
       </main>
 
-      <div className="border-t border-obra-blue-100 px-8 py-5">
+      <div className="border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="mx-auto flex w-full items-center justify-between">
           <Button
             variant="tertiary"

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { TFunction } from "i18next";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ObraAlert } from "@/components/obra/ObraAlert";
 import {
   invokeAiSplitProposal,
   type SplitProposalChapter,
@@ -21,15 +22,20 @@ type Props = {
 };
 
 function mapErrorCode(code: string | null): string {
-  switch (code) {
-    case "manuscript_not_found":
-    case "empty_manuscript":
-      return "wizard.content.splitProposal.errorManuscript";
-    case "wrong_phase":
-      return "wizard.content.splitProposal.errorWrongPhase";
-    default:
-      return "wizard.content.splitProposal.errorGeneric";
-  }
+  if (!code) return "wizard.content.splitProposal.errorGeneric";
+  // getFunctionsInvokeErrorCode may return "main:detail" — check with startsWith
+  if (code.startsWith("manuscript_not_found") || code.startsWith("empty_manuscript"))
+    return "wizard.content.splitProposal.errorManuscript";
+  if (code.startsWith("wrong_phase"))
+    return "wizard.content.splitProposal.errorWrongPhase";
+  if (
+    code.startsWith("anthropic_not_configured") ||
+    code.startsWith("anthropic_http_error") ||
+    code.startsWith("anthropic_empty_response") ||
+    code.startsWith("invoke_failed")
+  )
+    return "wizard.content.splitProposal.errorGeneric";
+  return "wizard.content.splitProposal.errorGeneric";
 }
 
 export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalBusy, autoStart }: Props) {
@@ -129,17 +135,18 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
               {t("wizard.content.splitProposal.title")}
             </h2>
           </header>
-          <div
-            role="alert"
-            className="rounded-card border border-red-200 bg-red-50 px-4 py-3"
-          >
-            <p className="font-body text-sm font-semibold text-red-700">
-              {t("wizard.content.splitProposal.errorTitle")}
-            </p>
-            <p className="mt-0.5 font-body text-sm text-red-600">
-              {t(mapErrorCode(errorCode))}
-            </p>
-          </div>
+          <ObraAlert
+            variant="error"
+            title={t("wizard.content.splitProposal.errorTitle")}
+            description={
+              <>
+                {t(mapErrorCode(errorCode))}
+                {import.meta.env.DEV && errorCode ? (
+                  <span className="mt-1 block font-mono text-xs text-red-400">[dev] code: {errorCode}</span>
+                ) : null}
+              </>
+            }
+          />
           <div>
             <Button type="button" variant="secondary" onClick={() => void handleGenerate()}>
               {t("wizard.content.splitProposal.retryCta")}
@@ -161,30 +168,21 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
           </header>
 
           {warnings.length > 0 && (
-            <div className="flex gap-2.5 rounded-card border border-yellow-200 bg-yellow-50 px-4 py-3">
-              <AlertTriangle
-                className="mt-0.5 size-4 shrink-0 text-yellow-600"
-                aria-hidden
-              />
-              <div className="space-y-1">
-                <p className="font-body text-sm font-semibold text-yellow-800">
-                  {t("wizard.content.splitProposal.warningsTitle")}
-                </p>
-                <ul className="list-inside list-disc space-y-0.5">
+            <ObraAlert
+              variant="warning"
+              title={t("wizard.content.splitProposal.warningsTitle")}
+              description={
+                <ul className="mt-1 list-inside list-disc space-y-0.5">
                   {warnings.map((w, i) => (
-                    <li key={i} className="font-body text-sm text-yellow-700">
-                      {w}
-                    </li>
+                    <li key={i}>{w}</li>
                   ))}
                 </ul>
-              </div>
-            </div>
+              }
+            />
           )}
 
           {showTitleError && (
-            <p role="alert" className="font-body text-sm font-semibold text-red-600">
-              {t("wizard.content.splitProposal.errorEmptyTitle")}
-            </p>
+            <ObraAlert variant="error" title={t("wizard.content.splitProposal.errorEmptyTitle")} />
           )}
 
           <ol

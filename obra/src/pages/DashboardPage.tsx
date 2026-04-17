@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { ObraSidebar } from "@/components/obra/ObraSidebar";
+import { ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraAlert } from "@/components/obra/ObraAlert";
 import { ObraInput } from "@/components/obra/ObraInput";
 import { ProjectSummaryCard, type ProjectSummaryCardModel, type ProjectCardActions } from "@/components/projects/ProjectSummaryCard";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
@@ -410,7 +412,7 @@ export function DashboardPage() {
 
         <div className="min-h-0 flex-1 overflow-y-auto p-10">
           {countLoading ? (
-            <p className="text-obra-neutral-600">{t("projects.loading")}</p>
+            <ObraSpinner size="lg" className="py-16" />
           ) : tourEmpty ? (
             <div className="flex min-h-full flex-col items-center justify-center gap-8">
               <div className="relative flex aspect-video w-full max-w-2xl items-center justify-center overflow-hidden rounded-card border border-obra-blue-100 bg-obra-blue-50">
@@ -502,13 +504,11 @@ export function DashboardPage() {
               ) : null}
 
               {lifecycleTab === "trash" ? (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  {t("projects.trash.notice")}
-                </p>
+                <ObraAlert variant="warning" title={t("projects.trash.notice")} className="mb-4" />
               ) : null}
 
               {projectsLoading ? (
-                <p className="text-obra-neutral-600">{t("projects.loading")}</p>
+                <ObraSpinner size="lg" className="py-16" />
               ) : tabProjects.length === 0 ? (
                 <p className="text-obra-neutral-600">{t(`projects.empty.${lifecycleTab}`)}</p>
               ) : (
