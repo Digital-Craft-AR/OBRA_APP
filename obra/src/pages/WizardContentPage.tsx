@@ -1489,7 +1489,7 @@ export function WizardContentPage() {
           ) : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-5xl px-8 py-8">
+              <div className="w-full px-8 py-8">
           {!bannerDismissed ? (
             <div
               role="region"
@@ -1621,47 +1621,6 @@ export function WizardContentPage() {
             />
           ) : null}
 
-              </div>
-            </div>
-
-            <div className="shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
-              <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
-                {showChapterLoop && project?.content_source === "ai" ? (
-                  <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
-                    <ChevronLeft className="size-4" aria-hidden />
-                    {t("wizard.content.index.reopenIndex")}
-                  </Button>
-                ) : showChapterLoop ? (
-                  <span />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="tertiary"
-                    onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
-                  >
-                    <ChevronLeft className="size-4" aria-hidden />
-                    {t("wizard.content.footer.backToStructure")}
-                  </Button>
-                )}
-
-                {awaitingContentIntro ? (
-                  <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
-                    {t("wizard.content.sourceIntro.continue")}
-                    <ChevronRight className="size-4" aria-hidden />
-                  </Button>
-                ) : !showChapterLoop ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    disabled={!confirmVisible || confirmDisabled || confirmLoading}
-                    onClick={() => void handleConfirmGlobalIndex()}
-                  >
-                    {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
-                    <ChevronRight className="size-4" aria-hidden />
-                  </Button>
-                ) : (
-                  <span />
-                )}
               </div>
             </div>
           </div>
