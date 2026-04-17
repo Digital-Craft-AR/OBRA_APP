@@ -104,7 +104,7 @@ export function ChapterRichTextEditor({
     <div
       className={[
         "rounded-card border border-obra-neutral-200 bg-white transition-colors",
-        disabled ? "cursor-not-allowed opacity-50" : "focus-within:border-obra-blue-400 focus-within:ring-2 focus-within:ring-obra-blue-400/30",
+        disabled ? "cursor-not-allowed opacity-50" : "focus-within:border-obra-blue-700 focus-within:ring-2 focus-within:ring-obra-blue-700/20",
       ].join(" ")}
     >
       <div
@@ -180,7 +180,7 @@ export function ChapterRichTextEditor({
           <LinkIcon className="size-4" aria-hidden />
         </ToolbarButton>
       </div>
-      <div className="min-h-[12rem] max-h-[min(32rem,55vh)] overflow-y-auto px-3 py-2">
+      <div className="min-h-[12rem] max-h-[min(32rem,55vh)] overflow-y-auto px-5 py-4">
         <EditorContent editor={editor} className="obra-rich-editor font-body text-sm text-obra-blue-950" />
       </div>
     </div>

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle } from "@/components/ui/Modal";
 import { ObraToast } from "@/components/obra/ObraToast";
 import { ContentIndexMilestone } from "@/components/wizard/content/ContentIndexMilestone";
-import { ContentChapterMilestone } from "@/components/wizard/content/ContentChapterMilestone";
+import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
 import { ContentPackSidebar } from "@/components/wizard/content/ContentPackSidebar";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
+import { ObraLoadingOverlay, ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
   buildContentPackageNavTargets,
@@ -1432,24 +1434,21 @@ export function WizardContentPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
-      <div className="bg-obra-blue-950 px-6 py-3">
+      <div className="relative border-b border-obra-blue-800/50 bg-obra-blue-900 px-8 py-4">
         <button
           type="button"
           onClick={() => navigate("/app/dashboard")}
-          className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white"
+          className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
         >
           <ChevronLeft className="size-3.5" aria-hidden />
           {t("wizard.structure.back")}
         </button>
+        <WizardGlobalStepper steps={globalSteps} dark />
       </div>
 
-      <div className="border-b border-obra-blue-100 px-8 py-5">
-        <WizardGlobalStepper steps={globalSteps} />
-      </div>
-
-      <div className="border-b border-obra-blue-100 px-8 py-3">
+      <div className="border-b border-obra-blue-800/50 bg-obra-blue-950 px-8 py-2.5">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-sm font-medium text-obra-neutral-600">
+          <span className="text-xs font-medium text-white/60">
             {t("wizard.content.stepCounter", {
               current: contentInnerStepCurrent,
               total: contentInnerStepTotal,
@@ -1467,8 +1466,8 @@ export function WizardContentPage() {
             {Array.from({ length: contentInnerStepTotal }).map((_, index) => (
               <div
                 key={index}
-                className={`h-1.5 w-9 rounded-full transition-all ${
-                  index < contentInnerStepCurrent ? "bg-obra-blue-700" : "bg-obra-blue-100"
+                className={`h-1 w-8 rounded-full transition-all ${
+                  index < contentInnerStepCurrent ? "bg-obra-green-400" : "bg-white/20"
                 }`}
               />
             ))}
@@ -1487,35 +1486,32 @@ export function WizardContentPage() {
               navItemDisabled={navItemDisabled}
             />
           ) : null}
+          {showChapterLoop ? (
+            <ContentChapterNav
+              t={t}
+              chapters={chapterRows}
+              selectedIndex={chapterIdx}
+              onSelectChapterIndex={(i) => void handleSelectChapterIndex(i)}
+              generateLoading={chapterGenerateLoading}
+              title={navItems.find((item) => item.key === selectedKey)?.navTitle}
+            />
+          ) : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="w-full px-8 py-8">
+              <div className="w-full min-h-full bg-white px-8 py-10">
           {!bannerDismissed ? (
-            <div
-              role="region"
-              aria-label={t("wizard.content.banner.regionAria")}
-              className="mb-6 rounded-card border border-obra-neutral-200 bg-white px-4 py-3"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="font-body text-sm text-obra-blue-950">{t("wizard.content.banner.body")}</p>
-                <Button type="button" variant="tertiary" size="small" onClick={dismissBanner}>
-                  {t("wizard.content.banner.dismiss")}
-                </Button>
-              </div>
-            </div>
+            <ObraAlert
+              variant="info"
+              title={t("wizard.content.banner.body")}
+              onDismiss={dismissBanner}
+              dismissLabel={t("wizard.content.banner.dismiss")}
+              className="mb-6"
+            />
           ) : null}
 
-          {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
-          {error ? (
-            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-          {workspaceError ? (
-            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {workspaceError}
-            </p>
-          ) : null}
+          {loading ? <ObraSpinner size="lg" className="py-16" /> : null}
+          {error ? <ObraAlert variant="error" title={error} className="mb-4" /> : null}
+          {workspaceError ? <ObraAlert variant="error" title={workspaceError} className="mb-4" /> : null}
 
           {awaitingContentIntro && project ? (
             <ContentSourceIntroPanel
@@ -1605,7 +1601,6 @@ export function WizardContentPage() {
               panelTitle={chapterPanelCopy.title}
               chapters={chapterRows}
               selectedIndex={chapterIdx}
-              onSelectChapterIndex={(i) => void handleSelectChapterIndex(i)}
               bodyValue={chapterBodyDraft}
               onBodyChange={setChapterBodyDraft}
               onSave={() => void handleSaveChapterBody()}
@@ -1627,7 +1622,7 @@ export function WizardContentPage() {
         </div>
       </main>
 
-      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
+      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="flex w-full min-w-0 items-center justify-between">
           {showChapterLoop && project?.content_source === "ai" ? (
             <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>

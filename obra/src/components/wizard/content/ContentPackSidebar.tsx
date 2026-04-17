@@ -1,4 +1,4 @@
-import { BadgePercent, BookOpen, Check, Gift } from "lucide-react";
+import { BookOpen, Check, Gift, TrendingUp } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { ContentNavItem, ContentPackageNavTarget } from "@/lib/wizard/contentNav";
 
@@ -15,7 +15,7 @@ function PackTypeIcon({ target }: { target: ContentPackageNavTarget }) {
     return <Gift className="size-5 shrink-0" aria-hidden />;
   }
   if (target.kind === "bump") {
-    return <BadgePercent className="size-5 shrink-0" aria-hidden />;
+    return <TrendingUp className="size-5 shrink-0" aria-hidden />;
   }
   return <BookOpen className="size-5 shrink-0" aria-hidden />;
 }
@@ -52,10 +52,10 @@ export function ContentPackSidebar({
           }}
           className={[
             "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
-            disabled ? "cursor-not-allowed opacity-40" : "",
+            disabled ? "cursor-not-allowed opacity-30" : "",
             isCurrent
-              ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
-              : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
+              ? "border-obra-blue-500/60 bg-obra-blue-700 text-white"
+              : "border-transparent bg-transparent text-white/60 hover:bg-obra-blue-800/60 hover:text-white",
           ].join(" ")}
         >
           <PackTypeIcon target={item.target} />
@@ -74,7 +74,7 @@ export function ContentPackSidebar({
   return (
     <nav
       aria-label={navLabel}
-      className="flex w-full shrink-0 flex-col items-center gap-1 border-b border-obra-blue-100 px-4 py-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-6 lg:py-6"
+      className="flex w-full shrink-0 flex-col items-center gap-1 border-b border-obra-blue-800/50 bg-obra-blue-900 px-4 py-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-4 lg:py-4"
     >
       <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
         {navItems.map((item) => renderItem(item))}

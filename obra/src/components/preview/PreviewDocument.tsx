@@ -120,7 +120,7 @@ export function PreviewDocument({
       ) : null}
 
       {chapters.map((chapter, idx) => (
-        <div key={chapter.id} className="preview-chapter">
+        <div key={chapter.id} id={`chapter-${chapter.id}`} className="preview-chapter">
           <LayoutChapterOpener chapterNumber={idx + 1} title={chapter.title} />
           <LayoutBody
             chapterTitle={chapter.title}

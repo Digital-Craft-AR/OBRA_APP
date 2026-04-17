@@ -1146,9 +1146,14 @@ Analyze the manuscript and propose the chapter structure.`;
 
 // ─── generateDocumentTemplatePrompt ──────────────────────────────────────────
 // Doc: prompts/content/generate-document-template.md
-// Generates the complete HTML shell of a document (cover, TOC, chapter openers,
-// body containers with {{CHAPTER_N_CONTENT}} placeholders) applying the project
-// design system. The code injects chapter HTML content into the placeholders.
+// Generates the complete HTML shell of a document with:
+//   - Cover page: full-bleed image slot only (no text)
+//   - Title page: title + author text only
+//   - TOC: {{TOC_ENTRIES}} placeholder (code injects)
+//   - Chapter openers: {{CHAPTER_N_TITLE}} placeholder
+//   - Chapter bodies: {{CHAPTER_N_CONTENT}} placeholder
+//   - Image slots: data-slot-key / data-slot-type / data-slot-description
+//     Claude decides placement; code injects images or keeps placeholders.
 // Works for any artifact size — placeholders avoid token limit issues.
 
 export type ArtifactType = "main_ebook" | "bonus" | "bump";
@@ -1166,7 +1171,6 @@ export interface GenerateDocumentTemplateVars {
   fonts: string;
   /** Serialized JSON: { size: "a4" | "letter"; orientation: "portrait" | "landscape" } */
   page: string;
-  cover_image_url: string | null;
 }
 
 /** Page dimension lookup for CSS interpolation */
@@ -1191,45 +1195,91 @@ export function generateDocumentTemplatePrompt(
 
 You are Obra's document design AI. Obra creates infoproduct packages (ebook + bonuses + order bumps) for LATAM creators.
 
-Role: generate the complete HTML shell of a publication-quality document. This HTML is used BOTH for in-browser preview and for Puppeteer PDF export — it must look identical in both contexts.
+Role: generate the complete HTML shell of a publication-quality document. This HTML is used BOTH for in-browser preview and Puppeteer PDF export — it must look identical in both contexts.
 
-CSS PAGINATION RULES — include these EXACTLY in every document:
+═══ PAGE STRUCTURE (mandatory order) ═══
 
-1. Named pages (mandatory — controls margins per section type):
-   .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
-   @page obra-full-bleed { margin: 0; }
-   .obra-body, .obra-toc { page: obra-content; }
-   @page obra-content { margin: 20mm; }
+1. COVER PAGE (.obra-page .obra-cover)
+   - Contains ONLY an image slot div — no title, no author, no text whatsoever
+   - Full-bleed: image fills the entire page
+   - <div class="obra-image-slot obra-image-slot--cover" data-slot-key="cover" data-slot-type="cover" data-slot-description="Full-bleed cover image for: {title}"></div>
 
-2. Page breaks:
-   .obra-page { break-after: page; page-break-after: always; }
+2. TITLE PAGE (.obra-page .obra-title-page)
+   - Title + author only — no image
+   - Vertically centered, clean typography
 
-3. Break controls inside body pages:
-   .chapter-content h2, .chapter-content h3 { break-after: avoid; page-break-after: avoid; }
-   .chapter-content li, .chapter-content blockquote { break-inside: avoid; page-break-inside: avoid; }
-   .chapter-content p { orphans: 3; widows: 3; }
+3. TOC PAGE (.obra-page .obra-toc)
+   - Contains EXACTLY the literal text {{TOC_ENTRIES}} inside <ol class="obra-toc__list"> — nothing else
+   - Code will replace this placeholder with the real TOC entries
 
-4. Screen simulation — each .obra-page as a distinct page card:
-   @media screen { body { background: #e8edf2; padding: 32px 16px; } }
-   @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
-   @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; padding: 0; overflow: hidden; } }
-   @media screen { .obra-body, .obra-toc { padding: 20mm; } }
+4. CHAPTER PAGES — for each chapter (repeat):
+   a. Chapter opener (.obra-page .obra-chapter-opener) with id="chapter-N"
+      - Chapter number (zero-padded: 01, 02…)
+      - EXACTLY the literal text {{CHAPTER_N_TITLE}} inside <h2 class="obra-chapter__title"> — code injects real title
+      - Optional: one image slot ONLY IF it fits the chapter topic (see IMAGE SLOTS below)
+   b. Body page (.obra-page .obra-body)
+      - Contains EXACTLY {{CHAPTER_N_CONTENT}} inside <div class="obra-chapter__content"> — nothing else
 
-5. Global @page size:
-   @page { size: ${pageDimensions}; }
+═══ PLACEHOLDER RULES (non-negotiable) ═══
 
-DESIGN RULES:
-- Use CSS custom properties: var(--color-primary), var(--color-secondary), var(--color-accent), var(--font-heading), var(--font-body)
-- Do NOT hardcode colors or font names outside :root — always use custom properties
+- {{TOC_ENTRIES}} — use this exact string once inside .obra-toc__list
+- {{CHAPTER_N_TITLE}} — use this exact pattern per chapter (N = 1, 2, 3…)
+- {{CHAPTER_N_CONTENT}} — use this exact pattern per chapter body (N = 1, 2, 3…)
+- Do NOT hardcode chapter titles or body content — only placeholders
+
+═══ IMAGE SLOTS ═══
+
+Each image slot is an empty div with these attributes:
+  data-slot-key   — unique ID: "cover" for cover, "chapter-N-image-1" for chapter images
+  data-slot-type  — "cover" or "chapter"
+  data-slot-description — specific visual description for an AI image generator (1–2 sentences, visual and concrete)
+
+Rules:
+- Cover ALWAYS gets a slot (data-slot-key="cover")
+- Chapter images: use your judgment based on chapter title. NOT every chapter needs an image.
+  Add one ONLY when it clearly enhances the content (e.g. a step-by-step process, a key concept that benefits from visual support).
+- Never add more than 1 image per chapter
+- If adding a chapter image, place it AFTER the chapter opener (before the body), OR inside the body before content
+- data-slot-description must be specific and visual: describe subject, mood, style. Example: "A person reviewing a financial spreadsheet at a wooden desk, warm morning light, focused expression"
+
+CSS for image slots (include this in your <style>):
+  .obra-image-slot { width: 100%; background-color: var(--color-secondary); display: block; }
+  .obra-image-slot--cover { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .obra-image-slot--chapter { width: 100%; height: 200px; border-radius: 6px; overflow: hidden; margin: 1.5rem 0; }
+  .obra-image-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+═══ CSS PAGINATION RULES (include EXACTLY) ═══
+
+Named pages:
+  .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
+  @page obra-full-bleed { margin: 0; }
+  .obra-title-page, .obra-body, .obra-toc { page: obra-content; }
+  @page obra-content { margin: 20mm; }
+
+Page breaks:
+  .obra-page { break-after: page; page-break-after: always; }
+
+Break controls inside body:
+  .obra-chapter__content h2, .obra-chapter__content h3 { break-after: avoid; page-break-after: avoid; }
+  .obra-chapter__content li, .obra-chapter__content blockquote { break-inside: avoid; page-break-inside: avoid; }
+  .obra-chapter__content p { orphans: 3; widows: 3; }
+
+Screen simulation (page cards):
+  @media screen { body { background: #e8edf2; padding: 32px 16px; } }
+  @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
+  @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; padding: 0; overflow: hidden; position: relative; } }
+  @media screen { .obra-title-page, .obra-body, .obra-toc { padding: 20mm; } }
+
+Global page size:
+  @page { size: ${pageDimensions}; }
+
+═══ DESIGN RULES ═══
+
+- CSS custom properties only: var(--color-primary), var(--color-secondary), var(--color-accent), var(--font-heading), var(--font-body)
+- No hardcoded colors or fonts outside :root
 - All CSS inline in <style> — no external files, no @import
-- Google Fonts via <link> in <head> — not @import
-
-CONTENT RULES:
-- Cover and TOC must use real data from inputs (title, author, chapter titles)
-- Every body section must contain EXACTLY {{CHAPTER_N_CONTENT}} (1-based) inside <div class="chapter-content"> — nothing else
-- Do NOT invent or add chapter text content
-- TOC entries link to href="#chapter-N"
-- Chapter openers use id="chapter-N"
+- Google Fonts via <link> in <head>
+- Make it beautiful: use the full design system — accent bars, background colors, typography hierarchy
 
 STRUCTURAL TEXT by content_locale:
 - es: "Índice", "Capítulo"
@@ -1239,10 +1289,7 @@ STRUCTURAL TEXT by content_locale:
 If chapter_titles is empty or title is missing, return:
 {"error": "INVALID_INPUT", "message": "<reason in ${vars.content_locale}>"}`;
 
-  const authorLine = vars.author ? `Author: ${vars.author}` : "";
-  const coverImageLine = vars.cover_image_url
-    ? `Cover image URL: ${vars.cover_image_url}`
-    : "Cover image URL: null";
+  const authorLine = vars.author ? `Author: ${vars.author}` : "Author: (none)";
 
   const user = `Artifact type: ${vars.artifact_type}
 Title: ${vars.title}
@@ -1253,32 +1300,85 @@ Design system:
 Palette: ${vars.palette}
 Fonts: ${vars.fonts}
 Page: ${vars.page}
-${coverImageLine}
 
 Chapter titles (in order):
 ${vars.chapter_titles}
 
-Generate the complete HTML document shell. Build the cover, TOC, and all chapter openers with real data. In each body section, place the placeholder {{CHAPTER_N_CONTENT}} (where N is the chapter number) inside <div class="chapter-content"> — do not add any other content there.`;
+Generate the complete HTML shell. Use {{TOC_ENTRIES}}, {{CHAPTER_N_TITLE}}, and {{CHAPTER_N_CONTENT}} placeholders exactly as specified. Decide where chapter images add value and place slots accordingly. Make the design beautiful and cohesive with the palette and fonts provided.`;
 
   return { system, user };
 }
 
 /**
- * Injects chapter HTML content into the placeholders generated by
- * generateDocumentTemplatePrompt. Call this before rendering in the preview
- * iframe or sending to Puppeteer.
+ * Injects all dynamic content into an HTML shell produced by generateDocumentTemplatePrompt.
+ * Replaces:
+ *   - {{TOC_ENTRIES}} with generated TOC <li> elements
+ *   - {{CHAPTER_N_TITLE}} with chapter titles
+ *   - {{CHAPTER_N_CONTENT}} with chapter body HTML
+ *   - .obra-image-slot[data-slot-key] with <img> when a URL is provided
+ *
+ * Call this client-side before rendering in the preview iframe, or server-side
+ * before sending to Puppeteer.
+ */
+export function injectAll(
+  htmlShell: string,
+  opts: {
+    chapters: Array<{ sort_order: number; title: string; content: string | null }>;
+    /** Map of slot-key → signed image URL */
+    images?: Record<string, string>;
+  },
+): string {
+  const sorted = [...opts.chapters].sort((a, b) => a.sort_order - b.sort_order);
+  let html = htmlShell;
+
+  // 1. Inject TOC entries
+  const tocHtml = sorted
+    .map((ch, idx) => {
+      const n = idx + 1;
+      const title = ch.title?.trim() || `Capítulo ${n}`;
+      return `<li class="obra-toc__entry"><a href="#chapter-${n}">${title}</a></li>`;
+    })
+    .join("\n        ");
+  html = html.replace("{{TOC_ENTRIES}}", tocHtml);
+
+  // 2. Inject chapter titles and content
+  sorted.forEach((ch, idx) => {
+    const n = idx + 1;
+    const title = ch.title?.trim() || `Capítulo ${n}`;
+    const content = ch.content?.trim() || "<p>—</p>";
+    html = html.replace(`{{CHAPTER_${n}_TITLE}}`, title);
+    html = html.replace(`{{CHAPTER_${n}_CONTENT}}`, content);
+  });
+
+  // 3. Inject images into slots
+  if (opts.images) {
+    for (const [slotKey, url] of Object.entries(opts.images)) {
+      if (!url) continue;
+      // Replace empty slot div with one containing an <img>
+      // Matches: <div ...data-slot-key="KEY"...></div>  (possibly with whitespace inside)
+      const slotRe = new RegExp(
+        `(<div[^>]*data-slot-key="${slotKey}"[^>]*>)\\s*(<\\/div>)`,
+        "i",
+      );
+      html = html.replace(
+        slotRe,
+        `$1<img src="${url}" alt="" loading="lazy" />$2`,
+      );
+    }
+  }
+
+  return html;
+}
+
+/**
+ * @deprecated Use injectAll() instead.
+ * Kept for backwards-compatibility with any callers that only inject content.
  */
 export function injectChapterContent(
   htmlShell: string,
   chapters: Array<{ sort_order: number; content: string | null }>,
 ): string {
-  let html = htmlShell;
-  [...chapters]
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .forEach((chapter, idx) => {
-      const placeholder = `{{CHAPTER_${idx + 1}_CONTENT}}`;
-      const content = chapter.content?.trim() || "<p>—</p>";
-      html = html.replace(placeholder, content);
-    });
-  return html;
+  return injectAll(htmlShell, {
+    chapters: chapters.map((c) => ({ ...c, title: "" })),
+  });
 }

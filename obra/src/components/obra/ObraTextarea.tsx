@@ -2,7 +2,7 @@ import type { TextareaHTMLAttributes } from "react";
 import { Sparkles } from "lucide-react";
 
 const textareaBase = [
-  "min-h-28 w-full px-3 pt-3 pb-10 font-body text-sm transition-all outline-none",
+  "min-h-[200px] w-full px-3 pt-3 pb-10 font-body text-sm transition-all outline-none",
   "rounded-input border border-obra-neutral-200 bg-obra-neutral-100",
   "text-obra-neutral-900 placeholder:text-obra-neutral-400",
   "focus:border-obra-blue-700 focus:ring-2 focus:ring-obra-blue-700",
@@ -55,7 +55,7 @@ export function ObraTextarea({
           : assistLabel;
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <label htmlFor={textareaId} className="font-body text-sm font-medium text-obra-blue-950">
         {label}
       </label>

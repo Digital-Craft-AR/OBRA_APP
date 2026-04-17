@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Book, ChevronLeft, FileDown, Gift, Package, Tag } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Book, ChevronLeft, FileDown, Gift, Package, RefreshCw, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
+import { ObraLoadingOverlay, ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraAlert } from "@/components/obra/ObraAlert";
+import { ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
 import { ExportPdfModal } from "@/components/wizard/ExportPdfModal";
-import { PreviewDocument, type EbookPreviewData } from "@/components/preview/PreviewDocument";
-import { ImageSlot } from "@/components/preview/ImageSlot";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
 import {
@@ -17,6 +18,9 @@ import {
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
+import { fetchOrGenerateShell, regenerateShell, type ShellMeta } from "@/lib/preview/documentShellApi";
+import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
+import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { queuePdfExport, getErrorMessage } from "@/utils/pdf-export";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -126,8 +130,21 @@ export function WizardPreviewPage() {
   const [zipError, setZipError] = useState<string | null>(null);
   const [publishStatus, setPublishStatus] = useState<"draft" | "published" | "modified">("draft");
 
-  // Image slots state: imageId → { status, signedUrl }
+  // Image slots state: slotKey → { status, url }
   const [imageSlots, setImageSlots] = useState<Record<string, { status: ImageSlotStatus; url: string | null }>>({});
+
+  // AI generate modal state
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [generateModalSlotKey, setGenerateModalSlotKey] = useState<string | null>(null);
+  const [generateInstruction, setGenerateInstruction] = useState("");
+  const [generateBusy, setGenerateBusy] = useState(false);
+
+  // HTML shell state per ebook id
+  const [shellCache, setShellCache] = useState<Record<string, { html: string; meta: ShellMeta }>>({});
+  const [shellLoading, setShellLoading] = useState(false);
+  const [shellError, setShellError] = useState<string | null>(null);
+  /** True when current chapters count/page config differs from what the shell was generated with */
+  const [shellStale, setShellStale] = useState(false);
 
   // Load ebooks + publish_status once project is ready
   useEffect(() => {
@@ -189,6 +206,73 @@ export function WizardPreviewPage() {
     };
   }, [selectedEbookId, chaptersCache]);
 
+  // Load or generate the HTML shell when chapters for selected ebook are ready
+  useEffect(() => {
+    if (!project?.id || !selectedEbookId) return;
+    const chapters = chaptersCache[selectedEbookId];
+    if (!chapters || chapters.length === 0) return;
+    // Already cached for this ebook
+    if (shellCache[selectedEbookId]) {
+      const meta = shellCache[selectedEbookId]!.meta;
+      const dc = (project.design_config ?? {}) as Record<string, unknown>;
+      const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
+      const stale =
+        meta.chapter_count !== chapters.length ||
+        meta.page_size !== page.size ||
+        meta.page_orientation !== page.orientation;
+      setShellStale(stale);
+      return;
+    }
+
+    let cancelled = false;
+    async function load() {
+      if (!project?.id || !selectedEbookId) return;
+      setShellLoading(true);
+      setShellError(null);
+      setShellStale(false);
+      const chapters = chaptersCache[selectedEbookId!]!;
+      const dc = (project.design_config ?? {}) as Record<string, unknown>;
+      const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
+      const result = await fetchOrGenerateShell({
+        projectId: project.id,
+        ebookId: selectedEbookId!,
+        currentChapterCount: chapters.length,
+        currentPageSize: page.size,
+        currentPageOrientation: page.orientation,
+      });
+      if (cancelled) return;
+      if (result.ok) {
+        setShellCache((prev) => ({
+          ...prev,
+          [selectedEbookId!]: { html: result.htmlShell, meta: result.shellMeta },
+        }));
+      } else {
+        setShellError(result.error);
+      }
+      setShellLoading(false);
+    }
+
+    void load();
+    return () => { cancelled = true; };
+  }, [project, selectedEbookId, chaptersCache, shellCache]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRegenerateShell = useCallback(async () => {
+    if (!project?.id || !selectedEbookId) return;
+    setShellLoading(true);
+    setShellError(null);
+    setShellStale(false);
+    const result = await regenerateShell({ projectId: project.id, ebookId: selectedEbookId });
+    if (result.ok) {
+      setShellCache((prev) => ({
+        ...prev,
+        [selectedEbookId]: { html: result.htmlShell, meta: result.shellMeta },
+      }));
+    } else {
+      setShellError(result.error);
+    }
+    setShellLoading(false);
+  }, [project?.id, selectedEbookId]);
+
   // Load existing image slots when project is loaded
   useEffect(() => {
     if (!project?.id) return;
@@ -221,31 +305,96 @@ export function WizardPreviewPage() {
 
   const handleSelectEbook = useCallback((id: string) => {
     setSelectedEbookId(id);
+    setSelectedPreviewChapterIdx(0);
   }, []);
 
-  const handleUploadCover = useCallback(async (file: File) => {
-    if (!project?.id) return;
-    const key = "cover_art";
-    setImageSlots((prev) => ({ ...prev, [key]: { status: "generating", url: prev[key]?.url ?? null } }));
-    const result = await uploadImage({ projectId: project.id, slotKey: "cover_art", file });
-    if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [key]: { status: "done", url: result.signedUrl } }));
-    } else {
-      setImageSlots((prev) => ({ ...prev, [key]: { status: "error", url: prev[key]?.url ?? null } }));
-    }
-  }, [project?.id]);
+  const [selectedPreviewChapterIdx, setSelectedPreviewChapterIdx] = useState(0);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
 
-  const handleGenerateCover = useCallback(async (instruction?: string) => {
-    if (!project?.id) return;
-    const key = "cover_art";
-    setImageSlots((prev) => ({ ...prev, [key]: { status: "generating", url: prev[key]?.url ?? null } }));
-    const result = await generateImage({ projectId: project.id, slotKey: "cover_art", instruction });
-    if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [key]: { status: "done", url: result.signedUrl } }));
-    } else {
-      setImageSlots((prev) => ({ ...prev, [key]: { status: "error", url: prev[key]?.url ?? null } }));
+  const handleSelectPreviewChapter = useCallback((index: number) => {
+    setSelectedPreviewChapterIdx(index);
+    const chapters = selectedEbookId ? chaptersCache[selectedEbookId] ?? [] : [];
+    const chapter = chapters[index];
+    if (!chapter || !previewScrollRef.current) return;
+    const el = previewScrollRef.current.querySelector(`#chapter-${chapter.id}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedEbookId, chaptersCache]);
+
+  /**
+   * Maps an HTML slot key (used by Claude, e.g. "cover") to the DB slot key
+   * (e.g. "cover_art") and returns the args for uploadImage / generateImage.
+   */
+  const resolveSlotArgs = useCallback((htmlSlotKey: string) => {
+    if (htmlSlotKey === "cover") {
+      return { dbSlotKey: "cover_art", ebookId: undefined as string | undefined };
     }
-  }, [project?.id]);
+    // chapter-N-image-1 → use selectedEbookId
+    return { dbSlotKey: htmlSlotKey, ebookId: selectedEbookId ?? undefined };
+  }, [selectedEbookId]);
+
+  const handleSlotUpload = useCallback(async (htmlSlotKey: string, file: File) => {
+    if (!project?.id) return;
+    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
+    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
+    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId });
+    if (result.ok) {
+      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl } }));
+    } else {
+      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+    }
+  }, [project?.id, resolveSlotArgs]);
+
+  const handleSlotGenerate = useCallback(async (htmlSlotKey: string, instruction?: string) => {
+    if (!project?.id) return;
+    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
+    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
+    const result = await generateImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, instruction });
+    if (result.ok) {
+      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl ?? null } }));
+    } else {
+      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+    }
+  }, [project?.id, resolveSlotArgs]);
+
+  const handleSlotRemove = useCallback((htmlSlotKey: string) => {
+    setImageSlots((prev) => {
+      const next = { ...prev };
+      delete next[htmlSlotKey];
+      return next;
+    });
+  }, []);
+
+  // postMessage listener — receives slot actions from the preview iframe
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (!isSlotMessage(event.data)) return;
+      const msg = event.data;
+      switch (msg.type) {
+        case "obra:slot:file": {
+          // Convert dataUrl → File and upload
+          void (async () => {
+            const res = await fetch(msg.dataUrl);
+            const blob = await res.blob();
+            const file = new File([blob], msg.fileName, { type: msg.mimeType });
+            await handleSlotUpload(msg.slotKey, file);
+          })();
+          break;
+        }
+        case "obra:slot:generate": {
+          setGenerateModalSlotKey(msg.slotKey);
+          setGenerateInstruction("");
+          setGenerateModalOpen(true);
+          break;
+        }
+        case "obra:slot:remove": {
+          handleSlotRemove(msg.slotKey);
+          break;
+        }
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [handleSlotUpload, handleSlotRemove]);
 
   const handleExportPdf = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
@@ -303,6 +452,22 @@ export function WizardPreviewPage() {
   const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
+  /** Assembled HTML ready to render in the iframe */
+  const assembledHtml = useMemo(() => {
+    if (!selectedEbookId) return null;
+    const shell = shellCache[selectedEbookId];
+    if (!shell) return null;
+    // Map DB slot keys → HTML slot keys used by Claude
+    const imageUrls: Record<string, string> = {};
+    for (const [key, slot] of Object.entries(imageSlots)) {
+      if (!slot.url) continue;
+      // cover_art in DB → "cover" in HTML
+      const htmlKey = key === "cover_art" ? "cover" : key;
+      imageUrls[htmlKey] = slot.url;
+    }
+    return injectAll(shell.html, { chapters: selectedChapters, images: imageUrls });
+  }, [selectedEbookId, shellCache, selectedChapters, imageSlots]);
+
   const tabLabel = useCallback(
     (ebook: EbookRow): string => {
       if (ebook.type === "main") return t("wizard.preview.tabs.main");
@@ -317,126 +482,175 @@ export function WizardPreviewPage() {
 
   if (!params.projectId) return null;
 
-  const ebookPreviewData: EbookPreviewData | null = selectedEbook
-    ? {
-        id: selectedEbook.id,
-        title: selectedEbook.title ?? "",
-        type: selectedEbook.type,
-      }
-    : null;
-
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
-      {/* Top bar */}
-      <div className="bg-obra-blue-950 px-6 py-3">
+      {/* Top bar + stepper */}
+      <div className="relative border-b border-obra-blue-800/50 bg-obra-blue-900 px-8 py-4">
         <button
           type="button"
           onClick={() => navigate("/app/dashboard")}
-          className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white"
+          className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
         >
           <ChevronLeft className="size-3.5" aria-hidden />
           {t("wizard.structure.back")}
         </button>
+        <WizardGlobalStepper steps={globalSteps} dark />
       </div>
 
-      {/* Global stepper */}
-      <div className="border-b border-obra-blue-100 px-8 py-5">
-        <WizardGlobalStepper steps={globalSteps} />
-      </div>
+      {/* Main area */}
+      <main className="flex min-h-0 flex-1 overflow-hidden bg-obra-blue-50">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 
-      {/* Main area — same pattern as WizardContentPage */}
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-obra-blue-50">
-        <div className="w-full">
+          {/* Ebook icon sidebar — dark parent */}
+          {visibleEbooks.length > 0 ? (
+            <nav
+              aria-label={t("wizard.preview.ebooksNav")}
+              className="flex w-full shrink-0 flex-col items-center gap-1 border-b border-obra-blue-800/50 bg-obra-blue-900 px-4 py-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-4 lg:py-4"
+            >
+              <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
+                {visibleEbooks.map((ebook) => {
+                  const isCurrent = ebook.id === selectedEbookId;
+                  const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? TrendingUp : Book;
+                  return (
+                    <li key={ebook.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectEbook(ebook.id)}
+                        title={tabLabel(ebook)}
+                        aria-label={tabLabel(ebook)}
+                        aria-current={isCurrent ? "page" : undefined}
+                        className={[
+                          "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
+                          isCurrent
+                            ? "border-obra-blue-500/60 bg-obra-blue-700 text-white"
+                            : "border-transparent bg-transparent text-white/60 hover:bg-obra-blue-800/60 hover:text-white",
+                        ].join(" ")}
+                      >
+                        <Icon className="size-5 shrink-0" aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          ) : null}
 
-          {/* Sidebar + content — same flex pattern as ContentChapterMilestone */}
-          <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
+          {/* Chapter nav — light child sidebar */}
+          {selectedChapters.length > 0 ? (
+            <ContentChapterNav
+              t={t}
+              chapters={selectedChapters}
+              selectedIndex={selectedPreviewChapterIdx}
+              onSelectChapterIndex={handleSelectPreviewChapter}
+              generateLoading={chaptersLoading}
+              title={selectedEbook ? tabLabel(selectedEbook) : undefined}
+            />
+          ) : null}
 
-            {/* Deliverable sidebar — icon buttons, no background, inside centered content */}
-            {visibleEbooks.length > 0 ? (
-              <nav
-                aria-label={t("wizard.preview.ebooksNav")}
-                className="flex w-full shrink-0 flex-col items-center gap-1 border-b border-obra-blue-100 px-4 py-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-6 lg:py-6"
-              >
-                <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
-                  {visibleEbooks.map((ebook) => {
-                    const isCurrent = ebook.id === selectedEbookId;
-                    const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? Tag : Book;
-                    return (
-                      <li key={ebook.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectEbook(ebook.id)}
-                          title={tabLabel(ebook)}
-                          aria-label={tabLabel(ebook)}
-                          aria-current={isCurrent ? "page" : undefined}
-                          className={[
-                            "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
-                            isCurrent
-                              ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
-                              : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60",
-                          ].join(" ")}
-                        >
-                          <Icon className="size-5 shrink-0" aria-hidden />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
+          {/* Preview content */}
+          <div ref={previewScrollRef} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#e8edf2]">
+            {(chaptersLoading || shellLoading) ? <ObraLoadingOverlay /> : null}
+
+            {isLoading ? (
+              <ObraSpinner size="lg" className="py-16" />
+            ) : hasError ? (
+              <div className="p-8">
+                <ObraAlert variant="error" title={projectError ?? ebooksError ?? ""} />
+              </div>
+            ) : shellError ? (
+              <div className="p-8 space-y-3">
+                <ObraAlert variant="error" title={t("wizard.preview.shell.errorTitle")} description={t("wizard.preview.shell.errorDesc")} />
+                <Button type="button" variant="secondary" onClick={() => void handleRegenerateShell()}>
+                  <RefreshCw className="size-4" aria-hidden />
+                  {t("wizard.preview.shell.retryCta")}
+                </Button>
+              </div>
+            ) : shellStale ? (
+              <div className="p-8 space-y-3">
+                <ObraAlert
+                  variant="warning"
+                  title={t("wizard.preview.shell.staleTitle")}
+                  description={t("wizard.preview.shell.staleDesc")}
+                />
+                <Button type="button" variant="secondary" onClick={() => void handleRegenerateShell()} disabled={shellLoading}>
+                  <RefreshCw className="size-4" aria-hidden />
+                  {t("wizard.preview.shell.updateCta")}
+                </Button>
+              </div>
+            ) : assembledHtml ? (
+              <iframe
+                srcDoc={assembledHtml}
+                title={t("wizard.preview.iframeTitle")}
+                className="w-full"
+                style={{ border: "none", minHeight: "100%" }}
+                onLoad={(e) => {
+                  // Auto-size iframe to its content height
+                  const iframe = e.currentTarget;
+                  try {
+                    const h = iframe.contentDocument?.body?.scrollHeight;
+                    if (h) iframe.style.height = `${h + 64}px`;
+                  } catch { /* cross-origin guard */ }
+                }}
+              />
+            ) : !shellLoading && selectedChapters.length === 0 ? (
+              <div className="p-8">
+                <ObraAlert variant="info" title={t("wizard.preview.shell.noChapters")} />
+              </div>
             ) : null}
-
-            {/* Preview content */}
-            <div className="min-w-0 flex-1 mx-auto max-w-[1024px] py-3 pr-6">
-              {isLoading ? (
-                <p className="text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
-              ) : hasError ? (
-                <p
-                  role="alert"
-                  className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                >
-                  {projectError ?? ebooksError}
-                </p>
-              ) : project && ebookPreviewData ? (
-                <>
-                  {chaptersLoading ? (
-                    <p className="mb-4 text-sm text-obra-neutral-600">{t("wizard.preview.loading")}</p>
-                  ) : null}
-
-                  {/* Cover image slot (main ebook only) */}
-                  {selectedEbook?.type === "main" ? (
-                    <div className="mb-4">
-                      <ImageSlot
-                        slotKey="cover_art"
-                        status={imageSlots["cover_art"]?.status ?? "idle"}
-                        imageUrl={imageSlots["cover_art"]?.url ?? null}
-                        maxKb={2048}
-                        disabled={imageSlots["cover_art"]?.status === "generating"}
-                        onGenerate={(instruction) => void handleGenerateCover(instruction)}
-                        onUpload={(file) => void handleUploadCover(file)}
-                        onRemove={
-                          imageSlots["cover_art"]?.url
-                            ? () => setImageSlots((prev) => ({ ...prev, cover_art: { status: "pending", url: null } }))
-                            : undefined
-                        }
-                      />
-                    </div>
-                  ) : null}
-
-                  <PreviewDocument
-                    ebook={ebookPreviewData}
-                    chapters={selectedChapters}
-                    designConfig={project.design_config}
-                    author={project.author}
-                    layoutPageAssignments={project.layout_page_assignments}
-                    coverImageUrl={imageSlots["cover_art"]?.url ?? null}
-                  />
-                </>
-              ) : null}
-            </div>
-
           </div>
         </div>
       </main>
+
+      {/* AI Image Generate Modal */}
+      <Modal
+        open={generateModalOpen}
+        onClose={() => setGenerateModalOpen(false)}
+        closeLabel={t("common.close")}
+      >
+        <ModalHead>
+          <ModalTitle>{t("wizard.preview.generateModal.title")}</ModalTitle>
+        </ModalHead>
+        <ModalContent>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-obra-blue-950">
+              {t("wizard.preview.generateModal.instructionLabel")}
+            </span>
+            <textarea
+              className="w-full rounded-md border border-obra-blue-100 px-3 py-2 font-body text-sm text-obra-blue-950 outline-none focus:border-obra-blue-700 focus:ring-2 focus:ring-obra-blue-700/20 min-h-[80px] resize-none"
+              placeholder={t("wizard.preview.generateModal.instructionPlaceholder")}
+              value={generateInstruction}
+              onChange={(e) => setGenerateInstruction(e.target.value)}
+              disabled={generateBusy}
+            />
+          </label>
+        </ModalContent>
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="tertiary"
+            onClick={() => setGenerateModalOpen(false)}
+            disabled={generateBusy}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={generateBusy}
+            onClick={() => {
+              if (!generateModalSlotKey) return;
+              setGenerateBusy(true);
+              void handleSlotGenerate(generateModalSlotKey, generateInstruction || undefined)
+                .finally(() => {
+                  setGenerateBusy(false);
+                  setGenerateModalOpen(false);
+                });
+            }}
+          >
+            {generateBusy ? t("wizard.preview.generateModal.generating") : t("wizard.preview.generateModal.cta")}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* Export PDF Modal */}
       <ExportPdfModal
@@ -447,14 +661,10 @@ export function WizardPreviewPage() {
       />
 
       {/* Footer */}
-      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-8 py-5">
+      <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="flex w-full min-w-0 flex-col gap-3">
-          {exportError ? (
-            <p role="alert" className="text-xs text-red-600">{exportError}</p>
-          ) : null}
-          {zipError ? (
-            <p role="alert" className="text-xs text-red-600">{zipError}</p>
-          ) : null}
+          {exportError ? <ObraAlert variant="error" title={exportError} /> : null}
+          {zipError ? <ObraAlert variant="error" title={zipError} /> : null}
           <div className="flex w-full min-w-0 items-center justify-between gap-4">
             <Button
               type="button"
