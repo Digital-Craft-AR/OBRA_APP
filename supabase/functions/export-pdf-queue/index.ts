@@ -120,23 +120,26 @@ Deno.serve(async (req: Request) => {
 
     // ── Reuse existing PDF if content hasn't changed ──────────────────────────
     //
-    // Requires:
-    //  • A completed job with a non-null storage_path (raw Storage object path).
-    //  • The job's completed_at is >= the latest content modification timestamp.
-    //  • supabaseAdmin is available to generate a fresh signed URL.
-    if (supabaseAdmin) {
+    // Two independent concerns kept separate:
+    //  1. SHOULD we reuse?  → timestamp comparison (no service role needed)
+    //  2. CAN we refresh the URL? → only if storage_path + supabaseAdmin are available
+    //
+    // If (1) is true we always return the existing job, even when (2) fails.
+    // Exception: if the job has neither pdf_url nor storage_path we can't serve
+    // anything, so we fall through and create a new job instead.
+    {
       const { data: latestJob } = await supabase
         .from("pdf_export_jobs")
-        .select("id, storage_path, completed_at")
+        .select("id, storage_path, pdf_url, completed_at")
         .eq("ebook_id", ebookId)
         .eq("user_id", userId)
         .eq("status", "completed")
-        .not("storage_path", "is", null)
+        // No storage_path filter — we check all completed jobs
         .order("completed_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (latestJob?.storage_path && latestJob.completed_at) {
+      if (latestJob?.completed_at) {
         // Get the latest modification across ebook metadata + chapter content
         const { data: latestChapter } = await supabase
           .from("chapters")
@@ -154,29 +157,37 @@ Deno.serve(async (req: Request) => {
         const pdfGeneratedAtMs = new Date(latestJob.completed_at).getTime();
 
         if (pdfGeneratedAtMs >= contentLastModifiedMs) {
-          // PDF is fresh — generate a new signed URL (the old one may have expired)
-          const { data: signed, error: signError } = await supabaseAdmin.storage
-            .from("project-pdfs")
-            .createSignedUrl(latestJob.storage_path, 3600);
+          // ── Content hasn't changed: try to refresh the signed URL ──────────
+          if (supabaseAdmin && latestJob.storage_path) {
+            const { data: signed, error: signError } = await supabaseAdmin.storage
+              .from("project-pdfs")
+              .createSignedUrl(latestJob.storage_path, 3600);
 
-          if (!signError && signed?.signedUrl) {
-            // Persist the refreshed URL so the polling call from the frontend
-            // picks it up immediately without waiting on the worker.
-            await supabaseAdmin
-              .from("pdf_export_jobs")
-              .update({ pdf_url: signed.signedUrl })
-              .eq("id", latestJob.id);
+            if (!signError && signed?.signedUrl) {
+              await supabaseAdmin
+                .from("pdf_export_jobs")
+                .update({ pdf_url: signed.signedUrl })
+                .eq("id", latestJob.id);
 
+              console.log(`[export-pdf-queue] reusing job ${latestJob.id} with fresh URL`);
+            } else {
+              console.warn(`[export-pdf-queue] could not refresh URL for job ${latestJob.id}`, signError);
+            }
+          }
+
+          // Return the existing job even if URL refresh wasn't possible.
+          // The only exception: if there's nothing to serve (no URL and no path
+          // to regenerate from) we fall through and create a new job.
+          const hasServableUrl = latestJob.storage_path != null || latestJob.pdf_url != null;
+          if (hasServableUrl) {
             console.log(`[export-pdf-queue] reusing job ${latestJob.id} — content unchanged`);
-
             return corsJson(
               { jobId: latestJob.id, estimatedSeconds: 0 } satisfies ExportPdfQueueResponse,
               200,
             );
           }
 
-          // Signed URL generation failed — fall through and create a new job
-          console.warn(`[export-pdf-queue] could not refresh signed URL for job ${latestJob.id}`, signError);
+          console.log(`[export-pdf-queue] job ${latestJob.id} has no URL or path — creating new job`);
         } else {
           console.log(
             `[export-pdf-queue] content changed since last export ` +
