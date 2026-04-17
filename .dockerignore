@@ -1,11 +1,8 @@
 # Exclude node_modules from all packages (large, rebuilt in Docker)
-pdf-export-worker/node_modules
 obra/node_modules
 node_modules
 
 # Exclude local env files with secrets
-pdf-export-worker/.env
-pdf-export-worker/.env.local
 .env
 .env.local
 
