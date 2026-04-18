@@ -4,11 +4,15 @@ type ModalProps = {
   open: boolean;
   onClose?: () => void;
   closeLabel?: string;
+  /** Max width / surface sizing for the dialog panel (defaults to max-w-lg). */
+  surfaceClassName?: string;
   children: ReactNode;
 };
 
-export function Modal({ open, onClose, closeLabel = "Close modal", children }: ModalProps) {
+export function Modal({ open, onClose, closeLabel = "Close modal", surfaceClassName, children }: ModalProps) {
   if (!open) return null;
+
+  const surfaceMaxWidth = surfaceClassName?.trim() ? surfaceClassName.trim() : "max-w-lg";
 
   return (
     <div className="fixed inset-0 z-50 bg-obra-blue-950/35" onClick={onClose}>
@@ -16,7 +20,7 @@ export function Modal({ open, onClose, closeLabel = "Close modal", children }: M
         role="dialog"
         aria-modal="true"
         data-state="open"
-        className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-modal-full bg-white rounded-modal shadow-card-hover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 outline-none max-w-lg"
+        className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-modal-full bg-white rounded-modal shadow-card-hover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 outline-none ${surfaceMaxWidth}`}
         onClick={(event) => event.stopPropagation()}
       >
         {onClose ? (
