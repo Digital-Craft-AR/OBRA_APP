@@ -641,7 +641,7 @@ export function WizardPreviewPage() {
         <ExportZipModal
           isOpen={isZipModalOpen}
           onOpenChange={setIsZipModalOpen}
-          ebooks={visibleEbooks.map((e) => ({ id: e.id, label: tabLabel(e), type: e.type, package_ordinal: e.package_ordinal }))}
+          ebooks={visibleEbooks.map((e) => ({ id: e.id, label: tabLabel(e), title: e.type === "main" ? (project.main_title ?? e.title) : e.title, type: e.type, package_ordinal: e.package_ordinal }))}
           projectId={project.id}
           projectTitle={project.main_title ?? "project"}
           onSuccess={() => {
