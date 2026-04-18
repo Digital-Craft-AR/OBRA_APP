@@ -8,6 +8,7 @@ import { ObraLoadingOverlay, ObraSpinner } from "@/components/obra/ObraSpinner";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
 import { ExportPdfModal } from "@/components/wizard/ExportPdfModal";
+import { ExportZipModal } from "@/components/wizard/ExportZipModal";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
 import {
@@ -126,8 +127,7 @@ export function WizardPreviewPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const [zipLoading, setZipLoading] = useState(false);
-  const [zipError, setZipError] = useState<string | null>(null);
+  const [isZipModalOpen, setIsZipModalOpen] = useState(false);
   const [publishStatus, setPublishStatus] = useState<"draft" | "published" | "modified">("draft");
 
   // Image slots state: slotKey → { status, url }
@@ -425,30 +425,6 @@ export function WizardPreviewPage() {
     }
   }, [project?.id, selectedEbookId]);
 
-  const handleExportZip = useCallback(async () => {
-    if (!project?.id) return;
-    setZipLoading(true);
-    setZipError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("export-zip", {
-        body: { projectId: project.id },
-      });
-      if (error || !data?.ok || !data?.signedUrl) {
-        console.error("export_zip_error", error ?? data?.error);
-        setZipError(t("wizard.preview.export.zipError"));
-        return;
-      }
-      const a = document.createElement("a");
-      a.href = data.signedUrl as string;
-      a.download = (data.filename as string | undefined) ?? `${project.main_title ?? "project"}.zip`;
-      a.click();
-      // export-zip also marks published server-side; sync local state
-      setPublishStatus("published");
-    } finally {
-      setZipLoading(false);
-    }
-  }, [project?.id, project?.main_title, t]);
-
   const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
@@ -660,11 +636,25 @@ export function WizardPreviewPage() {
         projectTitle={project?.main_title ?? "ebook"}
       />
 
+      {/* Export ZIP Modal */}
+      {project?.id ? (
+        <ExportZipModal
+          isOpen={isZipModalOpen}
+          onOpenChange={setIsZipModalOpen}
+          ebooks={visibleEbooks.map((e) => ({ id: e.id, label: tabLabel(e), type: e.type, package_ordinal: e.package_ordinal }))}
+          projectId={project.id}
+          projectTitle={project.main_title ?? "project"}
+          onSuccess={() => {
+            setPublishStatus("published");
+            void supabase.from("projects").update({ publish_status: "published" }).eq("id", project.id);
+          }}
+        />
+      ) : null}
+
       {/* Footer */}
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="flex w-full min-w-0 flex-col gap-3">
           {exportError ? <ObraAlert variant="error" title={exportError} /> : null}
-          {zipError ? <ObraAlert variant="error" title={zipError} /> : null}
           <div className="flex w-full min-w-0 items-center justify-between gap-4">
             <Button
               type="button"
@@ -692,11 +682,11 @@ export function WizardPreviewPage() {
                 type="button"
                 variant="secondary"
                 size="small"
-                disabled={!project?.id || zipLoading}
-                onClick={() => void handleExportZip()}
+                disabled={!project?.id}
+                onClick={() => setIsZipModalOpen(true)}
               >
                 <Package className="size-4" aria-hidden />
-                {zipLoading ? "…" : t("wizard.preview.export.zip")}
+                {t("wizard.preview.export.zip")}
               </Button>
 
               <Button
