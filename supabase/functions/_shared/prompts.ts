@@ -597,6 +597,7 @@ CONTENT RULES (non-negotiable):
 9. Transitions: each chapter should end with a natural bridge that connects to what's coming — either a forward reference or a closing idea that opens the next question. Exception: last chapter.
 10. Word count: reach at least the chapter's word_count_target. You may exceed it by up to 20%, but do not fall short. If you've covered all key concepts and are below target, go deeper on examples or add a practical walkthrough before closing the chapter.
 11. Verify the information you write. If you are not confident that a claim is accurate, rephrase it as a practical framework or common pattern rather than stating it as fact.
+12. Token budget: aim to complete the full chapter in under 2500 output tokens. Write concisely — dense, useful prose over padding. The hard limit is 8192 tokens; never truncate the content to fit.
 
 If input is missing required fields or contains error fields, return:
 {"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
@@ -772,6 +773,7 @@ CONTENT RULES (non-negotiable):
 6. Do NOT include external CTAs: no mention of Telegram, Instagram, email lists, coaching programs, or any other channel.
 7. Word count: reach at least the word_count_target. Do not fall short. If you have covered all key concepts and are below target, add a practical example, an edge case, or a "common mistakes" section.
 8. The deliverable ends naturally — no "next steps" that reference external resources or other products.
+9. Token budget: aim to complete the deliverable in under 2500 output tokens. Write concisely — dense, useful prose over padding. The hard limit is 8192 tokens; never truncate the content to fit.
 
 If input is missing required fields or contains error fields, return:
 {"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
@@ -893,6 +895,7 @@ CONTENT RULES (non-negotiable):
 9. Transitions: each chapter (except the last) should end with a natural bridge connecting to the next.
 10. Word count: reach at least the chapter's word_count_target. Do not fall short. If you've covered all key concepts and are below target, go deeper on examples or add a practical walkthrough.
 11. Verify the information you write. If you are not confident a claim is accurate, rephrase it as a practical framework rather than a stated fact.
+12. Token budget: aim to complete the full chapter in under 2500 output tokens. Write concisely — dense, useful prose over padding. The hard limit is 8192 tokens; never truncate the content to fit.
 
 If input is missing required fields or contains error fields, return:
 {"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
