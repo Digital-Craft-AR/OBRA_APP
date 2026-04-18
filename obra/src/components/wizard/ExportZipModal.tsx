@@ -9,6 +9,7 @@ import { queuePdfExport, checkPdfStatus, getErrorMessage } from "@/utils/pdf-exp
 type EbookEntry = {
   id: string;
   label: string;
+  title: string | null;
   type: "main" | "bonus" | "order_bump";
   package_ordinal: number;
 };
@@ -16,6 +17,7 @@ type EbookEntry = {
 type EbookJobState = {
   ebookId: string;
   label: string;
+  title: string | null;
   type: "main" | "bonus" | "order_bump";
   package_ordinal: number;
   jobId: string | null;
@@ -35,10 +37,22 @@ export type ExportZipModalProps = {
   onSuccess: () => void;
 };
 
-function ebookFilename(type: string, packageOrdinal: number): string {
-  if (type === "main") return "main.pdf";
-  if (type === "bonus") return `bonus-${packageOrdinal + 1}.pdf`;
-  return `bump-${packageOrdinal + 1}.pdf`;
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function ebookFilename(job: Pick<EbookJobState, "title" | "type" | "package_ordinal">): string {
+  const fallback =
+    job.type === "main" ? "main" :
+    job.type === "bonus" ? `bonus-${job.package_ordinal + 1}` :
+    `bump-${job.package_ordinal + 1}`;
+  const slug = job.title ? slugify(job.title) : "";
+  return `${slug || fallback}.pdf`;
 }
 
 export function ExportZipModal({
@@ -85,7 +99,7 @@ export function ExportZipModal({
         );
         const zipEntries: Record<string, Uint8Array> = {};
         completedJobs.forEach((j, i) => {
-          zipEntries[ebookFilename(j.type, j.package_ordinal)] = new Uint8Array(pdfBuffers[i]!);
+          zipEntries[ebookFilename(j)] = new Uint8Array(pdfBuffers[i]!);
         });
         const zipBytes = await new Promise<Uint8Array>((resolve, reject) => {
           zip(zipEntries, (err, data) => (err ? reject(err) : resolve(data)));
@@ -119,6 +133,7 @@ export function ExportZipModal({
     const initial: EbookJobState[] = ebooks.map((e) => ({
       ebookId: e.id,
       label: e.label,
+      title: e.title,
       type: e.type,
       package_ordinal: e.package_ordinal,
       jobId: null,
