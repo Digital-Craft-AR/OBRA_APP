@@ -4,7 +4,8 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import {
-  applyLockedPackageSlots,
+  applyLockedBonusSlotsOnly,
+  applyLockedBumpSlotsOnly,
   fetchEbookIdsWithChapterContentWarnings,
   listProjectPackageEbooks,
   type ListedPackageEbook,
@@ -12,7 +13,10 @@ import {
 } from "@/lib/wizard/structurePackageLockedPersistence";
 import type { ProjectRow } from "@/lib/wizard/structureTypes";
 
+export type StructurePackageModifyKind = "bonus" | "bump";
+
 type StructurePackageCountsModalProps = {
+  kind: StructurePackageModifyKind;
   open: boolean;
   project: ProjectRow;
   onClose: () => void;
@@ -47,7 +51,13 @@ function buildBumpDraft(project: ProjectRow, ebooks: ListedPackageEbook[]): Pack
   });
 }
 
-export function StructurePackageCountsModal({ open, project, onClose, onApplied }: StructurePackageCountsModalProps) {
+export function StructurePackageCountsModal({
+  kind,
+  open,
+  project,
+  onClose,
+  onApplied,
+}: StructurePackageCountsModalProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,12 +70,19 @@ export function StructurePackageCountsModal({ open, project, onClose, onApplied 
     setLoading(true);
     setError(null);
     const ebooks = await listProjectPackageEbooks(project.id);
-    setBonusDraft(buildBonusDraft(project, ebooks));
-    setBumpDraft(buildBumpDraft(project, ebooks));
-    const ids = ebooks.map((row) => row.id);
-    setWarnedEbookIds(await fetchEbookIdsWithChapterContentWarnings(ids));
+    if (kind === "bonus") {
+      setBonusDraft(buildBonusDraft(project, ebooks));
+      setBumpDraft([]);
+      const bonusEbooks = ebooks.filter((row) => row.type === "bonus");
+      setWarnedEbookIds(await fetchEbookIdsWithChapterContentWarnings(bonusEbooks.map((row) => row.id)));
+    } else {
+      setBumpDraft(buildBumpDraft(project, ebooks));
+      setBonusDraft([]);
+      const bumpEbooks = ebooks.filter((row) => row.type === "order_bump");
+      setWarnedEbookIds(await fetchEbookIdsWithChapterContentWarnings(bumpEbooks.map((row) => row.id)));
+    }
     setLoading(false);
-  }, [project]);
+  }, [project, kind]);
 
   useEffect(() => {
     if (!open) return;
@@ -77,18 +94,33 @@ export function StructurePackageCountsModal({ open, project, onClose, onApplied 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    const result = await applyLockedPackageSlots(project.id, bonusDraft, bumpDraft);
-    setSaving(false);
-    if (!result.ok) {
-      setError(t("wizard.structure.packageModify.saveError"));
-      return;
+    if (kind === "bonus") {
+      const result = await applyLockedBonusSlotsOnly(project.id, bonusDraft, project.bump_count, project.bump_items);
+      setSaving(false);
+      if (!result.ok) {
+        setError(t("wizard.structure.packageModify.saveError"));
+        return;
+      }
+      onApplied({
+        bonus_count: bonusDraft.length,
+        bump_count: project.bump_count,
+        bonus_items: bonusDraft.map((row) => ({ title: row.title, locked: false })),
+        bump_items: project.bump_items,
+      });
+    } else {
+      const result = await applyLockedBumpSlotsOnly(project.id, bumpDraft, project.bonus_count, project.bonus_items);
+      setSaving(false);
+      if (!result.ok) {
+        setError(t("wizard.structure.packageModify.saveError"));
+        return;
+      }
+      onApplied({
+        bonus_count: project.bonus_count,
+        bump_count: bumpDraft.length,
+        bonus_items: project.bonus_items,
+        bump_items: bumpDraft.map((row) => ({ title: row.title, locked: false })),
+      });
     }
-    onApplied({
-      bonus_count: bonusDraft.length,
-      bump_count: bumpDraft.length,
-      bonus_items: bonusDraft.map((row) => ({ title: row.title, locked: false })),
-      bump_items: bumpDraft.map((row) => ({ title: row.title, locked: false })),
-    });
     onClose();
   };
 
@@ -97,25 +129,28 @@ export function StructurePackageCountsModal({ open, project, onClose, onApplied 
     onClose();
   };
 
+  const titleKey =
+    kind === "bonus" ? "wizard.structure.packageModify.titleBonus" : "wizard.structure.packageModify.titleBump";
+  const subtitleKey =
+    kind === "bonus" ? "wizard.structure.packageModify.subtitleBonus" : "wizard.structure.packageModify.subtitleBump";
+  const closeKey =
+    kind === "bonus" ? "wizard.structure.packageModify.closeAriaBonus" : "wizard.structure.packageModify.closeAriaBump";
+
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      closeLabel={t("wizard.structure.packageModify.closeAria")}
-      surfaceClassName="max-w-2xl"
-    >
+    <Modal open={open} onClose={handleClose} closeLabel={t(closeKey)} surfaceClassName="max-w-2xl">
       <ModalHead>
-        <ModalTitle>{t("wizard.structure.packageModify.title")}</ModalTitle>
+        <ModalTitle>{t(titleKey)}</ModalTitle>
       </ModalHead>
       <ModalContent className="space-y-6 max-h-[70vh] overflow-y-auto">
-          <p className="text-sm text-obra-neutral-600">{t("wizard.structure.packageModify.subtitle")}</p>
-          {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
-          {error ? (
-            <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
+        <p className="text-sm text-obra-neutral-600">{t(subtitleKey)}</p>
+        {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
+        {error ? (
+          <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
 
+        {kind === "bonus" ? (
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.step3.bonusLabel")}</p>
@@ -177,7 +212,7 @@ export function StructurePackageCountsModal({ open, project, onClose, onApplied 
               ))}
             </div>
           </section>
-
+        ) : (
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.step3.bumpLabel")}</p>
@@ -239,7 +274,8 @@ export function StructurePackageCountsModal({ open, project, onClose, onApplied 
               ))}
             </div>
           </section>
-        </ModalContent>
+        )}
+      </ModalContent>
       <ModalFooter className="justify-end">
         <Button type="button" variant="tertiary" disabled={saving} onClick={handleClose}>
           {t("common.cancel")}
