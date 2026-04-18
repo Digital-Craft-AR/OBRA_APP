@@ -9,7 +9,7 @@ import { ContentIndexMilestone } from "@/components/wizard/content/ContentIndexM
 import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
 import { ContentPackSidebar } from "@/components/wizard/content/ContentPackSidebar";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
-import { ObraLoadingOverlay, ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraSpinner } from "@/components/obra/ObraSpinner";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
