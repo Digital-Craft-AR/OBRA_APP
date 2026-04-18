@@ -54,6 +54,9 @@ verify_jwt = false
 
 # JWT validated inside handler via auth.getUser (same pattern as other functions).
 # verify_jwt=false avoids 401 from the Edge layer when the browser sends a valid session.
+[functions.generate-document-template]
+verify_jwt = false
+
 [functions.export-pdf]
 verify_jwt = false
 
