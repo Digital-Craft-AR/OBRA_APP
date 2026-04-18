@@ -19,6 +19,14 @@ export function isValidLockedPackageDraft(bonusRows: PackageSlotRow[], bumpRows:
   return bonusRows.length <= 5 && bumpRows.length <= 2;
 }
 
+export function isValidBonusDraftOnly(rows: PackageSlotRow[]): boolean {
+  return rows.length <= 5;
+}
+
+export function isValidBumpDraftOnly(rows: PackageSlotRow[]): boolean {
+  return rows.length <= 2;
+}
+
 export async function listProjectPackageEbooks(projectId: string): Promise<ListedPackageEbook[]> {
   const { data, error } = await supabase
     .from("ebooks")
@@ -136,5 +144,61 @@ export async function applyLockedPackageSlots(
     .eq("id", projectId);
 
   if (projectError) return { ok: false };
+  return { ok: true };
+}
+
+/** Updates bonus ebooks + project bonus fields only; leaves bump rows and counts as provided. */
+export async function applyLockedBonusSlotsOnly(
+  projectId: string,
+  bonusRows: PackageSlotRow[],
+  bumpCount: number,
+  bumpItems: WizardTitleItem[],
+): Promise<{ ok: boolean }> {
+  if (!isValidBonusDraftOnly(bonusRows)) return { ok: false };
+  if (bumpCount < 0 || bumpCount > 2) return { ok: false };
+
+  const bonusOk = await applyTypeSlots(projectId, "bonus", bonusRows);
+  if (!bonusOk) return { ok: false };
+
+  const bonusItems: WizardTitleItem[] = bonusRows.map((row) => ({ title: row.title, locked: false }));
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      bonus_count: bonusRows.length,
+      bonus_items: bonusItems,
+      bump_count: bumpCount,
+      bump_items: bumpItems,
+    })
+    .eq("id", projectId);
+
+  if (error) return { ok: false };
+  return { ok: true };
+}
+
+/** Updates order bump ebooks + project bump fields only; leaves bonus rows and counts as provided. */
+export async function applyLockedBumpSlotsOnly(
+  projectId: string,
+  bumpRows: PackageSlotRow[],
+  bonusCount: number,
+  bonusItems: WizardTitleItem[],
+): Promise<{ ok: boolean }> {
+  if (!isValidBumpDraftOnly(bumpRows)) return { ok: false };
+  if (bonusCount < 0 || bonusCount > 5) return { ok: false };
+
+  const bumpOk = await applyTypeSlots(projectId, "order_bump", bumpRows);
+  if (!bumpOk) return { ok: false };
+
+  const bumpItems: WizardTitleItem[] = bumpRows.map((row) => ({ title: row.title, locked: false }));
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      bonus_count: bonusCount,
+      bonus_items: bonusItems,
+      bump_count: bumpRows.length,
+      bump_items: bumpItems,
+    })
+    .eq("id", projectId);
+
+  if (error) return { ok: false };
   return { ok: true };
 }

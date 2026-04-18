@@ -13,7 +13,10 @@ import {
   StructureStepInnerProgress,
   StructureStepTitleBlock,
 } from "@/components/wizard/structure/StructureStepHeader";
-import { StructurePackageCountsModal } from "@/components/wizard/structure/StructurePackageCountsModal";
+import {
+  StructurePackageCountsModal,
+  type StructurePackageModifyKind,
+} from "@/components/wizard/structure/StructurePackageCountsModal";
 import { StructureStepPackage } from "@/components/wizard/structure/StructureStepPackage";
 import { StructureStepTopic } from "@/components/wizard/structure/StructureStepTopic";
 import { WizardGuidedTour } from "@/components/wizard/WizardGuidedTour";
@@ -41,7 +44,7 @@ export function WizardStructurePage() {
   const [structureGateError, setStructureGateError] = useState<string | null>(null);
   const [avatarResetModalOpen, setAvatarResetModalOpen] = useState(false);
   const [avatarResetModalStep, setAvatarResetModalStep] = useState<1 | 2>(1);
-  const [packageModifyOpen, setPackageModifyOpen] = useState(false);
+  const [packageModifyKind, setPackageModifyKind] = useState<StructurePackageModifyKind | null>(null);
 
   const flow = useWizardStructureFlow({
     project,
@@ -178,9 +181,10 @@ export function WizardStructurePage() {
                   savingLabel={t("wizard.structure.package.saving")}
                   message={flow.packageMessage}
                   countsLocked={packageCountsLocked}
-                  modifyQuantityLabel={t("wizard.structure.packageModify.openButton")}
-                  lockedHint={t("wizard.structure.packageLocked.hint")}
-                  onOpenModifyQuantity={() => setPackageModifyOpen(true)}
+                  modifyBonusesLabel={t("wizard.structure.packageModify.openButtonBonus")}
+                  modifyBumpsLabel={t("wizard.structure.packageModify.openButtonBump")}
+                  onOpenModifyBonuses={() => setPackageModifyKind("bonus")}
+                  onOpenModifyBumps={() => setPackageModifyKind("bump")}
                   onBonusChange={flow.setBonusCount}
                   onBumpChange={flow.setBumpCount}
                 />
@@ -499,11 +503,12 @@ export function WizardStructurePage() {
         </ModalFooter>
       </Modal>
 
-      {project ? (
+      {project && packageModifyKind ? (
         <StructurePackageCountsModal
-          open={packageModifyOpen}
+          kind={packageModifyKind}
+          open
           project={project}
-          onClose={() => setPackageModifyOpen(false)}
+          onClose={() => setPackageModifyKind(null)}
           onApplied={(patch) => {
             setProject((current) => (current ? { ...current, ...patch } : current));
           }}

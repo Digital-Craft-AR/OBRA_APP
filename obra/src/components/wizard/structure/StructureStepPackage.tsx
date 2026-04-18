@@ -12,9 +12,10 @@ type StructureStepPackageProps = {
   savingLabel: string;
   message: string | null;
   countsLocked: boolean;
-  modifyQuantityLabel: string;
-  lockedHint: string;
-  onOpenModifyQuantity: () => void;
+  modifyBonusesLabel: string;
+  modifyBumpsLabel: string;
+  onOpenModifyBonuses: () => void;
+  onOpenModifyBumps: () => void;
   onBonusChange: (next: number) => void;
   onBumpChange: (next: number) => void;
 };
@@ -30,15 +31,15 @@ export function StructureStepPackage({
   savingLabel,
   message,
   countsLocked,
-  modifyQuantityLabel,
-  lockedHint,
-  onOpenModifyQuantity,
+  modifyBonusesLabel,
+  modifyBumpsLabel,
+  onOpenModifyBonuses,
+  onOpenModifyBumps,
   onBonusChange,
   onBumpChange,
 }: StructureStepPackageProps) {
   return (
     <section className="space-y-5">
-      {countsLocked ? <p className="text-sm text-obra-neutral-600">{lockedHint}</p> : null}
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-2">
           <p className="text-sm font-medium text-obra-blue-950">{bonusLabel}</p>
@@ -68,6 +69,17 @@ export function StructureStepPackage({
             </div>
           )}
           <p className="text-xs text-obra-neutral-600">{bonusHint}</p>
+          {countsLocked ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={saving}
+              onClick={onOpenModifyBonuses}
+            >
+              {modifyBonusesLabel}
+            </Button>
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -98,13 +110,19 @@ export function StructureStepPackage({
             </div>
           )}
           <p className="text-xs text-obra-neutral-600">{bumpHint}</p>
+          {countsLocked ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={saving}
+              onClick={onOpenModifyBumps}
+            >
+              {modifyBumpsLabel}
+            </Button>
+          ) : null}
         </div>
       </div>
-      {countsLocked ? (
-        <Button type="button" variant="secondary" disabled={saving} onClick={onOpenModifyQuantity}>
-          {modifyQuantityLabel}
-        </Button>
-      ) : null}
       <div aria-live="polite" className="text-xs text-obra-neutral-600">
         {saving ? savingLabel : message}
       </div>
