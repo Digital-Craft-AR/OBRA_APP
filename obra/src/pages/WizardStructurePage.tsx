@@ -13,6 +13,10 @@ import {
   StructureStepInnerProgress,
   StructureStepTitleBlock,
 } from "@/components/wizard/structure/StructureStepHeader";
+import {
+  StructurePackageCountsModal,
+  type StructurePackageModifyKind,
+} from "@/components/wizard/structure/StructurePackageCountsModal";
 import { StructureStepPackage } from "@/components/wizard/structure/StructureStepPackage";
 import { StructureStepTopic } from "@/components/wizard/structure/StructureStepTopic";
 import { WizardGuidedTour } from "@/components/wizard/WizardGuidedTour";
@@ -40,6 +44,7 @@ export function WizardStructurePage() {
   const [structureGateError, setStructureGateError] = useState<string | null>(null);
   const [avatarResetModalOpen, setAvatarResetModalOpen] = useState(false);
   const [avatarResetModalStep, setAvatarResetModalStep] = useState<1 | 2>(1);
+  const [packageModifyKind, setPackageModifyKind] = useState<StructurePackageModifyKind | null>(null);
 
   const flow = useWizardStructureFlow({
     project,
@@ -49,6 +54,8 @@ export function WizardStructurePage() {
   });
 
   const { tourOpen, tourStep, setTourStep, dismissTour } = useWizardTourState(session?.user?.id);
+
+  const packageCountsLocked = Boolean(project?.structure_completed_at);
 
   const globalSteps = useMemo(
     () => [
@@ -173,6 +180,11 @@ export function WizardStructurePage() {
                   saving={flow.packageSaving}
                   savingLabel={t("wizard.structure.package.saving")}
                   message={flow.packageMessage}
+                  countsLocked={packageCountsLocked}
+                  modifyBonusesLabel={t("wizard.structure.packageModify.openButtonBonus")}
+                  modifyBumpsLabel={t("wizard.structure.packageModify.openButtonBump")}
+                  onOpenModifyBonuses={() => setPackageModifyKind("bonus")}
+                  onOpenModifyBumps={() => setPackageModifyKind("bump")}
                   onBonusChange={flow.setBonusCount}
                   onBumpChange={flow.setBumpCount}
                 />
@@ -490,6 +502,18 @@ export function WizardStructurePage() {
           )}
         </ModalFooter>
       </Modal>
+
+      {project && packageModifyKind ? (
+        <StructurePackageCountsModal
+          kind={packageModifyKind}
+          open
+          project={project}
+          onClose={() => setPackageModifyKind(null)}
+          onApplied={(patch) => {
+            setProject((current) => (current ? { ...current, ...patch } : current));
+          }}
+        />
+      ) : null}
     </div>
   );
 }
