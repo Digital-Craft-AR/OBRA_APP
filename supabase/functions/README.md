@@ -2,11 +2,35 @@
 
 **Never** ship these keys to the browser or `VITE_*` env vars. Configure in **Supabase Dashboard → Edge Functions → Secrets** (or CLI `supabase secrets set`).
 
-## JWT verification (browser `functions.invoke`)
+## JWT verification strategy
 
-`ai-optimize`, `ai-generate-index`, `ai-generate-content`, `manuscript-upload-parse`, and `reset-avatar-problem-content` use **`verify_jwt = false`** in [`config.toml`](../config.toml) and validate the caller with `createClient(url, anonKey).auth.getUser(jwt)` inside the handler. Keeping gateway JWT verification off avoids **401** responses from the Edge layer when the SPA sends a normal user session, while the handler still rejects missing or invalid tokens.
+All browser-callable functions use **`verify_jwt = true`** so the Supabase gateway rejects invalid or missing tokens before the function runs. Handlers still call `auth.getUser(jwt)` as defense-in-depth to obtain the user record and validate ownership. `verify_jwt = false` is reserved for endpoints that cannot use a JWT (external webhooks, Supabase Auth hooks); each such entry in `config.toml` has an inline comment explaining why.
 
-Redeploy after changing `config.toml`. If you toggle “Verify JWT” in the Dashboard for a function, keep it consistent with this repo or redeploy so CLI settings apply.
+> **Rule:** if you add a new function reachable from the browser, set `verify_jwt = true`. Only use `false` for webhooks/hooks and document the reason in `config.toml`.
+
+| Function | `verify_jwt` | Rationale |
+|---|---|---|
+| `ai-generate-content` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `ai-generate-index` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `ai-optimize` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `ai-split-proposal` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `approve-alignment` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `create-credits-checkout` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `create-subscription-checkout` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `delete-account` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `export-pdf` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `export-pdf-queue` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `export-user-data` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `export-zip` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `generate-document-template` | `true` (default) | Browser-called; not listed in `config.toml` → Supabase default |
+| `image-generate` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `manuscript-upload-parse` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `reconcile-subscription-status` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `reset-avatar-problem-content` | `true` | Browser-called; handler also calls `auth.getUser` |
+| `mercadopago-webhook` | **`false`** | External webhook — validated with Mercado Pago `x-signature` HMAC; no JWT |
+| `send-auth-email` | **`false`** | Supabase Auth internal hook — called by Supabase infrastructure, not the browser |
+
+Redeploy after changing `config.toml`. If you toggle “Verify JWT” in the Dashboard for a function, keep it consistent with this file and redeploy so CLI settings apply.
 
 ## Payment provider abstraction
 
@@ -100,7 +124,7 @@ Optional **`POST`** to **`mercadopago-webhook`** with JSON (no MP signature chec
 | `export-user-data` | `Authorization: Bearer <user JWT>` | Returns JSON `{ ok, data }` with `creator_profiles` row, credit ledger slice (max 1000 rows), and non-sensitive subject fields. Client downloads a `.json` file. |
 | `delete-account` | Same | Reconciles subscription via `BillingAdapter` when configured (`mercadopago` + token, or `obrapay` mock), then **rejects with HTTP 409** `subscription_blocks_delete` if `creator_profiles.subscription_status` is **`active`**. Otherwise calls `auth.admin.deleteUser` (cascades profile + ledger per FKs). Logs structured events **without PII** (`user_id_prefix` only). |
 
-Both use **`verify_jwt = false`** and validate the JWT with `auth.getUser`, like `reconcile-subscription-status`.
+Both use **`verify_jwt = true`** (gateway validates the token) and also call `auth.getUser` inside the handler for the user record.
 
 ## Deploy
 
@@ -120,7 +144,7 @@ supabase functions deploy export-pdf
 supabase functions deploy export-zip
 ```
 
-`mercadopago-webhook` uses **`verify_jwt = false`** in `supabase/config.toml`; it validates Mercado Pago `x-signature` instead. `create-subscription-checkout`, `reconcile-subscription-status`, and `send-auth-email` also run with `verify_jwt = false` because they are server-to-server entry points.
+`mercadopago-webhook` and `send-auth-email` use **`verify_jwt = false`** (see JWT verification table above). All other functions use `verify_jwt = true` and require a valid session token.
 
 Apply DB migrations so `public.obra_mp_processed_webhooks` exists before relying on the webhook.
 
