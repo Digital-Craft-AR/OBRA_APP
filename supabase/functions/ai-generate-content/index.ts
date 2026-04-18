@@ -502,7 +502,7 @@ Deno.serve(async (req: Request) => {
   const ai = await callClaudeJsonText({
     system: promptBundle.system,
     user: promptBundle.user,
-    maxTokens: 2500,
+    maxTokens: 8192,
   });
 
   if (!ai.ok) {
@@ -511,6 +511,7 @@ Deno.serve(async (req: Request) => {
 
   const parsed = parseJsonObject(ai.text);
   if (!parsed.ok) {
+    console.error("model_parse_error_raw_response", ai.text);
     return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
   }
 

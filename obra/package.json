@@ -21,6 +21,7 @@
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "dompurify": "^3.3.3",
+    "fflate": "^0.8.2",
     "i18next": "^24.2.3",
     "lucide-react": "^1.7.0",
     "react": "^19.0.0",
