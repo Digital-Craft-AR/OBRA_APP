@@ -3,10 +3,13 @@ import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { bookTemplateIdsForGeometry, normalizeBookTemplateId } from "@obra/layout-catalog";
 import { ObraInput } from "@/components/obra/ObraInput";
+import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import {
   colorToRgbStyleValue,
   DESIGN_PRESETS,
   getDesignPresetById,
+  getTypographyPresetById,
+  TYPOGRAPHY_PRESETS,
   type DesignPresetId,
   type WizardDesignConfig,
   WIZARD_CHAPTER_COUNTS,
@@ -57,6 +60,12 @@ export function StructureStepDesignConfig({
     }
   }, [bookTemplateId, eligibleTemplates, onBookTemplateChange]);
 
+  const allPresetFontFamilies = useMemo(
+    () => TYPOGRAPHY_PRESETS.flatMap((p) => [p.fonts.heading, p.fonts.body]),
+    [],
+  );
+  useGoogleFonts(allPresetFontFamilies);
+
   function updatePalettePreset(presetId: DesignPresetId) {
     const preset = getDesignPresetById(presetId);
     if (!preset) return;
@@ -73,6 +82,25 @@ export function StructureStepDesignConfig({
       ...config,
       paletteMode: "custom",
       palettePresetId: null,
+    });
+  }
+
+  function updateTypographyPreset(presetId: DesignPresetId) {
+    const preset = getTypographyPresetById(presetId);
+    if (!preset) return;
+    onChange({
+      ...config,
+      typographyMode: "preset",
+      typographyPresetId: preset.id,
+      fonts: preset.fonts,
+    });
+  }
+
+  function enableCustomTypography() {
+    onChange({
+      ...config,
+      typographyMode: "custom",
+      typographyPresetId: null,
     });
   }
 
@@ -459,25 +487,101 @@ export function StructureStepDesignConfig({
 
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.typography.title")}</h3>
-        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.typography.presetsHint")}</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ObraInput
-            id="design-font-heading"
-            label={t("wizard.structure.design.typography.headingFontLabel")}
-            value={config.fonts.heading}
-            onChange={(event) =>
-              onChange({ ...config, fonts: { ...config.fonts, heading: event.target.value } })
-            }
-            placeholder={t("wizard.structure.design.typography.headingPlaceholder")}
-          />
-          <ObraInput
-            id="design-font-body"
-            label={t("wizard.structure.design.typography.bodyFontLabel")}
-            value={config.fonts.body}
-            onChange={(event) => onChange({ ...config, fonts: { ...config.fonts, body: event.target.value } })}
-            placeholder={t("wizard.structure.design.typography.bodyPlaceholder")}
-          />
+        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.typography.subtitle")}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {TYPOGRAPHY_PRESETS.map((preset) => {
+            const isSelected =
+              config.typographyMode === "preset" && config.typographyPresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => updateTypographyPreset(preset.id)}
+                className={`relative flex flex-col gap-1 rounded-card border px-3 py-2.5 text-left transition-colors ${
+                  isSelected
+                    ? "border-obra-blue-700 bg-obra-blue-50"
+                    : "border-obra-neutral-200 bg-white"
+                }`}
+              >
+                {isSelected ? (
+                  <Check className="absolute right-1.5 top-1.5 size-3.5 text-obra-blue-700" aria-hidden />
+                ) : null}
+                <span
+                  className="text-base font-semibold leading-none text-obra-blue-950"
+                  style={{ fontFamily: preset.fonts.heading }}
+                >
+                  Aa
+                </span>
+                <span
+                  className="text-[10px] leading-snug text-obra-neutral-500"
+                  style={{ fontFamily: preset.fonts.body }}
+                >
+                  {t("wizard.structure.design.typography.bodySampleShort")}
+                </span>
+                <span className="mt-0.5 text-[10px] font-semibold text-obra-blue-950">
+                  {t(`wizard.structure.design.preset.${preset.id}.fonts`)}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={enableCustomTypography}
+            className={`relative flex flex-col justify-center gap-1 rounded-card border px-3 py-2.5 text-left transition-colors ${
+              config.typographyMode === "custom"
+                ? "border-obra-blue-700 bg-obra-blue-50"
+                : "border-obra-neutral-200 bg-white"
+            }`}
+          >
+            {config.typographyMode === "custom" ? (
+              <Check className="absolute right-1.5 top-1.5 size-3.5 text-obra-blue-700" aria-hidden />
+            ) : null}
+            <span className="text-xs font-semibold text-obra-blue-950">
+              {t("wizard.structure.design.typography.custom")}
+            </span>
+            <span className="text-[10px] text-obra-neutral-500">
+              {t("wizard.structure.design.typography.customHint")}
+            </span>
+          </button>
         </div>
+
+        <div
+          className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${
+            config.typographyMode === "custom" ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div
+              className={`pt-4 transition duration-300 ease-out motion-reduce:transition-none ${
+                config.typographyMode === "custom"
+                  ? "translate-y-0 opacity-100"
+                  : "pointer-events-none -translate-y-2 opacity-0"
+              }`}
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <ObraInput
+                  id="design-font-heading"
+                  label={t("wizard.structure.design.typography.headingFontLabel")}
+                  value={config.fonts.heading}
+                  onChange={(event) =>
+                    onChange({ ...config, fonts: { ...config.fonts, heading: event.target.value } })
+                  }
+                  placeholder={t("wizard.structure.design.typography.headingPlaceholder")}
+                />
+                <ObraInput
+                  id="design-font-body"
+                  label={t("wizard.structure.design.typography.bodyFontLabel")}
+                  value={config.fonts.body}
+                  onChange={(event) =>
+                    onChange({ ...config, fonts: { ...config.fonts, body: event.target.value } })
+                  }
+                  placeholder={t("wizard.structure.design.typography.bodyPlaceholder")}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-card border border-obra-neutral-200 bg-obra-neutral-100 px-4 py-3">
           <p className="text-sm text-obra-blue-950" style={{ fontFamily: config.fonts.heading }}>
             {t("wizard.structure.design.typography.headingSample")}
