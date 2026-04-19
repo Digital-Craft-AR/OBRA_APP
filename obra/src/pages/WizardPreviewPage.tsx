@@ -19,7 +19,12 @@ import {
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
-import { fetchOrGenerateShell, regenerateShell, type ShellMeta } from "@/lib/preview/documentShellApi";
+import {
+  fetchOrGenerateShell,
+  isShellMetaStale,
+  regenerateShell,
+  type ShellMeta,
+} from "@/lib/preview/documentShellApi";
 import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { queuePdfExport, getErrorMessage } from "@/utils/pdf-export";
@@ -216,11 +221,7 @@ export function WizardPreviewPage() {
       const meta = shellCache[selectedEbookId]!.meta;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      const stale =
-        meta.chapter_count !== chapters.length ||
-        meta.page_size !== page.size ||
-        meta.page_orientation !== page.orientation;
-      setShellStale(stale);
+      setShellStale(isShellMetaStale(meta, chapters.length, page.size, page.orientation));
       return;
     }
 
@@ -229,7 +230,6 @@ export function WizardPreviewPage() {
       if (!project?.id || !selectedEbookId) return;
       setShellLoading(true);
       setShellError(null);
-      setShellStale(false);
       const chapters = chaptersCache[selectedEbookId!]!;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
@@ -246,6 +246,7 @@ export function WizardPreviewPage() {
           ...prev,
           [selectedEbookId!]: { html: result.htmlShell, meta: result.shellMeta },
         }));
+        setShellStale(result.stale);
       } else {
         setShellError(result.error);
       }
@@ -260,13 +261,13 @@ export function WizardPreviewPage() {
     if (!project?.id || !selectedEbookId) return;
     setShellLoading(true);
     setShellError(null);
-    setShellStale(false);
     const result = await regenerateShell({ projectId: project.id, ebookId: selectedEbookId });
     if (result.ok) {
       setShellCache((prev) => ({
         ...prev,
         [selectedEbookId]: { html: result.htmlShell, meta: result.shellMeta },
       }));
+      setShellStale(false);
     } else {
       setShellError(result.error);
     }
@@ -428,21 +429,20 @@ export function WizardPreviewPage() {
   const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
-  /** Assembled HTML ready to render in the iframe */
-  const assembledHtml = useMemo(() => {
+  /** HTML for iframe: fresh shells use injectAll; stale shells show the cached document as stored. */
+  const previewSrcDoc = useMemo(() => {
     if (!selectedEbookId) return null;
     const shell = shellCache[selectedEbookId];
     if (!shell) return null;
-    // Map DB slot keys → HTML slot keys used by Claude
+    if (shellStale) return shell.html;
     const imageUrls: Record<string, string> = {};
     for (const [key, slot] of Object.entries(imageSlots)) {
       if (!slot.url) continue;
-      // cover_art in DB → "cover" in HTML
       const htmlKey = key === "cover_art" ? "cover" : key;
       imageUrls[htmlKey] = slot.url;
     }
     return injectAll(shell.html, { chapters: selectedChapters, images: imageUrls });
-  }, [selectedEbookId, shellCache, selectedChapters, imageSlots]);
+  }, [selectedEbookId, shellCache, shellStale, selectedChapters, imageSlots]);
 
   const tabLabel = useCallback(
     (ebook: EbookRow): string => {
@@ -541,33 +541,40 @@ export function WizardPreviewPage() {
                   {t("wizard.preview.shell.retryCta")}
                 </Button>
               </div>
-            ) : shellStale ? (
-              <div className="p-8 space-y-3">
-                <ObraAlert
-                  variant="warning"
-                  title={t("wizard.preview.shell.staleTitle")}
-                  description={t("wizard.preview.shell.staleDesc")}
+            ) : previewSrcDoc ? (
+              <div className="flex min-h-0 w-full flex-col gap-3 p-4">
+                {shellStale ? (
+                  <div className="shrink-0 space-y-3">
+                    <ObraAlert
+                      variant="warning"
+                      title={t("wizard.preview.shell.staleTitle")}
+                      description={t("wizard.preview.shell.staleDesc")}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void handleRegenerateShell()}
+                      disabled={shellLoading}
+                    >
+                      <RefreshCw className="size-4" aria-hidden />
+                      {t("wizard.preview.shell.updateCta")}
+                    </Button>
+                  </div>
+                ) : null}
+                <iframe
+                  srcDoc={previewSrcDoc}
+                  title={t("wizard.preview.iframeTitle")}
+                  className="w-full min-w-0"
+                  style={{ border: "none", minHeight: "100%" }}
+                  onLoad={(e) => {
+                    const iframe = e.currentTarget;
+                    try {
+                      const h = iframe.contentDocument?.body?.scrollHeight;
+                      if (h) iframe.style.height = `${h + 64}px`;
+                    } catch { /* cross-origin guard */ }
+                  }}
                 />
-                <Button type="button" variant="secondary" onClick={() => void handleRegenerateShell()} disabled={shellLoading}>
-                  <RefreshCw className="size-4" aria-hidden />
-                  {t("wizard.preview.shell.updateCta")}
-                </Button>
               </div>
-            ) : assembledHtml ? (
-              <iframe
-                srcDoc={assembledHtml}
-                title={t("wizard.preview.iframeTitle")}
-                className="w-full"
-                style={{ border: "none", minHeight: "100%" }}
-                onLoad={(e) => {
-                  // Auto-size iframe to its content height
-                  const iframe = e.currentTarget;
-                  try {
-                    const h = iframe.contentDocument?.body?.scrollHeight;
-                    if (h) iframe.style.height = `${h + 64}px`;
-                  } catch { /* cross-origin guard */ }
-                }}
-              />
             ) : !shellLoading && selectedChapters.length === 0 ? (
               <div className="p-8">
                 <ObraAlert variant="info" title={t("wizard.preview.shell.noChapters")} />

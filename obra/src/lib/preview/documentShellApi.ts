@@ -8,16 +8,41 @@ export type ShellMeta = {
 };
 
 export type FetchShellResult =
-  | { ok: true; htmlShell: string; shellMeta: ShellMeta; cached: boolean }
+  | { ok: true; htmlShell: string; shellMeta: ShellMeta; cached: boolean; stale: boolean }
   | { ok: false; error: string };
 
+/** Placeholder meta when `html_shell` exists but `shell_meta` is missing (treated as stale). */
+const MISSING_META_PLACEHOLDER: ShellMeta = {
+  chapter_count: -1,
+  page_size: "",
+  page_orientation: "",
+  generated_at: "1970-01-01T00:00:00.000Z",
+};
+
 /**
- * Returns the HTML shell for an ebook, using the cached version in
- * ebooks.html_shell when it's still valid, regenerating via the
- * generate-document-template Edge Function otherwise.
+ * Returns true when saved shell_meta does not match current structure / page config.
+ */
+export function isShellMetaStale(
+  meta: ShellMeta | null,
+  currentChapterCount: number,
+  currentPageSize: string,
+  currentPageOrientation: string,
+): boolean {
+  if (!meta) return true;
+  return (
+    meta.chapter_count !== currentChapterCount ||
+    meta.page_size !== currentPageSize ||
+    meta.page_orientation !== currentPageOrientation
+  );
+}
+
+/**
+ * Returns the HTML shell for an ebook. Reads `ebooks.html_shell` when present;
+ * only invokes `generate-document-template` when there is no stored shell.
  *
- * Staleness is detected by comparing chapter count and page config
- * in shell_meta against the current chapters array.
+ * `stale` is true when `shell_meta` is missing or does not match the current
+ * chapter count and page settings — the caller may still render the cached HTML
+ * and prompt the user before calling `regenerateShell()`.
  */
 export async function fetchOrGenerateShell(opts: {
   projectId: string;
@@ -28,7 +53,6 @@ export async function fetchOrGenerateShell(opts: {
 }): Promise<FetchShellResult> {
   const { projectId, ebookId, currentChapterCount, currentPageSize, currentPageOrientation } = opts;
 
-  // Try cached shell first
   const { data: ebookRow } = await supabase
     .from("ebooks")
     .select("html_shell, shell_meta")
@@ -37,19 +61,15 @@ export async function fetchOrGenerateShell(opts: {
 
   const cached = ebookRow as { html_shell: string | null; shell_meta: ShellMeta | null } | null;
 
-  if (cached?.html_shell && cached.shell_meta) {
-    const meta = cached.shell_meta;
-    const isStale =
-      meta.chapter_count !== currentChapterCount ||
-      meta.page_size !== currentPageSize ||
-      meta.page_orientation !== currentPageOrientation;
-
-    if (!isStale) {
-      return { ok: true, htmlShell: cached.html_shell, shellMeta: meta, cached: true };
-    }
+  const rawShell = cached?.html_shell;
+  const hasShell = typeof rawShell === "string" && rawShell.trim().length > 0;
+  if (hasShell) {
+    const meta = cached?.shell_meta ?? null;
+    const shellMeta = meta ?? MISSING_META_PLACEHOLDER;
+    const stale = isShellMetaStale(meta, currentChapterCount, currentPageSize, currentPageOrientation);
+    return { ok: true, htmlShell: rawShell, shellMeta, cached: true, stale };
   }
 
-  // Generate fresh shell
   const { data, error } = await supabase.functions.invoke("generate-document-template", {
     body: { projectId, ebookId },
   });
@@ -64,6 +84,7 @@ export async function fetchOrGenerateShell(opts: {
     htmlShell: data.htmlShell as string,
     shellMeta: data.shellMeta as ShellMeta,
     cached: false,
+    stale: false,
   };
 }
 
@@ -88,5 +109,6 @@ export async function regenerateShell(opts: {
     htmlShell: data.htmlShell as string,
     shellMeta: data.shellMeta as ShellMeta,
     cached: false,
+    stale: false,
   };
 }
