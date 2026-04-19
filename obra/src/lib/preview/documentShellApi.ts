@@ -1,5 +1,43 @@
 import { supabase } from "@/lib/supabaseClient";
 
+function shellTemplateInvokeErrorCode(data: unknown): string | undefined {
+  if (data && typeof data === "object" && "error" in data) {
+    const e = (data as Record<string, unknown>).error;
+    return typeof e === "string" ? e : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * On non-2xx, `functions.invoke` sets `data` to null and `error` to `FunctionsHttpError`
+ * whose `context` is the fetch `Response` — the JSON body must be read from there.
+ */
+async function resolveShellTemplateInvokeErrorCode(data: unknown, error: unknown): Promise<string> {
+  const fromData = shellTemplateInvokeErrorCode(data);
+  if (fromData) return fromData;
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "name" in error &&
+    (error as { name: string }).name === "FunctionsHttpError" &&
+    "context" in error &&
+    (error as { context: unknown }).context instanceof Response
+  ) {
+    const res = (error as { context: Response }).context;
+    try {
+      const body: unknown = await res.json();
+      const fromBody = shellTemplateInvokeErrorCode(body);
+      if (fromBody) return fromBody;
+    } catch {
+      /* response may not be JSON */
+    }
+    if (res.status === 409) return "generation_in_progress";
+  }
+
+  return "invoke_failed";
+}
+
 export type ShellMeta = {
   chapter_count: number;
   page_size: string;
@@ -75,7 +113,7 @@ export async function fetchOrGenerateShell(opts: {
   });
 
   if (error || !data?.ok || typeof data?.htmlShell !== "string") {
-    const code = (data?.error as string | undefined) ?? "invoke_failed";
+    const code = await resolveShellTemplateInvokeErrorCode(data, error);
     return { ok: false, error: code };
   }
 
@@ -100,7 +138,7 @@ export async function regenerateShell(opts: {
   });
 
   if (error || !data?.ok || typeof data?.htmlShell !== "string") {
-    const code = (data?.error as string | undefined) ?? "invoke_failed";
+    const code = await resolveShellTemplateInvokeErrorCode(data, error);
     return { ok: false, error: code };
   }
 
