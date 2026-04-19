@@ -1,3 +1,8 @@
+/** Avoid breaking HTML `src="..."` when signed URLs include `&` query separators. */
+function escapeSrcForHtmlAttribute(url: string): string {
+  return url.replace(/&/g, "&amp;");
+}
+
 /**
  * Client-side mirror of the server-side injectAll() in _shared/prompts.ts.
  *
@@ -223,7 +228,7 @@ export function injectAll(
       );
       html = html.replace(
         slotRe,
-        `$1<img src="${url}" alt="" loading="lazy" />$2`,
+        `$1<img src="${escapeSrcForHtmlAttribute(url)}" alt="" loading="lazy" />$2`,
       );
     }
   }

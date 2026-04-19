@@ -37,10 +37,20 @@ type EbookRow = {
   package_ordinal: number;
 };
 
-/** Stable key for the imageSlots map (matches ProjectImageRow unique constraints). */
+/**
+ * Stable key for imageSlots. Cover uses `cover_art`. Chapter heroes use
+ * `{ebookId}:{chapterId}:hero` so preview can map to shell keys `chapter-N-image-1`.
+ */
 function rowSlotKey(row: ProjectImageRow): string {
-  if (row.slot_key === "cover_art" && !row.ebook_id) return "cover_art";
+  if (row.slot_key === "cover_art" && !row.ebook_id && !row.chapter_id) return "cover_art";
+  if (row.slot_key === "hero" && row.ebook_id && row.chapter_id) {
+    return `${row.ebook_id}:${row.chapter_id}:hero`;
+  }
   return `${row.ebook_id ?? ""}:${row.chapter_id ?? ""}:${row.slot_key}`;
+}
+
+function chaptersSortedByOrder(chapters: ChapterDraftRow[]): ChapterDraftRow[] {
+  return [...chapters].sort((a, b) => a.sort_order - b.sort_order);
 }
 
 async function loadProjectEbooks(projectId: string): Promise<{ ok: true; rows: EbookRow[] } | { ok: false }> {
@@ -355,22 +365,47 @@ export function WizardPreviewPage() {
   }, [selectedEbookId, chaptersCache]);
 
   /**
-   * Maps an HTML slot key (used by Claude, e.g. "cover") to the DB slot key
-   * (e.g. "cover_art") and returns the args for uploadImage / generateImage.
+   * Maps shell `data-slot-key` ("cover", "chapter-N-image-1") to DB slot_key + ids
+   * for uploadImage / generateImage (hero slots require ebook + chapter).
    */
-  const resolveSlotArgs = useCallback((htmlSlotKey: string) => {
-    if (htmlSlotKey === "cover") {
-      return { dbSlotKey: "cover_art", ebookId: undefined as string | undefined };
-    }
-    // chapter-N-image-1 → use selectedEbookId
-    return { dbSlotKey: htmlSlotKey, ebookId: selectedEbookId ?? undefined };
-  }, [selectedEbookId]);
+  const resolveSlotArgs = useCallback(
+    (htmlSlotKey: string) => {
+      if (htmlSlotKey === "cover") {
+        return {
+          dbSlotKey: "cover_art" as const,
+          ebookId: undefined as string | undefined,
+          chapterId: undefined as string | undefined,
+        };
+      }
+      const m = /^chapter-(\d+)-image-1$/.exec(htmlSlotKey);
+      if (!m || !selectedEbookId) {
+        return {
+          dbSlotKey: htmlSlotKey,
+          ebookId: selectedEbookId ?? undefined,
+          chapterId: undefined as string | undefined,
+        };
+      }
+      const n = Number.parseInt(m[1]!, 10);
+      const sorted = chaptersSortedByOrder(chaptersCache[selectedEbookId] ?? []);
+      const chapter = Number.isFinite(n) && n >= 1 ? sorted[n - 1] : undefined;
+      return {
+        dbSlotKey: "hero" as const,
+        ebookId: selectedEbookId,
+        chapterId: chapter?.id,
+      };
+    },
+    [selectedEbookId, chaptersCache],
+  );
 
   const handleSlotUpload = useCallback(async (htmlSlotKey: string, file: File) => {
     if (!project?.id) return;
-    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      return;
+    }
     setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
-    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId });
+    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId, chapterId });
     if (result.ok) {
       setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl } }));
     } else {
@@ -380,9 +415,19 @@ export function WizardPreviewPage() {
 
   const handleSlotGenerate = useCallback(async (htmlSlotKey: string, instruction?: string) => {
     if (!project?.id) return;
-    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      return;
+    }
     setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
-    const result = await generateImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, instruction });
+    const result = await generateImage({
+      projectId: project.id,
+      slotKey: dbSlotKey,
+      ebookId,
+      chapterId,
+      instruction,
+    });
     if (result.ok) {
       setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl ?? null } }));
     } else {
@@ -469,10 +514,23 @@ export function WizardPreviewPage() {
     if (!shell) return null;
     if (shellStale) return shell.html;
     const imageUrls: Record<string, string> = {};
+    const sorted = chaptersSortedByOrder(selectedChapters);
     for (const [key, slot] of Object.entries(imageSlots)) {
       if (!slot.url) continue;
-      const htmlKey = key === "cover_art" ? "cover" : key;
-      imageUrls[htmlKey] = slot.url;
+      if (key === "cover_art") {
+        imageUrls.cover = slot.url;
+        continue;
+      }
+      const heroMatch = /^([^:]+):([^:]+):hero$/.exec(key);
+      if (heroMatch && heroMatch[1] === selectedEbookId) {
+        const chapterId = heroMatch[2]!;
+        const idx = sorted.findIndex((c) => c.id === chapterId);
+        if (idx >= 0) imageUrls[`chapter-${idx + 1}-image-1`] = slot.url;
+        continue;
+      }
+      if (/^chapter-\d+-image-1$/.test(key)) {
+        imageUrls[key] = slot.url;
+      }
     }
     return injectAll(shell.html, { chapters: selectedChapters, images: imageUrls });
   }, [selectedEbookId, shellCache, shellStale, selectedChapters, imageSlots]);

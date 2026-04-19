@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
 
 /**
  * Generates or regenerates a cover/section image for a project deliverable.
@@ -353,7 +354,7 @@ Deno.serve(async (req: Request) => {
     ok: true,
     imageId,
     storagePath,
-    signedUrl: signedData?.signedUrl ?? null,
+    signedUrl: rewriteStorageSignedUrlForPublicAccess(signedData?.signedUrl ?? null, url),
     credits_balance_after: balanceAfter ?? null,
   });
 });
