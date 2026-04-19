@@ -23,6 +23,8 @@ const baseDesignConfig = {
   paletteMode: "preset" as const,
   palettePresetId: "oceanic",
   palette: { primary: "#204970", secondary: "#e8f0f7", accent: "#c8e62b" },
+  typographyMode: "preset" as const,
+  typographyPresetId: "oceanic" as const,
   fonts: { heading: "Fraunces", body: "Plus Jakarta Sans" },
   page: { size: "a4" as const, orientation: "portrait" as const },
   image: { mode: "ai" as const, style: "illustration" },
