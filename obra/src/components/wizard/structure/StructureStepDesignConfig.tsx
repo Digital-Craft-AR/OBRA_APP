@@ -518,14 +518,6 @@ export function StructureStepDesignConfig({
           })}
         </div>
 
-        <div className="rounded-card border border-obra-neutral-200 bg-obra-neutral-100 px-4 py-3">
-          <p className="text-sm text-obra-blue-950" style={{ fontFamily: config.fonts.heading }}>
-            {t("wizard.structure.design.typography.headingSample")}
-          </p>
-          <p className="mt-2 text-xs text-obra-neutral-600" style={{ fontFamily: config.fonts.body }}>
-            {t("wizard.structure.design.typography.bodySample")}
-          </p>
-        </div>
       </div>
 
       <div className="border-t border-obra-blue-100" aria-hidden />
