@@ -13,6 +13,7 @@ vi.mock("@/lib/supabaseClient", () => ({
 import {
   fetchOrGenerateShell,
   isShellMetaStale,
+  regenerateShell,
   type ShellMeta,
 } from "@/lib/preview/documentShellApi";
 
@@ -151,5 +152,24 @@ describe("fetchOrGenerateShell", () => {
     await fetchOrGenerateShell(baseOpts);
 
     expect(mockFunctions.invoke).toHaveBeenCalled();
+  });
+
+  it("returns generation_in_progress when invoke returns FunctionsHttpError with 409 JSON body", async () => {
+    const response409 = new Response(JSON.stringify({ error: "generation_in_progress" }), {
+      status: 409,
+      headers: { "Content-Type": "application/json" },
+    });
+    const httpErr = Object.assign(new Error("Edge Function returned a non-2xx status code"), {
+      name: "FunctionsHttpError",
+      context: response409,
+    });
+    mockFunctions.invoke.mockResolvedValue({
+      data: null,
+      error: httpErr,
+    });
+
+    const result = await regenerateShell({ projectId: "p1", ebookId: "e1" });
+
+    expect(result).toEqual({ ok: false, error: "generation_in_progress" });
   });
 });

@@ -146,8 +146,27 @@ export function WizardPreviewPage() {
 
   // HTML shell state per ebook id
   const [shellCache, setShellCache] = useState<Record<string, { html: string; meta: ShellMeta }>>({});
-  const [shellLoading, setShellLoading] = useState(false);
+  /**
+   * In-flight shell requests per ebook (refcount). Overlapping calls (e.g. effect + regenerate, or 409
+   * while the first generation still runs) must not clear loading until every request for that id ends.
+   */
+  const [shellInflightByEbook, setShellInflightByEbook] = useState<Record<string, number>>({});
+  const beginShellInflight = useCallback((ebookId: string) => {
+    setShellInflightByEbook((prev) => ({ ...prev, [ebookId]: (prev[ebookId] ?? 0) + 1 }));
+  }, []);
+  const endShellInflight = useCallback((ebookId: string) => {
+    setShellInflightByEbook((prev) => {
+      const next = (prev[ebookId] ?? 0) - 1;
+      if (next <= 0) {
+        const { [ebookId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [ebookId]: next };
+    });
+  }, []);
   const [shellError, setShellError] = useState<string | null>(null);
+  const selectedEbookIdRef = useRef<string | null>(null);
+  selectedEbookIdRef.current = selectedEbookId;
   /** True when current chapters count/page config differs from what the shell was generated with */
   const [shellStale, setShellStale] = useState(false);
 
@@ -228,51 +247,64 @@ export function WizardPreviewPage() {
     let cancelled = false;
     async function load() {
       if (!project?.id || !selectedEbookId) return;
-      setShellLoading(true);
+      const ebookId = selectedEbookId;
+      beginShellInflight(ebookId);
       setShellError(null);
-      const chapters = chaptersCache[selectedEbookId!]!;
+      const chapters = chaptersCache[ebookId]!;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
       const result = await fetchOrGenerateShell({
         projectId: project.id,
-        ebookId: selectedEbookId!,
+        ebookId,
         currentChapterCount: chapters.length,
         currentPageSize: page.size,
         currentPageOrientation: page.orientation,
       });
-      if (cancelled) return;
+      if (cancelled) {
+        endShellInflight(ebookId);
+        return;
+      }
+      if (selectedEbookIdRef.current !== ebookId) {
+        endShellInflight(ebookId);
+        return;
+      }
       if (result.ok) {
         setShellCache((prev) => ({
           ...prev,
-          [selectedEbookId!]: { html: result.htmlShell, meta: result.shellMeta },
+          [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
         }));
         setShellStale(result.stale);
-      } else {
+      } else if (result.error !== "generation_in_progress") {
         setShellError(result.error);
       }
-      setShellLoading(false);
+      endShellInflight(ebookId);
     }
 
     void load();
     return () => { cancelled = true; };
-  }, [project, selectedEbookId, chaptersCache, shellCache]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRegenerateShell = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
-    setShellLoading(true);
+    const ebookId = selectedEbookId;
+    beginShellInflight(ebookId);
     setShellError(null);
-    const result = await regenerateShell({ projectId: project.id, ebookId: selectedEbookId });
+    const result = await regenerateShell({ projectId: project.id, ebookId });
+    if (selectedEbookIdRef.current !== ebookId) {
+      endShellInflight(ebookId);
+      return;
+    }
     if (result.ok) {
       setShellCache((prev) => ({
         ...prev,
-        [selectedEbookId]: { html: result.htmlShell, meta: result.shellMeta },
+        [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
       }));
       setShellStale(false);
-    } else {
+    } else if (result.error !== "generation_in_progress") {
       setShellError(result.error);
     }
-    setShellLoading(false);
-  }, [project?.id, selectedEbookId]);
+    endShellInflight(ebookId);
+  }, [project?.id, selectedEbookId, beginShellInflight, endShellInflight]);
 
   // Load existing image slots when project is loaded
   useEffect(() => {
@@ -307,6 +339,7 @@ export function WizardPreviewPage() {
   const handleSelectEbook = useCallback((id: string) => {
     setSelectedEbookId(id);
     setSelectedPreviewChapterIdx(0);
+    setShellError(null);
   }, []);
 
   const [selectedPreviewChapterIdx, setSelectedPreviewChapterIdx] = useState(0);
@@ -455,6 +488,7 @@ export function WizardPreviewPage() {
 
   const isLoading = projectLoading || ebooksLoading;
   const hasError = Boolean(projectError || ebooksError);
+  const shellLoading = Boolean(selectedEbookId && (shellInflightByEbook[selectedEbookId] ?? 0) > 0);
 
   if (!params.projectId) return null;
 
