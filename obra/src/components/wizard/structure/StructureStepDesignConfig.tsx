@@ -2,11 +2,13 @@ import { useEffect, useMemo } from "react";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { bookTemplateIdsForGeometry, normalizeBookTemplateId } from "@obra/layout-catalog";
-import { ObraInput } from "@/components/obra/ObraInput";
+import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import {
   colorToRgbStyleValue,
   DESIGN_PRESETS,
   getDesignPresetById,
+  getTypographyPresetById,
+  TYPOGRAPHY_PRESETS,
   type DesignPresetId,
   type WizardDesignConfig,
   WIZARD_CHAPTER_COUNTS,
@@ -57,6 +59,12 @@ export function StructureStepDesignConfig({
     }
   }, [bookTemplateId, eligibleTemplates, onBookTemplateChange]);
 
+  const allPresetFontFamilies = useMemo(
+    () => TYPOGRAPHY_PRESETS.flatMap((p) => [p.fonts.heading, p.fonts.body]),
+    [],
+  );
+  useGoogleFonts(allPresetFontFamilies);
+
   function updatePalettePreset(presetId: DesignPresetId) {
     const preset = getDesignPresetById(presetId);
     if (!preset) return;
@@ -75,6 +83,18 @@ export function StructureStepDesignConfig({
       palettePresetId: null,
     });
   }
+
+  function updateTypographyPreset(presetId: DesignPresetId) {
+    const preset = getTypographyPresetById(presetId);
+    if (!preset) return;
+    onChange({
+      ...config,
+      typographyMode: "preset",
+      typographyPresetId: preset.id,
+      fonts: preset.fonts,
+    });
+  }
+
 
   return (
     <section className="flex flex-col gap-6">
@@ -459,33 +479,45 @@ export function StructureStepDesignConfig({
 
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.typography.title")}</h3>
-        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.typography.presetsHint")}</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ObraInput
-            id="design-font-heading"
-            label={t("wizard.structure.design.typography.headingFontLabel")}
-            value={config.fonts.heading}
-            onChange={(event) =>
-              onChange({ ...config, fonts: { ...config.fonts, heading: event.target.value } })
-            }
-            placeholder={t("wizard.structure.design.typography.headingPlaceholder")}
-          />
-          <ObraInput
-            id="design-font-body"
-            label={t("wizard.structure.design.typography.bodyFontLabel")}
-            value={config.fonts.body}
-            onChange={(event) => onChange({ ...config, fonts: { ...config.fonts, body: event.target.value } })}
-            placeholder={t("wizard.structure.design.typography.bodyPlaceholder")}
-          />
+        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.typography.subtitle")}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {TYPOGRAPHY_PRESETS.map((preset) => {
+            const isSelected =
+              config.typographyMode === "preset" && config.typographyPresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => updateTypographyPreset(preset.id)}
+                className={`relative flex flex-col gap-1 rounded-card border px-3 py-2.5 text-left transition-colors ${
+                  isSelected
+                    ? "border-obra-blue-700 bg-obra-blue-50"
+                    : "border-obra-neutral-200 bg-white"
+                }`}
+              >
+                {isSelected ? (
+                  <Check className="absolute right-1.5 top-1.5 size-3.5 text-obra-blue-700" aria-hidden />
+                ) : null}
+                <span
+                  className="text-base font-semibold leading-none text-obra-blue-950"
+                  style={{ fontFamily: preset.fonts.heading }}
+                >
+                  Aa
+                </span>
+                <span
+                  className="text-[10px] leading-snug text-obra-neutral-500"
+                  style={{ fontFamily: preset.fonts.body }}
+                >
+                  {t("wizard.structure.design.typography.bodySampleShort")}
+                </span>
+                <span className="mt-0.5 text-[10px] font-semibold text-obra-blue-950">
+                  {t(`wizard.structure.design.preset.${preset.id}.fonts`)}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <div className="rounded-card border border-obra-neutral-200 bg-obra-neutral-100 px-4 py-3">
-          <p className="text-sm text-obra-blue-950" style={{ fontFamily: config.fonts.heading }}>
-            {t("wizard.structure.design.typography.headingSample")}
-          </p>
-          <p className="mt-2 text-xs text-obra-neutral-600" style={{ fontFamily: config.fonts.body }}>
-            {t("wizard.structure.design.typography.bodySample")}
-          </p>
-        </div>
+
       </div>
 
       <div className="border-t border-obra-blue-100" aria-hidden />

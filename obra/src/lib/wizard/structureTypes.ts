@@ -62,6 +62,9 @@ export type WizardDesignConfig = {
     secondary: string;
     accent: string;
   };
+  /** Typography — independent from palette. */
+  typographyMode: "preset" | "custom";
+  typographyPresetId: DesignPresetId | null;
   fonts: {
     heading: string;
     body: string;
@@ -115,6 +118,18 @@ export const DESIGN_PRESETS: DesignPreset[] = [
 export function getDesignPresetById(id: DesignPresetId | null) {
   if (!id) return null;
   return DESIGN_PRESETS.find((preset) => preset.id === id) ?? null;
+}
+
+export type TypographyPreset = {
+  id: DesignPresetId;
+  fonts: WizardDesignConfig["fonts"];
+};
+
+export const TYPOGRAPHY_PRESETS: TypographyPreset[] = DESIGN_PRESETS.map((p) => ({ id: p.id, fonts: p.fonts }));
+
+export function getTypographyPresetById(id: DesignPresetId | null): TypographyPreset | null {
+  if (!id) return null;
+  return TYPOGRAPHY_PRESETS.find((p) => p.id === id) ?? null;
 }
 
 /** Hex (#rgb / #rrggbb) or existing `rgb()` string → `rgb(r, g, b)` for inline styles. */
@@ -203,6 +218,48 @@ export function normalizeDesignConfig(value: unknown): WizardDesignConfig {
   const pageInput = isObject(value.page) ? value.page : {};
   const imageInput = isObject(value.image) ? value.image : {};
 
+  // Normalize typography mode — independent from palette.
+  const typographyModeRaw = typeof value.typographyMode === "string" ? value.typographyMode : null;
+  let typographyMode: "preset" | "custom";
+  let typographyPresetId: DesignPresetId | null;
+  if (typographyModeRaw === "custom") {
+    typographyMode = "custom";
+    typographyPresetId = null;
+  } else if (typographyModeRaw === "preset" && typeof value.typographyPresetId === "string") {
+    typographyMode = "preset";
+    typographyPresetId = getTypographyPresetById(value.typographyPresetId as DesignPresetId)
+      ? (value.typographyPresetId as DesignPresetId)
+      : "oceanic";
+  } else {
+    // Legacy rows: infer preset from stored font values to avoid overwriting user data.
+    const storedHeading = typeof fontsInput.heading === "string" ? fontsInput.heading : "";
+    const storedBody = typeof fontsInput.body === "string" ? fontsInput.body : "";
+    const inferred = TYPOGRAPHY_PRESETS.find(
+      (p) => p.fonts.heading === storedHeading && p.fonts.body === storedBody,
+    );
+    if (inferred) {
+      typographyMode = "preset";
+      typographyPresetId = inferred.id;
+    } else if (storedHeading || storedBody) {
+      typographyMode = "custom";
+      typographyPresetId = null;
+    } else {
+      typographyMode = "preset";
+      typographyPresetId = "oceanic";
+    }
+  }
+  const typographyPreset = getTypographyPresetById(typographyPresetId);
+  const resolvedFonts =
+    typographyMode === "preset" && typographyPreset
+      ? typographyPreset.fonts
+      : {
+          heading:
+            typeof fontsInput.heading === "string"
+              ? fontsInput.heading
+              : DEFAULT_DESIGN_CONFIG.fonts.heading,
+          body: typeof fontsInput.body === "string" ? fontsInput.body : DEFAULT_DESIGN_CONFIG.fonts.body,
+        };
+
   return {
     chapterCount: normalizeChapterCount(chapterCountRaw),
     contentTone: normalizeContentTone(contentToneRaw),
@@ -222,13 +279,9 @@ export function normalizeDesignConfig(value: unknown): WizardDesignConfig {
           ? paletteInput.accent
           : (palettePreset?.palette.accent ?? DEFAULT_DESIGN_CONFIG.palette.accent),
     },
-    fonts: {
-      heading:
-        typeof fontsInput.heading === "string"
-          ? fontsInput.heading
-          : DEFAULT_DESIGN_CONFIG.fonts.heading,
-      body: typeof fontsInput.body === "string" ? fontsInput.body : DEFAULT_DESIGN_CONFIG.fonts.body,
-    },
+    typographyMode,
+    typographyPresetId,
+    fonts: resolvedFonts,
     page: {
       size: pageInput.size === "letter" ? "letter" : "a4",
       orientation: pageInput.orientation === "landscape" ? "landscape" : "portrait",
@@ -260,6 +313,8 @@ export const DEFAULT_DESIGN_CONFIG: WizardDesignConfig = {
     secondary: "#2D6499",
     accent: "#5A7A94",
   },
+  typographyMode: "preset",
+  typographyPresetId: "oceanic",
   fonts: {
     heading: "Playfair Display",
     body: "Inter",
