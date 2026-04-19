@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
 
 interface ExportPdfQueueRequest {
   projectId: string;
@@ -164,9 +165,11 @@ Deno.serve(async (req: Request) => {
               .createSignedUrl(latestJob.storage_path, 3600);
 
             if (!signError && signed?.signedUrl) {
+              const publicUrl =
+                rewriteStorageSignedUrlForPublicAccess(signed.signedUrl, supabaseUrl) ?? signed.signedUrl;
               await supabaseAdmin
                 .from("pdf_export_jobs")
-                .update({ pdf_url: signed.signedUrl })
+                .update({ pdf_url: publicUrl })
                 .eq("id", latestJob.id);
 
               console.log(`[export-pdf-queue] reusing job ${latestJob.id} with fresh URL`);
