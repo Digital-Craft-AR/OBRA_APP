@@ -332,9 +332,11 @@ Deno.serve(async (req: Request) => {
 
   // Deduct credits on success
   const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
-    p_user_id: userId,
+    p_creator_id: userId,
     p_delta: -IMAGE_GENERATE_CREDIT_COST,
     p_reason: "consumption",
+    p_idempotency_key: `image_generate:v1:${imageId}`,
+    p_project_id: projectId,
   });
 
   if (rpcErr) {

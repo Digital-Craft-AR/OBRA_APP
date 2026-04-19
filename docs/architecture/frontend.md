@@ -1,6 +1,6 @@
 # Frontend architecture (Obra)
 
-**Version:** 1.3  
+**Version:** 1.4  
 **Last update:** April 2026  
 **Scope:** React app structure, routing, state, UI flow, preview system, observability, idempotency, and UX quality constraints.
 
@@ -64,7 +64,7 @@ The exact folder shape can differ (for example `src/pages` vs `src/app`), but re
 - `store/*`: **UI-only** store (modals, step transition focus flags, transient loading UX).
 - `lib/supabase.ts`: Supabase client setup.
 - `lib/preview/injectAll.ts`: client-side `injectAll(htmlShell, { chapters, images })` — replaces `{{TOC_ENTRIES}}`, `{{CHAPTER_N_TITLE}}`, `{{CHAPTER_N_CONTENT}}` placeholders and injects signed image URLs into `data-slot-key` divs. Also injects slot overlay UI (CSS + JS) for hover interactions. Exports `SlotMessage` type and `isSlotMessage()` guard.
-- `lib/preview/documentShellApi.ts`: `fetchOrGenerateShell(projectId, ebookId, chapters, designConfig)` — reads `ebooks.html_shell` + `shell_meta`, checks staleness (chapter count, page size/orientation), calls `generate-document-template` Edge Function if stale or missing. `regenerateShell()` for forced refresh.
+- `lib/preview/documentShellApi.ts`: `fetchOrGenerateShell({ projectId, ebookId, currentChapterCount, currentPageSize, currentPageOrientation })` — reads `ebooks.html_shell` + `shell_meta` when a non-empty `html_shell` exists and returns it with `stale: boolean` (`isShellMetaStale()` compares `shell_meta` to the current chapter count and page settings). **Does not** invoke `generate-document-template` only because the shell is stale; it invokes that Edge Function **only when `html_shell` is missing** (first generation). `regenerateShell()` forces a new shell (user-triggered, e.g. Preview CTA after edits).
 - Text model prompt templates live in [`supabase/functions/_shared/prompts.ts`](../../supabase/functions/_shared/prompts.ts) (Edge Functions only; not bundled in the SPA).
 - `i18n/*`: translation resources and locale setup.
 
@@ -78,7 +78,7 @@ The exact folder shape can differ (for example `src/pages` vs `src/app`), but re
 - Main ebook chapter outline is not finalized in Structure; it is handled during Content.
 - Upload path starts after shared Structure/design completion.
 - Preview is the export-oriented and visual refinement surface; long-form text editing is centered in Content. **Preview as global step 3** is active only after Content milestones reach `project_content_progress.current_phase = 'complete'` (see [`business_logic.md`](business_logic.md) §9 and [`../../features/wizard-preview/wizard-preview.md`](../../features/wizard-preview/wizard-preview.md)).
-- **Preview rendering model:** Preview uses a Claude-generated HTML shell (`ebooks.html_shell`) rendered in a `<iframe srcdoc>`. The shell is generated once by the `generate-document-template` Edge Function and cached; `injectAll()` hydrates it client-side on every render with current chapter text and signed image URLs — no Claude call needed for text edits. Shell is regenerated only when structure changes (chapter count, page size/orientation). The same `html_shell` is consumed by the Railway PDF worker, ensuring preview and exported PDF are identical.
+- **Preview rendering model:** Preview uses a Claude-generated HTML shell (`ebooks.html_shell`) in a `<iframe srcdoc>`. **Fresh shell** (`shell_meta` matches current chapter count and page size/orientation): the client runs `injectAll(html_shell, { chapters, images })` on every render — placeholders, signed image URLs, and in-iframe slot overlay UI — without calling Claude for text edits. **Stale shell** (metadata out of date vs Content or Structure page settings): the iframe shows the **stored `html_shell` as-is** (no `injectAll`) as a snapshot of the last generated layout; an `ObraAlert` (warning) plus a CTA calls `regenerateShell()` directly (no confirmation modal). PDF export (`export-pdf` / worker) still hydrates `html_shell` with `injectAll()` and current chapter rows until product rules change.
 - **Image slot interactions:** image slots inside the iframe communicate with the React parent via `postMessage` (`obra:slot:file`, `obra:slot:generate`, `obra:slot:remove`). The parent handles upload, Gemini generation modal, and slot removal; the iframe re-renders with the new signed URL via `injectAll()`.
 
 Detailed flow contracts belong to:
