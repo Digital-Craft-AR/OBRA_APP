@@ -215,6 +215,10 @@ export function WizardContentPage() {
   useEffect(() => {
     if (!params.projectId || loading) return;
     if (!project) return;
+    if (project.lifecycle_status !== "active") {
+      navigate("/app/dashboard", { replace: true });
+      return;
+    }
     if (project.structure_completed_at) return;
     navigate(`/app/projects/${params.projectId}/wizard`, { replace: true });
   }, [loading, project, params.projectId, navigate]);

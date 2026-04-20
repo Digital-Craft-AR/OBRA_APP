@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -54,6 +54,13 @@ export function WizardStructurePage() {
   });
 
   const { tourOpen, tourStep, setTourStep, dismissTour } = useWizardTourState(session?.user?.id);
+
+  // Redirect if the project is archived or in trash — read-only, editing not allowed.
+  useEffect(() => {
+    if (!loading && project && project.lifecycle_status !== "active") {
+      navigate("/app/dashboard", { replace: true });
+    }
+  }, [loading, project, navigate]);
 
   const packageCountsLocked = Boolean(project?.structure_completed_at);
 
