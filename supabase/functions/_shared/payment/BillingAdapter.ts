@@ -44,4 +44,11 @@ export interface BillingAdapter {
     accessToken: string,
     userExternalReference: string,
   ): Promise<SubscriptionReconcileResult>;
+
+  /**
+   * Returns true if the provider has at least one active (authorized) subscription
+   * for the given external reference. Used in the webhook handler to avoid incorrectly
+   * marking a user as past_due when only one of multiple subscriptions is cancelled/paused.
+   */
+  hasAnyActiveSubscription(accessToken: string, userExternalReference: string): Promise<boolean>;
 }

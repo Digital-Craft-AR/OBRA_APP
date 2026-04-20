@@ -12,7 +12,10 @@ export function parsePaymentReturnOutcome(searchParams: URLSearchParams): Parsed
     status === "success" ||
     status === "approved" ||
     collectionStatus === "approved" ||
-    collectionStatus === "authorized";
+    collectionStatus === "authorized" ||
+    // MP subscription (preapproval) back_url: MP appends `?preapproval_id=<id>` without a
+    // status param. Presence of preapproval_id means the user authorized the subscription.
+    searchParams.has("preapproval_id");
 
   const failureSignals =
     status === "failure" ||

@@ -11,4 +11,7 @@ export default defineConfig({
       "@obra/layout-catalog": fileURLToPath(new URL("../packages/layout-catalog/src/index.ts", import.meta.url)),
     },
   },
+  server: {
+    allowedHosts: ["erick-subfossorial-unneedfully.ngrok-free.dev"],
+  },
 });
