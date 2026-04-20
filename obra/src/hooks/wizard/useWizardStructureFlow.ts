@@ -97,6 +97,10 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [customMainTitle, setCustomMainTitle] = useState("");
   /** Prevents repeat auto-fetch when revisiting step 4 in the same session without a title. */
   const titleSuggestionsAutoAttemptedRef = useRef(false);
+  /** Prevents repeat auto-generation when revisiting step 5 (bonus titles) in the same session. */
+  const bonusTitlesAutoAttemptedRef = useRef(false);
+  /** Prevents repeat auto-generation when revisiting step 6 (bump titles) in the same session. */
+  const bumpTitlesAutoAttemptedRef = useRef(false);
   const [authorDraft, setAuthorDraft] = useState("");
   const [mainTitleError, setMainTitleError] = useState<string | null>(null);
   const [titleSuggestionsLoading, setTitleSuggestionsLoading] = useState(false);
@@ -176,6 +180,35 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     titleSuggestionsAutoAttemptedRef.current = true;
     void generateMainTitleSuggestions();
   }, [innerStepIndex, customMainTitle, project?.main_title, titleSuggestionsLoading]);
+
+  useEffect(() => {
+    if (innerStepIndex < 4) {
+      bonusTitlesAutoAttemptedRef.current = false;
+      bumpTitlesAutoAttemptedRef.current = false;
+      return;
+    }
+
+    if (innerStepIndex === 4) {
+      if (bonusTitlesAutoAttemptedRef.current || bonusItems.length === 0) return;
+      const allUnfilled = bonusItems.every(
+        (item, index) => !item.title.trim() || item.title.trim() === `Bonus ${index + 1}`,
+      );
+      if (!allUnfilled) return;
+      bonusTitlesAutoAttemptedRef.current = true;
+      void regenerateAllItems("bonus");
+    }
+
+    if (innerStepIndex === 5) {
+      if (bumpTitlesAutoAttemptedRef.current || bumpItems.length === 0) return;
+      const allUnfilled = bumpItems.every(
+        (item, index) => !item.title.trim() || item.title.trim() === `Order bump ${index + 1}`,
+      );
+      if (!allUnfilled) return;
+      bumpTitlesAutoAttemptedRef.current = true;
+      void regenerateAllItems("bump");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [innerStepIndex]);
 
   const stepTitle = useMemo(() => {
     if (innerStepIndex === 0) return t("wizard.structure.step1.title");
