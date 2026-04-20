@@ -1,4 +1,19 @@
 import { supabase } from "@/lib/supabaseClient";
+import { rewriteStorageSignedUrlForPublicAccess } from "@/lib/preview/storageSignedUrl";
+
+const publicSupabaseApiUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+
+/** Strips accidental bucket prefix and leading slashes so createSignedUrl uses the object key only. */
+function normalizeProjectImageStoragePath(storagePath: string): string {
+  let p = storagePath.trim();
+  while (p.startsWith("/")) p = p.slice(1);
+  const bucketPrefix = "project-images/";
+  if (p.length >= bucketPrefix.length && p.slice(0, bucketPrefix.length).toLowerCase() === bucketPrefix) {
+    p = p.slice(bucketPrefix.length);
+  }
+  while (p.startsWith("/")) p = p.slice(1);
+  return p.trim();
+}
 
 export type ImageSlotStatus = "pending" | "generating" | "done" | "error";
 
@@ -26,7 +41,7 @@ export async function loadProjectImages(
 }
 
 export type GenerateImageResult =
-  | { ok: true; imageId: string; signedUrl: string | null; credits_balance_after: number | null }
+  | { ok: true; imageId: string; signedUrl: string | null; credits_balance_after: number | null; aspectRatio: string | null }
   | { ok: false; code: string };
 
 export async function generateImage(args: {
@@ -56,8 +71,12 @@ export async function generateImage(args: {
   return {
     ok: true,
     imageId: data.imageId as string,
-    signedUrl: (data.signedUrl as string | null) ?? null,
+    signedUrl: rewriteStorageSignedUrlForPublicAccess(
+      (data.signedUrl as string | null) ?? null,
+      publicSupabaseApiUrl,
+    ),
     credits_balance_after: typeof data.credits_balance_after === "number" ? data.credits_balance_after : null,
+    aspectRatio: typeof data.aspectRatio === "string" ? data.aspectRatio : null,
   };
 }
 
@@ -67,12 +86,15 @@ export async function generateImage(args: {
  * this is used for existing rows when re-loading the preview.
  */
 export async function getSignedImageUrl(storagePath: string): Promise<string | null> {
+  const path = normalizeProjectImageStoragePath(storagePath);
+  if (!path) return null;
+
   const { data, error } = await supabase.storage
     .from("project-images")
-    .createSignedUrl(storagePath, 3600);
+    .createSignedUrl(path, 3600);
 
   if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
+  return rewriteStorageSignedUrlForPublicAccess(data.signedUrl, publicSupabaseApiUrl);
 }
 
 export type UploadImageResult =
@@ -83,7 +105,9 @@ export type UploadImageResult =
  * Uploads a local File to the project-images bucket and records the slot in
  * project_images. Uses the browser Supabase client (RLS enforced).
  *
- * Storage path: `{projectId}/{slotKey}.{ext}`
+ * Storage path: `{projectId}/{slotKey}.{ext}` (cover), `{projectId}/{ebookId}/{slotKey}.{ext}`
+ * (ebook-only), or `{projectId}/{ebookId}/{chapterId}/{slotKey}.{ext}` when `chapterId` is set
+ * (per-chapter hero — avoids collisions between chapters).
  * Table: upserts project_images via select-then-update/insert (partial indexes
  * cannot be targeted by .upsert onConflict in the JS client).
  */
@@ -96,11 +120,17 @@ export async function uploadImage(args: {
 }): Promise<UploadImageResult> {
   const { projectId, slotKey, file, ebookId, chapterId } = args;
 
-  // Derive a stable storage path from projectId + slotKey
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
+  if (!userId) return { ok: false, code: "unauthenticated" };
+
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const storagePath = ebookId
-    ? `${projectId}/${ebookId}/${slotKey}.${ext}`
-    : `${projectId}/${slotKey}.${ext}`;
+  const storagePath =
+    ebookId && chapterId
+      ? `${userId}/${projectId}/${ebookId}/${chapterId}/${slotKey}.${ext}`
+      : ebookId
+        ? `${userId}/${projectId}/${ebookId}/${slotKey}.${ext}`
+        : `${userId}/${projectId}/${slotKey}.${ext}`;
 
   // Upload (upsert) to Storage
   const { error: uploadErr } = await supabase.storage
@@ -160,5 +190,9 @@ export async function uploadImage(args: {
   const signedUrl = await getSignedImageUrl(storagePath);
   if (!signedUrl) return { ok: false, code: "signed_url_failed" };
 
-  return { ok: true, signedUrl, storagePath };
+  return {
+    ok: true,
+    signedUrl: rewriteStorageSignedUrlForPublicAccess(signedUrl, publicSupabaseApiUrl) ?? signedUrl,
+    storagePath,
+  };
 }

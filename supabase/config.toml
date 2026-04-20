@@ -71,8 +71,8 @@ verify_jwt = true
 
 # ── Storage buckets ───────────────────────────────────────────────────────────
 # Buckets are private by default (public = false); access via signed URLs only.
-# RLS policies are defined in migrations (project_images table) and inside
-# Edge Function handlers (service role key for project-pdfs / project-zips).
+# RLS policies: project_images table + storage.objects policies for project-images
+# (see migrations). Edge Functions use the service role for uploads where needed.
 
 [storage.buckets.project-images]
 public = false

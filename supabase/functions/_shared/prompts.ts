@@ -1323,6 +1323,10 @@ Generate the complete HTML shell. Use {{TOC_ENTRIES}}, {{CHAPTER_N_TITLE}}, and 
  * Call this client-side before rendering in the preview iframe, or server-side
  * before sending to Puppeteer.
  */
+function escapeSrcAmpForHtmlAttribute(url: string): string {
+  return url.replace(/&/g, "&amp;");
+}
+
 export function injectAll(
   htmlShell: string,
   opts: {
@@ -1365,7 +1369,7 @@ export function injectAll(
       );
       html = html.replace(
         slotRe,
-        `$1<img src="${url}" alt="" loading="lazy" />$2`,
+        `$1<img src="${escapeSrcAmpForHtmlAttribute(url)}" alt="" loading="lazy" />$2`,
       );
     }
   }
