@@ -37,10 +37,26 @@ type EbookRow = {
   package_ordinal: number;
 };
 
-/** Stable key for the imageSlots map (matches ProjectImageRow unique constraints). */
+/**
+ * Stable key for imageSlots. Cover uses `cover_art`. Chapter heroes use
+ * `{ebookId}:{chapterId}:hero` so preview can map to shell keys `chapter-N-image-1`.
+ */
 function rowSlotKey(row: ProjectImageRow): string {
-  if (row.slot_key === "cover_art" && !row.ebook_id) return "cover_art";
-  return `${row.ebook_id ?? ""}:${row.chapter_id ?? ""}:${row.slot_key}`;
+  return compositeSlotKey(row.slot_key, row.ebook_id ?? undefined, row.chapter_id ?? undefined);
+}
+
+/**
+ * Builds the same composite key from raw DB field values (used after upload/generate
+ * so handlers stay consistent with keys produced by rowSlotKey on initial load).
+ */
+function compositeSlotKey(dbSlotKey: string, ebookId: string | undefined, chapterId: string | undefined): string {
+  if (dbSlotKey === "cover_art" && !ebookId && !chapterId) return "cover_art";
+  if (dbSlotKey === "hero" && ebookId && chapterId) return `${ebookId}:${chapterId}:hero`;
+  return `${ebookId ?? ""}:${chapterId ?? ""}:${dbSlotKey}`;
+}
+
+function chaptersSortedByOrder(chapters: ChapterDraftRow[]): ChapterDraftRow[] {
+  return [...chapters].sort((a, b) => a.sort_order - b.sort_order);
 }
 
 async function loadProjectEbooks(projectId: string): Promise<{ ok: true; rows: EbookRow[] } | { ok: false }> {
@@ -355,48 +371,87 @@ export function WizardPreviewPage() {
   }, [selectedEbookId, chaptersCache]);
 
   /**
-   * Maps an HTML slot key (used by Claude, e.g. "cover") to the DB slot key
-   * (e.g. "cover_art") and returns the args for uploadImage / generateImage.
+   * Maps shell `data-slot-key` ("cover", "chapter-N-image-1") to DB slot_key + ids
+   * for uploadImage / generateImage (hero slots require ebook + chapter).
    */
-  const resolveSlotArgs = useCallback((htmlSlotKey: string) => {
-    if (htmlSlotKey === "cover") {
-      return { dbSlotKey: "cover_art", ebookId: undefined as string | undefined };
-    }
-    // chapter-N-image-1 → use selectedEbookId
-    return { dbSlotKey: htmlSlotKey, ebookId: selectedEbookId ?? undefined };
-  }, [selectedEbookId]);
+  const resolveSlotArgs = useCallback(
+    (htmlSlotKey: string) => {
+      if (htmlSlotKey === "cover") {
+        return {
+          dbSlotKey: "cover_art" as const,
+          ebookId: undefined as string | undefined,
+          chapterId: undefined as string | undefined,
+        };
+      }
+      const m = /^chapter-(\d+)-image-1$/.exec(htmlSlotKey);
+      if (!m || !selectedEbookId) {
+        return {
+          dbSlotKey: htmlSlotKey,
+          ebookId: selectedEbookId ?? undefined,
+          chapterId: undefined as string | undefined,
+        };
+      }
+      const n = Number.parseInt(m[1]!, 10);
+      const sorted = chaptersSortedByOrder(chaptersCache[selectedEbookId] ?? []);
+      const chapter = Number.isFinite(n) && n >= 1 ? sorted[n - 1] : undefined;
+      return {
+        dbSlotKey: "hero" as const,
+        ebookId: selectedEbookId,
+        chapterId: chapter?.id,
+      };
+    },
+    [selectedEbookId, chaptersCache],
+  );
 
   const handleSlotUpload = useCallback(async (htmlSlotKey: string, file: File) => {
     if (!project?.id) return;
-    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
-    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
-    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId });
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
+    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
+      return;
+    }
+    setImageSlots((prev) => ({ ...prev, [cKey]: { status: "generating", url: prev[cKey]?.url ?? null } }));
+    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId, chapterId });
     if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl } }));
     } else {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
   }, [project?.id, resolveSlotArgs]);
 
   const handleSlotGenerate = useCallback(async (htmlSlotKey: string, instruction?: string) => {
     if (!project?.id) return;
-    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
-    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
-    const result = await generateImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, instruction });
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
+    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
+      return;
+    }
+    setImageSlots((prev) => ({ ...prev, [cKey]: { status: "generating", url: prev[cKey]?.url ?? null } }));
+    const result = await generateImage({
+      projectId: project.id,
+      slotKey: dbSlotKey,
+      ebookId,
+      chapterId,
+      instruction,
+    });
     if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl ?? null } }));
     } else {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
   }, [project?.id, resolveSlotArgs]);
 
   const handleSlotRemove = useCallback((htmlSlotKey: string) => {
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     setImageSlots((prev) => {
       const next = { ...prev };
-      delete next[htmlSlotKey];
+      delete next[cKey];
       return next;
     });
-  }, []);
+  }, [resolveSlotArgs]);
 
   // postMessage listener — receives slot actions from the preview iframe
   useEffect(() => {
@@ -462,20 +517,28 @@ export function WizardPreviewPage() {
   const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
-  /** HTML for iframe: fresh shells use injectAll; stale shells show the cached document as stored. */
+  /** HTML for iframe: always runs injectAll so chapters and images render even when shell is stale. */
   const previewSrcDoc = useMemo(() => {
     if (!selectedEbookId) return null;
     const shell = shellCache[selectedEbookId];
     if (!shell) return null;
-    if (shellStale) return shell.html;
     const imageUrls: Record<string, string> = {};
+    const sorted = chaptersSortedByOrder(selectedChapters);
     for (const [key, slot] of Object.entries(imageSlots)) {
       if (!slot.url) continue;
-      const htmlKey = key === "cover_art" ? "cover" : key;
-      imageUrls[htmlKey] = slot.url;
+      if (key === "cover_art") {
+        imageUrls.cover = slot.url;
+        continue;
+      }
+      const heroMatch = /^([^:]+):([^:]+):hero$/.exec(key);
+      if (heroMatch && heroMatch[1] === selectedEbookId) {
+        const chapterId = heroMatch[2]!;
+        const idx = sorted.findIndex((c) => c.id === chapterId);
+        if (idx >= 0) imageUrls[`chapter-${idx + 1}-image-1`] = slot.url;
+      }
     }
     return injectAll(shell.html, { chapters: selectedChapters, images: imageUrls });
-  }, [selectedEbookId, shellCache, shellStale, selectedChapters, imageSlots]);
+  }, [selectedEbookId, shellCache, selectedChapters, imageSlots]);
 
   const tabLabel = useCallback(
     (ebook: EbookRow): string => {
