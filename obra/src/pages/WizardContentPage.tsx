@@ -511,8 +511,7 @@ export function WizardContentPage() {
     () =>
       Boolean(
         workspaceReady &&
-          (currentPhase === "upload_alignment" ||
-            currentPhase === "main_chapter" ||
+          (currentPhase !== null ||
             Boolean(globalIndexFrozenAt)),
       ),
     [workspaceReady, currentPhase, globalIndexFrozenAt],
