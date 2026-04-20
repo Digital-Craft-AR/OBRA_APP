@@ -157,6 +157,9 @@ export class MercadoPagoAdapter implements BillingAdapter {
     }
 
     const pref = (await mpRes.json()) as MpSubscriptionResponse;
+
+    console.log("pref", pref);
+
     const useSandbox = accessToken.startsWith("TEST-");
     const redirectUrl = useSandbox
       ? (pref.sandbox_init_point ?? pref.init_point)
@@ -232,17 +235,25 @@ export class MercadoPagoAdapter implements BillingAdapter {
     userExternalReference: string,
   ): Promise<SubscriptionReconcileResult> {
     const subSearch = await fetch(
-      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&limit=1&offset=0`,
+      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&limit=20&offset=0`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
     if (subSearch.ok) {
       const subData = (await subSearch.json()) as MpPreapprovalSearch;
-      const latest = subData.results?.[0];
-      if (latest?.status) {
-        const mapped = mapPreapprovalStatus(latest.status);
-        if (mapped) {
-          return { found: true, source: "subscription", subscriptionStatus: mapped };
+      const results = subData.results ?? [];
+      // If any subscription is authorized, the user is active regardless of other cancelled ones.
+      const hasAuthorized = results.some((r) => r.status === "authorized");
+      if (hasAuthorized) {
+        return { found: true, source: "subscription", subscriptionStatus: "active" };
+      }
+      // No active subscription — use the first mappable result.
+      for (const r of results) {
+        if (r.status) {
+          const mapped = mapPreapprovalStatus(r.status);
+          if (mapped) {
+            return { found: true, source: "subscription", subscriptionStatus: mapped };
+          }
         }
       }
     }
@@ -261,12 +272,27 @@ export class MercadoPagoAdapter implements BillingAdapter {
 
     return { found: false };
   }
+
+  async hasAnyActiveSubscription(accessToken: string, userExternalReference: string): Promise<boolean> {
+    const res = await fetch(
+      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&limit=20&offset=0`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+      console.error("mp_has_active_fetch_failed", JSON.stringify({ status: res.status, externalReference: userExternalReference }));
+      return false;
+    }
+    const data = (await res.json()) as MpPreapprovalSearch;
+    const statuses = (data.results ?? []).map((r) => ({ id: r.id, status: r.status }));
+    console.log("mp_preapproval_search_results", JSON.stringify({ externalReference: userExternalReference, results: statuses }));
+    return statuses.some((r) => r.status === "authorized");
+  }
 }
 
 function mapPreapprovalStatus(status: string): "none" | "active" | "past_due" | null {
   const st = status.toLowerCase();
   if (st === "authorized") return "active";
-  if (st === "paused" || st === "cancelled") return "past_due";
-  if (st === "pending" || st === "init") return "none";
+  if (st === "paused") return "past_due";
+  if (st === "cancelled" || st === "pending" || st === "init") return "none";
   return null;
 }

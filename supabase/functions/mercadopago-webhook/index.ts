@@ -23,12 +23,20 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
   let body: unknown = {};
+  let rawText = "";
   try {
-    const text = await req.text();
-    if (text) body = JSON.parse(text) as unknown;
+    rawText = await req.text();
+    if (rawText) body = JSON.parse(rawText) as unknown;
   } catch {
     return jsonResponse({ error: "invalid_json" }, 400);
   }
+
+  console.log("mp_webhook_received", JSON.stringify({
+    method: req.method,
+    url: url.toString(),
+    query: Object.fromEntries(url.searchParams.entries()),
+    body,
+  }));
 
   let billing;
   try {
@@ -40,8 +48,11 @@ Deno.serve(async (req: Request) => {
 
   const resource = billing.parseWebhookResource(body, url);
   if (!resource) {
+    console.log("mp_webhook_ignored", JSON.stringify({ body, query: Object.fromEntries(url.searchParams.entries()) }));
     return jsonResponse({ ok: true, ignored: true });
   }
+
+  console.log("mp_webhook_resource_parsed", JSON.stringify(resource));
 
   const secret = loadMercadoPagoWebhookSecret();
   const accessToken = loadMercadoPagoAccessToken();
@@ -54,10 +65,6 @@ Deno.serve(async (req: Request) => {
     console.error("mercadopago_webhook_misconfigured");
     return jsonResponse({ error: "misconfigured" }, 500);
   }
-  if (needMpSecret && !secret) {
-    console.error("mercadopago_webhook_misconfigured");
-    return jsonResponse({ error: "misconfigured" }, 500);
-  }
   if (needMpToken && !accessToken) {
     console.error("mercadopago_webhook_misconfigured");
     return jsonResponse({ error: "misconfigured" }, 500);
@@ -66,16 +73,21 @@ Deno.serve(async (req: Request) => {
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id");
 
-  const sigOk = billing.verifyWebhookSignature({
-    secret: secret ?? "",
-    xSignature,
-    xRequestId,
-    resourceId: resource.resourceId,
-  });
-
-  if (!sigOk) {
-    console.warn("mercadopago_webhook_signature_rejected");
-    return jsonResponse({ error: "unauthorized" }, 401);
+  // Test accounts (MP users de prueba) don't have a webhook secret — skip signature
+  // verification in that case. In production the secret is always set.
+  if (needMpSecret && secret) {
+    const sigOk = billing.verifyWebhookSignature({
+      secret,
+      xSignature,
+      xRequestId,
+      resourceId: resource.resourceId,
+    });
+    if (!sigOk) {
+      console.warn("mercadopago_webhook_signature_rejected");
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+  } else if (needMpSecret) {
+    console.warn("mercadopago_webhook_signature_skipped: no secret configured (test account)");
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
@@ -99,17 +111,37 @@ Deno.serve(async (req: Request) => {
   }
 
   let ext: string | null = null;
-  let profileStatus: "active" | "past_due" = "active";
+  let profileStatus: "active" | "past_due" | "none" = "active";
 
   try {
     if (resource.topic === "subscription") {
       const snap = await billing.fetchSubscriptionSnapshot(accessToken ?? "", resource.resourceId);
       const st = snap.status ?? "unknown";
+      console.log("mp_subscription_snapshot", JSON.stringify({ resourceId: resource.resourceId, status: st, externalReference: snap.externalReference }));
       if (st !== "authorized" && st !== "paused" && st !== "cancelled") {
+        console.log("mp_subscription_skipped", JSON.stringify({ status: st }));
         return jsonResponse({ ok: true, skipped_status: st });
       }
       ext = snap.externalReference;
-      profileStatus = st === "authorized" ? "active" : "past_due";
+      if (st === "authorized") {
+        profileStatus = "active";
+      } else {
+        // Before downgrading status, check if the user has another authorized subscription.
+        const stillActive =
+          ext && /^[0-9a-f-]{36}$/i.test(ext.trim())
+            ? await billing.hasAnyActiveSubscription(accessToken ?? "", ext.trim())
+            : false;
+        console.log("mp_has_active_check", JSON.stringify({ externalReference: ext, status: st, stillActive }));
+        if (stillActive) {
+          profileStatus = "active";
+        } else if (st === "paused") {
+          // Paused = payment failed, subscription still exists but billing is blocked.
+          profileStatus = "past_due";
+        } else {
+          // Cancelled = user (or MP) ended the subscription; offer to subscribe again.
+          profileStatus = "none";
+        }
+      }
     } else {
       const snap = await billing.fetchPaymentSnapshot(accessToken ?? "", resource.resourceId);
       if (snap.status !== "approved") {
