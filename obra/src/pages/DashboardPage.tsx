@@ -55,6 +55,7 @@ type ProjectQueryRow = {
   bonus_count: number;
   bump_count: number;
   structure_completed_at: string | null;
+  lifecycle_status: "active" | "archived" | "trash";
 };
 
 function mapProjectRow(row: ProjectQueryRow, currentPhase: string | null | undefined): ProjectSummaryCardModel {
@@ -68,6 +69,7 @@ function mapProjectRow(row: ProjectQueryRow, currentPhase: string | null | undef
     bump_count: row.bump_count,
     structure_completed_at: row.structure_completed_at,
     content_phase: parseContentPhase(currentPhase),
+    lifecycle_status: row.lifecycle_status,
   };
 }
 
@@ -109,6 +111,11 @@ export function DashboardPage() {
   const [trashTargetId, setTrashTargetId] = useState<string | null>(null);
   const [trashLoading, setTrashLoading] = useState(false);
   const [trashError, setTrashError] = useState<string | null>(null);
+
+  // Recover confirm
+  const [recoverTargetId, setRecoverTargetId] = useState<string | null>(null);
+  const [recoverLoading, setRecoverLoading] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +176,7 @@ export function DashboardPage() {
       const { data, error: qError } = await supabase
         .from("projects")
         .select(
-          "id, name, main_title, updated_at, design_config, bonus_count, bump_count, structure_completed_at",
+          "id, name, main_title, updated_at, design_config, bonus_count, bump_count, structure_completed_at, lifecycle_status",
         )
         .eq("user_id", uid)
         .eq("lifecycle_status", lifecycleTab)
@@ -286,10 +293,53 @@ export function DashboardPage() {
     setTrashTargetId(null);
   }
 
+  async function submitRecover() {
+    if (!recoverTargetId || recoverLoading) return;
+    const uid = session?.user?.id;
+    if (!uid) return;
+
+    // Check active project limit (max 20)
+    const { count, error: countError } = await supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", uid)
+      .eq("lifecycle_status", "active");
+
+    if (countError) {
+      setRecoverError(t("projects.recover.error"));
+      return;
+    }
+    if ((count ?? 0) >= 20) {
+      setRecoverError(t("projects.recover.limitError"));
+      return;
+    }
+
+    setRecoverLoading(true);
+    setRecoverError(null);
+    const { error } = await supabase
+      .from("projects")
+      .update({ lifecycle_status: "active" })
+      .eq("id", recoverTargetId);
+    setRecoverLoading(false);
+    if (error) {
+      setRecoverError(t("projects.recover.error"));
+      return;
+    }
+    setTabProjects((prev) => prev.filter((p) => p.id !== recoverTargetId));
+    setRecoverTargetId(null);
+  }
+
   const cardActions: ProjectCardActions = {
     onRename: openRenameModal,
     onArchive: (id) => { setArchiveError(null); setArchiveTargetId(id); },
     onMoveToTrash: (id) => { setTrashError(null); setTrashTargetId(id); },
+  };
+
+  const recoverActions: ProjectCardActions = {
+    onRename: openRenameModal,
+    onArchive: (id) => { setArchiveError(null); setArchiveTargetId(id); },
+    onMoveToTrash: (id) => { setTrashError(null); setTrashTargetId(id); },
+    onRecover: (id) => { setRecoverError(null); setRecoverTargetId(id); },
   };
 
   function openNewProjectModal() {
@@ -518,7 +568,11 @@ export function DashboardPage() {
                       key={p.id}
                       project={p}
                       t={t}
-                      actions={lifecycleTab === "active" ? cardActions : undefined}
+                      actions={
+                        lifecycleTab === "active"
+                          ? cardActions
+                          : recoverActions
+                      }
                     />
                   ))}
                 </div>
@@ -632,6 +686,38 @@ export function DashboardPage() {
             disabled={trashLoading}
           >
             {t("projects.trash.confirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Recover confirm */}
+      <Modal
+        open={recoverTargetId !== null}
+        onClose={() => setRecoverTargetId(null)}
+        closeLabel={t("wizard.modal.close")}
+      >
+        <ModalHead>
+          <div>
+            <ModalTitle>{t("projects.recover.title")}</ModalTitle>
+          </div>
+        </ModalHead>
+        <ModalContent>
+          <p>{t("projects.recover.body")}</p>
+          {recoverError ? (
+            <p role="alert" className="mt-3 text-sm text-red-600">{recoverError}</p>
+          ) : null}
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" onClick={() => setRecoverTargetId(null)} disabled={recoverLoading}>
+            {t("projects.recover.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void submitRecover()}
+            disabled={recoverLoading}
+          >
+            {t("projects.recover.confirm")}
           </Button>
         </ModalFooter>
       </Modal>

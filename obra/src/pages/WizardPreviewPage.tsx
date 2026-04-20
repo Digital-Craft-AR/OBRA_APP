@@ -186,6 +186,13 @@ export function WizardPreviewPage() {
   /** True when current chapters count/page config differs from what the shell was generated with */
   const [shellStale, setShellStale] = useState(false);
 
+  // Redirect if the project is archived or in trash — read-only, editing not allowed.
+  useEffect(() => {
+    if (!projectLoading && project && project.lifecycle_status !== "active") {
+      navigate("/app/dashboard", { replace: true });
+    }
+  }, [projectLoading, project, navigate]);
+
   // Load ebooks + publish_status once project is ready
   useEffect(() => {
     if (!project?.id) return;
