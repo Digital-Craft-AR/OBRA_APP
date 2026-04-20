@@ -23,12 +23,14 @@ export type ProjectSummaryCardModel = {
   bump_count: number;
   structure_completed_at: string | null;
   content_phase: ProjectContentProgressPhase | null;
+  lifecycle_status: "active" | "archived" | "trash";
 };
 
 export type ProjectCardActions = {
   onRename: (id: string, currentName: string) => void;
   onArchive: (id: string) => void;
   onMoveToTrash: (id: string) => void;
+  onRecover?: (id: string) => void;
 };
 
 const statusVariant = {
@@ -120,43 +122,89 @@ export function ProjectSummaryCard({
   t: TFunction;
   actions?: ProjectCardActions;
 }) {
+  const isReadOnly = project.lifecycle_status === "archived" || project.lifecycle_status === "trash";
   const statusKey = resolveProjectStatusLabelKey(project.structure_completed_at, project.content_phase);
   const variant = statusVariant[statusKey];
   const href = resolveProjectEditorPath(project.id, project.structure_completed_at, project.content_phase);
   const ebookTitle = project.main_title?.trim() || null;
   const { primary, secondary, accent } = project.design_config.palette;
 
+  const lifecycleBannerKey =
+    project.lifecycle_status === "archived"
+      ? "projects.card.banner.archived"
+      : project.lifecycle_status === "trash"
+        ? "projects.card.banner.trash"
+        : null;
+
+  const cardBody = (
+    <div className="flex flex-col gap-1">
+      <h2 className="font-display text-lg font-semibold leading-snug text-obra-blue-950">{project.name}</h2>
+      {ebookTitle ? (
+        <p className="font-body text-xs text-obra-neutral-500">
+          <span className="font-semibold">{t("projects.card.ebookTitleLabel")}</span>{" "}
+          {ebookTitle}
+        </p>
+      ) : null}
+    </div>
+  );
+
+  const cardFooter = (
+    <div className="mt-auto flex items-center justify-between gap-3">
+      <div className="flex items-center gap-1.5" aria-label={t("projects.card.paletteAria")}>
+        <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: primary }} />
+        <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: secondary }} />
+        <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: accent }} />
+      </div>
+      <p className="font-body text-xs text-obra-neutral-600">
+        {t("projects.card.packageMeta", { bonus: project.bonus_count, bump: project.bump_count })}
+      </p>
+    </div>
+  );
+
   return (
     <div className={`${contentCardClass} flex h-full flex-col`}>
       <div className="flex items-center gap-2">
         <p className="flex-1 font-body text-xs text-obra-neutral-600">{formatProjectUpdatedRelative(project.updated_at, t)}</p>
-        <ObraBadge variant={variant}>{t(statusKey)}</ObraBadge>
-        {actions ? <CardMenu id={project.id} name={project.name} t={t} actions={actions} /> : null}
+        {isReadOnly ? null : <ObraBadge variant={variant}>{t(statusKey)}</ObraBadge>}
+        {isReadOnly && actions?.onRecover ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              actions.onRecover!(project.id);
+            }}
+          >
+            {t("projects.card.recover")}
+          </Button>
+        ) : null}
+        {!isReadOnly && actions ? (
+          <CardMenu id={project.id} name={project.name} t={t} actions={actions} />
+        ) : null}
       </div>
-      <Link
-        to={href}
-        className="flex flex-1 flex-col gap-3 pt-2 no-underline"
-      >
-        <div className="flex flex-col gap-1">
-          <h2 className="font-display text-lg font-semibold leading-snug text-obra-blue-950">{project.name}</h2>
-          {ebookTitle ? (
-            <p className="font-body text-xs text-obra-neutral-500">
-              <span className="font-semibold">{t("projects.card.ebookTitleLabel")}</span>{" "}
-              {ebookTitle}
-            </p>
-          ) : null}
+
+      {lifecycleBannerKey ? (
+        <p className="mt-1.5 rounded-md bg-obra-blue-50 px-2.5 py-1 font-body text-xs font-medium text-obra-blue-700">
+          {t(lifecycleBannerKey)}
+        </p>
+      ) : null}
+
+      {isReadOnly ? (
+        <div className="flex flex-1 flex-col gap-3 pt-2 opacity-70">
+          {cardBody}
+          {cardFooter}
         </div>
-        <div className="mt-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5" aria-label={t("projects.card.paletteAria")}>
-            <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: primary }} />
-            <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: secondary }} />
-            <span className="size-3.5 rounded-full border border-obra-blue-100 shadow-sm" style={{ backgroundColor: accent }} />
-          </div>
-          <p className="font-body text-xs text-obra-neutral-600">
-            {t("projects.card.packageMeta", { bonus: project.bonus_count, bump: project.bump_count })}
-          </p>
-        </div>
-      </Link>
+      ) : (
+        <Link
+          to={href}
+          className="flex flex-1 flex-col gap-3 pt-2 no-underline"
+        >
+          {cardBody}
+          {cardFooter}
+        </Link>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ export type ProjectRow = {
   /** Stable logical page key → resolved layout id for Preview/PDF. */
   layout_page_assignments: Record<string, string>;
   structure_completed_at: string | null;
+  lifecycle_status: "active" | "archived" | "trash";
 };
 
 export type BaseProjectRow = Omit<
