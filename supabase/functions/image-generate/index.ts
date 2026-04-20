@@ -40,6 +40,11 @@ function getGeminiApiKey(): string | null {
   return k && k.trim() ? k.trim() : null;
 }
 
+/** Returns the canonical aspect ratio string for a given slot key. */
+function slotAspectRatio(slotKey: string): string {
+  return slotKey === "cover_art" ? "2:3" : "16:9";
+}
+
 function buildCoverPrompt(opts: {
   title: string;
   author: string | null;
@@ -47,11 +52,12 @@ function buildCoverPrompt(opts: {
   primaryColor: string;
   accentColor: string;
   locale: string;
+  aspectRatio: string;
   instruction: string | null;
 }): string {
   const style = opts.imageStyle ?? "illustration";
   const lang = opts.locale.startsWith("pt") ? "Brazilian Portuguese" : opts.locale.startsWith("en") ? "English" : "Spanish";
-  const base = `Digital ebook cover image. Style: ${style}. Title: "${opts.title}".${opts.author ? ` Author: "${opts.author}".` : ""} Primary color: ${opts.primaryColor}, accent: ${opts.accentColor}. Language context: ${lang}. No text overlaid on the image — title and author are rendered separately in HTML. Professional, clean layout suitable for an infoproduct ebook.`;
+  const base = `Digital ebook cover image. Style: ${style}. Title: "${opts.title}".${opts.author ? ` Author: "${opts.author}".` : ""} Primary color: ${opts.primaryColor}, accent: ${opts.accentColor}. Language context: ${lang}. Aspect ratio: ${opts.aspectRatio} — portrait orientation. No text overlaid on the image — title and author are rendered separately in HTML. Professional, clean layout suitable for an infoproduct ebook.`;
   return opts.instruction ? `${base} Additional guidance: ${opts.instruction}` : base;
 }
 
@@ -59,11 +65,11 @@ function buildHeroPrompt(opts: {
   chapterTitle: string;
   imageStyle: string;
   primaryColor: string;
-  locale: string;
+  aspectRatio: string;
   instruction: string | null;
 }): string {
   const style = opts.imageStyle ?? "illustration";
-  const base = `Chapter section hero image. Style: ${style}. Chapter topic: "${opts.chapterTitle}". Primary color: ${opts.primaryColor}. Wide aspect ratio (16:9 or wider), suitable as a chapter header image. No text in the image.`;
+  const base = `Chapter section hero image. Style: ${style}. Chapter topic: "${opts.chapterTitle}". Primary color: ${opts.primaryColor}. Aspect ratio: ${opts.aspectRatio} — landscape orientation, suitable as a wide chapter header image. No text in the image.`;
   return opts.instruction ? `${base} Additional guidance: ${opts.instruction}` : base;
 }
 
@@ -270,6 +276,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // Build prompt
+  const aspectRatio = slotAspectRatio(slotKey);
   let prompt: string;
   if (slotKey === "cover_art") {
     prompt = buildCoverPrompt({
@@ -279,6 +286,7 @@ Deno.serve(async (req: Request) => {
       primaryColor,
       accentColor,
       locale,
+      aspectRatio,
       instruction,
     });
   } else {
@@ -292,7 +300,7 @@ Deno.serve(async (req: Request) => {
       chapterTitle: typeof chapter?.title === "string" ? chapter.title : "Chapter",
       imageStyle,
       primaryColor,
-      locale,
+      aspectRatio,
       instruction,
     });
   }
@@ -356,5 +364,6 @@ Deno.serve(async (req: Request) => {
     storagePath,
     signedUrl: rewriteStorageSignedUrlForPublicAccess(signedData?.signedUrl ?? null, url),
     credits_balance_after: balanceAfter ?? null,
+    aspectRatio,
   });
 });

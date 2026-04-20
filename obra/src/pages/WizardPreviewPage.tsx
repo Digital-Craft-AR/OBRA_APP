@@ -42,11 +42,17 @@ type EbookRow = {
  * `{ebookId}:{chapterId}:hero` so preview can map to shell keys `chapter-N-image-1`.
  */
 function rowSlotKey(row: ProjectImageRow): string {
-  if (row.slot_key === "cover_art" && !row.ebook_id && !row.chapter_id) return "cover_art";
-  if (row.slot_key === "hero" && row.ebook_id && row.chapter_id) {
-    return `${row.ebook_id}:${row.chapter_id}:hero`;
-  }
-  return `${row.ebook_id ?? ""}:${row.chapter_id ?? ""}:${row.slot_key}`;
+  return compositeSlotKey(row.slot_key, row.ebook_id ?? undefined, row.chapter_id ?? undefined);
+}
+
+/**
+ * Builds the same composite key from raw DB field values (used after upload/generate
+ * so handlers stay consistent with keys produced by rowSlotKey on initial load).
+ */
+function compositeSlotKey(dbSlotKey: string, ebookId: string | undefined, chapterId: string | undefined): string {
+  if (dbSlotKey === "cover_art" && !ebookId && !chapterId) return "cover_art";
+  if (dbSlotKey === "hero" && ebookId && chapterId) return `${ebookId}:${chapterId}:hero`;
+  return `${ebookId ?? ""}:${chapterId ?? ""}:${dbSlotKey}`;
 }
 
 function chaptersSortedByOrder(chapters: ChapterDraftRow[]): ChapterDraftRow[] {
@@ -400,27 +406,29 @@ export function WizardPreviewPage() {
   const handleSlotUpload = useCallback(async (htmlSlotKey: string, file: File) => {
     if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
       return;
     }
-    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
+    setImageSlots((prev) => ({ ...prev, [cKey]: { status: "generating", url: prev[cKey]?.url ?? null } }));
     const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId, chapterId });
     if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl } }));
     } else {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
   }, [project?.id, resolveSlotArgs]);
 
   const handleSlotGenerate = useCallback(async (htmlSlotKey: string, instruction?: string) => {
     if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
       return;
     }
-    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
+    setImageSlots((prev) => ({ ...prev, [cKey]: { status: "generating", url: prev[cKey]?.url ?? null } }));
     const result = await generateImage({
       projectId: project.id,
       slotKey: dbSlotKey,
@@ -429,19 +437,21 @@ export function WizardPreviewPage() {
       instruction,
     });
     if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl ?? null } }));
     } else {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
   }, [project?.id, resolveSlotArgs]);
 
   const handleSlotRemove = useCallback((htmlSlotKey: string) => {
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     setImageSlots((prev) => {
       const next = { ...prev };
-      delete next[htmlSlotKey];
+      delete next[cKey];
       return next;
     });
-  }, []);
+  }, [resolveSlotArgs]);
 
   // postMessage listener — receives slot actions from the preview iframe
   useEffect(() => {
@@ -507,12 +517,11 @@ export function WizardPreviewPage() {
   const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
-  /** HTML for iframe: fresh shells use injectAll; stale shells show the cached document as stored. */
+  /** HTML for iframe: always runs injectAll so chapters and images render even when shell is stale. */
   const previewSrcDoc = useMemo(() => {
     if (!selectedEbookId) return null;
     const shell = shellCache[selectedEbookId];
     if (!shell) return null;
-    if (shellStale) return shell.html;
     const imageUrls: Record<string, string> = {};
     const sorted = chaptersSortedByOrder(selectedChapters);
     for (const [key, slot] of Object.entries(imageSlots)) {
@@ -526,14 +535,10 @@ export function WizardPreviewPage() {
         const chapterId = heroMatch[2]!;
         const idx = sorted.findIndex((c) => c.id === chapterId);
         if (idx >= 0) imageUrls[`chapter-${idx + 1}-image-1`] = slot.url;
-        continue;
-      }
-      if (/^chapter-\d+-image-1$/.test(key)) {
-        imageUrls[key] = slot.url;
       }
     }
     return injectAll(shell.html, { chapters: selectedChapters, images: imageUrls });
-  }, [selectedEbookId, shellCache, shellStale, selectedChapters, imageSlots]);
+  }, [selectedEbookId, shellCache, selectedChapters, imageSlots]);
 
   const tabLabel = useCallback(
     (ebook: EbookRow): string => {

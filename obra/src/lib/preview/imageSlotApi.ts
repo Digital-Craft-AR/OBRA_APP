@@ -41,7 +41,7 @@ export async function loadProjectImages(
 }
 
 export type GenerateImageResult =
-  | { ok: true; imageId: string; signedUrl: string | null; credits_balance_after: number | null }
+  | { ok: true; imageId: string; signedUrl: string | null; credits_balance_after: number | null; aspectRatio: string | null }
   | { ok: false; code: string };
 
 export async function generateImage(args: {
@@ -76,6 +76,7 @@ export async function generateImage(args: {
       publicSupabaseApiUrl,
     ),
     credits_balance_after: typeof data.credits_balance_after === "number" ? data.credits_balance_after : null,
+    aspectRatio: typeof data.aspectRatio === "string" ? data.aspectRatio : null,
   };
 }
 
