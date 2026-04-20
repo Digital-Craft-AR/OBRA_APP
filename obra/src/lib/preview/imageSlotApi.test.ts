@@ -10,7 +10,7 @@ const mockStorage = vi.hoisted(() => ({
 
 const mockFrom = vi.hoisted(() => vi.fn());
 const mockFunctions = vi.hoisted(() => ({ invoke: vi.fn() }));
-const mockAuth = vi.hoisted(() => ({ getSession: vi.fn() }));
+const mockAuth = vi.hoisted(() => ({ getSession: vi.fn(), getUser: vi.fn() }));
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
@@ -173,6 +173,7 @@ describe("generateImage", () => {
       imageId: "img-99",
       signedUrl: "https://cdn/img.png",
       credits_balance_after: 7,
+      aspectRatio: null,
     });
     expect(mockFunctions.invoke).toHaveBeenCalledWith(
       "image-generate",
@@ -231,6 +232,10 @@ describe("generateImage", () => {
 describe("uploadImage — cover_art (no ebookId/chapterId)", () => {
   const file = new File(["data"], "cover.jpg", { type: "image/jpeg" });
 
+  beforeEach(() => {
+    mockAuth.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
   it("inserts a new row and returns signed URL when no existing row", async () => {
     // Storage upload succeeds
     mockStorage.upload.mockResolvedValue({ error: null });
@@ -255,7 +260,7 @@ describe("uploadImage — cover_art (no ebookId/chapterId)", () => {
     expect(result).toEqual({
       ok: true,
       signedUrl: "https://cdn/cover.jpg",
-      storagePath: "p1/cover_art.jpg",
+      storagePath: "user-1/p1/cover_art.jpg",
     });
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({ project_id: "p1", slot_key: "cover_art", status: "done" }),
@@ -282,7 +287,7 @@ describe("uploadImage — cover_art (no ebookId/chapterId)", () => {
 
     expect(result.ok).toBe(true);
     expect(updateChain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ storage_path: "p1/cover_art.jpg", status: "done" }),
+      expect.objectContaining({ storage_path: "user-1/p1/cover_art.jpg", status: "done" }),
     );
     expect(updateChain.eq).toHaveBeenCalledWith("id", existingId);
   });
@@ -294,6 +299,10 @@ describe("uploadImage — cover_art (no ebookId/chapterId)", () => {
 
 describe("uploadImage — error paths", () => {
   const file = new File(["data"], "cover.png", { type: "image/png" });
+
+  beforeEach(() => {
+    mockAuth.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
 
   it("returns upload_failed when storage upload errors", async () => {
     mockStorage.upload.mockResolvedValue({ error: { message: "quota exceeded" } });
@@ -356,6 +365,10 @@ describe("uploadImage — error paths", () => {
 // ---------------------------------------------------------------------------
 
 describe("uploadImage — storagePath derivation", () => {
+  beforeEach(() => {
+    mockAuth.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
   it("builds path with ebookId + chapterId when both provided (per-chapter hero)", async () => {
     const file = new File(["d"], "hero.webp", { type: "image/webp" });
     mockStorage.upload.mockResolvedValue({ error: null });
@@ -379,9 +392,9 @@ describe("uploadImage — storagePath derivation", () => {
       chapterId: "ch-77",
     });
 
-    expect(result.ok && result.storagePath).toBe("p1/eb-2/ch-77/hero.webp");
+    expect(result.ok && result.storagePath).toBe("user-1/p1/eb-2/ch-77/hero.webp");
     expect(mockStorage.upload).toHaveBeenCalledWith(
-      "p1/eb-2/ch-77/hero.webp",
+      "user-1/p1/eb-2/ch-77/hero.webp",
       file,
       expect.objectContaining({ upsert: true }),
     );
@@ -409,9 +422,9 @@ describe("uploadImage — storagePath derivation", () => {
       ebookId: "eb-2",
     });
 
-    expect(result.ok && result.storagePath).toBe("p1/eb-2/hero.webp");
+    expect(result.ok && result.storagePath).toBe("user-1/p1/eb-2/hero.webp");
     expect(mockStorage.upload).toHaveBeenCalledWith(
-      "p1/eb-2/hero.webp",
+      "user-1/p1/eb-2/hero.webp",
       file,
       expect.objectContaining({ upsert: true }),
     );
@@ -433,6 +446,6 @@ describe("uploadImage — storagePath derivation", () => {
     }));
 
     const result = await uploadImage({ projectId: "p1", slotKey: "cover_art", file });
-    expect(result.ok && result.storagePath).toBe("p1/cover_art.jpg");
+    expect(result.ok && result.storagePath).toBe("user-1/p1/cover_art.jpg");
   });
 });
