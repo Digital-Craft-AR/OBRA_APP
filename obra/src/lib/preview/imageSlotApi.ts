@@ -119,13 +119,17 @@ export async function uploadImage(args: {
 }): Promise<UploadImageResult> {
   const { projectId, slotKey, file, ebookId, chapterId } = args;
 
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
+  if (!userId) return { ok: false, code: "unauthenticated" };
+
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const storagePath =
     ebookId && chapterId
-      ? `${projectId}/${ebookId}/${chapterId}/${slotKey}.${ext}`
+      ? `${userId}/${projectId}/${ebookId}/${chapterId}/${slotKey}.${ext}`
       : ebookId
-        ? `${projectId}/${ebookId}/${slotKey}.${ext}`
-        : `${projectId}/${slotKey}.${ext}`;
+        ? `${userId}/${projectId}/${ebookId}/${slotKey}.${ext}`
+        : `${userId}/${projectId}/${slotKey}.${ext}`;
 
   // Upload (upsert) to Storage
   const { error: uploadErr } = await supabase.storage

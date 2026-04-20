@@ -309,7 +309,7 @@ Deno.serve(async (req: Request) => {
 
   // Upload to Storage
   const ext = geminiResult.mimeType === "image/jpeg" ? "jpg" : "png";
-  const storagePath = `${projectId}/${imageId}.${ext}`;
+  const storagePath = `${userId}/${projectId}/${imageId}.${ext}`;
   const imageBytes = Uint8Array.from(atob(geminiResult.base64), (c) => c.charCodeAt(0));
 
   const { error: storageErr } = await admin.storage
