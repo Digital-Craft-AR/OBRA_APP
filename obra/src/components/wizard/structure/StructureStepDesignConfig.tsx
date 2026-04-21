@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { bookTemplateIdsForGeometry, normalizeBookTemplateId } from "@obra/layout-catalog";
-import { ObraInput } from "@/components/obra/ObraInput";
 import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import {
   colorToRgbStyleValue,
@@ -96,13 +95,6 @@ export function StructureStepDesignConfig({
     });
   }
 
-  function enableCustomTypography() {
-    onChange({
-      ...config,
-      typographyMode: "custom",
-      typographyPresetId: null,
-    });
-  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -489,6 +481,7 @@ export function StructureStepDesignConfig({
             );
           })}
         </div>
+
       </div>
 
       <div className="border-t border-obra-blue-100" aria-hidden />

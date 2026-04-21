@@ -9,6 +9,7 @@ import { ObraShellGeneratingOverlay } from "@/components/obra/ObraShellGeneratin
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
 import { ExportPdfModal } from "@/components/wizard/ExportPdfModal";
+import { ExportZipModal } from "@/components/wizard/ExportZipModal";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import type { ChapterDraftRow } from "@/lib/wizard/contentIndexApi";
 import {
@@ -19,7 +20,13 @@ import {
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
-import { fetchOrGenerateShell, regenerateShell, hashChapters, type ShellMeta } from "@/lib/preview/documentShellApi";
+import {
+  fetchOrGenerateShell,
+  isShellMetaStale,
+  regenerateShell,
+  hashChapters,
+  type ShellMeta,
+} from "@/lib/preview/documentShellApi";
 import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { queuePdfExport, getErrorMessage } from "@/utils/pdf-export";
@@ -32,10 +39,26 @@ type EbookRow = {
   package_ordinal: number;
 };
 
-/** Stable key for the imageSlots map (matches ProjectImageRow unique constraints). */
+/**
+ * Stable key for imageSlots. Cover uses `cover_art`. Chapter heroes use
+ * `{ebookId}:{chapterId}:hero` so preview can map to shell keys `chapter-N-image-1`.
+ */
 function rowSlotKey(row: ProjectImageRow): string {
-  if (row.slot_key === "cover_art" && !row.ebook_id) return "cover_art";
-  return `${row.ebook_id ?? ""}:${row.chapter_id ?? ""}:${row.slot_key}`;
+  return compositeSlotKey(row.slot_key, row.ebook_id ?? undefined, row.chapter_id ?? undefined);
+}
+
+/**
+ * Builds the same composite key from raw DB field values (used after upload/generate
+ * so handlers stay consistent with keys produced by rowSlotKey on initial load).
+ */
+function compositeSlotKey(dbSlotKey: string, ebookId: string | undefined, chapterId: string | undefined): string {
+  if (dbSlotKey === "cover_art" && !ebookId && !chapterId) return "cover_art";
+  if (dbSlotKey === "hero" && ebookId && chapterId) return `${ebookId}:${chapterId}:hero`;
+  return `${ebookId ?? ""}:${chapterId ?? ""}:${dbSlotKey}`;
+}
+
+function chaptersSortedByOrder(chapters: ChapterDraftRow[]): ChapterDraftRow[] {
+  return [...chapters].sort((a, b) => a.sort_order - b.sort_order);
 }
 
 async function loadProjectEbooks(projectId: string): Promise<{ ok: true; rows: EbookRow[] } | { ok: false }> {
@@ -127,8 +150,7 @@ export function WizardPreviewPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const [zipLoading, setZipLoading] = useState(false);
-  const [zipError, setZipError] = useState<string | null>(null);
+  const [isZipModalOpen, setIsZipModalOpen] = useState(false);
   const [publishStatus, setPublishStatus] = useState<"draft" | "published" | "modified">("draft");
 
   // Image slots state: slotKey → { status, url }
@@ -142,10 +164,36 @@ export function WizardPreviewPage() {
 
   // HTML shell state per ebook id
   const [shellCache, setShellCache] = useState<Record<string, { html: string; meta: ShellMeta }>>({});
-  const [shellLoading, setShellLoading] = useState(false);
+  /**
+   * In-flight shell requests per ebook (refcount). Overlapping calls (e.g. effect + regenerate, or 409
+   * while the first generation still runs) must not clear loading until every request for that id ends.
+   */
+  const [shellInflightByEbook, setShellInflightByEbook] = useState<Record<string, number>>({});
+  const beginShellInflight = useCallback((ebookId: string) => {
+    setShellInflightByEbook((prev) => ({ ...prev, [ebookId]: (prev[ebookId] ?? 0) + 1 }));
+  }, []);
+  const endShellInflight = useCallback((ebookId: string) => {
+    setShellInflightByEbook((prev) => {
+      const next = (prev[ebookId] ?? 0) - 1;
+      if (next <= 0) {
+        const { [ebookId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [ebookId]: next };
+    });
+  }, []);
   const [shellError, setShellError] = useState<string | null>(null);
+  const selectedEbookIdRef = useRef<string | null>(null);
+  selectedEbookIdRef.current = selectedEbookId;
   /** True when current chapters count/page config differs from what the shell was generated with */
   const [shellStale, setShellStale] = useState(false);
+
+  // Redirect if the project is archived or in trash — read-only, editing not allowed.
+  useEffect(() => {
+    if (!projectLoading && project && project.lifecycle_status !== "active") {
+      navigate("/app/dashboard", { replace: true });
+    }
+  }, [projectLoading, project, navigate]);
 
   // Load ebooks + publish_status once project is ready
   useEffect(() => {
@@ -217,65 +265,72 @@ export function WizardPreviewPage() {
       const meta = shellCache[selectedEbookId]!.meta;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      const contentHash = hashChapters(chapters);
-      const stale =
-        meta.chapter_count !== chapters.length ||
-        meta.page_size !== page.size ||
-        meta.page_orientation !== page.orientation ||
-        meta.content_hash !== contentHash;
-      setShellStale(stale);
+      setShellStale(isShellMetaStale(meta, chapters.length, page.size, page.orientation, hashChapters(chapters)));
       return;
     }
 
     let cancelled = false;
     async function load() {
       if (!project?.id || !selectedEbookId) return;
-      setShellLoading(true);
+      const ebookId = selectedEbookId;
+      beginShellInflight(ebookId);
       setShellError(null);
-      setShellStale(false);
-      const chapters = chaptersCache[selectedEbookId!]!;
+      const chapters = chaptersCache[ebookId]!;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
       const result = await fetchOrGenerateShell({
         projectId: project.id,
-        ebookId: selectedEbookId!,
+        ebookId,
         currentChapterCount: chapters.length,
         currentPageSize: page.size,
         currentPageOrientation: page.orientation,
         currentContentHash: hashChapters(chapters),
       });
-      if (cancelled) return;
+      if (cancelled) {
+        endShellInflight(ebookId);
+        return;
+      }
+      if (selectedEbookIdRef.current !== ebookId) {
+        endShellInflight(ebookId);
+        return;
+      }
       if (result.ok) {
         setShellCache((prev) => ({
           ...prev,
-          [selectedEbookId!]: { html: result.htmlShell, meta: result.shellMeta },
+          [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
         }));
-      } else {
+        setShellStale(result.stale);
+      } else if (result.error !== "generation_in_progress") {
         setShellError(result.error);
       }
-      setShellLoading(false);
+      endShellInflight(ebookId);
     }
 
     void load();
     return () => { cancelled = true; };
-  }, [project, selectedEbookId, chaptersCache, shellCache]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRegenerateShell = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
-    setShellLoading(true);
+    const ebookId = selectedEbookId;
+    beginShellInflight(ebookId);
     setShellError(null);
-    setShellStale(false);
-    const result = await regenerateShell({ projectId: project.id, ebookId: selectedEbookId });
+    const result = await regenerateShell({ projectId: project.id, ebookId });
+    if (selectedEbookIdRef.current !== ebookId) {
+      endShellInflight(ebookId);
+      return;
+    }
     if (result.ok) {
       setShellCache((prev) => ({
         ...prev,
-        [selectedEbookId]: { html: result.htmlShell, meta: result.shellMeta },
+        [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
       }));
-    } else {
+      setShellStale(false);
+    } else if (result.error !== "generation_in_progress") {
       setShellError(result.error);
     }
-    setShellLoading(false);
-  }, [project?.id, selectedEbookId]);
+    endShellInflight(ebookId);
+  }, [project?.id, selectedEbookId, beginShellInflight, endShellInflight]);
 
   // Load existing image slots when project is loaded
   useEffect(() => {
@@ -310,6 +365,7 @@ export function WizardPreviewPage() {
   const handleSelectEbook = useCallback((id: string) => {
     setSelectedEbookId(id);
     setSelectedPreviewChapterIdx(0);
+    setShellError(null);
   }, []);
 
   const [selectedPreviewChapterIdx, setSelectedPreviewChapterIdx] = useState(0);
@@ -325,48 +381,87 @@ export function WizardPreviewPage() {
   }, [selectedEbookId, chaptersCache]);
 
   /**
-   * Maps an HTML slot key (used by Claude, e.g. "cover") to the DB slot key
-   * (e.g. "cover_art") and returns the args for uploadImage / generateImage.
+   * Maps shell `data-slot-key` ("cover", "chapter-N-image-1") to DB slot_key + ids
+   * for uploadImage / generateImage (hero slots require ebook + chapter).
    */
-  const resolveSlotArgs = useCallback((htmlSlotKey: string) => {
-    if (htmlSlotKey === "cover") {
-      return { dbSlotKey: "cover_art", ebookId: undefined as string | undefined };
-    }
-    // chapter-N-image-1 → use selectedEbookId
-    return { dbSlotKey: htmlSlotKey, ebookId: selectedEbookId ?? undefined };
-  }, [selectedEbookId]);
+  const resolveSlotArgs = useCallback(
+    (htmlSlotKey: string) => {
+      if (htmlSlotKey === "cover") {
+        return {
+          dbSlotKey: "cover_art" as const,
+          ebookId: undefined as string | undefined,
+          chapterId: undefined as string | undefined,
+        };
+      }
+      const m = /^chapter-(\d+)-image-1$/.exec(htmlSlotKey);
+      if (!m || !selectedEbookId) {
+        return {
+          dbSlotKey: htmlSlotKey,
+          ebookId: selectedEbookId ?? undefined,
+          chapterId: undefined as string | undefined,
+        };
+      }
+      const n = Number.parseInt(m[1]!, 10);
+      const sorted = chaptersSortedByOrder(chaptersCache[selectedEbookId] ?? []);
+      const chapter = Number.isFinite(n) && n >= 1 ? sorted[n - 1] : undefined;
+      return {
+        dbSlotKey: "hero" as const,
+        ebookId: selectedEbookId,
+        chapterId: chapter?.id,
+      };
+    },
+    [selectedEbookId, chaptersCache],
+  );
 
   const handleSlotUpload = useCallback(async (htmlSlotKey: string, file: File) => {
     if (!project?.id) return;
-    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
-    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
-    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId });
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
+    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
+      return;
+    }
+    setImageSlots((prev) => ({ ...prev, [cKey]: { status: "generating", url: prev[cKey]?.url ?? null } }));
+    const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId, chapterId });
     if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl } }));
     } else {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
   }, [project?.id, resolveSlotArgs]);
 
   const handleSlotGenerate = useCallback(async (htmlSlotKey: string, instruction?: string) => {
     if (!project?.id) return;
-    const { dbSlotKey, ebookId } = resolveSlotArgs(htmlSlotKey);
-    setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "generating", url: prev[htmlSlotKey]?.url ?? null } }));
-    const result = await generateImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, instruction });
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
+    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
+      return;
+    }
+    setImageSlots((prev) => ({ ...prev, [cKey]: { status: "generating", url: prev[cKey]?.url ?? null } }));
+    const result = await generateImage({
+      projectId: project.id,
+      slotKey: dbSlotKey,
+      ebookId,
+      chapterId,
+      instruction,
+    });
     if (result.ok) {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "done", url: result.signedUrl ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl ?? null } }));
     } else {
-      setImageSlots((prev) => ({ ...prev, [htmlSlotKey]: { status: "error", url: prev[htmlSlotKey]?.url ?? null } }));
+      setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
   }, [project?.id, resolveSlotArgs]);
 
   const handleSlotRemove = useCallback((htmlSlotKey: string) => {
+    const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
+    const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     setImageSlots((prev) => {
       const next = { ...prev };
-      delete next[htmlSlotKey];
+      delete next[cKey];
       return next;
     });
-  }, []);
+  }, [resolveSlotArgs]);
 
   // postMessage listener — receives slot actions from the preview iframe
   useEffect(() => {
@@ -429,45 +524,28 @@ export function WizardPreviewPage() {
     }
   }, [project?.id, selectedEbookId]);
 
-  const handleExportZip = useCallback(async () => {
-    if (!project?.id) return;
-    setZipLoading(true);
-    setZipError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("export-zip", {
-        body: { projectId: project.id },
-      });
-      if (error || !data?.ok || !data?.signedUrl) {
-        console.error("export_zip_error", error ?? data?.error);
-        setZipError(t("wizard.preview.export.zipError"));
-        return;
-      }
-      const a = document.createElement("a");
-      a.href = data.signedUrl as string;
-      a.download = (data.filename as string | undefined) ?? `${project.main_title ?? "project"}.zip`;
-      a.click();
-      // export-zip also marks published server-side; sync local state
-      setPublishStatus("published");
-    } finally {
-      setZipLoading(false);
-    }
-  }, [project?.id, project?.main_title, t]);
-
   const selectedEbook = visibleEbooks.find((e) => e.id === selectedEbookId) ?? null;
   const selectedChapters = selectedEbookId ? (chaptersCache[selectedEbookId] ?? []) : [];
 
-  /** Assembled HTML ready to render in the iframe */
-  const assembledHtml = useMemo(() => {
+  /** HTML for iframe: always runs injectAll so chapters and images render even when shell is stale. */
+  const previewSrcDoc = useMemo(() => {
     if (!selectedEbookId) return null;
     const shell = shellCache[selectedEbookId];
     if (!shell) return null;
-    // Map DB slot keys → HTML slot keys used by Claude
     const imageUrls: Record<string, string> = {};
+    const sorted = chaptersSortedByOrder(selectedChapters);
     for (const [key, slot] of Object.entries(imageSlots)) {
       if (!slot.url) continue;
-      // cover_art in DB → "cover" in HTML
-      const htmlKey = key === "cover_art" ? "cover" : key;
-      imageUrls[htmlKey] = slot.url;
+      if (key === "cover_art") {
+        imageUrls.cover = slot.url;
+        continue;
+      }
+      const heroMatch = /^([^:]+):([^:]+):hero$/.exec(key);
+      if (heroMatch && heroMatch[1] === selectedEbookId) {
+        const chapterId = heroMatch[2]!;
+        const idx = sorted.findIndex((c) => c.id === chapterId);
+        if (idx >= 0) imageUrls[`chapter-${idx + 1}-image-1`] = slot.url;
+      }
     }
     return injectAll(shell.html, { chapters: selectedChapters, images: imageUrls });
   }, [selectedEbookId, shellCache, selectedChapters, imageSlots]);
@@ -483,6 +561,7 @@ export function WizardPreviewPage() {
 
   const isLoading = projectLoading || ebooksLoading;
   const hasError = Boolean(projectError || ebooksError);
+  const shellLoading = Boolean(selectedEbookId && (shellInflightByEbook[selectedEbookId] ?? 0) > 0);
 
   if (!params.projectId) return null;
 
@@ -569,33 +648,40 @@ export function WizardPreviewPage() {
                   {t("wizard.preview.shell.retryCta")}
                 </Button>
               </div>
-            ) : shellStale ? (
-              <div className="p-8 space-y-3">
-                <ObraAlert
-                  variant="warning"
-                  title={t("wizard.preview.shell.staleTitle")}
-                  description={t("wizard.preview.shell.staleDesc")}
+            ) : previewSrcDoc ? (
+              <div className="flex min-h-0 w-full flex-col gap-3 p-4">
+                {shellStale ? (
+                  <div className="shrink-0 space-y-3">
+                    <ObraAlert
+                      variant="warning"
+                      title={t("wizard.preview.shell.staleTitle")}
+                      description={t("wizard.preview.shell.staleDesc")}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void handleRegenerateShell()}
+                      disabled={shellLoading}
+                    >
+                      <RefreshCw className="size-4" aria-hidden />
+                      {t("wizard.preview.shell.updateCta")}
+                    </Button>
+                  </div>
+                ) : null}
+                <iframe
+                  srcDoc={previewSrcDoc}
+                  title={t("wizard.preview.iframeTitle")}
+                  className="w-full min-w-0"
+                  style={{ border: "none", minHeight: "100%" }}
+                  onLoad={(e) => {
+                    const iframe = e.currentTarget;
+                    try {
+                      const h = iframe.contentDocument?.body?.scrollHeight;
+                      if (h) iframe.style.height = `${h + 64}px`;
+                    } catch { /* cross-origin guard */ }
+                  }}
                 />
-                <Button type="button" variant="secondary" onClick={() => void handleRegenerateShell()} disabled={shellLoading}>
-                  <RefreshCw className="size-4" aria-hidden />
-                  {t("wizard.preview.shell.updateCta")}
-                </Button>
               </div>
-            ) : assembledHtml ? (
-              <iframe
-                srcDoc={assembledHtml}
-                title={t("wizard.preview.iframeTitle")}
-                className="w-full"
-                style={{ border: "none", minHeight: "100%" }}
-                onLoad={(e) => {
-                  // Auto-size iframe to its content height
-                  const iframe = e.currentTarget;
-                  try {
-                    const h = iframe.contentDocument?.body?.scrollHeight;
-                    if (h) iframe.style.height = `${h + 64}px`;
-                  } catch { /* cross-origin guard */ }
-                }}
-              />
             ) : !shellLoading && selectedChapters.length === 0 ? (
               <div className="p-8">
                 <ObraAlert variant="info" title={t("wizard.preview.shell.noChapters")} />
@@ -664,11 +750,25 @@ export function WizardPreviewPage() {
         projectTitle={project?.main_title ?? "ebook"}
       />
 
+      {/* Export ZIP Modal */}
+      {project?.id ? (
+        <ExportZipModal
+          isOpen={isZipModalOpen}
+          onOpenChange={setIsZipModalOpen}
+          ebooks={visibleEbooks.map((e) => ({ id: e.id, label: tabLabel(e), title: e.type === "main" ? (project.main_title ?? e.title) : e.title, type: e.type, package_ordinal: e.package_ordinal }))}
+          projectId={project.id}
+          projectTitle={project.main_title ?? "project"}
+          onSuccess={() => {
+            setPublishStatus("published");
+            void supabase.from("projects").update({ publish_status: "published" }).eq("id", project.id);
+          }}
+        />
+      ) : null}
+
       {/* Footer */}
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="flex w-full min-w-0 flex-col gap-3">
           {exportError ? <ObraAlert variant="error" title={exportError} /> : null}
-          {zipError ? <ObraAlert variant="error" title={zipError} /> : null}
           <div className="flex w-full min-w-0 items-center justify-between gap-4">
             <Button
               type="button"
@@ -696,11 +796,11 @@ export function WizardPreviewPage() {
                 type="button"
                 variant="secondary"
                 size="small"
-                disabled={!project?.id || zipLoading}
-                onClick={() => void handleExportZip()}
+                disabled={!project?.id}
+                onClick={() => setIsZipModalOpen(true)}
               >
                 <Package className="size-4" aria-hidden />
-                {zipLoading ? "…" : t("wizard.preview.export.zip")}
+                {t("wizard.preview.export.zip")}
               </Button>
 
               <Button

@@ -10,76 +10,69 @@ enabled = true
 # Match linked project (see `supabase link` / `.temp/postgres-version` after link).
 major_version = 17
 
-# Webhooks must validate Mercado Pago signatures; JWT is not used on this path.
+# verify_jwt = false — Mercado Pago webhook: validated with x-signature HMAC, no JWT.
 [functions.mercadopago-webhook]
 verify_jwt = false
 
-[functions.create-subscription-checkout]
-verify_jwt = false
-
-[functions.create-credits-checkout]
-verify_jwt = false
-
-[functions.reconcile-subscription-status]
-verify_jwt = false
-
+# verify_jwt = false — Supabase Auth internal hook: called by Supabase, not the browser.
 [functions.send-auth-email]
 verify_jwt = false
 
-# JWT verified inside each handler via `auth.getUser` (same as manuscript-upload-parse).
-# Gateway verify_jwt=true often returns 401 from the browser even with a valid session.
+[functions.create-subscription-checkout]
+verify_jwt = true
+
+[functions.create-credits-checkout]
+verify_jwt = true
+
+[functions.reconcile-subscription-status]
+verify_jwt = true
+
 [functions.ai-optimize]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-generate-index]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-generate-content]
-verify_jwt = false
+verify_jwt = true
 
-# Handler validates JWT with `auth.getUser`; same pattern as export-user-data / reset-avatar-problem-content.
 [functions.manuscript-upload-parse]
-verify_jwt = false
+verify_jwt = true
 
-# JWT validated inside handler via auth.getUser (same pattern).
 [functions.ai-split-proposal]
-verify_jwt = false
+verify_jwt = true
 
 [functions.approve-alignment]
-verify_jwt = false
+verify_jwt = true
 
-# Validates session inside handler via auth.getUser (same pattern as export-user-data).
 [functions.reset-avatar-problem-content]
-verify_jwt = false
+verify_jwt = true
 
-# JWT validated inside handler via auth.getUser (same pattern as other functions).
-# verify_jwt=false avoids 401 from the Edge layer when the browser sends a valid session.
+[functions.generate-document-template]
+verify_jwt = true
+
 [functions.export-pdf]
-verify_jwt = false
+verify_jwt = true
 
-# JWT validated inside handler via auth.getUser (same pattern as export-pdf).
-# Keep gateway verification disabled to avoid auth mismatches at the Edge layer.
 [functions.export-pdf-queue]
-verify_jwt = false
+verify_jwt = true
 
-# JWT validated inside handler via auth.getUser; Gemini key never in client.
 [functions.image-generate]
-verify_jwt = false
+verify_jwt = true
 
 [functions.export-user-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.delete-account]
-verify_jwt = false
+verify_jwt = true
 
-# JWT validated inside handler via auth.getUser; same pattern as export-pdf.
 [functions.export-zip]
-verify_jwt = false
+verify_jwt = true
 
 # ── Storage buckets ───────────────────────────────────────────────────────────
 # Buckets are private by default (public = false); access via signed URLs only.
-# RLS policies are defined in migrations (project_images table) and inside
-# Edge Function handlers (service role key for project-pdfs / project-zips).
+# RLS policies: project_images table + storage.objects policies for project-images
+# (see migrations). Edge Functions use the service role for uploads where needed.
 
 [storage.buckets.project-images]
 public = false

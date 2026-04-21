@@ -37,6 +37,7 @@ const projectData = {
   book_template_id: "classic_fixed",
   layout_page_assignments: { "main:cover": "layout_cover_v1", "main:body": "layout_body_a" },
   structure_completed_at: "2024-01-10T00:00:00.000Z",
+  lifecycle_status: "active",
 };
 
 const ebooksData = [
@@ -66,22 +67,70 @@ const mockFunctionsInvoke = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
-    from: vi.fn((_table: string) => ({
-      select: vi.fn(() => ({
-        eq: vi.fn((_col: string) => ({
-          single: mockChains.single,
-          maybeSingle: mockChains.maybeSingle,
-          order: mockChains.order,
-          in: mockChains.inChain,
-          eq: vi.fn(() => ({
-            maybeSingle: mockChains.maybeSingle,
-            is: vi.fn(() => ({ maybeSingle: mockChains.maybeSingle })),
+    from: vi.fn((table: string) => {
+      if (table === "ebooks") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: mockChains.order,
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  html_shell: "<html><head></head><body><p>Cached shell</p></body></html>",
+                  shell_meta: {
+                    chapter_count: 1,
+                    page_size: "a4",
+                    page_orientation: "portrait",
+                    generated_at: "2026-01-01T00:00:00.000Z",
+                  },
+                },
+                error: null,
+              }),
+            })),
           })),
+          update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
+        };
+      }
+      if (table === "pdf_export_jobs") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: "job-zip-test",
+                  project_id: PROJECT_ID,
+                  ebook_id: "ebook-main",
+                  user_id: "u1",
+                  status: "completed",
+                  pdf_url: "https://example.com/mock.pdf",
+                  error_message: null,
+                  retries: 0,
+                  render_duration_ms: null,
+                  created_at: "",
+                  completed_at: "",
+                },
+                error: null,
+              }),
+            })),
+          })),
+        };
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: mockChains.single,
+            maybeSingle: mockChains.maybeSingle,
+            order: mockChains.order,
+            in: mockChains.inChain,
+            eq: vi.fn(() => ({
+              maybeSingle: mockChains.maybeSingle,
+              is: vi.fn(() => ({ maybeSingle: mockChains.maybeSingle })),
+            })),
+          })),
+          in: mockChains.inChain,
         })),
-        in: mockChains.inChain,
-      })),
-      update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-    })),
+        update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
+      };
+    }),
     functions: { invoke: mockFunctionsInvoke },
   },
 }));
@@ -124,6 +173,7 @@ describe("WizardPreviewPage", () => {
     mockChains.maybeSingle.mockReset();
     mockChains.order.mockReset();
     mockChains.inChain.mockReset();
+    mockFunctionsInvoke.mockReset();
 
     // Default: project loads successfully, ebooks load, chapters load
     mockChains.single.mockResolvedValue({ data: projectData, error: null });
@@ -175,7 +225,7 @@ describe("WizardPreviewPage", () => {
     // Make project load hang
     mockChains.single.mockReturnValue(new Promise(() => {}));
     renderPreviewPage();
-    expect(screen.getByText(/Cargando vista previa/i)).toBeTruthy();
+    expect(screen.getByRole("status", { name: /Cargando/i })).toBeTruthy();
   });
 
   it("shows error state when project load fails", async () => {
@@ -229,13 +279,22 @@ describe("WizardPreviewPage", () => {
       expect(await screen.findByRole("button", { name: /Descargar todo/i })).toBeTruthy();
     });
 
-    it("calls export-zip function and triggers download on success", async () => {
-      mockFunctionsInvoke.mockResolvedValue({
-        data: { ok: true, signedUrl: "https://cdn/project.zip", filename: "project.zip" },
-        error: null,
+    it("queues PDF jobs via export-pdf-queue when ZIP export runs", async () => {
+      mockFunctionsInvoke.mockImplementation((fnName: string) => {
+        if (fnName === "export-pdf-queue") {
+          return Promise.resolve({
+            data: { jobId: "job-zip-test", estimatedSeconds: 0 },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
       });
 
-      // Spy on anchor click to avoid JSDOM navigation errors
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      } as Response);
+
       const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
       renderPreviewPage();
@@ -243,13 +302,25 @@ describe("WizardPreviewPage", () => {
       await userEvent.click(zipBtn);
 
       await waitFor(() => {
-        expect(mockFunctionsInvoke).toHaveBeenCalledWith("export-zip", expect.anything());
+        expect(mockFunctionsInvoke).toHaveBeenCalledWith(
+          "export-pdf-queue",
+          expect.objectContaining({
+            body: expect.objectContaining({ projectId: PROJECT_ID }),
+          }),
+        );
       });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Descargar ZIP/i)).toBeTruthy();
+      });
+      await userEvent.click(screen.getByRole("button", { name: /Descargar ZIP/i }));
       expect(clickSpy).toHaveBeenCalled();
+
       clickSpy.mockRestore();
+      fetchSpy.mockRestore();
     });
 
-    it("shows zip error message when export-zip fails", async () => {
+    it("shows zip error message when PDF queue fails", async () => {
       mockFunctionsInvoke.mockResolvedValue({ data: null, error: { message: "timeout" } });
 
       renderPreviewPage();
@@ -257,8 +328,7 @@ describe("WizardPreviewPage", () => {
       await userEvent.click(zipBtn);
 
       await waitFor(() => {
-        // Error alert rendered as role="alert" with zip error i18n key text
-        expect(screen.getByRole("alert")).toBeTruthy();
+        expect(screen.getByText(/Algunos PDFs no se pudieron generar/i)).toBeTruthy();
       });
     });
   });

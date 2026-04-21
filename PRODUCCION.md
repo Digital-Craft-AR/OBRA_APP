@@ -9,6 +9,20 @@
 
 ## Pendiente
 
+### Edge Function — Secret `SUPABASE_DB_URL` (o `DATABASE_URL`) para `generate-document-template`
+
+**Dónde:** Supabase Dashboard → Edge Functions → Secrets, o `supabase secrets set SUPABASE_DB_URL='…'`
+
+**Valor:** URI Postgres **directa** (puerto **5432**, “Direct connection” en Database settings). **No** usar el pooler en modo transacción (puerto **6543**): los advisory locks de sesión no son fiables ahí.
+
+**Local (`supabase functions serve`):** agregar en `supabase/functions/.env` (no commitear secretos reales):
+
+`SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+
+**Por qué:** evita dos generaciones concurrentes del mismo ebook (`pg_try_advisory_lock` por `ebookId`). Sin esta variable, la función sigue operando pero solo registra un warning y no serializa.
+
+---
+
 ### SQL — Columnas `book_template_id` y `layout_page_assignments` en `projects`
 
 **Migración:** `supabase/migrations/20260419100000_projects_book_template_layout_assignments.sql`  

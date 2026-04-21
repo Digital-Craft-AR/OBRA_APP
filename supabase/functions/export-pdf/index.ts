@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { injectAll } from "../_shared/prompts.ts";
+import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
 
 /**
  * Renders a single ebook artifact as PDF using Puppeteer.
@@ -372,24 +373,41 @@ Deno.serve(async (req: Request) => {
     content: typeof ch.content === "string" ? ch.content : null,
   }));
 
-  // Load all project images for this ebook (cover + chapter slots)
+  // Load project images: cover (project-level) + hero rows for this ebook (match preview injectAll keys)
   const { data: imageRows } = await admin
     .from("project_images")
-    .select("slot_key, ebook_id, storage_path, status")
+    .select("slot_key, ebook_id, chapter_id, storage_path, status")
     .eq("project_id", projectId)
     .eq("status", "done");
 
-  // Build slot-key → signed URL map (HTML slot key convention)
   const imageUrls: Record<string, string> = {};
-  for (const row of (imageRows ?? []) as Array<{ slot_key: string; ebook_id: string | null; storage_path: string | null; status: string }>) {
+  for (const row of (imageRows ?? []) as Array<{
+    slot_key: string;
+    ebook_id: string | null;
+    chapter_id: string | null;
+    storage_path: string | null;
+  }>) {
     if (!row.storage_path) continue;
     const { data: signed } = await admin.storage
       .from("project-images")
       .createSignedUrl(row.storage_path, 3600);
     if (!signed?.signedUrl) continue;
-    // Map DB slot keys → HTML slot keys used by Claude
-    const htmlKey = row.slot_key === "cover_art" ? "cover" : row.slot_key;
-    imageUrls[htmlKey] = signed.signedUrl;
+    const signedUrl = rewriteStorageSignedUrlForPublicAccess(signed.signedUrl, url) ?? signed.signedUrl;
+
+    if (row.slot_key === "cover_art" && row.ebook_id == null && row.chapter_id == null) {
+      imageUrls["cover"] = signedUrl;
+      continue;
+    }
+    if (row.slot_key === "hero" && row.ebook_id === ebookId && row.chapter_id) {
+      const idx = chapters.findIndex((c) => c.id === row.chapter_id);
+      if (idx >= 0) {
+        imageUrls[`chapter-${idx + 1}-image-1`] = signedUrl;
+      }
+      continue;
+    }
+    if (/^chapter-\d+-image-1$/.test(row.slot_key)) {
+      imageUrls[row.slot_key] = signedUrl;
+    }
   }
 
   // ── Build HTML ──
@@ -469,7 +487,7 @@ Deno.serve(async (req: Request) => {
 
   return json({
     ok: true,
-    signedUrl: signedData?.signedUrl ?? null,
+    signedUrl: rewriteStorageSignedUrlForPublicAccess(signedData?.signedUrl ?? null, url),
     storagePath,
     sizeBytes: pdfResult.length,
   });

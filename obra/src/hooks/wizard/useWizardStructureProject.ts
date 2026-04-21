@@ -35,7 +35,7 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
       const { data, error: queryError } = await supabase
         .from("projects")
         .select(
-          "id, name, content_locale, content_source, topic, problem, target_avatar, bonus_count, bump_count, main_title, author, bonus_items, bump_items, design_config, book_template_id, layout_page_assignments, structure_completed_at",
+          "id, name, content_locale, content_source, topic, problem, target_avatar, bonus_count, bump_count, main_title, author, bonus_items, bump_items, design_config, book_template_id, layout_page_assignments, structure_completed_at, lifecycle_status",
         )
         .eq("id", projectId)
         .single();
@@ -66,6 +66,7 @@ export function useWizardStructureProject(projectId: string | undefined, loadErr
             design_config: DEFAULT_DESIGN_CONFIG,
             book_template_id: null,
             layout_page_assignments: {},
+            lifecycle_status: "active",
           };
           loadError = null;
         } else {

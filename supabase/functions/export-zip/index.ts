@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import JSZip from "https://deno.land/x/jszip@0.11.0/mod.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
 
 /**
  * Exports all ebook artifacts for a project as a single ZIP archive.
@@ -280,7 +281,7 @@ Deno.serve(async (req: Request) => {
     const { data: signed } = await admin.storage
       .from("project-images")
       .createSignedUrl(coverImage.storage_path as string, 3600);
-    coverImageUrl = signed?.signedUrl ?? null;
+    coverImageUrl = rewriteStorageSignedUrlForPublicAccess(signed?.signedUrl ?? null, url);
   }
 
   // Generate all PDFs in parallel, abort if any fails
@@ -388,7 +389,7 @@ Deno.serve(async (req: Request) => {
   const filename = `${projectSlug}.zip`;
   return json({
     ok: true,
-    signedUrl: signedData?.signedUrl ?? null,
+    signedUrl: rewriteStorageSignedUrlForPublicAccess(signedData?.signedUrl ?? null, url),
     storagePath,
     filename,
     fileCount: pdfFiles.length,

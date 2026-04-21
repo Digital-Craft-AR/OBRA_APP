@@ -18,6 +18,7 @@ Obra is a React + Vite + TypeScript SPA under `obra/`. The backend is a hosted S
 - The dev server runs on **port 5173** by default (Vite). Use `npm run dev -- --host 0.0.0.0` to expose on all interfaces inside the VM.
 - There is **no linter or formatter** configured in `package.json` yet — no `eslint` or `prettier` scripts exist. TypeScript type-checking (`tsc -b`) is the primary code quality check.
 - There are **no automated tests** configured (no test runner, no `test` script in `package.json`).
+- Always test the build before commiting, if it fails, try to solve them before notifying the user, do not commit if the build fails.
 
 ### Supabase
 
