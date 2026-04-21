@@ -194,6 +194,15 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(url, serviceKey);
 
+  const { data: profileRow } = await admin
+    .from("creator_profiles")
+    .select("subscription_status")
+    .eq("id", userId)
+    .maybeSingle();
+  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+    return json({ error: "subscription_not_active" }, 403);
+  }
+
   // Load project (verify ownership)
   const { data: project, error: projErr } = await admin
     .from("projects")
