@@ -1325,55 +1325,22 @@ export function generateChapterHtmlPrompt(
   const chapter = chapterLabel(vars.content_locale);
   const numPadded = String(vars.chapter_number).padStart(2, "0");
 
-  const system = `CRITICAL OUTPUT FORMAT: Return only raw HTML wrapped in <obra-chapter> and </obra-chapter> tags. No markdown, no backticks, no explanation.
+  const system = `Output: raw HTML inside <obra-chapter></obra-chapter> only. No markdown, no explanation.
 
-You are Obra's editorial designer. Generate the HTML for ONE chapter of a premium infoproduct.
+Generate ONE chapter: opener + body page(s). Include EVERY word of the content verbatim — no omissions.
 
-Your output must contain exactly:
-1. Chapter opener (.obra-page .obra-chapter-opener id="chapter-${vars.chapter_number}")
-2. One or more body pages (.obra-page .obra-body) containing ALL the chapter content
+OPENER: <div class="obra-page obra-chapter-opener" id="chapter-${vars.chapter_number}">
+  • "${chapter} ${numPadded}" — 4-5rem, var(--font-heading), white or var(--color-accent)
+  • Chapter title — var(--font-heading), 2rem+, high-contrast on var(--color-primary) bg
+  • Optional: <div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-img" data-slot-type="chapter" data-slot-description="[vivid description]"></div>
 
-CONTENT RULE: Every word of the chapter content provided must appear verbatim in the output. Do not omit, summarize, add, or paraphrase. Do not use {{ }}, placeholders, or shortcuts of any kind.
+BODY: <div class="obra-page obra-body"> (split naturally if long)
+  CSS classes (defined in <head> — just use them):
+  obra-pull-quote (1-2 impactful sentences) | obra-callout (key concepts) | obra-section-divider (between sections)
+  obra-two-col (dense prose) | obra-styled-list (on ul/ol) | obra-highlight (key terms inline)
+  h2/h3 for headings | multiple .obra-body divs if content is long
 
-═══ CSS CLASSES AVAILABLE (already defined in the document head — just USE them) ═══
-
-Editorial:
-  .obra-pull-quote        — large impactful quote in accent color, heading font
-  .obra-callout           — key concept box with secondary bg + accent left border
-  .obra-section-divider   — short accent-color decorative line between sections
-  .obra-two-col           — two-column prose layout (h2/h3 span full width)
-  .obra-styled-list       — stylized list (apply to <ul> or <ol>)
-  .obra-highlight         — inline text emphasis
-
-Pagination:
-  .obra-page              — breaks to a new page
-  .obra-chapter-opener    — full-bleed page (no margins)
-  .obra-body              — content page (20mm margins)
-  .obra-image-slot        — image placeholder div
-  .obra-image-slot--chapter — chapter image slot (220px tall)
-
-═══ CHAPTER OPENER (.obra-page .obra-chapter-opener) ═══
-
-Full-page editorial design:
-  • Large decorative chapter number: "${chapter} ${numPadded}" — 4–5rem, var(--font-heading), white or var(--color-accent)
-  • Chapter title: var(--font-heading), 2rem+, white or high-contrast
-  • Background: var(--color-primary) or bold typographic treatment
-  • Optional: 1 image slot (<div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-img" data-slot-type="chapter" data-slot-description="[vivid visual description]"></div>) — only if editorially fitting
-
-═══ BODY PAGES (.obra-page .obra-body) ═══
-
-Format the chapter content with full editorial design:
-  • Apply .obra-pull-quote to 1–2 impactful sentences (also keep original text in flow)
-  • Apply .obra-callout to key concepts or definitions
-  • Apply .obra-section-divider between major sections
-  • Apply .obra-two-col to dense prose paragraphs where appropriate
-  • Apply .obra-styled-list to lists
-  • Apply .obra-highlight to key terms inline
-  • Use h2/h3 for any headings already present in the content
-  • If content is long, split into multiple .obra-page.obra-body divs naturally at section boundaries
-
-NEVER add content. NEVER use placeholder notation. Write every word of the chapter.
-NEVER add inline style attributes for height, min-height, max-height, or width on .obra-page elements.`;
+NO inline height/min-height/max-height/width on .obra-page. NO placeholders. NO added content.`;
 
   const user = `Chapter ${vars.chapter_number} of ${vars.chapter_total}: ${vars.chapter_title}
 
