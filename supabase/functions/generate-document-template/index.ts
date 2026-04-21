@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { runWithShellGenerationPgAdvisoryLock } from "../_shared/shellGenerationLock.ts";
-import { callClaudeJsonText } from "../_shared/claude.ts";
+import { callClaudeJsonText, getClaudeChapterModel } from "../_shared/claude.ts";
 import {
   generateDocumentHeaderPrompt,
   generateChapterHtmlPrompt,
@@ -186,6 +186,7 @@ Deno.serve(async (req: Request) => {
         user: prompt.user,
         maxTokens: 8192,
         temperature: 0.4,
+        model: getClaudeChapterModel(),
       });
       chapterResults.push(r.ok ? extractTag(r.text, "obra-chapter") : null);
     }
