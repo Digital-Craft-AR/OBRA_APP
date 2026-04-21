@@ -90,6 +90,17 @@ Deno.serve(async (req: Request) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+
+  const { data: profileRow } = await admin
+    .from("creator_profiles")
+    .select("subscription_status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+    return json({ error: "subscription_not_active" }, 403);
+  }
+
   const { data: project, error: projectError } = await admin
     .from("projects")
     .select(
@@ -192,6 +203,9 @@ Deno.serve(async (req: Request) => {
     const msg = rpcErr.message ?? "";
     if (msg.includes("insufficient credits")) {
       return json({ error: "insufficient_credits" }, 402);
+    }
+    if (msg.includes("subscription not active")) {
+      return json({ error: "subscription_not_active" }, 403);
     }
     if (msg.includes("creator profile not found")) {
       return json({ error: "profile_not_found" }, 400);

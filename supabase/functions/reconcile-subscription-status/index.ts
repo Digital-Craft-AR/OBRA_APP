@@ -4,7 +4,7 @@ import { billingNeedsMercadoPagoAccessToken } from "../_shared/payment/billingEn
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadEnv.ts";
 
-type SubscriptionStatus = "none" | "active" | "past_due";
+type SubscriptionStatus = "none" | "active" | "past_due" | "cancelled";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -88,6 +88,6 @@ Deno.serve(async (req: Request) => {
 });
 
 function normalizeStatus(raw: string | undefined): SubscriptionStatus {
-  if (raw === "active" || raw === "past_due" || raw === "none") return raw;
+  if (raw === "active" || raw === "past_due" || raw === "none" || raw === "cancelled") return raw;
   return "none";
 }

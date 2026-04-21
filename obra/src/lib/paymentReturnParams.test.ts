@@ -12,6 +12,11 @@ describe("parsePaymentReturnOutcome", () => {
     expect(parsePaymentReturnOutcome(q)).toBe("success");
   });
 
+  it("treats preapproval_id presence as success (MP subscription back_url)", () => {
+    const q = new URLSearchParams("preapproval_id=4a1ecd1d574742289b6684f214198130");
+    expect(parsePaymentReturnOutcome(q)).toBe("success");
+  });
+
   it("treats failure and pending", () => {
     expect(parsePaymentReturnOutcome(new URLSearchParams("status=failure"))).toBe("failure");
     expect(parsePaymentReturnOutcome(new URLSearchParams("status=pending"))).toBe("pending");

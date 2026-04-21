@@ -194,6 +194,15 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(url, serviceKey);
 
+  const { data: profileRow } = await admin
+    .from("creator_profiles")
+    .select("subscription_status")
+    .eq("id", userId)
+    .maybeSingle();
+  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+    return json({ error: "subscription_not_active" }, 403);
+  }
+
   // Load project (verify ownership)
   const { data: project, error: projErr } = await admin
     .from("projects")
@@ -350,7 +359,13 @@ Deno.serve(async (req: Request) => {
 
   if (rpcErr) {
     // Non-fatal: image is already uploaded. Log and continue.
-    console.error("obra_credit_ledger_apply", rpcErr);
+    const rpcMsg = rpcErr.message ?? "";
+    if (rpcMsg.includes("subscription not active")) {
+      // Cancelled user slipped through mid-session; image served but credits not deducted.
+      console.warn("image_generate_credit_skip_subscription_not_active", { userId, imageId });
+    } else {
+      console.error("obra_credit_ledger_apply", rpcErr);
+    }
   }
 
   // Return signed URL (1 hour expiry)

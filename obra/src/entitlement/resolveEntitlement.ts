@@ -40,7 +40,7 @@ export function resolveEntitlement(input: ResolveEntitlementInput): EntitlementO
     return "activating";
   }
   if (input.subscriptionStatus !== "active") {
-    return "pending_subscription";
+    return "pending_subscription"; // covers none, cancelled, past_due (past_due already handled above)
   }
   return "full_app";
 }

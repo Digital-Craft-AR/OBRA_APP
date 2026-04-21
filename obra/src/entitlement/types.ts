@@ -1,5 +1,5 @@
 /** DB-facing values for `creator_profiles.subscription_status`. */
-export type SubscriptionStatus = "none" | "active" | "past_due";
+export type SubscriptionStatus = "none" | "active" | "past_due" | "cancelled";
 
 /** Client routing outcome from the entitlement resolver (signup-onboarding PRD). */
 export type EntitlementOutcome =
