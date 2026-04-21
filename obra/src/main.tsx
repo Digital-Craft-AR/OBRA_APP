@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { ToastProvider } from "@/toast";
 import { App } from "./App";
+import { MobileBlocker } from "@/components/MobileBlocker";
 import { i18n } from "./i18n";
 import "./index.css";
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById("root")!).render(
       <ToastProvider>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <MobileBlocker>
+              <App />
+            </MobileBlocker>
           </AuthProvider>
         </BrowserRouter>
       </ToastProvider>

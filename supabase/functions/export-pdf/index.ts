@@ -428,7 +428,7 @@ Deno.serve(async (req: Request) => {
       .replace(/<style id="obra-slot-ui">[\s\S]*?<\/style>/i, "")
       .replace(/<script id="obra-slot-ui-js">[\s\S]*?<\/script>/i, "");
 
-    html = injectAll(shell, { chapters, images: imageUrls });
+    html = injectAll(shell, { images: imageUrls });
   } else {
     // Legacy fallback — no shell generated yet
     const dc = (project.design_config ?? {}) as Record<string, unknown>;

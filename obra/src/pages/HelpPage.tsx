@@ -87,7 +87,7 @@ export function HelpPage() {
 
       <main className="flex min-h-0 flex-1 flex-col bg-white">
         <header className="flex h-18 shrink-0 items-center border-b border-obra-blue-100 px-10">
-          <h1 className="font-display text-xl font-normal leading-none text-obra-blue-950">{t("help.title")}</h1>
+          <h1 className="font-display text-xl leading-none text-obra-blue-950 font-bold">{t("help.title")}</h1>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-10">

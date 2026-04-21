@@ -4,18 +4,12 @@ function escapeSrcForHtmlAttribute(url: string): string {
 }
 
 /**
- * Client-side mirror of the server-side injectAll() in _shared/prompts.ts.
+ * Client-side post-processing for HTML documents produced by generate-document-template.
  *
- * Hydrates an HTML shell produced by generate-document-template with:
- *   - {{TOC_ENTRIES}}       → <li> elements for each chapter
- *   - {{CHAPTER_N_TITLE}}   → chapter title strings
- *   - {{CHAPTER_N_CONTENT}} → approved chapter HTML
- *   - .obra-image-slot      → <img src> when a URL is available + interactive UI
- *
- * Image slots get a CSS+JS layer injected into the shell that shows:
- *   - A visible placeholder when empty (dashed bg + camera icon)
- *   - On hover: overlay with "Subir imagen" / "Generar con IA" / "Eliminar"
- *   - Actions post messages to window.parent so React handles them
+ * The HTML already contains real chapter content (no placeholders).
+ * This module only handles:
+ *   - .obra-image-slot → <img src> when a signed URL is available
+ *   - Interactive slot UI (placeholder visuals, hover overlay, postMessage actions)
  */
 
 /**
@@ -218,36 +212,17 @@ export function isSlotMessage(data: unknown): data is SlotMessage {
 }
 
 export function injectAll(
-  htmlShell: string,
+  htmlDoc: string,
   opts: {
-    chapters: Array<{ sort_order: number; title: string; content: string | null }>;
-    /** slot-key → signed image URL (use "cover" for cover slot) */
+    /** Ignored — content is already embedded in the document. Kept for call-site compat. */
+    chapters?: Array<{ sort_order: number; title: string; content: string | null }>;
+    /** slot-key → signed image URL (use "cover" for the cover slot) */
     images?: Record<string, string>;
   },
 ): string {
-  const sorted = [...opts.chapters].sort((a, b) => a.sort_order - b.sort_order);
-  let html = htmlShell;
+  let html = htmlDoc;
 
-  // 1. TOC entries
-  const tocHtml = sorted
-    .map((ch, idx) => {
-      const n = idx + 1;
-      const title = ch.title?.trim() || `Capítulo ${n}`;
-      return `<li class="obra-toc__entry"><a href="#chapter-${n}">${title}</a></li>`;
-    })
-    .join("\n        ");
-  html = html.replace("{{TOC_ENTRIES}}", tocHtml);
-
-  // 2. Chapter titles + content
-  sorted.forEach((ch, idx) => {
-    const n = idx + 1;
-    const title = ch.title?.trim() || `Capítulo ${n}`;
-    const content = ch.content?.trim() || "<p>—</p>";
-    html = html.replace(`{{CHAPTER_${n}_TITLE}}`, title);
-    html = html.replace(`{{CHAPTER_${n}_CONTENT}}`, content);
-  });
-
-  // 3. Image injection — inject <img> into slots that have a URL
+  // 1. Inject signed image URLs into matching slots
   if (opts.images) {
     for (const [slotKey, url] of Object.entries(opts.images)) {
       if (!url) continue;
@@ -262,7 +237,10 @@ export function injectAll(
     }
   }
 
-  // 5. Inject override CSS + slot UI (both go into </head>, order: override first so slot UI can add on top)
+  // 2. Inject preview zoom — guaranteed regardless of what Claude generates
+  html = html.replace("</head>", `<style id="obra-preview-zoom">@media screen{html{zoom:0.75}}</style>\n</head>`);
+
+  // 3. Inject slot UI (placeholder visuals + hover overlay + postMessage actions)
   html = html.replace("</head>", SLOT_UI_CSS + "\n</head>");
   html = html.replace("</body>", SLOT_UI_JS + "\n</body>");
 
