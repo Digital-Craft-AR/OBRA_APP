@@ -92,8 +92,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const notificationUrl = billing.webhookUrlForSupabaseProject(supabaseUrl);
-  // Include `status=success` so returns match `CheckoutReturnPage` even if the PSP lands on path-only URLs.
-  const backUrl = `${appUrl}/checkout/return?status=success`;
+  // No query params here — MP appends preapproval_id with its own `?`, creating a malformed URL
+  // if we already include `?status=success`. Success is detected via `preapproval_id` presence.
+  const backUrl = `${appUrl}/checkout/return`;
 
   const result = await billing.createSubscriptionCheckout(accessToken ?? "", {
     creatorUserId: userId,

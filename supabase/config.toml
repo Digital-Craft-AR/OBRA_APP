@@ -18,56 +18,59 @@ verify_jwt = false
 [functions.send-auth-email]
 verify_jwt = false
 
+# verify_jwt = false — project uses ES256 (P-256) asymmetric JWT keys; the Edge Runtime
+# only supports HS256 for built-in verification. All functions below validate the caller
+# via supabase.auth.getUser(jwt) internally, which correctly handles ES256.
 [functions.create-subscription-checkout]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-credits-checkout]
-verify_jwt = true
+verify_jwt = false
 
 [functions.reconcile-subscription-status]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-optimize]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-generate-index]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-generate-content]
-verify_jwt = true
+verify_jwt = false
 
 [functions.manuscript-upload-parse]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-split-proposal]
-verify_jwt = true
+verify_jwt = false
 
 [functions.approve-alignment]
-verify_jwt = true
+verify_jwt = false
 
 [functions.reset-avatar-problem-content]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-document-template]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-pdf]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-pdf-queue]
-verify_jwt = true
+verify_jwt = false
 
 [functions.image-generate]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-user-data]
-verify_jwt = true
+verify_jwt = false
 
 [functions.delete-account]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-zip]
-verify_jwt = true
+verify_jwt = false
 
 # ── Storage buckets ───────────────────────────────────────────────────────────
 # Buckets are private by default (public = false); access via signed URLs only.

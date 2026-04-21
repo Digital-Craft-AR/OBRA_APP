@@ -81,6 +81,10 @@ const resources = {
       "shell.pending.body":
         "Obra funciona con una suscripción activa. El siguiente paso es abonar el plan con Mercado Pago.",
       "shell.pending.cta": "Ir al pago",
+      "shell.cancelled.title": "Reactivá tu suscripción",
+      "shell.cancelled.body":
+        "Tu suscripción fue cancelada. Podés reactivarla cuando quieras para seguir creando tus infoproductos.",
+      "shell.cancelled.cta": "Reactivar suscripción",
       "shell.pending.checkoutNote":
         "Vas a iniciar una suscripción recurrente con Mercado Pago en un entorno seguro.",
       "shell.pending.checkoutStartError": "No pudimos abrir el pago. Probá de nuevo en unos minutos.",
@@ -1046,6 +1050,10 @@ const resources = {
       "shell.pending.body":
         "A Obra funciona com uma assinatura ativa. O próximo passo é pagar o plano com o Mercado Pago.",
       "shell.pending.cta": "Ir para o pagamento",
+      "shell.cancelled.title": "Reative sua assinatura",
+      "shell.cancelled.body":
+        "Sua assinatura foi cancelada. Você pode reativá-la quando quiser para continuar criando seus infoprodutos.",
+      "shell.cancelled.cta": "Reativar assinatura",
       "shell.pending.checkoutNote":
         "Você vai iniciar uma assinatura recorrente com o Mercado Pago em ambiente seguro.",
       "shell.pending.checkoutStartError": "Não foi possível abrir o pagamento. Tente novamente em alguns minutos.",

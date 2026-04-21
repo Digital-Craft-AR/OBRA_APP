@@ -157,6 +157,7 @@ export class MercadoPagoAdapter implements BillingAdapter {
     }
 
     const pref = (await mpRes.json()) as MpSubscriptionResponse;
+
     const useSandbox = accessToken.startsWith("TEST-");
     const redirectUrl = useSandbox
       ? (pref.sandbox_init_point ?? pref.init_point)
@@ -231,18 +232,37 @@ export class MercadoPagoAdapter implements BillingAdapter {
     accessToken: string,
     userExternalReference: string,
   ): Promise<SubscriptionReconcileResult> {
+    const ref = encodeURIComponent(userExternalReference);
+
+    // First: check for an authorized subscription directly — avoids pagination issues
+    // when the user has many cancelled subscriptions alongside an active one.
+    const authorizedSearch = await fetch(
+      `${MP_API}/preapproval/search?external_reference=${ref}&status=authorized&limit=1`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (authorizedSearch.ok) {
+      const authorizedData = (await authorizedSearch.json()) as MpPreapprovalSearch;
+      if ((authorizedData.results?.length ?? 0) > 0) {
+        return { found: true, source: "subscription", subscriptionStatus: "active" };
+      }
+    }
+
+    // No authorized subscription — fetch recent results to determine inactive state.
     const subSearch = await fetch(
-      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&limit=1&offset=0`,
+      `${MP_API}/preapproval/search?external_reference=${ref}&limit=20&offset=0`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
     if (subSearch.ok) {
       const subData = (await subSearch.json()) as MpPreapprovalSearch;
-      const latest = subData.results?.[0];
-      if (latest?.status) {
-        const mapped = mapPreapprovalStatus(latest.status);
-        if (mapped) {
-          return { found: true, source: "subscription", subscriptionStatus: mapped };
+      const results = subData.results ?? [];
+      // Use the first mappable result to determine inactive state (paused → past_due, cancelled → none).
+      for (const r of results) {
+        if (r.status) {
+          const mapped = mapPreapprovalStatus(r.status);
+          if (mapped) {
+            return { found: true, source: "subscription", subscriptionStatus: mapped };
+          }
         }
       }
     }
@@ -261,12 +281,28 @@ export class MercadoPagoAdapter implements BillingAdapter {
 
     return { found: false };
   }
+
+  async hasAnyActiveSubscription(accessToken: string, userExternalReference: string): Promise<boolean> {
+    const res = await fetch(
+      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&status=authorized&limit=1`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+      console.error("mp_has_active_fetch_failed", JSON.stringify({ status: res.status, externalReference: userExternalReference }));
+      return false;
+    }
+    const data = (await res.json()) as MpPreapprovalSearch;
+    const found = (data.results?.length ?? 0) > 0;
+    console.log("mp_has_active_check_result", JSON.stringify({ externalReference: userExternalReference, found }));
+    return found;
+  }
 }
 
-function mapPreapprovalStatus(status: string): "none" | "active" | "past_due" | null {
+function mapPreapprovalStatus(status: string): "none" | "active" | "past_due" | "cancelled" | null {
   const st = status.toLowerCase();
   if (st === "authorized") return "active";
-  if (st === "paused" || st === "cancelled") return "past_due";
+  if (st === "paused") return "past_due";
+  if (st === "cancelled") return "cancelled";
   if (st === "pending" || st === "init") return "none";
   return null;
 }
