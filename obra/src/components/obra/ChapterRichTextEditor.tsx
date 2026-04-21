@@ -44,6 +44,8 @@ export function ChapterRichTextEditor({
         heading: { levels: [2, 3] },
         codeBlock: false,
         horizontalRule: false,
+        link: false,
+        underline: false,
       }),
       Underline,
       Link.configure({

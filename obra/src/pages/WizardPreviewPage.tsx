@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { ObraLoadingOverlay, ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraShellGeneratingOverlay } from "@/components/obra/ObraShellGeneratingOverlay";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
 import { ExportPdfModal } from "@/components/wizard/ExportPdfModal";
@@ -19,12 +20,7 @@ import {
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
-import {
-  fetchOrGenerateShell,
-  isShellMetaStale,
-  regenerateShell,
-  type ShellMeta,
-} from "@/lib/preview/documentShellApi";
+import { fetchOrGenerateShell, regenerateShell, hashChapters, type ShellMeta } from "@/lib/preview/documentShellApi";
 import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { queuePdfExport, downloadPdf, getErrorMessage } from "@/utils/pdf-export";
@@ -293,7 +289,13 @@ export function WizardPreviewPage() {
       const meta = shellCache[selectedEbookId]!.meta;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      setShellStale(isShellMetaStale(meta, chapters.length, page.size, page.orientation));
+      const contentHash = hashChapters(chapters);
+      const stale =
+        meta.chapter_count !== chapters.length ||
+        meta.page_size !== page.size ||
+        meta.page_orientation !== page.orientation ||
+        meta.content_hash !== contentHash;
+      setShellStale(stale);
       return;
     }
 
@@ -312,6 +314,7 @@ export function WizardPreviewPage() {
         currentChapterCount: chapters.length,
         currentPageSize: page.size,
         currentPageOrientation: page.orientation,
+        currentContentHash: hashChapters(chapters),
       });
       if (cancelled) {
         endShellInflight(ebookId);
@@ -688,7 +691,7 @@ export function WizardPreviewPage() {
 
           {/* Preview content */}
           <div ref={previewScrollRef} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#e8edf2]">
-            {(chaptersLoading || shellLoading) ? <ObraLoadingOverlay /> : null}
+            {shellLoading ? <ObraShellGeneratingOverlay /> : chaptersLoading ? <ObraLoadingOverlay /> : null}
 
             {isLoading ? (
               <ObraSpinner size="lg" className="py-16" />
