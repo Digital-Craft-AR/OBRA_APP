@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { BlockingShellFrame } from "@/components/shells/BlockingShellFrame";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/auth/authContext";
+import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { consumeCheckoutReturnMessageKey } from "@/entitlement/checkoutReturn";
 import { tCheckoutConfigError, tMercadoPagoProviderError } from "@/lib/checkoutEdgeErrors";
 import { toastApiFailure } from "@/lib/apiToast";
@@ -19,6 +20,8 @@ type CheckoutFnResponse = {
 export function PendingSubscriptionShellPage() {
   const { t } = useTranslation();
   const { session } = useAuth();
+  const { subscriptionStatus } = useEntitlement();
+  const isCancelled = subscriptionStatus === "cancelled";
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -104,8 +107,10 @@ export function PendingSubscriptionShellPage() {
   }
 
   return (
-    <BlockingShellFrame titleKey="shell.pending.title">
-      <p className="text-sm text-obra-neutral-600">{t("shell.pending.body")}</p>
+    <BlockingShellFrame titleKey={isCancelled ? "shell.cancelled.title" : "shell.pending.title"}>
+      <p className="text-sm text-obra-neutral-600">
+        {t(isCancelled ? "shell.cancelled.body" : "shell.pending.body")}
+      </p>
       <Button
         type="button"
         variant="cta"
@@ -113,7 +118,7 @@ export function PendingSubscriptionShellPage() {
         disabled={busy}
         onClick={() => void startCheckout()}
       >
-        {busy ? t("common.loading") : t("shell.pending.cta")}
+        {busy ? t("common.loading") : t(isCancelled ? "shell.cancelled.cta" : "shell.pending.cta")}
       </Button>
       {message ? (
         <p className="text-sm text-obra-neutral-700" role="status">

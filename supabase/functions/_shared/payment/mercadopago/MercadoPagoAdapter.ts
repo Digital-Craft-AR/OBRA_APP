@@ -158,8 +158,6 @@ export class MercadoPagoAdapter implements BillingAdapter {
 
     const pref = (await mpRes.json()) as MpSubscriptionResponse;
 
-    console.log("pref", pref);
-
     const useSandbox = accessToken.startsWith("TEST-");
     const redirectUrl = useSandbox
       ? (pref.sandbox_init_point ?? pref.init_point)
@@ -234,20 +232,31 @@ export class MercadoPagoAdapter implements BillingAdapter {
     accessToken: string,
     userExternalReference: string,
   ): Promise<SubscriptionReconcileResult> {
+    const ref = encodeURIComponent(userExternalReference);
+
+    // First: check for an authorized subscription directly — avoids pagination issues
+    // when the user has many cancelled subscriptions alongside an active one.
+    const authorizedSearch = await fetch(
+      `${MP_API}/preapproval/search?external_reference=${ref}&status=authorized&limit=1`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (authorizedSearch.ok) {
+      const authorizedData = (await authorizedSearch.json()) as MpPreapprovalSearch;
+      if ((authorizedData.results?.length ?? 0) > 0) {
+        return { found: true, source: "subscription", subscriptionStatus: "active" };
+      }
+    }
+
+    // No authorized subscription — fetch recent results to determine inactive state.
     const subSearch = await fetch(
-      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&limit=20&offset=0`,
+      `${MP_API}/preapproval/search?external_reference=${ref}&limit=20&offset=0`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
     if (subSearch.ok) {
       const subData = (await subSearch.json()) as MpPreapprovalSearch;
       const results = subData.results ?? [];
-      // If any subscription is authorized, the user is active regardless of other cancelled ones.
-      const hasAuthorized = results.some((r) => r.status === "authorized");
-      if (hasAuthorized) {
-        return { found: true, source: "subscription", subscriptionStatus: "active" };
-      }
-      // No active subscription — use the first mappable result.
+      // Use the first mappable result to determine inactive state (paused → past_due, cancelled → none).
       for (const r of results) {
         if (r.status) {
           const mapped = mapPreapprovalStatus(r.status);
@@ -275,7 +284,7 @@ export class MercadoPagoAdapter implements BillingAdapter {
 
   async hasAnyActiveSubscription(accessToken: string, userExternalReference: string): Promise<boolean> {
     const res = await fetch(
-      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&limit=20&offset=0`,
+      `${MP_API}/preapproval/search?external_reference=${encodeURIComponent(userExternalReference)}&status=authorized&limit=1`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
     if (!res.ok) {
@@ -283,16 +292,17 @@ export class MercadoPagoAdapter implements BillingAdapter {
       return false;
     }
     const data = (await res.json()) as MpPreapprovalSearch;
-    const statuses = (data.results ?? []).map((r) => ({ id: r.id, status: r.status }));
-    console.log("mp_preapproval_search_results", JSON.stringify({ externalReference: userExternalReference, results: statuses }));
-    return statuses.some((r) => r.status === "authorized");
+    const found = (data.results?.length ?? 0) > 0;
+    console.log("mp_has_active_check_result", JSON.stringify({ externalReference: userExternalReference, found }));
+    return found;
   }
 }
 
-function mapPreapprovalStatus(status: string): "none" | "active" | "past_due" | null {
+function mapPreapprovalStatus(status: string): "none" | "active" | "past_due" | "cancelled" | null {
   const st = status.toLowerCase();
   if (st === "authorized") return "active";
   if (st === "paused") return "past_due";
-  if (st === "cancelled" || st === "pending" || st === "init") return "none";
+  if (st === "cancelled") return "cancelled";
+  if (st === "pending" || st === "init") return "none";
   return null;
 }

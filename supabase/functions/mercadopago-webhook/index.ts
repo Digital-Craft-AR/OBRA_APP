@@ -111,7 +111,7 @@ Deno.serve(async (req: Request) => {
   }
 
   let ext: string | null = null;
-  let profileStatus: "active" | "past_due" | "none" = "active";
+  let profileStatus: "active" | "past_due" | "none" | "cancelled" = "active";
 
   try {
     if (resource.topic === "subscription") {
@@ -138,8 +138,8 @@ Deno.serve(async (req: Request) => {
           // Paused = payment failed, subscription still exists but billing is blocked.
           profileStatus = "past_due";
         } else {
-          // Cancelled = user (or MP) ended the subscription; offer to subscribe again.
-          profileStatus = "none";
+          // Cancelled = user (or MP) ended the subscription; offer to reactivate.
+          profileStatus = "cancelled";
         }
       }
     } else {
