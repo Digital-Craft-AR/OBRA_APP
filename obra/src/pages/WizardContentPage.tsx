@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -7,7 +7,7 @@ import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle 
 import { ObraToast } from "@/components/obra/ObraToast";
 import { ContentIndexMilestone } from "@/components/wizard/content/ContentIndexMilestone";
 import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
-import { ContentPackSidebar } from "@/components/wizard/content/ContentPackSidebar";
+import { ContentPlanAccordion } from "@/components/wizard/content/ContentPlanAccordion";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { ObraSpinner } from "@/components/obra/ObraSpinner";
 import { ObraAlert } from "@/components/obra/ObraAlert";
@@ -164,6 +164,14 @@ export function WizardContentPage() {
   const [bumpTocEntryResolved, setBumpTocEntryResolved] = useState<Record<string, boolean>>({});
   const [insufficientCreditsToastOpen, setInsufficientCreditsToastOpen] = useState(false);
   const [insufficientCreditsSource, setInsufficientCreditsSource] = useState<"index" | "chapter">("index");
+  // Plan review: accordion tracking
+  const [planOpenKey, setPlanOpenKey] = useState<string | null>(null);
+  const [accordionExpandedKeys, setAccordionExpandedKeys] = useState<Set<string>>(new Set());
+  // Generating phase
+  const [backWarningOpen, setBackWarningOpen] = useState(false);
+  const [artifactApproveLoading, setArtifactApproveLoading] = useState(false);
+  const [autoGenerating, setAutoGenerating] = useState(false);
+  const autoGenerateAbortRef = useRef(false);
   const [chapterRows, setChapterRows] = useState<ChapterDraftRow[]>([]);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [chapterBodyDraft, setChapterBodyDraft] = useState("");
@@ -1324,6 +1332,33 @@ export function WizardContentPage() {
 
   const confirmDisabled = !globalIndexReady;
 
+  // ── Content UI phase ─────────────────────────────────────────────────────────
+  type ContentUiPhase = "loading" | "intro" | "upload_alignment" | "plan_review" | "generating" | "complete";
+  const contentUiPhase = useMemo((): ContentUiPhase => {
+    if (loading || !workspaceReady) return "loading";
+    if (awaitingContentIntro) return "intro";
+    if (currentPhase === "upload_alignment") return "upload_alignment";
+    if (currentPhase === "main_index" || currentPhase === null) return "plan_review";
+    if (allArtifactsApproved) return "complete";
+    return "generating";
+  }, [loading, workspaceReady, awaitingContentIntro, currentPhase, allArtifactsApproved]);
+
+  const allAccordionsExpanded = useMemo(
+    () => navItems.length > 0 && navItems.every((item) => accordionExpandedKeys.has(item.key)),
+    [navItems, accordionExpandedKeys],
+  );
+
+  const chapterCountByKey = useMemo((): Record<string, number> => {
+    const result: Record<string, number> = {};
+    result["main"] = mainTocRows.length;
+    for (const [key, rows] of Object.entries(bonusBumpToc)) {
+      result[key] = rows.length;
+    }
+    return result;
+  }, [mainTocRows, bonusBumpToc]);
+
+  const canApproveArtifact = !artifactApproveLoading && !autoGenerating && chapterRows.length > 0;
+
   const confirmVisible =
     effectiveContentIntroDone &&
     !needsUploadAlignment &&
@@ -1437,11 +1472,116 @@ export function WizardContentPage() {
     setActionAnnouncement(t("wizard.content.index.reopenIndexSuccess"));
   }, [project?.id, persistCurrentChapterDraftIfDirty, t]);
 
+  // ── Plan accordion handler ────────────────────────────────────────────────────
+  const handlePlanAccordionToggle = useCallback((key: string) => {
+    setPlanOpenKey((prev) => {
+      const isClosing = prev === key;
+      if (!isClosing) {
+        setSelectedKey(key);
+        setAccordionExpandedKeys((ek) => new Set([...ek, key]));
+      }
+      return isClosing ? null : key;
+    });
+  }, []);
+
+  // ── Auto-generate all chapters for current artifact ───────────────────────────
+  const handleGenerateAllChapters = useCallback(async () => {
+    if (!project?.id) return;
+    if (autoGenerating) {
+      autoGenerateAbortRef.current = true;
+      return;
+    }
+    autoGenerateAbortRef.current = false;
+    setAutoGenerating(true);
+    setInsufficientCreditsToastOpen(false);
+    setInsufficientCreditsSource("chapter");
+
+    const snapshot = [...chapterRows];
+    for (let i = 0; i < snapshot.length; i++) {
+      if (autoGenerateAbortRef.current) break;
+      const ch = snapshot[i]!;
+      if (!isChapterHtmlEffectivelyEmpty(ch.content ?? "")) continue;
+      setChapterIdx(i);
+      const opKey = `autogen:${ch.id}`;
+      const clientRequestId = retryIds.current.getOrCreate(opKey);
+      setChapterGenerateLoading(true);
+      const result = await invokeGenerateChapterContent(project.id, ch.id, clientRequestId);
+      setChapterGenerateLoading(false);
+      if (autoGenerateAbortRef.current) break;
+      if (!result.ok) {
+        if (result.code === "insufficient_credits") {
+          setInsufficientCreditsToastOpen(true);
+          toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
+          break;
+        }
+        continue;
+      }
+      retryIds.current.clear(opKey);
+      await updateChapterDraftContent(ch.id, result.content);
+      setChapterBodyDraft(result.content);
+      setChapterRichTextKey((k) => k + 1);
+      snapshot[i] = { ...ch, content: result.content, approved_at: null };
+      setChapterRows((rows) =>
+        rows.map((r) => (r.id === ch.id ? { ...r, content: result.content, approved_at: null } : r)),
+      );
+    }
+
+    setAutoGenerating(false);
+    setChapterGenerateLoading(false);
+    autoGenerateAbortRef.current = false;
+  }, [project?.id, chapterRows, autoGenerating, t]);
+
+  // ── Approve all chapters in the current artifact ──────────────────────────────
+  const handleApproveArtifact = useCallback(async () => {
+    if (!selectedEbookId) return;
+    const saved = await persistCurrentChapterDraftIfDirty();
+    if (!saved) return;
+
+    setArtifactApproveLoading(true);
+    const draft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!draft.ok) {
+      setArtifactApproveLoading(false);
+      toastApiFailure(t, "wizard.content.chapters.errorApprove");
+      return;
+    }
+
+    for (const ch of draft.rows) {
+      if (ch.approved_at) continue;
+      const res = await approveChapterBody(ch.id);
+      if (!res.ok) {
+        setArtifactApproveLoading(false);
+        toastApiFailure(t, "wizard.content.chapters.errorApprove");
+        return;
+      }
+    }
+
+    const now = new Date().toISOString();
+    setChapterRows(draft.rows.map((r) => ({ ...r, approved_at: now })));
+    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: true }));
+    setArtifactApproveLoading(false);
+    toast.success({ title: t("wizard.content.generating.artifactApproved") });
+
+    // Advance to next non-approved artifact
+    const currentIdx = navItems.findIndex((item) => item.key === selectedKey);
+    const nextUnapproved = navItems.find((item, idx) => idx > currentIdx && !artifactApprovedByKey[item.key] && item.key !== selectedKey);
+    if (nextUnapproved) {
+      void handleSelectPackageKey(nextUnapproved.key);
+    }
+  }, [selectedEbookId, persistCurrentChapterDraftIfDirty, selectedKey, navItems, artifactApprovedByKey, handleSelectPackageKey, t]);
+
+  const handleBackFromGenerating = useCallback(() => {
+    setBackWarningOpen(true);
+  }, []);
+
+  const handleConfirmBackToIndex = useCallback(async () => {
+    setBackWarningOpen(false);
+    autoGenerateAbortRef.current = true;
+    await handleEditIndexFromFooter();
+  }, [handleEditIndexFromFooter]);
+
   if (!params.projectId) {
     return null;
   }
-
-  const showPackSidebar = Boolean(project && workspaceReady && !awaitingContentIntro);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
@@ -1486,161 +1626,231 @@ export function WizardContentPage() {
         </div>
       </div>
 
+      {/* ── Main content ───────────────────────────────────────────────────── */}
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-obra-blue-50">
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          {showPackSidebar ? (
-            <ContentPackSidebar
-              t={t}
-              navItems={navItems}
-              selectedKey={selectedKey}
-              onSelectKey={handleSelectPackageKey}
-              navItemDisabled={navItemDisabled}
-            />
-          ) : null}
-          {showChapterLoop ? (
+
+        {/* Loading / error states */}
+        {contentUiPhase === "loading" ? (
+          <div className="flex flex-1 items-center justify-center">
+            <ObraSpinner size="lg" className="py-16" />
+          </div>
+        ) : null}
+        {error ? (
+          <div className="px-8 pt-6">
+            <ObraAlert variant="error" title={error} className="mb-4" />
+          </div>
+        ) : null}
+        {workspaceError ? (
+          <div className="px-8 pt-6">
+            <ObraAlert variant="error" title={workspaceError} className="mb-4" />
+          </div>
+        ) : null}
+
+        {/* ── Intro: choose content source ───────────────────────────────── */}
+        {contentUiPhase === "intro" && project ? (
+          <div className="flex min-h-0 flex-1 overflow-y-auto">
+            <div className="w-full bg-white px-8 py-10">
+              <ContentSourceIntroPanel
+                t={t}
+                contentSource={project.content_source}
+                onSelectSource={handleIntroContentSourceSelect}
+                selectDisabled={introSourceBusy}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── Upload alignment ───────────────────────────────────────────── */}
+        {contentUiPhase === "upload_alignment" && project ? (
+          <div className="flex min-h-0 flex-1 overflow-y-auto">
+            <div className="w-full bg-white px-8 py-10">
+              <div className="space-y-4">
+                {!manuscriptCommitted && (
+                  <div className="rounded-card border border-obra-neutral-200 bg-white px-4 py-6">
+                    <ManuscriptUploadPanel
+                      t={t}
+                      projectId={project.id}
+                      initialManuscript={manuscriptRow}
+                      onManuscriptCommitted={(row) => {
+                        setManuscriptRow(row);
+                        if ((row.extracted_char_count ?? 0) > 0) {
+                          setManuscriptCommitted(true);
+                          toast.success({
+                            title: t("wizard.content.manuscript.uploadedToast"),
+                            description: t("wizard.content.manuscript.uploadedToastDescription"),
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                {manuscriptCommitted && manuscriptRow?.extracted_char_count != null && manuscriptRow.extracted_char_count > 0 ? (
+                  <ContentUploadAlignmentPanel
+                    t={t}
+                    projectId={project.id}
+                    onApprove={handleAlignmentApproved}
+                    approvalBusy={uploadHandoffBusy}
+                    autoStart
+                  />
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── Plan review: accordion of all artifacts ────────────────────── */}
+        {contentUiPhase === "plan_review" && project ? (
+          <div className="flex min-h-0 flex-1 overflow-y-auto">
+            <div className="w-full bg-white px-8 py-10">
+              {!bannerDismissed ? (
+                <ObraAlert
+                  variant="info"
+                  title={t("wizard.content.banner.body")}
+                  onDismiss={dismissBanner}
+                  dismissLabel={t("wizard.content.banner.dismiss")}
+                  className="mb-6"
+                />
+              ) : null}
+              <div className="mx-auto w-full max-w-2xl">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-obra-blue-950">
+                    {t("wizard.content.planReview.title")}
+                  </h2>
+                  <p className="mt-1 text-sm text-obra-neutral-600">
+                    {t("wizard.content.planReview.subtitle")}
+                  </p>
+                  {!allAccordionsExpanded && navItems.length > 0 && (
+                    <p className="mt-2 text-xs text-obra-blue-500">
+                      {t("wizard.content.planReview.expandHint")}
+                    </p>
+                  )}
+                </div>
+                <ContentPlanAccordion
+                  t={t}
+                  navItems={navItems}
+                  openKey={planOpenKey}
+                  expandedKeys={accordionExpandedKeys}
+                  onToggle={handlePlanAccordionToggle}
+                  chapterCountByKey={chapterCountByKey}
+                  renderOpenContent={() => (
+                    <ContentIndexMilestone
+                      t={t}
+                      selectedTarget={selectedTarget}
+                      panelTitle={panelCopy.title}
+                      panelSubtitle={panelCopy.subtitle}
+                      tocRows={currentTocRows}
+                      onChangeToc={setCurrentToc}
+                      onRegenerateOutline={() => {
+                        if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
+                        else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
+                        else void handleRegenerateBonusOutline();
+                      }}
+                      regenerateDisabled={
+                        selectedTarget.kind === "main"
+                          ? regenerateDisabledMain
+                          : selectedTarget.kind === "bump"
+                            ? regenerateDisabledBump
+                            : regenerateDisabledBonus
+                      }
+                      regenerateLoading={generateLoading}
+                      tocReadOnly={tocReadOnly}
+                      actionAnnouncement={actionAnnouncement}
+                      showMainTocEmptyChoice={showMainTocEmptyChoice}
+                      mainTocEmptyShowGenerate={project.content_source === "ai"}
+                      onMainTocChooseManual={handleEmptyTocChooseManual}
+                      onMainTocChooseGenerate={() => {
+                        if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
+                        else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
+                        else void handleRegenerateBonusOutline();
+                      }}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── Generating / complete: chapter editing per artifact ────────── */}
+        {(contentUiPhase === "generating" || contentUiPhase === "complete") && project ? (
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <ContentChapterNav
               t={t}
               chapters={chapterRows}
               selectedIndex={chapterIdx}
               onSelectChapterIndex={(i) => void handleSelectChapterIndex(i)}
-              generateLoading={chapterGenerateLoading}
+              generateLoading={chapterGenerateLoading || autoGenerating}
               title={navItems.find((item) => item.key === selectedKey)?.navTitle}
             />
-          ) : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="w-full min-h-full bg-white px-8 py-10">
-          {!bannerDismissed ? (
-            <ObraAlert
-              variant="info"
-              title={t("wizard.content.banner.body")}
-              onDismiss={dismissBanner}
-              dismissLabel={t("wizard.content.banner.dismiss")}
-              className="mb-6"
-            />
-          ) : null}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="w-full min-h-full bg-white px-8 py-10">
+                  {/* Artifact progress pills */}
+                  <div className="mb-5 flex flex-wrap items-center gap-x-1 gap-y-2">
+                    {navItems.map((item, idx) => {
+                      const isApproved = artifactApprovedByKey[item.key];
+                      const isCurrent = item.key === selectedKey;
+                      return (
+                        <div key={item.key} className="flex items-center gap-1">
+                          {idx > 0 && <div className="h-px w-3 shrink-0 bg-obra-blue-200" aria-hidden />}
+                          <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                            isApproved
+                              ? "bg-obra-green-100 text-obra-green-700"
+                              : isCurrent
+                                ? "bg-obra-blue-100 text-obra-blue-700 ring-1 ring-obra-blue-300"
+                                : "bg-obra-blue-50 text-obra-blue-400"
+                          }`}>
+                            {isApproved && <CheckCircle2 className="size-3 shrink-0" aria-hidden />}
+                            <span>{item.navTitle}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-          {loading ? <ObraSpinner size="lg" className="py-16" /> : null}
-          {error ? <ObraAlert variant="error" title={error} className="mb-4" /> : null}
-          {workspaceError ? <ObraAlert variant="error" title={workspaceError} className="mb-4" /> : null}
+                  {/* Complete banner */}
+                  {contentUiPhase === "complete" && (
+                    <div className="mb-5 rounded-lg border border-obra-green-300 bg-obra-green-50 px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="size-4 shrink-0 text-obra-green-600" aria-hidden />
+                        <p className="text-sm font-medium text-obra-green-700">
+                          {t("wizard.content.generating.allDone")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-          {awaitingContentIntro && project ? (
-            <ContentSourceIntroPanel
-              t={t}
-              contentSource={project.content_source}
-              onSelectSource={handleIntroContentSourceSelect}
-              selectDisabled={introSourceBusy}
-            />
-          ) : null}
-
-          {needsUploadAlignment && project && !awaitingContentIntro ? (
-            <div className="space-y-4">
-              {!manuscriptCommitted && (
-                <div className="rounded-card border border-obra-neutral-200 bg-white px-4 py-6">
-                  <ManuscriptUploadPanel
+                  <ContentChapterMilestone
                     t={t}
-                    projectId={project.id}
-                    initialManuscript={manuscriptRow}
-                    onManuscriptCommitted={(row) => {
-                      setManuscriptRow(row);
-                      if ((row.extracted_char_count ?? 0) > 0) {
-                        setManuscriptCommitted(true);
-                        toast.success({
-                          title: t("wizard.content.manuscript.uploadedToast"),
-                          description: t("wizard.content.manuscript.uploadedToastDescription"),
-                        });
-                      }
-                    }}
+                    panelTitle={chapterPanelCopy.title}
+                    chapters={chapterRows}
+                    selectedIndex={chapterIdx}
+                    bodyValue={chapterBodyDraft}
+                    onBodyChange={setChapterBodyDraft}
+                    onSave={() => void handleSaveChapterBody()}
+                    onGenerate={() => void handleGenerateChapter()}
+                    onApprove={() => void handleApproveChapter()}
+                    saveLoading={chapterSaveLoading}
+                    generateLoading={chapterGenerateLoading}
+                    approveLoading={chapterApproveLoading}
+                    richTextResetKey={chapterRichTextKey}
+                    progressValue={chapterProgressValue}
+                    progressMax={Math.max(chapterRows.length, 1)}
+                    showAiGenerateButton={project.content_source === "ai"}
                   />
                 </div>
-              )}
-
-              {manuscriptCommitted && manuscriptRow?.extracted_char_count != null && manuscriptRow.extracted_char_count > 0 ? (
-                <ContentUploadAlignmentPanel
-                  t={t}
-                  projectId={project.id}
-                  onApprove={handleAlignmentApproved}
-                  approvalBusy={uploadHandoffBusy}
-                  autoStart
-                  onReupload={() => {
-                    setManuscriptCommitted(false);
-                    setManuscriptRow(null);
-                  }}
-                />
-              ) : null}
-            </div>
-          ) : null}
-
-          {project &&
-          !loading &&
-          workspaceReady &&
-          !awaitingContentIntro &&
-          !needsUploadAlignment &&
-          !showChapterLoop ? (
-            <ContentIndexMilestone
-              t={t}
-              selectedTarget={selectedTarget}
-              panelTitle={panelCopy.title}
-              panelSubtitle={panelCopy.subtitle}
-              tocRows={currentTocRows}
-              onChangeToc={setCurrentToc}
-              onRegenerateOutline={() => {
-                if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
-                else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
-                else void handleRegenerateBonusOutline();
-              }}
-              regenerateDisabled={
-                selectedTarget.kind === "main"
-                  ? regenerateDisabledMain
-                  : selectedTarget.kind === "bump"
-                    ? regenerateDisabledBump
-                    : regenerateDisabledBonus
-              }
-              regenerateLoading={generateLoading}
-              tocReadOnly={tocReadOnly}
-              actionAnnouncement={actionAnnouncement}
-              showMainTocEmptyChoice={showMainTocEmptyChoice}
-              mainTocEmptyShowGenerate={project?.content_source === "ai"}
-              onMainTocChooseManual={handleEmptyTocChooseManual}
-              onMainTocChooseGenerate={() => {
-                if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
-                else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
-                else void handleRegenerateBonusOutline();
-              }}
-            />
-          ) : null}
-
-          {showChapterLoop ? (
-            <ContentChapterMilestone
-              t={t}
-              panelTitle={chapterPanelCopy.title}
-              chapters={chapterRows}
-              selectedIndex={chapterIdx}
-              bodyValue={chapterBodyDraft}
-              onBodyChange={setChapterBodyDraft}
-              onSave={() => void handleSaveChapterBody()}
-              onGenerate={() => void handleGenerateChapter()}
-              onApprove={() => void handleApproveChapter()}
-              saveLoading={chapterSaveLoading}
-              generateLoading={chapterGenerateLoading}
-              approveLoading={chapterApproveLoading}
-              richTextResetKey={chapterRichTextKey}
-              progressValue={chapterProgressValue}
-              progressMax={Math.max(chapterRows.length, 1)}
-              showAiGenerateButton={project?.content_source === "ai"}
-            />
-          ) : null}
-
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </main>
 
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="flex w-full min-w-0 items-center justify-between">
-          {showChapterLoop ? (
-            <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
+          {/* Left: back button */}
+          {contentUiPhase === "generating" || contentUiPhase === "complete" ? (
+            <Button type="button" variant="tertiary" onClick={handleBackFromGenerating}>
               <ChevronLeft className="size-4" aria-hidden />
               {t("wizard.content.index.reopenIndex")}
             </Button>
@@ -1648,43 +1858,74 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="tertiary"
-              onClick={() => navigate(`/app/projects/${params.projectId ?? ""}/wizard`)}
+              onClick={() =>
+                contentUiPhase === "intro"
+                  ? navigate("/app/dashboard")
+                  : navigate(`/app/projects/${params.projectId ?? ""}/wizard`)
+              }
             >
               <ChevronLeft className="size-4" aria-hidden />
               {t("wizard.content.footer.backToStructure")}
             </Button>
           )}
 
-          {awaitingContentIntro ? (
+          {/* Right: primary action */}
+          {contentUiPhase === "intro" ? (
             <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
               {t("wizard.content.sourceIntro.continue")}
               <ChevronRight className="size-4" aria-hidden />
             </Button>
-          ) : !showChapterLoop ? (
+          ) : contentUiPhase === "upload_alignment" ? null
+          : contentUiPhase === "plan_review" ? (
             <Button
               type="button"
               variant="primary"
-              disabled={!confirmVisible || confirmDisabled || confirmLoading}
+              disabled={!confirmVisible || confirmDisabled || confirmLoading || !allAccordionsExpanded}
               onClick={() => void handleConfirmGlobalIndex()}
             >
-              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.index.confirmIndex")}
+              {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.planReview.confirm")}
               <ChevronRight className="size-4" aria-hidden />
             </Button>
-          ) : (
+          ) : contentUiPhase === "complete" ? (
             <Button
               type="button"
               variant="primary"
-              disabled={!allArtifactsApproved}
-              title={!allArtifactsApproved ? t("wizard.content.footer.previewDisabledHint") : undefined}
               onClick={() => void navigate(`/app/projects/${params.projectId ?? ""}/preview`)}
             >
               {t("wizard.content.footer.goToPreview")}
               <ChevronRight className="size-4" aria-hidden />
             </Button>
-          )}
+          ) : contentUiPhase === "generating" ? (
+            <div className="flex items-center gap-2">
+              {project?.content_source === "ai" ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void handleGenerateAllChapters()}
+                  disabled={chapterGenerateLoading && !autoGenerating}
+                >
+                  {autoGenerating
+                    ? t("wizard.content.generating.stopGenerate")
+                    : t("wizard.content.generating.generateAll")}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!canApproveArtifact}
+                onClick={() => void handleApproveArtifact()}
+              >
+                {artifactApproveLoading
+                  ? t("wizard.content.generating.approveArtifactLoading")
+                  : t("wizard.content.generating.approveArtifact")}
+                <ChevronRight className="size-4" aria-hidden />
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
 
+      {/* ── Title-change modal ─────────────────────────────────────────────── */}
       <Modal
         open={Boolean(titleChangeModal)}
         onClose={handleCancelTitleChangeModal}
@@ -1705,6 +1946,27 @@ export function WizardContentPage() {
         </ModalFooter>
       </Modal>
 
+      {/* ── Back-to-index warning modal ────────────────────────────────────── */}
+      <Modal
+        open={backWarningOpen}
+        onClose={() => setBackWarningOpen(false)}
+        closeLabel={t("wizard.content.generating.backWarningCancel")}
+      >
+        <ModalHead>
+          <ModalTitle>{t("wizard.content.generating.backWarningTitle")}</ModalTitle>
+          <ModalSubtitle>{t("wizard.content.generating.backWarningBody")}</ModalSubtitle>
+        </ModalHead>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" size="medium" onClick={() => setBackWarningOpen(false)}>
+            {t("wizard.content.generating.backWarningCancel")}
+          </Button>
+          <Button type="button" variant="primary" size="medium" onClick={() => void handleConfirmBackToIndex()}>
+            {t("wizard.content.generating.backWarningConfirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* ── Insufficient credits toast ─────────────────────────────────────── */}
       {insufficientCreditsToastOpen ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[200] flex justify-center px-4 sm:bottom-8">
           <div className="pointer-events-auto w-full max-w-toast">
