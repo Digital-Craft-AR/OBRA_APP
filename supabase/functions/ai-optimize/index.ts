@@ -98,6 +98,16 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
 
+  const { data: profileRow } = await admin
+    .from("creator_profiles")
+    .select("subscription_status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+    return json({ error: "subscription_not_active" }, 403);
+  }
+
   let projectRow: {
     content_locale: string | null;
     topic: string | null;
