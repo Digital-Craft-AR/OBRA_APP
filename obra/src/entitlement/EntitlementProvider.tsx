@@ -30,8 +30,12 @@ export type EntitlementContextValue = {
 
 const EntitlementContext = createContext<EntitlementContextValue | null>(null);
 
+// Tracks which users have already been reconciled in this page load.
+// Module-level: resets on every page refresh, but survives SPA navigation.
+const reconciledThisLoad = new Set<string>();
+
 function normalizeSubscriptionStatus(raw: string | null | undefined): SubscriptionStatus {
-  if (raw === "active" || raw === "past_due" || raw === "none") {
+  if (raw === "active" || raw === "past_due" || raw === "none" || raw === "cancelled") {
     return raw;
   }
   return "none";
@@ -144,6 +148,30 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     void refetchProfile();
   }, [refetchProfile]);
+
+  // Auto-reconcile on session mount: MP doesn't send a webhook for user-initiated
+  // cancellations, so we query MP directly on every page load.
+  // Uses a module-level Set so it fires once per page load (resets on refresh)
+  // but not on SPA navigation (provider stays mounted).
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const token = session?.access_token;
+    if (!userId || !token) return;
+    if (reconciledThisLoad.has(userId)) return;
+
+    reconciledThisLoad.add(userId);
+    void supabase.functions
+      .invoke<{ subscription_status?: SubscriptionStatus; error?: string }>(
+        "reconcile-subscription-status",
+        { method: "POST", body: {}, headers: { Authorization: `Bearer ${token}` } },
+      )
+      .then(({ data }) => {
+        if (data && !data.error) void refetchProfile();
+      })
+      .catch(() => {
+        // Silent — reconcile failure does not block the app
+      });
+  }, [session?.user?.id, session?.access_token, refetchProfile]);
 
   useEffect(() => {
     if (!profileRow?.ui_locale) return;

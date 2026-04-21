@@ -193,6 +193,9 @@ Deno.serve(async (req: Request) => {
     if (msg.includes("insufficient credits")) {
       return json({ error: "insufficient_credits" }, 402);
     }
+    if (msg.includes("subscription not active")) {
+      return json({ error: "subscription_not_active" }, 403);
+    }
     if (msg.includes("creator profile not found")) {
       return json({ error: "profile_not_found" }, 400);
     }

@@ -350,7 +350,13 @@ Deno.serve(async (req: Request) => {
 
   if (rpcErr) {
     // Non-fatal: image is already uploaded. Log and continue.
-    console.error("obra_credit_ledger_apply", rpcErr);
+    const rpcMsg = rpcErr.message ?? "";
+    if (rpcMsg.includes("subscription not active")) {
+      // Cancelled user slipped through mid-session; image served but credits not deducted.
+      console.warn("image_generate_credit_skip_subscription_not_active", { userId, imageId });
+    } else {
+      console.error("obra_credit_ledger_apply", rpcErr);
+    }
   }
 
   // Return signed URL (1 hour expiry)
