@@ -1639,13 +1639,11 @@ export function WizardContentPage() {
 
       <div className="w-full shrink-0 border-t border-obra-blue-100 bg-white px-4 py-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <div className="flex w-full min-w-0 items-center justify-between">
-          {showChapterLoop && project?.content_source === "ai" ? (
+          {showChapterLoop ? (
             <Button type="button" variant="tertiary" onClick={() => void handleEditIndexFromFooter()}>
               <ChevronLeft className="size-4" aria-hidden />
               {t("wizard.content.index.reopenIndex")}
             </Button>
-          ) : showChapterLoop ? (
-            <span />
           ) : (
             <Button
               type="button"
