@@ -117,6 +117,11 @@ export function DashboardPage() {
   const [recoverLoading, setRecoverLoading] = useState(false);
   const [recoverError, setRecoverError] = useState<string | null>(null);
 
+  // Duplicate confirm
+  const [duplicateTargetId, setDuplicateTargetId] = useState<string | null>(null);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -329,10 +334,52 @@ export function DashboardPage() {
     setRecoverTargetId(null);
   }
 
+  async function submitDuplicate() {
+    if (!duplicateTargetId || duplicateLoading) return;
+    const uid = session?.user?.id;
+    if (!uid) return;
+
+    // Check active project limit (max 20)
+    const { count, error: countError } = await supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", uid)
+      .eq("lifecycle_status", "active");
+
+    if (countError) {
+      setDuplicateError(t("projects.duplicate.error"));
+      return;
+    }
+    if ((count ?? 0) >= 20) {
+      setDuplicateError(t("projects.duplicate.limitError"));
+      return;
+    }
+
+    setDuplicateLoading(true);
+    setDuplicateError(null);
+
+    const clientRequestId = `${duplicateTargetId}:${Date.now()}`;
+    const { data: fnData, error: fnError } = await supabase.functions.invoke("duplicate-project", {
+      body: { project_id: duplicateTargetId, client_request_id: clientRequestId },
+    });
+
+    setDuplicateLoading(false);
+
+    if (fnError || !fnData?.new_project_id) {
+      setDuplicateError(t("projects.duplicate.error"));
+      return;
+    }
+
+    setDuplicateTargetId(null);
+    setTotalProjectCount((c) => (c == null ? 1 : c + 1));
+    navigate(`/app/projects/${fnData.new_project_id as string}/wizard`);
+  }
+
   const cardActions: ProjectCardActions = {
     onRename: openRenameModal,
     onArchive: (id) => { setArchiveError(null); setArchiveTargetId(id); },
     onMoveToTrash: (id) => { setTrashError(null); setTrashTargetId(id); },
+    onDuplicate: (id) => { setDuplicateError(null); setDuplicateTargetId(id); },
   };
 
   const recoverActions: ProjectCardActions = {
@@ -718,6 +765,38 @@ export function DashboardPage() {
             disabled={recoverLoading}
           >
             {t("projects.recover.confirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Duplicate confirm */}
+      <Modal
+        open={duplicateTargetId !== null}
+        onClose={() => setDuplicateTargetId(null)}
+        closeLabel={t("wizard.modal.close")}
+      >
+        <ModalHead>
+          <div>
+            <ModalTitle>{t("projects.duplicate.title")}</ModalTitle>
+          </div>
+        </ModalHead>
+        <ModalContent>
+          <p>{t("projects.duplicate.body")}</p>
+          {duplicateError ? (
+            <p role="alert" className="mt-3 text-sm text-red-600">{duplicateError}</p>
+          ) : null}
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          <Button type="button" variant="tertiary" onClick={() => setDuplicateTargetId(null)} disabled={duplicateLoading}>
+            {t("projects.duplicate.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => void submitDuplicate()}
+            disabled={duplicateLoading}
+          >
+            {duplicateLoading ? t("projects.duplicate.loading") : t("projects.duplicate.confirm")}
           </Button>
         </ModalFooter>
       </Modal>

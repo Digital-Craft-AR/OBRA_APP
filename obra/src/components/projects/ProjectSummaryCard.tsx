@@ -31,6 +31,7 @@ export type ProjectCardActions = {
   onArchive: (id: string) => void;
   onMoveToTrash: (id: string) => void;
   onRecover?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
 };
 
 const statusVariant = {
@@ -84,6 +85,19 @@ function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunc
           >
             {t("projects.card.rename")}
           </button>
+          {actions.onDuplicate ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                actions.onDuplicate!(id);
+              }}
+              className="flex w-full items-center px-4 py-2 text-left text-sm text-obra-blue-950 hover:bg-obra-blue-50"
+            >
+              {t("projects.duplicate.menuLabel")}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={(e) => {
