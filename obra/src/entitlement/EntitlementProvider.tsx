@@ -21,6 +21,8 @@ export type EntitlementContextValue = {
   loadError: string | null;
   user: User | null;
   subscriptionStatus: SubscriptionStatus;
+  /** End of the current paid billing period; null if never paid. See #107. */
+  subscriptionAccessUntil: Date | null;
   creditsBalance: number;
   refetchProfile: () => Promise<void>;
   reconcileSubscription: () => Promise<void>;
@@ -47,8 +49,15 @@ function normalizeCreditsBalance(raw: unknown): number {
   return Math.floor(n);
 }
 
+function parseAccessUntil(raw: string | null | undefined): Date | null {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 type ProfileRowState = {
   subscription_status: SubscriptionStatus;
+  subscription_access_until: string | null;
   ui_locale: string;
   credits_balance: number;
 };
@@ -74,17 +83,19 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
     const withCredits = await supabase
       .from("creator_profiles")
-      .select("subscription_status, ui_locale, credits_balance")
+      .select("subscription_status, subscription_access_until, ui_locale, credits_balance")
       .maybeSingle();
 
     if (!withCredits.error) {
       const row = withCredits.data as {
         subscription_status?: string;
+        subscription_access_until?: string | null;
         ui_locale?: string | null;
         credits_balance?: number | null;
       } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        subscription_access_until: row?.subscription_access_until ?? null,
         ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
         credits_balance: normalizeCreditsBalance(row?.credits_balance),
       });
@@ -94,13 +105,18 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
     const withLocale = await supabase
       .from("creator_profiles")
-      .select("subscription_status, ui_locale")
+      .select("subscription_status, subscription_access_until, ui_locale")
       .maybeSingle();
 
     if (!withLocale.error) {
-      const row = withLocale.data as { subscription_status?: string; ui_locale?: string | null } | null;
+      const row = withLocale.data as {
+        subscription_status?: string;
+        subscription_access_until?: string | null;
+        ui_locale?: string | null;
+      } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        subscription_access_until: row?.subscription_access_until ?? null,
         ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
         credits_balance: 0,
       });
@@ -116,6 +132,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       const row = minimal.data as { subscription_status?: string } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        subscription_access_until: null,
         ui_locale: normalizeUiLocale(undefined),
         credits_balance: 0,
       });
@@ -192,12 +209,14 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
   const emailVerified = isEmailVerifiedForEntitlement(user);
   const subscriptionStatus = profileRow?.subscription_status ?? "none";
+  const subscriptionAccessUntil = parseAccessUntil(profileRow?.subscription_access_until);
   const creditsBalance = profileRow?.credits_balance ?? 0;
 
   let outcome = resolveEntitlement({
     emailVerified,
     subscriptionStatus,
     checkoutReturnPending,
+    subscriptionAccessUntil,
   });
 
   if (import.meta.env.DEV) {
@@ -227,6 +246,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loadError,
       user,
       subscriptionStatus,
+      subscriptionAccessUntil,
       creditsBalance,
       refetchProfile,
       reconcileSubscription,
@@ -240,6 +260,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loadError,
       user,
       subscriptionStatus,
+      subscriptionAccessUntil,
       creditsBalance,
       refetchProfile,
       reconcileSubscription,
