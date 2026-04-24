@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 const LEDGER_LIMIT = 1000;
 
@@ -41,6 +42,9 @@ Deno.serve(async (req: Request) => {
 
   const userId = user.id;
   const admin = createClient(supabaseUrl, serviceRole);
+
+  const rl = await checkRateLimit(admin, userId, "export-user-data");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const { data: profile, error: profileError } = await admin
     .from("creator_profiles")

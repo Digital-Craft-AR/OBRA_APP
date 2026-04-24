@@ -5,6 +5,7 @@ import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
 import { generateBonusSectionIndexPrompt, generateIndexPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import type { ChapterCount, ContentLocale, ContentTone } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 const json = corsJson;
 
@@ -100,6 +101,9 @@ Deno.serve(async (req: Request) => {
   if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
     return json({ error: "subscription_not_active" }, 403);
   }
+
+  const rl = await checkRateLimit(admin, user.id, "ai-generate-index");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const { data: project, error: projectError } = await admin
     .from("projects")
