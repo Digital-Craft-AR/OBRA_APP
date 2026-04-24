@@ -1554,6 +1554,10 @@ export function WizardContentPage() {
                   onApprove={handleAlignmentApproved}
                   approvalBusy={uploadHandoffBusy}
                   autoStart
+                  onReupload={() => {
+                    setManuscriptCommitted(false);
+                    setManuscriptRow(null);
+                  }}
                 />
               ) : null}
             </div>
