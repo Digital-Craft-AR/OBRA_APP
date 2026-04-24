@@ -5,6 +5,10 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    // Disable inline modulepreload polyfill so script-src 'self' works without 'unsafe-inline'
+    modulePreload: { polyfill: false },
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
