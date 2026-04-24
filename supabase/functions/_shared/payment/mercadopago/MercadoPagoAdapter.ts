@@ -256,13 +256,14 @@ export class MercadoPagoAdapter implements BillingAdapter {
     if (subSearch.ok) {
       const subData = (await subSearch.json()) as MpPreapprovalSearch;
       const results = subData.results ?? [];
-      // Use the first mappable result to determine inactive state (paused → past_due, cancelled → none).
+      // Only consider terminal inactive states (cancelled, paused). Preapprovals with
+      // status=pending or status=init are abandoned checkout attempts and must be ignored —
+      // they would incorrectly map to "none" and bypass the access-until grace period.
       for (const r of results) {
-        if (r.status) {
-          const mapped = mapPreapprovalStatus(r.status);
-          if (mapped) {
-            return { found: true, source: "subscription", subscriptionStatus: mapped };
-          }
+        const st = r.status?.toLowerCase();
+        if (st === "cancelled" || st === "paused") {
+          const mapped = mapPreapprovalStatus(st);
+          if (mapped) return { found: true, source: "subscription", subscriptionStatus: mapped };
         }
       }
     }
