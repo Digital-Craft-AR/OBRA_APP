@@ -8,7 +8,7 @@ export const buttonBaseClass = [
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full",
   "cursor-pointer font-body font-semibold text-sm transition-all",
   "outline-none focus-visible:ring-2 focus-visible:ring-obra-blue-700 focus-visible:ring-offset-2",
-  "disabled:pointer-events-none disabled:opacity-40",
+  "disabled:cursor-not-allowed disabled:opacity-40",
 ].join(" ");
 
 const greenPrimary = "bg-obra-green-400 text-obra-blue-950 hover:brightness-105";

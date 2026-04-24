@@ -71,10 +71,10 @@ export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUnt
         ) : null}
         <p className="mt-4 text-sm text-obra-neutral-600">{t("settings.billing.reconcileHint")}</p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Button type="button" variant="secondary" disabled={busy} onClick={() => void refresh()}>
+          <Button type="button" variant="secondary" disabled={busy || subscriptionStatus === "cancelled"} onClick={() => void refresh()}>
             {busy ? t("common.loading") : t("settings.billing.refresh")}
           </Button>
-          <Button type="button" variant="tertiary" disabled={!mpUrl} onClick={openMp}>
+          <Button type="button" variant="tertiary" disabled={!mpUrl || subscriptionStatus === "cancelled"} onClick={openMp}>
             {t("settings.billing.openMp")}
           </Button>
         </div>
