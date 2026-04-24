@@ -98,13 +98,22 @@ export async function checkRateLimit(
   return { allowed: true, count: result.count, limit: result.limit };
 }
 
+const DEFAULT_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 /**
- * Builds a 429 JSON response with a `Retry-After` header.
+ * Builds a 429 JSON response with CORS and a `Retry-After` header.
  * Must only be called when `result.allowed === false`.
+ *
+ * CORS headers are included by default so the browser can read the response
+ * body and the frontend can display the correct rate-limit toast.
  */
 export function rateLimitResponse(
   result: RateLimitResult & { allowed: false },
-  corsHeaders: Record<string, string> = {},
+  corsHeaders: Record<string, string> = DEFAULT_CORS_HEADERS,
 ): Response {
   return new Response(
     JSON.stringify({
