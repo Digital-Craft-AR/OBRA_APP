@@ -22,11 +22,11 @@ upgrade-insecure-requests
 
 | Directive | Allowed origins | Reason |
 |-----------|----------------|--------|
-| `script-src` | `'self'` | Vite production bundles all JS into `/assets/`. The `modulePreload.polyfill` is disabled in `vite.config.ts` to avoid an inline bootstrap script. |
+| `script-src` | `'self'` + `https://vercel.live` + sha256 hash | Vite production bundles all JS into `/assets/`. `vercel.live` and the hash cover Vercel's preview toolbar (injected only in preview deployments; inert in production). The `modulePreload.polyfill` is disabled in `vite.config.ts` to avoid a second inline script. |
 | `style-src` | `'self'` + `'unsafe-inline'` + `fonts.googleapis.com` | Google Fonts CSS is fetched from googleapis.com. `'unsafe-inline'` covers dynamic style injection from shadcn/ui and Radix primitives; removing it requires auditing every component. |
 | `font-src` | `'self'` + `fonts.gstatic.com` | Fraunces and Plus Jakarta Sans binary font files are served by Google. |
 | `img-src` | `'self'` + `data:` + `blob:` + `*.supabase.co` / `*.supabase.in` | Section images and covers are stored in Supabase Storage. `data:` covers base64 previews; `blob:` covers object URLs created during PDF export. |
-| `connect-src` | `'self'` + `*.supabase.co` / `*.supabase.in` + `wss://` variants | Supabase REST (PostgREST), Auth, Storage, and Realtime (WebSocket). |
+| `connect-src` | `'self'` + `*.supabase.co` / `*.supabase.in` + `wss://` variants + `vercel.live` + `wss://ws-us3.pusher.com` | Supabase REST (PostgREST), Auth, Storage, and Realtime (WebSocket). Vercel live toolbar uses Pusher for real-time in preview deployments. |
 | `frame-src` | `'none'` | No iframes used. Mercado Pago checkout runs via server-side redirect (Edge Functions), not an embedded widget. |
 | `object-src` | `'none'` | Flash/plugins not used. |
 | `base-uri` | `'self'` | Prevents base-tag injection. |
