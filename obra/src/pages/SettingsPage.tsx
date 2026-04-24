@@ -46,7 +46,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { section: sectionParam } = useParams<{ section: string }>();
   const { session } = useAuth();
-  const { refetchProfile, creditsBalance, subscriptionStatus, reconcileSubscription } = useEntitlement();
+  const { refetchProfile, creditsBalance, subscriptionStatus, subscriptionAccessUntil, reconcileSubscription } = useEntitlement();
 
   const section = useMemo((): SettingsRouteSection => {
     return parseSettingsRouteSection(sectionParam) ?? "profile";
@@ -314,7 +314,11 @@ export function SettingsPage() {
             ) : null}
             {section === "security" ? <SettingsSecurityPanel userEmail={session?.user?.email} /> : null}
             {section === "billing" ? (
-              <SettingsBillingPanel subscriptionStatus={subscriptionStatus} onRefreshStatus={reconcileSubscription} />
+              <SettingsBillingPanel
+                subscriptionStatus={subscriptionStatus}
+                subscriptionAccessUntil={subscriptionAccessUntil}
+                onRefreshStatus={reconcileSubscription}
+              />
             ) : null}
             {section === "credits" ? (
               <SettingsCreditsPanel creditsBalance={creditsBalance} subscriptionStatus={subscriptionStatus} />

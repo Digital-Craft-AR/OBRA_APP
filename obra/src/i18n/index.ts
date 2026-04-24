@@ -927,7 +927,11 @@ const resources = {
       "settings.billing.statusLabel": "Estado en Obra",
       "settings.billing.status.active": "Suscripción activa",
       "settings.billing.status.pastDue": "Pago pendiente / atrasado",
+      "settings.billing.status.cancelled": "Cancelada",
       "settings.billing.status.none": "Sin suscripción activa",
+      "settings.billing.nextPayment": "Próximo pago: {{date}}",
+      "settings.billing.activeUntil": "Activa hasta: {{date}}",
+      "settings.billing.accessUntil": "Acceso hasta: {{date}}",
       "settings.billing.reconcileHint":
         "El estado se actualiza cuando Mercado Pago y nuestros webhooks confirman el cambio. No mostramos “cancelada” hasta que el backend lo refleje.",
       "settings.billing.refresh": "Actualizar estado",
@@ -1915,7 +1919,11 @@ const resources = {
       "settings.billing.statusLabel": "Status na Obra",
       "settings.billing.status.active": "Assinatura ativa",
       "settings.billing.status.pastDue": "Pagamento pendente / em atraso",
+      "settings.billing.status.cancelled": "Cancelada",
       "settings.billing.status.none": "Sem assinatura ativa",
+      "settings.billing.nextPayment": "Próximo pagamento: {{date}}",
+      "settings.billing.activeUntil": "Ativa até: {{date}}",
+      "settings.billing.accessUntil": "Acesso até: {{date}}",
       "settings.billing.reconcileHint":
         "O status só muda quando o Mercado Pago e nossos webhooks confirmam. Não mostramos “cancelada” até o backend refletir.",
       "settings.billing.refresh": "Atualizar status",
