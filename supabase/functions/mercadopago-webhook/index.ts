@@ -8,6 +8,13 @@ import {
   loadMercadoPagoWebhookSecret,
 } from "../_shared/payment/mercadopago/loadEnv.ts";
 
+/** Returns an ISO timestamp for one calendar month from now. */
+function nowPlusOneMonth(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toISOString();
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -112,6 +119,7 @@ Deno.serve(async (req: Request) => {
 
   let ext: string | null = null;
   let profileStatus: "active" | "past_due" | "none" | "cancelled" = "active";
+  let updateAccessUntil = false;
 
   try {
     if (resource.topic === "subscription") {
@@ -125,6 +133,7 @@ Deno.serve(async (req: Request) => {
       ext = snap.externalReference;
       if (st === "authorized") {
         profileStatus = "active";
+        updateAccessUntil = true;
       } else {
         // Before downgrading status, check if the user has another authorized subscription.
         const stillActive =
@@ -134,11 +143,14 @@ Deno.serve(async (req: Request) => {
         console.log("mp_has_active_check", JSON.stringify({ externalReference: ext, status: st, stillActive }));
         if (stillActive) {
           profileStatus = "active";
+          updateAccessUntil = true;
         } else if (st === "paused") {
-          // Paused = payment failed, subscription still exists but billing is blocked.
+          // Paused = payment failed; preserve subscription_access_until so access persists
+          // until the already-paid period ends.
           profileStatus = "past_due";
         } else {
-          // Cancelled = user (or MP) ended the subscription; offer to reactivate.
+          // Cancelled = user (or MP) ended the subscription; preserve subscription_access_until
+          // so the user keeps full_app access until the paid period expires.
           profileStatus = "cancelled";
         }
       }
@@ -149,6 +161,7 @@ Deno.serve(async (req: Request) => {
       }
       ext = snap.externalReference;
       profileStatus = "active";
+      updateAccessUntil = true;
 
       const creditTopUp = parseCreditTopUpExternalReference(ext);
       if (creditTopUp) {
@@ -227,12 +240,17 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, skipped: "no_profile" });
   }
 
+  const profileUpdate: Record<string, string> = {
+    subscription_status: profileStatus,
+    updated_at: new Date().toISOString(),
+  };
+  if (updateAccessUntil) {
+    profileUpdate.subscription_access_until = nowPlusOneMonth();
+  }
+
   const { error: upErr } = await admin
     .from("creator_profiles")
-    .update({
-      subscription_status: profileStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(profileUpdate)
     .eq("id", profileId);
 
   if (upErr) {
