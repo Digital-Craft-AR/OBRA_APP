@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,8 @@ type Props = {
   approvalBusy: boolean;
   /** If true, skip the idle stage and start generating immediately on mount. */
   autoStart?: boolean;
+  /** Called when the user wants to upload a different manuscript. */
+  onReupload?: () => void;
 };
 
 function mapErrorCode(code: string | null): string {
@@ -26,6 +28,8 @@ function mapErrorCode(code: string | null): string {
   // getFunctionsInvokeErrorCode may return "main:detail" — check with startsWith
   if (code.startsWith("manuscript_not_found") || code.startsWith("empty_manuscript"))
     return "wizard.content.splitProposal.errorManuscript";
+  if (code.startsWith("manuscript_too_short") || code.startsWith("model_invalid_input"))
+    return "wizard.content.splitProposal.errorTooShort";
   if (code.startsWith("wrong_phase"))
     return "wizard.content.splitProposal.errorWrongPhase";
   if (
@@ -38,12 +42,13 @@ function mapErrorCode(code: string | null): string {
   return "wizard.content.splitProposal.errorGeneric";
 }
 
-export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalBusy, autoStart }: Props) {
+export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalBusy, autoStart, onReupload }: Props) {
   const [stage, setStage] = useState<Stage>("idle");
   const [chapters, setChapters] = useState<SplitProposalChapter[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [showTitleError, setShowTitleError] = useState(false);
+  const autoStartedRef = useRef(false);
 
   const handleGenerate = useCallback(async () => {
     setStage("generating");
@@ -88,10 +93,11 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
   }, []);
 
   useEffect(() => {
-    if (autoStart) {
+    if (autoStart && !autoStartedRef.current) {
+      autoStartedRef.current = true;
       void handleGenerate();
     }
-    // Only run once on mount
+    // Only run once on mount; ref guards against StrictMode double-invoke
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -147,10 +153,15 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
               </>
             }
           />
-          <div>
+          <div className="flex flex-wrap gap-3">
             <Button type="button" variant="secondary" onClick={() => void handleGenerate()}>
               {t("wizard.content.splitProposal.retryCta")}
             </Button>
+            {onReupload ? (
+              <Button type="button" variant="tertiary" onClick={onReupload}>
+                {t("wizard.content.splitProposal.reuploadCta")}
+              </Button>
+            ) : null}
           </div>
         </div>
       )}
