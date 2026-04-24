@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Generates or regenerates a cover/section image for a project deliverable.
@@ -202,6 +203,9 @@ Deno.serve(async (req: Request) => {
   if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
     return json({ error: "subscription_not_active" }, 403);
   }
+
+  const rl = await checkRateLimit(admin, userId, "image-generate");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   // Load project (verify ownership)
   const { data: project, error: projErr } = await admin

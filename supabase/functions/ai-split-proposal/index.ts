@@ -4,6 +4,7 @@ import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
 import { generateSplitProposalPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import type { ContentLocale } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Upload path: read extracted manuscript text from Storage, call Claude to
@@ -100,6 +101,9 @@ Deno.serve(async (req: Request) => {
     if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
       return json({ error: "subscription_not_active" }, 403);
     }
+
+    const rl = await checkRateLimit(admin, user.id, "ai-split-proposal");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     // ── Project + ownership ───────────────────────────────────────────────
     const { data: project, error: projErr } = await admin

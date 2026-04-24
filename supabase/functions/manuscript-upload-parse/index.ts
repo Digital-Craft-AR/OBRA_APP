@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import mammoth from "npm:mammoth@1.8.0";
 import { Buffer } from "node:buffer";
 import { extractText } from "npm:unpdf@0.12.1";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Upload-path intake: validate ownership, parse DOCX/PDF without LLM (no credits),
@@ -116,6 +117,10 @@ Deno.serve(async (req: Request) => {
     if (userError || !user) {
       return json({ error: "unauthorized", detail: "invalid_or_expired_session" }, 401);
     }
+
+    const adminEarly = createClient(supabaseUrl, serviceKey);
+    const rlManuscript = await checkRateLimit(adminEarly, user.id, "manuscript-upload-parse");
+    if (!rlManuscript.allowed) return rateLimitResponse(rlManuscript, CORS_HEADERS);
 
     let form: FormData;
     try {

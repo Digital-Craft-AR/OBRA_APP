@@ -5,6 +5,7 @@ import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
 import { generateChapterPrompt, generateBonusChapterPrompt, generateBumpChapterPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import type { ContentLocale } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Generates chapter body (sanitized rich HTML) for the main ebook on the AI path.
@@ -221,6 +222,9 @@ Deno.serve(async (req: Request) => {
   if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
     return json({ error: "subscription_not_active" }, 403);
   }
+
+  const rl = await checkRateLimit(admin, user.id, "ai-generate-content");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const { data: project, error: projectError } = await admin
     .from("projects")
@@ -527,7 +531,7 @@ Deno.serve(async (req: Request) => {
 
   const parsed = parseJsonObject(ai.text);
   if (!parsed.ok) {
-    console.error("model_parse_error_raw_response", ai.text);
+    console.error(JSON.stringify({ event: "model_parse_error", response_length: ai.text.length }));
     return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
   }
 
