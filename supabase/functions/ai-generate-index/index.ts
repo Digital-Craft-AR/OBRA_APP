@@ -194,30 +194,6 @@ Deno.serve(async (req: Request) => {
       ? `ai-gen-index:${user.id}:${projectId}:${targetKey}:${clientRequestId}`
       : `ai-gen-index:${user.id}:${projectId}:${targetKey}:${crypto.randomUUID()}`;
 
-  const delta = -Math.floor(cost);
-  const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
-    p_creator_id: user.id,
-    p_delta: delta,
-    p_reason: "consumption",
-    p_idempotency_key: idempotencyKey,
-    p_project_id: projectId,
-  });
-
-  if (rpcErr) {
-    const msg = rpcErr.message ?? "";
-    if (msg.includes("insufficient credits")) {
-      return json({ error: "insufficient_credits" }, 402);
-    }
-    if (msg.includes("subscription not active")) {
-      return json({ error: "subscription_not_active" }, 403);
-    }
-    if (msg.includes("creator profile not found")) {
-      return json({ error: "profile_not_found" }, 400);
-    }
-    console.error("obra_credit_ledger_apply", rpcErr);
-    return json({ error: "ledger_failed" }, 500);
-  }
-
   if (!Deno.env.get("ANTHROPIC_API_KEY")?.trim()) {
     return json({ error: "ai_not_configured", detail: "anthropic" }, 503);
   }
@@ -249,12 +225,12 @@ Deno.serve(async (req: Request) => {
     maxTokens: packageTargetKind === "bonus" ? 2048 : 8192,
   });
   if (!ai.ok) {
-    return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+    return json({ ok: false, error: ai.error }, 502);
   }
 
   const parsed = parseJsonObject(ai.text);
   if (!parsed.ok) {
-    return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+    return json({ ok: false, error: "model_parse_error" }, 502);
   }
 
   const o = parsed.value;
@@ -263,18 +239,42 @@ Deno.serve(async (req: Request) => {
       ok: false,
       error: "invalid_input",
       reason: typeof o.reason === "string" ? o.reason : undefined,
-      credits_balance_after: balanceAfter,
     }, 400);
   }
 
   const titles = extractChapterTitles(o, expectedTitleCount);
   if (!titles) {
-    return json({ ok: false, error: "index_shape_mismatch", credits_balance_after: balanceAfter }, 502);
+    return json({ ok: false, error: "index_shape_mismatch" }, 502);
+  }
+
+  // ── Deduct credits after Claude succeeds (deduct on success only) ─────────────
+  const delta = -Math.floor(cost);
+  const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
+    p_creator_id: user.id,
+    p_delta: delta,
+    p_reason: "consumption",
+    p_idempotency_key: idempotencyKey,
+    p_project_id: projectId,
+    p_source_function: "ai-generate-index",
+  });
+
+  if (rpcErr) {
+    const msg = rpcErr.message ?? "";
+    if (msg.includes("insufficient credits")) {
+      return json({ error: "insufficient_credits" }, 402);
+    }
+    if (msg.includes("subscription not active")) {
+      return json({ error: "subscription_not_active" }, 403);
+    }
+    if (msg.includes("creator profile not found")) {
+      return json({ error: "profile_not_found" }, 400);
+    }
+    console.error("obra_credit_ledger_apply", rpcErr);
+    return json({ error: "ledger_failed" }, 500);
   }
 
   // Persist the full index JSON to the ebook row so ai-generate-content can use
   // narrative_arc, descriptions, and key_concepts when generating chapter bodies.
-  // Best-effort: a save failure here does not abort the response.
   {
     let ebookIdToUpdate: string | null = null;
     if (targetEbookId) {

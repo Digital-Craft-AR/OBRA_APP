@@ -359,6 +359,7 @@ Deno.serve(async (req: Request) => {
     p_reason: "consumption",
     p_idempotency_key: `image_generate:v1:${imageId}`,
     p_project_id: projectId,
+    p_source_function: "image-generate",
   });
 
   if (rpcErr) {

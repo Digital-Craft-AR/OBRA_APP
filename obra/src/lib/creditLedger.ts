@@ -14,6 +14,8 @@ export type CreditLedgerRow = {
   balance_after: number;
   reason: string;
   project_id: string | null;
+  /** Edge Function that wrote the entry — no user content. Added in migration 20260503000000. */
+  source_function: string | null;
 };
 
 export const CREDIT_LEDGER_PAGE_SIZE = 50;
