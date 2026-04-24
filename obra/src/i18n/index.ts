@@ -977,9 +977,9 @@ const resources = {
       "toast.api.insufficientCreditsTitle": "Créditos insuficientes",
       "toast.api.insufficientCreditsHint":
         "Esta acción consume créditos de IA. Recargá saldo en Configuración → Créditos o probá más tarde.",
-      "toast.api.rateLimitedTitle": "Demasiadas solicitudes",
+      "toast.api.rateLimitedTitle": "Frená un momento",
       "toast.api.rateLimitedHint":
-        "Alcanzaste el límite de uso para esta acción. Esperá unos segundos y volvé a intentarlo.",
+        "Generaste demasiadas acciones seguidas. Esperá unos segundos y volvé a intentarlo.",
       "common.loading": "Cargando…",
       "common.comingSoon": "Próximamente",
     },
@@ -1965,9 +1965,9 @@ const resources = {
       "toast.api.insufficientCreditsTitle": "Créditos insuficientes",
       "toast.api.insufficientCreditsHint":
         "Esta ação consome créditos de IA. Recarregue o saldo em Configurações → Créditos ou tente mais tarde.",
-      "toast.api.rateLimitedTitle": "Muitas solicitações",
+      "toast.api.rateLimitedTitle": "Aguarda um momento",
       "toast.api.rateLimitedHint":
-        "Você atingiu o limite de uso para esta ação. Aguarde alguns segundos e tente novamente.",
+        "Você disparou muitas ações seguidas. Espere alguns segundos e tente novamente.",
       "common.loading": "Carregando…",
       "common.comingSoon": "Em breve",
     },
