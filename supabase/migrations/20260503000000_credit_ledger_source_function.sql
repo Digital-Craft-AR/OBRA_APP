@@ -7,6 +7,11 @@ alter table public.credit_ledger_entries
 comment on column public.credit_ledger_entries.source_function is
   'Edge Function name that wrote the entry (e.g. ai-generate-content). No user content.';
 
+-- Drop the old 5-param overload before creating the 6-param replacement.
+-- create or replace with a different signature creates a new overload rather than
+-- replacing the existing one, which makes COMMENT ON FUNCTION ambiguous.
+drop function if exists public.obra_credit_ledger_apply (uuid, integer, text, text, uuid);
+
 -- Re-create obra_credit_ledger_apply accepting the new optional parameter.
 create or replace function public.obra_credit_ledger_apply (
   p_creator_id      uuid,
@@ -89,7 +94,7 @@ begin
 end;
 $$;
 
-comment on function public.obra_credit_ledger_apply is
+comment on function public.obra_credit_ledger_apply (uuid, integer, text, text, uuid, text) is
   'Obra: apply a signed credit delta with optional idempotency; updates creator_profiles.credits_balance. Consumption (negative delta) requires subscription_status = active. Invoke from Edge Functions as service_role only. Deduct only after successful AI/image operation.';
 
 revoke all on function public.obra_credit_ledger_apply (uuid, integer, text, text, uuid, text) from public;
