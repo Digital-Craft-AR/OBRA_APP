@@ -160,6 +160,11 @@ Deno.serve(async (req: Request) => {
       return json({ error: "empty_manuscript" }, 422);
     }
 
+    const wordCount = manuscriptText.trim().split(/\s+/).filter((w) => w.length > 0).length;
+    if (wordCount < 100) {
+      return json({ error: "manuscript_too_short", word_count: wordCount }, 422);
+    }
+
     // ── Main ebook title ──────────────────────────────────────────────────
     const { data: mainEbook } = await admin
       .from("ebooks")

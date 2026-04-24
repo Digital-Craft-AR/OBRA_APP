@@ -664,10 +664,13 @@ const resources = {
       "wizard.content.splitProposal.approveLoading": "Guardando…",
       "wizard.content.splitProposal.regenerateCta": "Generar nueva propuesta",
       "wizard.content.splitProposal.retryCta": "Intentar de nuevo",
+      "wizard.content.splitProposal.reuploadCta": "Subir otro archivo",
       "wizard.content.splitProposal.errorTitle": "No pudimos generar la propuesta",
       "wizard.content.splitProposal.errorGeneric": "Algo salió mal. Intentá de nuevo.",
       "wizard.content.splitProposal.errorManuscript":
         "No encontramos el manuscrito. Subí el archivo antes de continuar.",
+      "wizard.content.splitProposal.errorTooShort":
+        "El documento es demasiado corto para analizarlo. Necesita al menos 100 palabras de contenido.",
       "wizard.content.splitProposal.errorEmptyTitle":
         "Todos los capítulos necesitan un título antes de aprobar.",
       "wizard.content.splitProposal.errorWrongPhase":
@@ -1635,10 +1638,13 @@ const resources = {
       "wizard.content.splitProposal.approveLoading": "Salvando…",
       "wizard.content.splitProposal.regenerateCta": "Gerar nova proposta",
       "wizard.content.splitProposal.retryCta": "Tentar novamente",
+      "wizard.content.splitProposal.reuploadCta": "Enviar outro arquivo",
       "wizard.content.splitProposal.errorTitle": "Não conseguimos gerar a proposta",
       "wizard.content.splitProposal.errorGeneric": "Algo deu errado. Tente novamente.",
       "wizard.content.splitProposal.errorManuscript":
         "Não encontramos o manuscrito. Faça o upload do arquivo antes de continuar.",
+      "wizard.content.splitProposal.errorTooShort":
+        "O documento é curto demais para analisar. Precisa de pelo menos 100 palavras de conteúdo.",
       "wizard.content.splitProposal.errorEmptyTitle":
         "Todos os capítulos precisam de um título antes de aprovar.",
       "wizard.content.splitProposal.errorWrongPhase":
