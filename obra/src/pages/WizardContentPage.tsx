@@ -51,7 +51,7 @@ import {
   type SplitProposalChapter,
 } from "@/lib/wizard/splitProposalApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
-import { toastApiFailure, toastInsufficientCredits } from "@/lib/apiToast";
+import { toastApiFailure, toastInsufficientCredits, toastRateLimited, INVOKE_ERROR_RATE_LIMITED } from "@/lib/apiToast";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 import { makeRetryRequestIdStore } from "@/lib/wizard/retryRequestId";
 import { supabase } from "@/lib/supabaseClient";
@@ -710,6 +710,8 @@ export function WizardContentPage() {
       const code = result.code;
       if (code === "insufficient_credits") {
         toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -764,6 +766,8 @@ export function WizardContentPage() {
       if (code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
         toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -828,6 +832,8 @@ export function WizardContentPage() {
       if (code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
         toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -1039,6 +1045,8 @@ export function WizardContentPage() {
       if (result.code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
         toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
+      } else if (result.code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (result.code === "wrong_content_source") {
         const key = "wizard.content.index.errorWrongSource";
         setActionAnnouncement(t(key));
