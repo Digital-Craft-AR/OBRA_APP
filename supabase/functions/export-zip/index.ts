@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import JSZip from "https://deno.land/x/jszip@0.11.0/mod.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Exports all ebook artifacts for a project as a single ZIP archive.
@@ -222,6 +223,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const admin = createClient(url, serviceKey);
+
+  const rl = await checkRateLimit(admin, userId, "export-zip");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   // Load project — verify ownership
   const { data: project, error: projErr } = await admin

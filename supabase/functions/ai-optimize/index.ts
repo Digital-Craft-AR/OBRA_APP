@@ -16,6 +16,7 @@ import {
   optimizeProblemPrompt,
   optimizeTopicPrompt,
 } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 const json = corsJson;
 
@@ -107,6 +108,9 @@ Deno.serve(async (req: Request) => {
   if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
     return json({ error: "subscription_not_active" }, 403);
   }
+
+  const rl = await checkRateLimit(admin, user.id, "ai-optimize");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   let projectRow: {
     content_locale: string | null;
