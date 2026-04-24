@@ -127,6 +127,39 @@ Optional **`POST`** to **`mercadopago-webhook`** with JSON (no MP signature chec
 
 Both use **`verify_jwt = true`** (gateway validates the token) and also call `auth.getUser` inside the handler for the user record.
 
+## Credit ledger — deduct on success + idempotency (#68)
+
+Credits are debited via `obra_credit_ledger_apply` (Postgres RPC, service-role only) **after** the AI/image operation completes successfully. A failed Claude or Gemini call does not touch the ledger.
+
+### Idempotency key format
+
+Each debit call includes a deterministic `p_idempotency_key`. If the same key is presented twice, the RPC returns the cached `balance_after` without a second insert. This prevents double-charge when a client retries a request that already succeeded.
+
+| Function | Key format | Notes |
+|---|---|---|
+| `ai-generate-content` | `ai-gen-content:<userId>:<projectId>:<chapterId>:<clientRequestId>` | `clientRequestId` from request body; falls back to `crypto.randomUUID()` when omitted |
+| `ai-generate-index` | `ai-gen-index:<userId>:<projectId>:<ebookIdOrMain>:<clientRequestId>` | Same fallback |
+| `ai-optimize` | `ai-optimize:<userId>:<field>:<intent>:<clientRequestId>` | `null` (no idempotency) when `clientRequestId` omitted — optimize calls are cheap and stateless |
+| `image-generate` | `image_generate:v1:<imageId>` | `imageId` is the `project_images` row UUID created before the Gemini call |
+| `mercadopago-webhook` | `obra:credits:v1:<userId>:<credits>` (from `external_reference`) | Webhook idempotency via `obra_mp_processed_webhooks` table (separate mechanism) |
+| `create-credits-checkout` (ObraPay) | `obrapay_checkout:<externalReference>` | Mock only — not used with real Mercado Pago |
+
+### Audit contract
+
+`credit_ledger_entries` columns: `creator_id`, `delta`, `balance_after`, `reason`, `idempotency_key`, `project_id`, `source_function`, `created_at`. **No manuscript, chapter, or user-content fields are stored.** `source_function` records which Edge Function wrote the entry.
+
+### Debit flow (text AI functions)
+
+```
+1. Validate JWT, subscription, ownership, credit balance check (deferred)
+2. Call Claude → parse response → validate output
+3. If step 2 fails: return error, NO credit deduction
+4. Call obra_credit_ledger_apply with idempotency key → deduct
+5. Persist result to DB, return success with credits_balance_after
+```
+
+`image-generate` follows the same post-success pattern: Gemini call → upload to Storage → deduct credits.
+
 ## Rate limits
 
 Expensive endpoints enforce **per-user, fixed-window** rate limits backed by the `rate_limit_buckets` PostgreSQL table (`obra_rate_limit_check` RPC). When a limit is exceeded the function returns **HTTP 429** with a `Retry-After` header and body `{ error: "rate_limited", detail: "too_many_requests", retry_after: <seconds> }`.
