@@ -1255,9 +1255,12 @@ CSS for image slots (include this in your <style>):
 
 Named pages:
   .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
-  @page obra-full-bleed { margin: 0; }
+  @page obra-full-bleed { margin: 0; @bottom-center { content: none; } }
   .obra-title-page, .obra-body, .obra-toc { page: obra-content; }
-  @page obra-content { margin: 20mm; }
+  @page obra-content { margin: 20mm; @bottom-center { content: counter(page); font-size: 10px; color: #999; font-family: var(--font-body, sans-serif); } }
+
+TOC page numbers (CSS Paged Media Level 3 — activated by pagedjs, ignored by browser):
+  .obra-toc__list a::after { content: leader(".") " " target-counter(attr(href), page); color: #999; font-size: 12px; }
 
 Page breaks:
   .obra-page { break-after: page; page-break-after: always; }
