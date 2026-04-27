@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 
 /**
  * Generates or regenerates a cover/section image for a project deliverable.
@@ -197,10 +198,10 @@ Deno.serve(async (req: Request) => {
 
   const { data: profileRow } = await admin
     .from("creator_profiles")
-    .select("subscription_status")
+    .select("subscription_status, subscription_access_until")
     .eq("id", userId)
     .maybeSingle();
-  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+  if (!isSubscriptionEntitled(profileRow as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
     return json({ error: "subscription_not_active" }, 403);
   }
 
