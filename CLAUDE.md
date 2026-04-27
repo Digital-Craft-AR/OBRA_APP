@@ -124,4 +124,12 @@ Full token rules: `CONVENCIONES.md` and `obra/src/lib/tokens.ts`.
 
 ---
 
+## Backlog — issues de referencia rápida
+
+| # | Título | Labels | Descripción corta |
+|---|--------|--------|-------------------|
+| [#185](https://github.com/Digital-Craft-AR/OBRA_APP/issues/185) | Epic: Ideas futuras — UX/AI enhancements | `epic` `enhancement` | Repositorio de ideas no comprometidas. Incluye: botón **Remix** en campos con IA (refinar con contexto del output anterior, distinto a regenerar), y otras ideas futuras de UX/AI. Agregar sub-ítems acá antes de crear issues separadas. |
+
+---
+
 *This file is a condensed engineering mirror of the PRDs; if anything conflicts, **`PRD_Obra.md`** and the `features/` PRDs win.*

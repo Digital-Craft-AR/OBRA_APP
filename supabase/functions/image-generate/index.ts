@@ -190,8 +190,8 @@ Deno.serve(async (req: Request) => {
   if (!projectId || !slotKey) {
     return json({ error: "missing_params", detail: "projectId + slotKey required" }, 400);
   }
-  if (slotKey === "hero" && (!ebookId || !chapterId)) {
-    return json({ error: "missing_params", detail: "ebookId + chapterId required for hero slot" }, 400);
+  if (slotKey !== "cover_art" && (!ebookId || !chapterId)) {
+    return json({ error: "missing_params", detail: "ebookId + chapterId required for chapter slots" }, 400);
   }
 
   const admin = createClient(url, serviceKey);
