@@ -38,8 +38,10 @@ type EbookRow = {
 };
 
 /**
- * Stable key for imageSlots. Cover uses `cover_art`. Chapter heroes use
- * `{ebookId}:{chapterId}:hero` so preview can map to shell keys `chapter-N-image-1`.
+ * Stable key for imageSlots state.
+ * - Cover: "cover_art"
+ * - New chapter slots (slot_key = "chapter-N-image-1"): "{ebookId}:chapter-N-image-1"
+ * - Legacy hero rows (slot_key = "hero"): "{ebookId}:{chapterId}:hero"
  */
 function rowSlotKey(row: ProjectImageRow): string {
   return compositeSlotKey(row.slot_key, row.ebook_id ?? undefined, row.chapter_id ?? undefined);
@@ -51,8 +53,11 @@ function rowSlotKey(row: ProjectImageRow): string {
  */
 function compositeSlotKey(dbSlotKey: string, ebookId: string | undefined, chapterId: string | undefined): string {
   if (dbSlotKey === "cover_art" && !ebookId && !chapterId) return "cover_art";
+  // Legacy rows stored with slot_key="hero" before the chapter-N-image-1 migration
   if (dbSlotKey === "hero" && ebookId && chapterId) return `${ebookId}:${chapterId}:hero`;
-  return `${ebookId ?? ""}:${chapterId ?? ""}:${dbSlotKey}`;
+  // New chapter slots: slot_key is already the html_shell key (e.g. "chapter-1-image-1")
+  if (ebookId) return `${ebookId}:${dbSlotKey}`;
+  return dbSlotKey;
 }
 
 function chaptersSortedByOrder(chapters: ChapterDraftRow[]): ChapterDraftRow[] {
@@ -402,7 +407,7 @@ export function WizardPreviewPage() {
       const sorted = chaptersSortedByOrder(chaptersCache[selectedEbookId] ?? []);
       const chapter = Number.isFinite(n) && n >= 1 ? sorted[n - 1] : undefined;
       return {
-        dbSlotKey: "hero" as const,
+        dbSlotKey: htmlSlotKey,
         ebookId: selectedEbookId,
         chapterId: chapter?.id,
       };
@@ -414,7 +419,7 @@ export function WizardPreviewPage() {
     if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
     const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
-    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+    if (dbSlotKey !== "cover_art" && (!ebookId || !chapterId)) {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
       return;
     }
@@ -431,7 +436,7 @@ export function WizardPreviewPage() {
     if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
     const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
-    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+    if (dbSlotKey !== "cover_art" && (!ebookId || !chapterId)) {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
       return;
     }
@@ -537,6 +542,13 @@ export function WizardPreviewPage() {
         imageUrls.cover = slot.url;
         continue;
       }
+      // New format: "{ebookId}:chapter-N-image-1"
+      const newMatch = /^([^:]+):(chapter-\d+-image-\d+)$/.exec(key);
+      if (newMatch && newMatch[1] === selectedEbookId) {
+        imageUrls[newMatch[2]!] = slot.url;
+        continue;
+      }
+      // Legacy format: "{ebookId}:{chapterId}:hero"
       const heroMatch = /^([^:]+):([^:]+):hero$/.exec(key);
       if (heroMatch && heroMatch[1] === selectedEbookId) {
         const chapterId = heroMatch[2]!;
@@ -788,6 +800,18 @@ export function WizardPreviewPage() {
                   {t(`wizard.preview.publishStatus.${publishStatus}`)}
                 </span>
               ) : null}
+
+              <Button
+                type="button"
+                variant="tertiary"
+                size="small"
+                disabled={!selectedEbookId || shellLoading}
+                onClick={() => void handleRegenerateShell()}
+                title={t("wizard.preview.shell.regenerateCta")}
+              >
+                <RefreshCw className={["size-4", shellLoading ? "animate-spin" : ""].join(" ").trim()} aria-hidden />
+                {t("wizard.preview.shell.regenerateCta")}
+              </Button>
 
               <Button
                 type="button"

@@ -18,12 +18,19 @@ function escapeSrcForHtmlAttribute(url: string): string {
  *   - Actions post messages to window.parent so React handles them
  */
 
+/**
+ * Injected after Claude's <style> blocks to guarantee chapter openers fill the
+ * page with the primary color and center their content — same flex approach
+ * Claude uses for .obra-title-page.
+ */
 const SLOT_UI_CSS = `
 <style id="obra-slot-ui">
 .obra-image-slot {
-  position: relative !important;
   overflow: hidden !important;
   cursor: pointer !important;
+}
+.obra-image-slot:not(.obra-image-slot--cover) {
+  position: relative !important;
 }
 .obra-slot-placeholder {
   position: absolute;
@@ -233,7 +240,7 @@ export function injectAll(
     }
   }
 
-  // 4. Inject slot UI (placeholder visuals + hover overlay + postMessage actions)
+  // 5. Inject override CSS + slot UI (both go into </head>, order: override first so slot UI can add on top)
   html = html.replace("</head>", SLOT_UI_CSS + "\n</head>");
   html = html.replace("</body>", SLOT_UI_JS + "\n</body>");
 

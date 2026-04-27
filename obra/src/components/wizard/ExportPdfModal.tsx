@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, ModalContent, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { AlertCircle, CheckCircle2, Loader2, DownloadCloud } from "lucide-react";
@@ -30,6 +31,7 @@ export function ExportPdfModal({
   projectTitle,
   onSuccess,
 }: ExportPdfModalProps) {
+  const { t } = useTranslation();
   const [job, setJob] = useState<PdfExportJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -81,11 +83,11 @@ export function ExportPdfModal({
             // Worker marked job completed but didn't store a PDF URL.
             // Log for diagnostics — remove once root cause is fixed.
             console.warn("[ExportPdfModal] job completed but pdf_url is null", currentJob);
-            setError("El PDF se generó pero el link de descarga no está disponible. Exportá de nuevo.");
+            setError(t("wizard.preview.exportPdf.noUrlError"));
           }
         } else if (currentJob.status === "failed") {
           isDone = true;
-          setError(currentJob.errorMessage || "PDF generation failed");
+          setError(currentJob.errorMessage || t("wizard.preview.exportPdf.genericError"));
         }
       } catch (err) {
         if (!isDone) {
@@ -141,9 +143,9 @@ export function ExportPdfModal({
   const hasError = !!error;
 
   return (
-    <Modal open={isOpen} onClose={handleClose} closeLabel="Close PDF export">
+    <Modal open={isOpen} onClose={handleClose} closeLabel={t("wizard.preview.exportPdf.closeLabel")}>
       <ModalHead>
-        <ModalTitle>Exporting PDF</ModalTitle>
+        <ModalTitle>{t("wizard.preview.exportPdf.title")}</ModalTitle>
       </ModalHead>
 
       <ModalContent className="space-y-4">
@@ -152,10 +154,12 @@ export function ExportPdfModal({
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="size-8 animate-spin text-obra-green-400" />
             <div className="space-y-1 text-center">
-              <p className="font-body text-sm text-obra-blue-950">Generating your PDF...</p>
+              <p className="font-body text-sm text-obra-blue-950">{t("wizard.preview.exportPdf.generating")}</p>
               {timeRemaining !== null && (
                 <p className="text-xs text-obra-neutral-600">
-                  {timeRemaining > 0 ? `About ${timeRemaining}s remaining` : "Almost done..."}
+                  {timeRemaining > 0
+                    ? t("wizard.preview.exportPdf.timeRemaining", { seconds: timeRemaining })
+                    : t("wizard.preview.exportPdf.almostDone")}
                 </p>
               )}
             </div>
@@ -167,8 +171,8 @@ export function ExportPdfModal({
           <div className="flex flex-col items-center gap-4 py-6">
             <CheckCircle2 className="size-8 text-obra-green-400" />
             <div className="space-y-1 text-center">
-              <p className="font-body text-sm font-semibold text-obra-blue-950">PDF Ready!</p>
-              <p className="text-xs text-obra-neutral-600">Your PDF is ready to download</p>
+              <p className="font-body text-sm font-semibold text-obra-blue-950">{t("wizard.preview.exportPdf.ready")}</p>
+              <p className="text-xs text-obra-neutral-600">{t("wizard.preview.exportPdf.readySubtitle")}</p>
             </div>
           </div>
         ) : null}
@@ -178,7 +182,7 @@ export function ExportPdfModal({
           <div className="flex flex-col items-center gap-4 py-6">
             <AlertCircle className="size-8 text-red-500" />
             <div className="space-y-1 text-center">
-              <p className="font-body text-sm font-semibold text-obra-blue-950">Generation Failed</p>
+              <p className="font-body text-sm font-semibold text-obra-blue-950">{t("wizard.preview.exportPdf.failed")}</p>
               <p className="text-xs text-obra-neutral-600">{error}</p>
             </div>
           </div>
@@ -190,24 +194,24 @@ export function ExportPdfModal({
             <>
               <Button onClick={handleDownload} className="flex-1 gap-2" variant="primary">
                 <DownloadCloud className="size-4" />
-                Download
+                {t("wizard.preview.exportPdf.downloadCta")}
               </Button>
               <Button onClick={handleClose} variant="secondary" className="flex-1">
-                Close
+                {t("wizard.preview.exportPdf.closeCta")}
               </Button>
             </>
           ) : hasError ? (
             <>
               <Button onClick={handleRetry} className="flex-1" variant="primary">
-                Try Again
+                {t("wizard.preview.exportPdf.tryAgainCta")}
               </Button>
               <Button onClick={handleClose} variant="secondary" className="flex-1">
-                Close
+                {t("wizard.preview.exportPdf.closeCta")}
               </Button>
             </>
           ) : (
             <Button onClick={handleClose} variant="secondary" className="w-full">
-              Close
+              {t("wizard.preview.exportPdf.closeCta")}
             </Button>
           )}
         </div>

@@ -1217,6 +1217,7 @@ Role: generate the complete HTML shell of a publication-quality document. This H
 
 4. CHAPTER PAGES — for each chapter (repeat):
    a. Chapter opener (.obra-page .obra-chapter-opener) with id="chapter-N"
+      - Full-page design: background must fill the entire page using var(--color-primary) or a palette variant. No white empty space. Content vertically centered.
       - Chapter number (zero-padded: 01, 02…)
       - EXACTLY the literal text {{CHAPTER_N_TITLE}} inside <h2 class="obra-chapter__title"> — code injects real title
       - Optional: one image slot ONLY IF it fits the chapter topic (see IMAGE SLOTS below)
@@ -1273,7 +1274,9 @@ Break controls inside body:
 Screen simulation (page cards):
   @media screen { body { background: #e8edf2; padding: 32px 16px; } }
   @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
-  @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; padding: 0; overflow: hidden; position: relative; } }
+  .obra-cover, .obra-chapter-opener { height: ${dims.h}; padding: 0; overflow: hidden; position: relative; }
+  @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; } }
+  .obra-page.obra-chapter-opener { background: var(--color-primary); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20mm; box-sizing: border-box; }
   @media screen { .obra-title-page, .obra-body, .obra-toc { padding: 20mm; } }
 
 Global page size:
