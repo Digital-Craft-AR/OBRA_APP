@@ -69,3 +69,24 @@ export async function extractAndValidateJwt(
   }
   return validateJwt(jwt, client);
 }
+
+export type SubscriptionProfileRow = {
+  subscription_status?: string | null;
+  subscription_access_until?: string | null;
+};
+
+/**
+ * Returns true when the user has paid access — mirrors obra_has_subscription_access() in RLS:
+ *   subscription_status = 'active'
+ *   OR (subscription_access_until IS NOT NULL AND subscription_access_until > now())
+ *
+ * Always select both columns when querying creator_profiles for this check.
+ */
+export function isSubscriptionEntitled(profile: SubscriptionProfileRow | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.subscription_status === "active") return true;
+  if (profile.subscription_access_until) {
+    return new Date(profile.subscription_access_until) > new Date();
+  }
+  return false;
+}

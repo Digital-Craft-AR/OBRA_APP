@@ -10,6 +10,7 @@ import {
   loadCreditsPackFromEnv,
   loadMercadoPagoAccessToken,
 } from "../_shared/payment/mercadopago/loadEnv.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -85,7 +86,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: profile, error: profErr } = await supabase
     .from("creator_profiles")
-    .select("id, subscription_status")
+    .select("id, subscription_status, subscription_access_until")
     .eq("id", userId)
     .maybeSingle();
 
@@ -93,7 +94,7 @@ Deno.serve(async (req: Request) => {
     console.error("creator_profiles_select", profErr.message);
     return json({ error: "db_profile" }, 500);
   }
-  if (!profile || profile.subscription_status !== "active") {
+  if (!isSubscriptionEntitled(profile as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
     return json({ error: "subscription_required" }, 403);
   }
 

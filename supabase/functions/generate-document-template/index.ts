@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 import { runWithShellGenerationPgAdvisoryLock } from "../_shared/shellGenerationLock.ts";
 import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
 import { generateDocumentTemplatePrompt } from "../_shared/prompts.ts";
@@ -70,10 +71,10 @@ Deno.serve(async (req: Request) => {
 
   const { data: profileRow } = await admin
     .from("creator_profiles")
-    .select("subscription_status")
+    .select("subscription_status, subscription_access_until")
     .eq("id", userId)
     .maybeSingle();
-  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+  if (!isSubscriptionEntitled(profileRow as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
     return json({ error: "subscription_not_active" }, 403);
   }
 
