@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 
 /**
  * Generates or regenerates a cover/section image for a project deliverable.
@@ -189,18 +190,18 @@ Deno.serve(async (req: Request) => {
   if (!projectId || !slotKey) {
     return json({ error: "missing_params", detail: "projectId + slotKey required" }, 400);
   }
-  if (slotKey === "hero" && (!ebookId || !chapterId)) {
-    return json({ error: "missing_params", detail: "ebookId + chapterId required for hero slot" }, 400);
+  if (slotKey !== "cover_art" && (!ebookId || !chapterId)) {
+    return json({ error: "missing_params", detail: "ebookId + chapterId required for chapter slots" }, 400);
   }
 
   const admin = createClient(url, serviceKey);
 
   const { data: profileRow } = await admin
     .from("creator_profiles")
-    .select("subscription_status")
+    .select("subscription_status, subscription_access_until")
     .eq("id", userId)
     .maybeSingle();
-  if ((profileRow as { subscription_status?: string } | null)?.subscription_status !== "active") {
+  if (!isSubscriptionEntitled(profileRow as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
     return json({ error: "subscription_not_active" }, 403);
   }
 
