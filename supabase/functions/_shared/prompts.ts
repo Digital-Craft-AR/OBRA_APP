@@ -1217,6 +1217,7 @@ Role: generate the complete HTML shell of a publication-quality document. This H
 
 4. CHAPTER PAGES — for each chapter (repeat):
    a. Chapter opener (.obra-page .obra-chapter-opener) with id="chapter-N"
+      - Full-page design: background must fill the entire page using var(--color-primary) or a palette variant. No white empty space. Content vertically centered.
       - Chapter number (zero-padded: 01, 02…)
       - EXACTLY the literal text {{CHAPTER_N_TITLE}} inside <h2 class="obra-chapter__title"> — code injects real title
       - Optional: one image slot ONLY IF it fits the chapter topic (see IMAGE SLOTS below)
@@ -1255,9 +1256,12 @@ CSS for image slots (include this in your <style>):
 
 Named pages:
   .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
-  @page obra-full-bleed { margin: 0; }
+  @page obra-full-bleed { margin: 0; @bottom-center { content: none; } }
   .obra-title-page, .obra-body, .obra-toc { page: obra-content; }
-  @page obra-content { margin: 20mm; }
+  @page obra-content { margin: 20mm; @bottom-center { content: counter(page); font-size: 10px; color: #999; font-family: var(--font-body, sans-serif); } }
+
+TOC page numbers (CSS Paged Media Level 3 — activated by pagedjs, ignored by browser):
+  .obra-toc__list a::after { content: leader(".") " " target-counter(attr(href), page); color: #999; font-size: 12px; }
 
 Page breaks:
   .obra-page { break-after: page; page-break-after: always; }
@@ -1270,7 +1274,9 @@ Break controls inside body:
 Screen simulation (page cards):
   @media screen { body { background: #e8edf2; padding: 32px 16px; } }
   @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
-  @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; padding: 0; overflow: hidden; position: relative; } }
+  .obra-cover, .obra-chapter-opener { height: ${dims.h}; padding: 0; overflow: hidden; position: relative; }
+  @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; } }
+  .obra-page.obra-chapter-opener { background: var(--color-primary); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20mm; box-sizing: border-box; }
   @media screen { .obra-title-page, .obra-body, .obra-toc { padding: 20mm; } }
 
 Global page size:

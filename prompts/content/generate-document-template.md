@@ -106,15 +106,23 @@ CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT w
 }
 @page obra-full-bleed {
   margin: 0;
+  @bottom-center { content: none; }
 }
 
-/* Body y TOC: margen de 20mm */
+/* Body, title page y TOC: margen de 20mm + número de página */
+.obra-title-page,
 .obra-body,
 .obra-toc {
   page: obra-content;
 }
 @page obra-content {
   margin: 20mm;
+  @bottom-center {
+    content: counter(page);
+    font-size: 10px;
+    color: #999;
+    font-family: var(--font-body, sans-serif);
+  }
 }
 ```
 
@@ -126,7 +134,18 @@ CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT w
 }
 ```
 
-**3. Break controls dentro del body (previene cortes horribles):**
+**3. Números de página en el TOC (via pagedjs `target-counter`):**
+```css
+.obra-toc__list a::after {
+  content: leader(".") " " target-counter(attr(href), page);
+  color: #999;
+  font-size: 12px;
+}
+```
+
+> Nota: `@bottom-center` y `target-counter` son CSS Paged Media Level 3. Los browsers los ignoran — se activan cuando pagedjs procesa el HTML en el PDF export. Incluirlos siempre; no afectan el preview en browser.
+
+**4. Break controls dentro del body (previene cortes horribles):**
 ```css
 .chapter-content h2,
 .chapter-content h3 {
@@ -147,7 +166,7 @@ CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT w
 }
 ```
 
-**4. Simulación de páginas en screen (preview browser = PDF):**
+**5. Simulación de páginas en screen (preview browser = PDF):**
 ```css
 @media screen {
   body {
@@ -181,7 +200,7 @@ CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT w
 }
 ```
 
-**5. Regla `@page` global (base):**
+**6. Regla `@page` global (base):**
 ```css
 @page {
   size: 210mm 297mm; /* ajustar por design_config.page */
@@ -237,9 +256,12 @@ CSS PAGINATION RULES — include these EXACTLY in every document:
 
 1. Named pages (mandatory — controls margins per section type):
    .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
-   @page obra-full-bleed { margin: 0; }
-   .obra-body, .obra-toc { page: obra-content; }
-   @page obra-content { margin: 20mm; }
+   @page obra-full-bleed { margin: 0; @bottom-center { content: none; } }
+   .obra-title-page, .obra-body, .obra-toc { page: obra-content; }
+   @page obra-content { margin: 20mm; @bottom-center { content: counter(page); font-size: 10px; color: #999; font-family: var(--font-body, sans-serif); } }
+
+1b. TOC page numbers (CSS Paged Media Level 3 — activated by pagedjs, ignored by browser):
+   .obra-toc__list a::after { content: leader(".") " " target-counter(attr(href), page); color: #999; font-size: 12px; }
 
 2. Page breaks:
    .obra-page { break-after: page; page-break-after: always; }
