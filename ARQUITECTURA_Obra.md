@@ -248,7 +248,7 @@ obra/
 │       ├── ai-generate-landing/    # Generar bloques de landing (post-MVP)
 │       ├── ai-generate-html/       # Generar HTML del ebook
 │       ├── image-generate/         # Generar imagen con Gemini API (Nano Banana)
-│       ├── export-pdf/             # Generar PDF con Puppeteer
+│       ├── export-pdf-queue/       # Encolar job de export PDF (Railway worker genera async)
 │       ├── export-user-data/       # Paquete portabilidad LGPD-style (PRD §15)
 │       ├── delete-account/         # Baja de cuenta + MP + purge (PRD §15)
 │       ├── mercadopago-webhook/    # Webhooks MP → suscripción, pagos, avisos (PRD §11)
@@ -486,6 +486,24 @@ CREATE TABLE images (
   source       TEXT NOT NULL,         -- ai | upload
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Jobs de exportación PDF (async — Railway worker)
+-- Creada por export-pdf-queue; consumida y completada por el worker Railway.
+CREATE TABLE pdf_export_jobs (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id   UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  ebook_id     UUID REFERENCES ebooks(id) ON DELETE SET NULL,
+  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  storage_path TEXT,                  -- Path en bucket project-pdfs; NULL hasta completar
+  error_message TEXT,                 -- Detalle en caso de fallo
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  started_at   TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX pdf_export_jobs_ebook_status ON pdf_export_jobs (ebook_id, status);
+CREATE INDEX pdf_export_jobs_project ON pdf_export_jobs (project_id, completed_at DESC);
 ```
 
 ### Wizard-related persistence (summary)
@@ -691,19 +709,31 @@ El cliente **sanitiza** el HTML (DOMPurify, subset de etiquetas) antes de persis
 
 ---
 
-### 4.7 `export-pdf`
-**Propósito:** Convertir el HTML de **un** ebook a **un** PDF descargable (principal, bonus u order bump según `ebook_id`). Un proyecto con varios ebooks implica varias exportaciones; opcionalmente otro flujo o la misma función orquestada puede **empaquetar todos los PDFs del proyecto en un ZIP**.  
+### 4.7 `export-pdf-queue`
+**Propósito:** Encolar un job de exportación PDF asíncrono para **un** ebook (principal, bonus u order bump). El renderizado real corre en el worker de Railway (`Digital-Craft-AR/obra-pdf-export`) con Puppeteer + pagedjs; esta función solo crea la fila en `pdf_export_jobs` y devuelve el `jobId` para tracking en el cliente.
+
 **Input:**
 ```json
-{ "ebook_id": "uuid", "format": "A4" }
+{ "projectId": "uuid", "ebookId": "uuid" }
 ```
 **Proceso:**
-1. Componer HTML exportable: `layout_template_html` (si existe) + contenido de `chapters` / modelo canónico de render según `wizard-preview`
-2. Lanzar Puppeteer headless
-3. Renderizar HTML con fonts y assets
-4. Exportar PDF
-5. Subir a Supabase Storage
-6. Retornar URL de descarga firmada (expira en 1 hora)
+1. Verificar JWT + propiedad del proyecto y del ebook
+2. Guardia contra jobs concurrentes: si ya existe un job `pending` o `processing` para el mismo ebook, devolver su `id` con HTTP 200 (sin duplicar)
+3. Insertar nueva fila en `pdf_export_jobs` con `status = 'pending'`
+4. Retornar `{ jobId, estimatedSeconds: 60 }` con HTTP 201
+
+**Worker Railway (`obra-pdf-export`):**
+1. Tomar job `pending` de `pdf_export_jobs`
+2. Obtener `ebooks.html_shell` + `chapters` + imágenes firmadas del proyecto
+3. Ejecutar `injectAll()` con el HTML shell, capítulos, imágenes y `design_config` (para dimensiones de página)
+4. Renderizar con Puppeteer headless + pagedjs
+5. Subir PDF a bucket `project-pdfs` en Supabase Storage
+6. Actualizar `pdf_export_jobs` con `status = 'completed'` y `storage_path`
+
+**Notas de implementación:**
+- La **portada** en el worker se inyecta como CSS `background-image` en `.obra-page.obra-cover` (no como `<img>`) — pagedjs 0.4.x no soporta `position:absolute; inset:0` dentro de áreas de página de forma fiable.
+- El worker inyecta `width`/`height` fijos (desde `design_config.page`) en `.obra-page.obra-cover` y `.obra-page.obra-chapter-opener` para prevenir cálculos incorrectos de pagedjs.
+- La función siempre crea un **nuevo job** en cada llamada (no reutiliza por timestamp) porque los cambios de imagen no actualizan `ebooks.updated_at` ni `chapters.updated_at`.
 
 ---
 
