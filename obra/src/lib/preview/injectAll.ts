@@ -32,6 +32,28 @@ const SLOT_UI_CSS = `
 .obra-image-slot:not(.obra-image-slot--cover) {
   position: relative !important;
 }
+/* Cover: ensure position:relative on the page so the abs-pos slot renders correctly
+   even when the shell's own rule was accidentally scoped inside @media screen. */
+.obra-page.obra-cover {
+  position: relative !important;
+  overflow: hidden !important;
+}
+.obra-image-slot--cover {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+.obra-image-slot--cover img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
 .obra-slot-placeholder {
   position: absolute;
   inset: 0;
