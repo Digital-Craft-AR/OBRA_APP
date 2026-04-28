@@ -91,27 +91,13 @@ vi.mock("@/lib/supabaseClient", () => ({
         };
       }
       if (table === "pdf_export_jobs") {
+        // Supports: .select().eq(project_id).eq(status).not().order() — load initial PDF URLs query
+        const orderFn = vi.fn().mockResolvedValue({ data: [], error: null });
+        const notFn = vi.fn(() => ({ order: orderFn }));
+        const eq2Fn = vi.fn(() => ({ not: notFn }));
+        const eq1Fn = vi.fn(() => ({ eq: eq2Fn }));
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: "job-zip-test",
-                  project_id: PROJECT_ID,
-                  ebook_id: "ebook-main",
-                  user_id: "u1",
-                  status: "completed",
-                  pdf_url: "https://example.com/mock.pdf",
-                  error_message: null,
-                  retries: 0,
-                  render_duration_ms: null,
-                  created_at: "",
-                  completed_at: "",
-                },
-                error: null,
-              }),
-            })),
-          })),
+          select: vi.fn(() => ({ eq: eq1Fn })),
         };
       }
       return {
@@ -210,7 +196,7 @@ describe("WizardPreviewPage", () => {
 
   it("shows export PDF button in footer", async () => {
     renderPreviewPage();
-    expect(await screen.findByRole("button", { name: /Exportar PDF/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Generar PDF/i })).toBeTruthy();
   });
 
   it("shows deliverable tabs when ebooks are loaded", async () => {
@@ -244,7 +230,7 @@ describe("WizardPreviewPage", () => {
     it("does not show a badge when status is draft", async () => {
       renderPreviewPage();
       // Wait for the page to settle
-      await screen.findByRole("button", { name: /Exportar PDF/i });
+      await screen.findByRole("button", { name: /Generar PDF/i });
       // "Exportado" badge should not appear in draft state
       expect(screen.queryByText(/Exportado/i)).toBeNull();
     });
