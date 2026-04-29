@@ -10,6 +10,7 @@ import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/
 import { ContentArtifactTabs } from "@/components/wizard/content/ContentArtifactTabs";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraGeneratingOverlay } from "@/components/obra/ObraGeneratingOverlay";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
@@ -168,6 +169,7 @@ export function WizardContentPage() {
   const [backWarningOpen, setBackWarningOpen] = useState(false);
   const [artifactApproveLoading, setArtifactApproveLoading] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [autoGenerateCurrent, setAutoGenerateCurrent] = useState(0);
   const autoGenerateAbortRef = useRef(false);
   const [chapterRows, setChapterRows] = useState<ChapterDraftRow[]>([]);
   const [chapterIdx, setChapterIdx] = useState(0);
@@ -1479,12 +1481,14 @@ export function WizardContentPage() {
     }
     autoGenerateAbortRef.current = false;
     setAutoGenerating(true);
+    setAutoGenerateCurrent(0);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
 
     const snapshot = [...chapterRows];
     for (let i = 0; i < snapshot.length; i++) {
       if (autoGenerateAbortRef.current) break;
+      setAutoGenerateCurrent(i);
       const ch = snapshot[i]!;
       if (!isChapterHtmlEffectivelyEmpty(ch.content ?? "")) continue;
       setChapterIdx(i);
@@ -1513,6 +1517,7 @@ export function WizardContentPage() {
     }
 
     setAutoGenerating(false);
+    setAutoGenerateCurrent(0);
     setChapterGenerateLoading(false);
     autoGenerateAbortRef.current = false;
   }, [project?.id, chapterRows, autoGenerating, t]);
@@ -1757,7 +1762,16 @@ export function WizardContentPage() {
               onGenerateAll={project.content_source === "ai" ? () => void handleGenerateAllChapters() : undefined}
               generateAllLoading={autoGenerating}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+              {autoGenerating ? (
+                <ObraGeneratingOverlay
+                  title={t("wizard.content.chapters.generatingOverlayTitle")}
+                  messages={t("wizard.content.chapters.generatingOverlayMsgs", { returnObjects: true }) as string[]}
+                  ariaLabel={t("wizard.content.chapters.generatingOverlayAria")}
+                  current={autoGenerateCurrent}
+                  total={chapterRows.length}
+                />
+              ) : null}
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="w-full min-h-full bg-white px-8 py-10">
                   {/* Complete banner */}

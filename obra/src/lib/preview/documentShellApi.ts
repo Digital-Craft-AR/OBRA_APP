@@ -50,6 +50,8 @@ export type FetchShellResult =
   | { ok: true; htmlShell: string; shellMeta: ShellMeta; cached: boolean; stale: boolean }
   | { ok: false; error: string };
 
+export type ShellProgress = { current: number; total: number };
+
 /** djb2 hash over all chapter titles and content for staleness detection. */
 export function hashChapters(
   chapters: Array<{ title: string; content: string | null }>,
@@ -93,6 +95,7 @@ export async function fetchOrGenerateShell(opts: {
   currentPageSize: string;
   currentPageOrientation: string;
   currentContentHash: string;
+  onProgress?: (progress: ShellProgress) => void;
 }): Promise<FetchShellResult> {
   const {
     projectId,
@@ -101,6 +104,7 @@ export async function fetchOrGenerateShell(opts: {
     currentPageSize,
     currentPageOrientation,
     currentContentHash,
+    onProgress,
   } = opts;
 
   const { data: ebookRow } = await supabase
@@ -126,7 +130,7 @@ export async function fetchOrGenerateShell(opts: {
     }
   }
 
-  return _invokeGenerate(projectId, ebookId);
+  return _invokeGenerate(projectId, ebookId, onProgress);
 }
 
 /**
@@ -135,11 +139,16 @@ export async function fetchOrGenerateShell(opts: {
 export async function regenerateShell(opts: {
   projectId: string;
   ebookId: string;
+  onProgress?: (progress: ShellProgress) => void;
 }): Promise<FetchShellResult> {
-  return _invokeGenerate(opts.projectId, opts.ebookId);
+  return _invokeGenerate(opts.projectId, opts.ebookId, opts.onProgress);
 }
 
-async function _invokeGenerate(projectId: string, ebookId: string): Promise<FetchShellResult> {
+async function _invokeGenerate(
+  projectId: string,
+  ebookId: string,
+  onProgress?: (progress: ShellProgress) => void,
+): Promise<FetchShellResult> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) return { ok: false, error: "unauthorized" };
@@ -188,6 +197,9 @@ async function _invokeGenerate(projectId: string, ebookId: string): Promise<Fetc
         let chunk: Record<string, unknown>;
         try { chunk = JSON.parse(line) as Record<string, unknown>; }
         catch { continue; }
+        if (chunk.type === "ping" && typeof chunk.chapters_done === "number" && typeof chunk.total === "number") {
+          onProgress?.({ current: chunk.chapters_done as number, total: chunk.total as number });
+        }
         if (chunk.type === "done") {
           return {
             ok: true,
