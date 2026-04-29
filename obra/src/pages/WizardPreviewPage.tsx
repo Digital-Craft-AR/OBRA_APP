@@ -867,29 +867,28 @@ export function WizardPreviewPage() {
                 {t("wizard.preview.export.zip")}
               </Button>
 
-              {selectedEbookId && ebookPdfUrls[selectedEbookId] ? (
+              {selectedEbookId && ebookPdfUrls[selectedEbookId] && publishStatus === "published" ? (
                 <Button
                   type="button"
-                  variant="secondary"
-                  size="small"
+                  variant="primary"
                   onClick={() => downloadPdf(ebookPdfUrls[selectedEbookId!]!, `${project?.main_title ?? "ebook"}.pdf`)}
                 >
                   <FileDown className="size-4" aria-hidden />
                   {t("wizard.preview.export.download")}
                 </Button>
-              ) : null}
-
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!selectedEbook || exportLoading}
-                onClick={() => void handleExportPdf()}
-              >
-                <FileDown className="size-4" aria-hidden />
-                {exportLoading ? "…" : selectedEbookId && ebookPdfUrls[selectedEbookId]
-                  ? t("wizard.preview.export.regeneratePdf")
-                  : t("wizard.preview.export.generatePdf")}
-              </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={!selectedEbook || exportLoading}
+                  onClick={() => void handleExportPdf()}
+                >
+                  <FileDown className="size-4" aria-hidden />
+                  {exportLoading ? "…" : selectedEbookId && ebookPdfUrls[selectedEbookId]
+                    ? t("wizard.preview.export.regeneratePdf")
+                    : t("wizard.preview.export.generatePdf")}
+                </Button>
+              )}
             </div>
           </div>
         </div>
