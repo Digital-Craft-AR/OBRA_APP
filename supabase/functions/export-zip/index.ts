@@ -367,6 +367,15 @@ Deno.serve(async (req: Request) => {
     : "project";
   const storagePath = `${projectId}/${projectSlug}.zip`;
 
+  // List existing ZIPs for this project so we can remove stale ones after upload.
+  // The slug changes when the project title changes, leaving orphan files.
+  const { data: existingFiles } = await admin.storage
+    .from("project-zips")
+    .list(projectId);
+  const staleZipPaths = (existingFiles ?? [])
+    .filter((f) => f.name !== `${projectSlug}.zip`)
+    .map((f) => `${projectId}/${f.name}`);
+
   const { error: uploadErr } = await admin.storage
     .from("project-zips")
     .upload(storagePath, zipData, {
@@ -377,6 +386,16 @@ Deno.serve(async (req: Request) => {
   if (uploadErr) {
     console.error("zip_storage_upload", uploadErr.message ?? uploadErr);
     return json({ error: "storage_upload_failed" }, 500);
+  }
+
+  // Delete stale ZIP files — only after the new one is confirmed written.
+  if (staleZipPaths.length > 0) {
+    const { error: removeErr } = await admin.storage
+      .from("project-zips")
+      .remove(staleZipPaths);
+    if (removeErr) {
+      console.warn("zip_stale_cleanup_failed", removeErr.message ?? removeErr);
+    }
   }
 
   // Return signed URL (1-hour expiry) + mark project as published
