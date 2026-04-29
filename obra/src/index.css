@@ -16,7 +16,7 @@
   --color-obra-neutral-100: #f8fafb;
 
   /* Typography */
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
   --text-2xs: 0.6875rem;
@@ -24,7 +24,7 @@
 
   /* Radius */
   --radius-input: 8px;
-  --radius-card: 1.5rem;
+  --radius-card: 0.75rem;
   --radius-modal: 16px;
 
   /* Shadows */
@@ -38,6 +38,13 @@
   --max-width-content: 900px;
   --max-width-toast: 360px;
   --width-modal-full: calc(100vw - 2rem);
+
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(250%); }
 }
 
 @layer base {

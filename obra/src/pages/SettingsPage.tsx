@@ -196,7 +196,7 @@ export function SettingsPage() {
 
       <main className="flex min-h-0 flex-1 flex-col bg-white">
         <header className="flex h-18 shrink-0 items-center border-b border-obra-blue-100 px-10">
-          <h1 className="font-display text-xl font-normal leading-none text-obra-blue-950">
+          <h1 className="font-display text-xl leading-none text-obra-blue-950 font-bold">
             {t("settings.pageTitle")}
           </h1>
         </header>
