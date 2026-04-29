@@ -79,10 +79,12 @@ export function ObraGeneratingOverlay({ title, messages, ariaLabel, current, tot
         <div className="flex w-52 flex-col gap-1.5">
           <div className="h-1.5 overflow-hidden rounded-full bg-obra-blue-100">
             <div
-              className="h-full rounded-full bg-obra-blue-700 transition-all duration-500"
+              className="relative h-full overflow-hidden rounded-full bg-obra-blue-700 transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
               aria-hidden
-            />
+            >
+              <div className="absolute inset-0 w-1/2 animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            </div>
           </div>
           <p className="text-center font-body text-xs text-obra-neutral-500">
             {safeCurrent}/{total}

@@ -174,7 +174,7 @@ export function WizardContentPage() {
   const [chapterRows, setChapterRows] = useState<ChapterDraftRow[]>([]);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [chapterBodyDraft, setChapterBodyDraft] = useState("");
-  const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
+  const [, setChapterSaveLoading] = useState(false);
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
   const [chapterSuccessMessage, setChapterSuccessMessage] = useState<string | null>(null);
@@ -704,11 +704,6 @@ export function WizardContentPage() {
     [selectedKey, selectedTarget.kind, packageEbookIds, bumpIndexFrozenAt, mainTocRows, chapterBodyPresence],
   );
 
-  const navItemDisabled = useCallback(
-    (key: string) =>
-      (needsUploadAlignment && key !== "main") || generateLoading || chapterGenerateLoading,
-    [needsUploadAlignment, generateLoading, chapterGenerateLoading],
-  );
 
   const handleRegenerateMainOutline = useCallback(async () => {
     if (selectedTarget.kind !== "main" || !project?.id || !mainEbookId) return;
@@ -1015,34 +1010,6 @@ export function WizardContentPage() {
     [chapterIdx, chapterRows, chapterBodyDraft, t],
   );
 
-  const handleSaveChapterBody = useCallback(async () => {
-    const current = chapterRows[chapterIdx];
-    if (!current) return;
-    setActionAnnouncement(null);
-    setChapterSaveLoading(true);
-    const res = await updateChapterDraftContent(current.id, chapterBodyDraft);
-    setChapterSaveLoading(false);
-    if (!res.ok) {
-      const key = "wizard.content.chapters.errorSave";
-      setActionAnnouncement(t(key));
-      toastApiFailure(t, key);
-      return;
-    }
-    setChapterRows((rows) =>
-      rows.map((r) => (r.id === current.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r)),
-    );
-    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
-    void refreshChapterBodyPresence();
-    // Mark project as modified if it was already published (content changed after export).
-    // Conditional update: only applies when publish_status = 'published', no-op otherwise.
-    if (project?.id) {
-      void supabase
-        .from("projects")
-        .update({ publish_status: "modified" })
-        .eq("id", project.id)
-        .eq("publish_status", "published");
-    }
-  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, project?.id]);
 
   const handleGenerateChapter = useCallback(async () => {
     const current = chapterRows[chapterIdx];
@@ -1553,7 +1520,7 @@ export function WizardContentPage() {
     const updatedApprovals = { ...artifactApprovedByKey, [selectedKey]: true };
     setArtifactApprovedByKey(updatedApprovals);
     setArtifactApproveLoading(false);
-    toast.success({ title: t("wizard.content.generating.artifactApproved") });
+    toast.success({ title: t("wizard.content.generating.artifactApproved"), description: "" });
 
     // Advance to next unapproved artifact using locally-updated map
     const currentIdx = navItems.findIndex((item) => item.key === selectedKey);
