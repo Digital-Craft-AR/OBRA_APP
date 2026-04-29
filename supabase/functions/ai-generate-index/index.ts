@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
 import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
-import { generateBonusSectionIndexPrompt, generateIndexPrompt } from "../_shared/prompts.ts";
+import { generateBonusSectionIndexPrompt, generateBumpIndexPrompt, generateIndexPrompt } from "../_shared/prompts.ts";
 import { isSubscriptionEntitled } from "../_shared/auth.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import type { ChapterCount, ContentLocale, ContentTone } from "../_shared/prompts.ts";
@@ -210,15 +210,24 @@ Deno.serve(async (req: Request) => {
           bonus_product_title: artifactTitle,
           tone,
         })
-      : generateIndexPrompt({
-          content_locale: contentLocale,
-          topic,
-          avatar,
-          problem,
-          main_ebook_title: artifactTitle,
-          chapter_count: chapterCount,
-          tone,
-        });
+      : packageTargetKind === "order_bump"
+        ? generateBumpIndexPrompt({
+            content_locale: contentLocale,
+            topic,
+            avatar,
+            problem,
+            bump_product_title: artifactTitle,
+            tone,
+          })
+        : generateIndexPrompt({
+            content_locale: contentLocale,
+            topic,
+            avatar,
+            problem,
+            main_ebook_title: artifactTitle,
+            chapter_count: chapterCount,
+            tone,
+          });
 
   const ai = await callClaudeJsonText({
     system: promptBundle.system,
