@@ -10,6 +10,7 @@ import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/
 import { ContentArtifactTabs } from "@/components/wizard/content/ContentArtifactTabs";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraGeneratingOverlay } from "@/components/obra/ObraGeneratingOverlay";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
@@ -168,11 +169,12 @@ export function WizardContentPage() {
   const [backWarningOpen, setBackWarningOpen] = useState(false);
   const [artifactApproveLoading, setArtifactApproveLoading] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [autoGenerateCurrent, setAutoGenerateCurrent] = useState(0);
   const autoGenerateAbortRef = useRef(false);
   const [chapterRows, setChapterRows] = useState<ChapterDraftRow[]>([]);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [chapterBodyDraft, setChapterBodyDraft] = useState("");
-  const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
+  const [, setChapterSaveLoading] = useState(false);
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
   const [chapterSuccessMessage, setChapterSuccessMessage] = useState<string | null>(null);
@@ -702,11 +704,6 @@ export function WizardContentPage() {
     [selectedKey, selectedTarget.kind, packageEbookIds, bumpIndexFrozenAt, mainTocRows, chapterBodyPresence],
   );
 
-  const navItemDisabled = useCallback(
-    (key: string) =>
-      (needsUploadAlignment && key !== "main") || generateLoading || chapterGenerateLoading,
-    [needsUploadAlignment, generateLoading, chapterGenerateLoading],
-  );
 
   const handleRegenerateMainOutline = useCallback(async () => {
     if (selectedTarget.kind !== "main" || !project?.id || !mainEbookId) return;
@@ -1013,34 +1010,6 @@ export function WizardContentPage() {
     [chapterIdx, chapterRows, chapterBodyDraft, t],
   );
 
-  const handleSaveChapterBody = useCallback(async () => {
-    const current = chapterRows[chapterIdx];
-    if (!current) return;
-    setActionAnnouncement(null);
-    setChapterSaveLoading(true);
-    const res = await updateChapterDraftContent(current.id, chapterBodyDraft);
-    setChapterSaveLoading(false);
-    if (!res.ok) {
-      const key = "wizard.content.chapters.errorSave";
-      setActionAnnouncement(t(key));
-      toastApiFailure(t, key);
-      return;
-    }
-    setChapterRows((rows) =>
-      rows.map((r) => (r.id === current.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r)),
-    );
-    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
-    void refreshChapterBodyPresence();
-    // Mark project as modified if it was already published (content changed after export).
-    // Conditional update: only applies when publish_status = 'published', no-op otherwise.
-    if (project?.id) {
-      void supabase
-        .from("projects")
-        .update({ publish_status: "modified" })
-        .eq("id", project.id)
-        .eq("publish_status", "published");
-    }
-  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, project?.id]);
 
   const handleGenerateChapter = useCallback(async () => {
     const current = chapterRows[chapterIdx];
@@ -1479,12 +1448,14 @@ export function WizardContentPage() {
     }
     autoGenerateAbortRef.current = false;
     setAutoGenerating(true);
+    setAutoGenerateCurrent(0);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
 
     const snapshot = [...chapterRows];
     for (let i = 0; i < snapshot.length; i++) {
       if (autoGenerateAbortRef.current) break;
+      setAutoGenerateCurrent(i);
       const ch = snapshot[i]!;
       if (!isChapterHtmlEffectivelyEmpty(ch.content ?? "")) continue;
       setChapterIdx(i);
@@ -1513,6 +1484,7 @@ export function WizardContentPage() {
     }
 
     setAutoGenerating(false);
+    setAutoGenerateCurrent(0);
     setChapterGenerateLoading(false);
     autoGenerateAbortRef.current = false;
   }, [project?.id, chapterRows, autoGenerating, t]);
@@ -1548,7 +1520,7 @@ export function WizardContentPage() {
     const updatedApprovals = { ...artifactApprovedByKey, [selectedKey]: true };
     setArtifactApprovedByKey(updatedApprovals);
     setArtifactApproveLoading(false);
-    toast.success({ title: t("wizard.content.generating.artifactApproved") });
+    toast.success({ title: t("wizard.content.generating.artifactApproved"), description: "" });
 
     // Advance to next unapproved artifact using locally-updated map
     const currentIdx = navItems.findIndex((item) => item.key === selectedKey);
@@ -1757,7 +1729,16 @@ export function WizardContentPage() {
               onGenerateAll={project.content_source === "ai" ? () => void handleGenerateAllChapters() : undefined}
               generateAllLoading={autoGenerating}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+              {autoGenerating ? (
+                <ObraGeneratingOverlay
+                  title={t("wizard.content.chapters.generatingOverlayTitle")}
+                  messages={t("wizard.content.chapters.generatingOverlayMsgs", { returnObjects: true }) as string[]}
+                  ariaLabel={t("wizard.content.chapters.generatingOverlayAria")}
+                  current={autoGenerateCurrent}
+                  total={chapterRows.length}
+                />
+              ) : null}
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="w-full min-h-full bg-white px-8 py-10">
                   {/* Complete banner */}
