@@ -702,27 +702,13 @@ export function WizardPreviewPage() {
               </div>
             ) : previewSrcDoc ? (
               <div className="flex min-h-0 w-full flex-col gap-3 p-4">
-                {/* Per-artifact toolbar: regenerate button + stale warning */}
-                <div className="shrink-0 flex flex-wrap items-start gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    onClick={() => void handleRegenerateShell()}
-                    disabled={shellLoading}
-                  >
-                    <RefreshCw className="size-3.5" aria-hidden />
-                    {t("wizard.preview.shell.regenerateCta")}
-                  </Button>
-                  {shellStale ? (
-                    <ObraAlert
-                      variant="warning"
-                      title={t("wizard.preview.shell.staleTitle")}
-                      description={t("wizard.preview.shell.staleDesc")}
-                      className="flex-1"
-                    />
-                  ) : null}
-                </div>
+                {shellStale ? (
+                  <ObraAlert
+                    variant="warning"
+                    title={t("wizard.preview.shell.staleTitle")}
+                    description={t("wizard.preview.shell.staleDesc")}
+                  />
+                ) : null}
                 <iframe
                   srcDoc={previewSrcDoc}
                   title={t("wizard.preview.iframeTitle")}
