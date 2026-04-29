@@ -36,6 +36,7 @@ export async function callClaudeJsonText(args: {
   maxTokens: number;
   temperature?: number;
   model?: string;
+  clientId?: string;
 }): Promise<ClaudeResult> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -55,12 +56,14 @@ export async function callClaudeJsonText(args: {
         "content-type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": ANTHROPIC_VERSION,
+        "anthropic-beta": "prompt-caching-2024-07-31",
       },
       body: JSON.stringify({
         model,
         max_tokens: args.maxTokens,
         ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
-        system: args.system,
+        ...(args.clientId ? { metadata: { user_id: args.clientId } } : {}),
+        system: [{ type: "text", text: args.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: args.user }],
       }),
     });

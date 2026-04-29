@@ -184,7 +184,7 @@ Deno.serve(async (req: Request) => {
         content_locale: contentLocale,
         raw_input: rawText,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096, clientId: "ai-optimize:improve-topic" });
       if (!ai.ok) {
         return json(
           { ok: false, error: ai.error },
@@ -238,7 +238,7 @@ Deno.serve(async (req: Request) => {
         topic,
         raw_input: rawText,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096, clientId: "ai-optimize:improve-avatar" });
       if (!ai.ok) {
         return json({ ok: false, error: ai.error }, 502);
       }
@@ -275,7 +275,7 @@ Deno.serve(async (req: Request) => {
         avatar: avatarText,
         raw_input: rawText,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096, clientId: "ai-optimize:improve-problem" });
       if (!ai.ok) {
         return json({ ok: false, error: ai.error }, 502);
       }
@@ -308,7 +308,7 @@ Deno.serve(async (req: Request) => {
         locked_titles: lockedTitles,
         previous_titles: previousTitles,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048, clientId: "ai-optimize:suggest-main-title" });
       if (!ai.ok) {
         return json({ ok: false, error: ai.error }, 502);
       }
@@ -348,7 +348,7 @@ Deno.serve(async (req: Request) => {
         locked_titles: lockedTitles,
         previous_titles: previousTitles,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048, clientId: "ai-optimize:suggest-bonus-title" });
       if (!ai.ok) {
         return json({ ok: false, error: ai.error }, 502);
       }
@@ -388,7 +388,7 @@ Deno.serve(async (req: Request) => {
         locked_titles: lockedTitles,
         previous_titles: previousTitles,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048, clientId: "ai-optimize:suggest-bump-title" });
       if (!ai.ok) {
         return json({ ok: false, error: ai.error }, 502);
       }
