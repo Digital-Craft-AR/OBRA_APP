@@ -17,6 +17,7 @@ import { SettingsBillingPanel } from "@/pages/settings/SettingsBillingPanel";
 import { SettingsCreditsPanel } from "@/pages/settings/SettingsCreditsPanel";
 import { SettingsPrivacyPanel } from "@/pages/settings/SettingsPrivacyPanel";
 import { SettingsSecurityPanel } from "@/pages/settings/SettingsSecurityPanel";
+import { toast } from "@/toast";
 
 async function loadProfileRow() {
   const full = await supabase.from("creator_profiles").select("display_name, ui_locale").maybeSingle();
@@ -61,8 +62,7 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [locale, setLocale] = useState<UiLocale>("es");
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { sidebarCollapsed, setSidebarCollapsed } = usePersistentSidebarCollapsed();
   const [hasUiLocaleColumn, setHasUiLocaleColumn] = useState(true);
 
@@ -72,7 +72,7 @@ export function SettingsPage() {
       const result = await loadProfileRow();
       if (cancelled) return;
       if ("error" in result && result.error) {
-        setError(result.error.message);
+        setLoadError(result.error.message);
         setLoading(false);
         return;
       }
@@ -112,8 +112,6 @@ export function SettingsPage() {
 
   async function onSave() {
     if (!session?.user?.id) return;
-    setMessage(null);
-    setError(null);
     setSaving(true);
     const nextLocale = normalizeUiLocale(locale);
     const basePayload = {
@@ -143,12 +141,17 @@ export function SettingsPage() {
 
     setSaving(false);
     if (uError) {
-      setError(uError.message);
+      toast.error({
+        title: t("settings.saveError"),
+        description: t("toast.api.genericHint"),
+      });
       return;
     }
     await i18n.changeLanguage(nextLocale);
     await refetchProfile();
-    setMessage(localePersistedInDb ? t("settings.saved") : t("settings.savedLocaleUntilMigration"));
+    toast.success({
+      title: localePersistedInDb ? t("settings.saved") : t("settings.savedLocaleUntilMigration"),
+    });
   }
 
   return (
@@ -293,14 +296,9 @@ export function SettingsPage() {
                     </div>
                   </div>
 
-                  {error ? (
+                  {loadError ? (
                     <p className="text-sm text-red-600" role="alert">
-                      {error}
-                    </p>
-                  ) : null}
-                  {message ? (
-                    <p className="text-sm text-obra-neutral-700" role="status">
-                      {message}
+                      {loadError}
                     </p>
                   ) : null}
 

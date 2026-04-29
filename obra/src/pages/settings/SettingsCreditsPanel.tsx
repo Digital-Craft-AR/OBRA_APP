@@ -50,10 +50,8 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
 
   const [rows, setRows] = useState<CreditLedgerRow[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(true);
-  const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [topUpBusy, setTopUpBusy] = useState(false);
-  const [topUpError, setTopUpError] = useState<string | null>(null);
   const [topUpReturnNotice, setTopUpReturnNotice] = useState<TopUpReturnNotice>(null);
   const topupPollCancelRef = useRef(false);
 
@@ -61,7 +59,6 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
     async (options?: { silent?: boolean }) => {
       const silent = options?.silent === true;
       if (!silent) {
-        setLedgerError(null);
         setLedgerLoading(true);
       }
       const { data, error } = await supabase
@@ -74,7 +71,6 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
       }
       if (error) {
         if (!silent) {
-          setLedgerError(error.message);
           setRows([]);
           toastApiFailure(t, "settings.credits.ledgerLoadError");
         }
@@ -131,13 +127,10 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
   }
 
   async function onTopUp() {
-    setTopUpError(null);
     setTopUpBusy(true);
     if (!session?.access_token) {
       setTopUpBusy(false);
-      const key = "auth.callbackError";
-      setTopUpError(t(key));
-      toastApiFailure(t, key);
+      toastApiFailure(t, "auth.callbackError");
       return;
     }
 
@@ -152,54 +145,42 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
     if (error) {
       const errBody = await readCreditsCheckoutErrorBody(error);
       if (errBody?.error === "subscription_required") {
-        const key = "settings.credits.topUpSubscriptionRequired";
-        setTopUpError(t(key));
-        toastApiFailure(t, key);
+        toastApiFailure(t, "settings.credits.topUpSubscriptionRequired");
         return;
       }
       if (errBody?.error === "checkout_unavailable" || errBody?.error === "server_misconfigured") {
         const msg = tCheckoutConfigError(t, errBody.detail);
-        setTopUpError(msg);
         toast.error({ title: msg, description: t("toast.api.genericHint") });
         return;
       }
       if (errBody?.error === "mercadopago_error" || errBody?.error === "mercadopago_no_redirect") {
         const msg = tMercadoPagoProviderError(t);
-        setTopUpError(msg);
         toast.error({ title: msg, description: t("toast.api.genericHint") });
         return;
       }
-      const keyErr = "settings.credits.topUpError";
-      setTopUpError(t(keyErr));
-      toastApiFailure(t, keyErr);
+      toastApiFailure(t, "settings.credits.topUpError");
       return;
     }
 
     if (data?.error === "subscription_required") {
-      const key = "settings.credits.topUpSubscriptionRequired";
-      setTopUpError(t(key));
-      toastApiFailure(t, key);
+      toastApiFailure(t, "settings.credits.topUpSubscriptionRequired");
       return;
     }
 
     if (data?.error === "checkout_unavailable" || data?.error === "server_misconfigured") {
       const msg = tCheckoutConfigError(t, data.detail);
-      setTopUpError(msg);
       toast.error({ title: msg, description: t("toast.api.genericHint") });
       return;
     }
 
     if (data?.error === "mercadopago_error" || data?.error === "mercadopago_no_redirect") {
       const msg = tMercadoPagoProviderError(t);
-      setTopUpError(msg);
       toast.error({ title: msg, description: t("toast.api.genericHint") });
       return;
     }
 
     if (data?.error && !data.redirect_url) {
-      const keyErr = "settings.credits.topUpError";
-      setTopUpError(t(keyErr));
-      toastApiFailure(t, keyErr);
+      toastApiFailure(t, "settings.credits.topUpError");
       return;
     }
 
@@ -208,9 +189,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
       return;
     }
 
-    const keyFallback = "settings.credits.topUpError";
-    setTopUpError(t(keyFallback));
-    toastApiFailure(t, keyFallback);
+    toastApiFailure(t, "settings.credits.topUpError");
   }
 
   const localeTag = i18n.language === "pt-BR" ? "pt-BR" : "es-AR";
@@ -276,11 +255,6 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
         ) : (
           <p className="mt-2 text-xs text-obra-neutral-500">{t("settings.credits.topUpRedirectHint")}</p>
         )}
-        {topUpError ? (
-          <p className="mt-2 text-sm text-red-600" role="alert">
-            {topUpError}
-          </p>
-        ) : null}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -294,10 +268,6 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Pro
 
         {ledgerLoading ? (
           <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p>
-        ) : ledgerError ? (
-          <p className="text-sm text-red-600" role="alert">
-            {ledgerError}
-          </p>
         ) : rows.length === 0 ? (
           <p className="text-sm text-obra-neutral-600">{t("settings.credits.historyEmpty")}</p>
         ) : (
