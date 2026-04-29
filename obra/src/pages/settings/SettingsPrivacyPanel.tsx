@@ -7,16 +7,15 @@ import { toastApiFailure } from "@/lib/apiToast";
 import { confirmAccountDeletionInBrowser } from "@/lib/accountDeletionConfirm";
 import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/toast";
 
 export function SettingsPrivacyPanel() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   async function onExportData() {
-    setMessage(null);
     setBusy(true);
     const { data, error } = await supabase.functions.invoke<{ ok?: boolean; data?: unknown }>("export-user-data", {
       method: "POST",
@@ -24,9 +23,7 @@ export function SettingsPrivacyPanel() {
     });
     setBusy(false);
     if (error) {
-      const key = "shell.account.exportUnavailable";
-      setMessage(t(key));
-      toastApiFailure(t, key);
+      toastApiFailure(t, "shell.account.exportUnavailable");
       return;
     }
     if (data?.ok && data.data != null) {
@@ -37,16 +34,13 @@ export function SettingsPrivacyPanel() {
       a.download = `obra-data-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setMessage(t("shell.account.exportDownloaded"));
+      toast.success({ title: t("shell.account.exportDownloaded") });
       return;
     }
-    const key = "shell.account.exportUnavailable";
-    setMessage(t(key));
-    toastApiFailure(t, key);
+    toastApiFailure(t, "shell.account.exportUnavailable");
   }
 
   async function onDeleteAccount() {
-    setMessage(null);
     if (!confirmAccountDeletionInBrowser(session?.user?.email ?? null, t)) return;
     setBusy(true);
     const { error } = await supabase.functions.invoke("delete-account", { method: "POST", body: {} });
@@ -54,14 +48,10 @@ export function SettingsPrivacyPanel() {
     if (error) {
       const code = await getFunctionsInvokeErrorCode(error);
       if (code === "subscription_blocks_delete") {
-        const key = "shell.account.deleteSubscriptionActive";
-        setMessage(t(key));
-        toastApiFailure(t, key);
+        toastApiFailure(t, "shell.account.deleteSubscriptionActive");
         return;
       }
-      const key = "shell.account.deleteUnavailable";
-      setMessage(t(key));
-      toastApiFailure(t, key);
+      toastApiFailure(t, "shell.account.deleteUnavailable");
       return;
     }
     await supabase.auth.signOut();
@@ -91,11 +81,6 @@ export function SettingsPrivacyPanel() {
         </Button>
       </div>
 
-      {message ? (
-        <p className="text-sm text-obra-neutral-700" role="status">
-          {message}
-        </p>
-      ) : null}
     </div>
   );
 }

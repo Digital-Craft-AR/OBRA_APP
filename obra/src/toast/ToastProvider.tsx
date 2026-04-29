@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         id,
         variant,
         title: input.title,
-        description: input.description,
+        description: input.description ?? "",
         durationMs,
       },
     ]);
