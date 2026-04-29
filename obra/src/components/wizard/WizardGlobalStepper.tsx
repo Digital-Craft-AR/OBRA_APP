@@ -11,9 +11,44 @@ export type WizardGlobalStep = {
 type Props = {
   steps: WizardGlobalStep[];
   dark?: boolean;
+  /** Compact mode: renders a progress bar + active step name instead of the full step list. */
+  compact?: boolean;
 };
 
-export function WizardGlobalStepper({ steps, dark = false }: Props) {
+export function WizardGlobalStepper({ steps, dark = false, compact = false }: Props) {
+  if (compact) {
+    const activeStep = steps.find((s) => s.status === "active") ?? steps[steps.length - 1]!;
+    const activeIdx = steps.findIndex((s) => s.status === "active");
+    const safeIdx = activeIdx < 0 ? steps.length - 1 : activeIdx;
+    return (
+      <div className="flex items-center gap-3">
+        <div
+          role="progressbar"
+          aria-valuenow={safeIdx + 1}
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-label={activeStep.label}
+          className="flex items-center gap-1"
+        >
+          {steps.map((_, i) => (
+            <span
+              key={i}
+              className={[
+                "h-1 w-8 rounded-full transition-colors",
+                i <= safeIdx
+                  ? dark ? "bg-obra-green-400" : "bg-obra-blue-700"
+                  : dark ? "bg-white/20" : "bg-obra-blue-100",
+              ].join(" ")}
+            />
+          ))}
+        </div>
+        <span className={`text-sm font-semibold font-body ${dark ? "text-white" : "text-obra-blue-950"}`}>
+          {activeStep.label}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex justify-center">
       <ol className="flex items-center gap-2" aria-label="Global wizard progress">

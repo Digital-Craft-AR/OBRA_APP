@@ -1,28 +1,35 @@
 type StructureStepInnerProgressProps = {
-  stepCounterLabel: string;
+  stepName: string;
   currentStep: number;
   totalSteps: number;
 };
 
 export function StructureStepInnerProgress({
-  stepCounterLabel,
+  stepName,
   currentStep,
   totalSteps,
 }: StructureStepInnerProgressProps) {
   return (
-    <div className="shrink-0 border-b border-obra-blue-800/50 bg-obra-blue-950 px-8 py-2.5">
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-xs font-medium text-white/60">{stepCounterLabel}</span>
-        <div className="flex items-center gap-1">
+    <div className="shrink-0 bg-obra-blue-900 px-8 pt-2 pb-4">
+      <div className="flex items-center gap-3">
+        <div
+          role="progressbar"
+          aria-valuenow={currentStep + 1}
+          aria-valuemin={1}
+          aria-valuemax={totalSteps}
+          aria-label={stepName}
+          className="flex items-center gap-1"
+        >
           {Array.from({ length: totalSteps }).map((_, index) => (
             <div
               key={index}
-              className={`h-1 w-8 rounded-full transition-all ${
+              className={`h-1 w-6 rounded-full transition-all ${
                 index <= currentStep ? "bg-obra-green-400" : "bg-white/20"
               }`}
             />
           ))}
         </div>
+        <span className="text-xs font-medium text-white">{stepName}</span>
       </div>
     </div>
   );

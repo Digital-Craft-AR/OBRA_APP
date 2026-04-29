@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Book, ChevronLeft, FileDown, Gift, Package, RefreshCw, TrendingUp } from "lucide-react";
+import { ChevronLeft, FileDown, Package, RefreshCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +8,7 @@ import { ObraLoadingOverlay, ObraSpinner } from "@/components/obra/ObraSpinner";
 import { ObraShellGeneratingOverlay } from "@/components/obra/ObraShellGeneratingOverlay";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
+import { ContentArtifactTabs } from "@/components/wizard/content/ContentArtifactTabs";
 import { ExportPdfModal } from "@/components/wizard/ExportPdfModal";
 import { ExportZipModal } from "@/components/wizard/ExportZipModal";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
@@ -568,57 +569,32 @@ export function WizardPreviewPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
       {/* Top bar + stepper */}
-      <div className="relative border-b border-obra-blue-800/50 bg-obra-blue-900 px-8 py-4">
+      <div className="flex items-center justify-between bg-obra-blue-900 px-6 pt-4 pb-2">
+        <WizardGlobalStepper steps={globalSteps} dark />
         <button
           type="button"
           onClick={() => navigate("/app/dashboard")}
-          className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
+          aria-label={t("wizard.structure.back")}
+          className="rounded-md p-1.5 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         >
-          <ChevronLeft className="size-3.5" aria-hidden />
-          {t("wizard.structure.back")}
+          <X className="size-5" aria-hidden />
         </button>
-        <WizardGlobalStepper steps={globalSteps} dark />
       </div>
+
+      {/* Artifact tab bar */}
+      {visibleEbooks.length > 0 && (
+        <ContentArtifactTabs
+          tabs={visibleEbooks.map((e) => ({ key: e.id, navTitle: tabLabel(e) }))}
+          selectedKey={selectedEbookId ?? ""}
+          onSelect={handleSelectEbook}
+        />
+      )}
 
       {/* Main area */}
       <main className="flex min-h-0 flex-1 overflow-hidden bg-obra-blue-50">
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 
-          {/* Ebook icon sidebar — dark parent */}
-          {visibleEbooks.length > 0 ? (
-            <nav
-              aria-label={t("wizard.preview.ebooksNav")}
-              className="flex w-full shrink-0 flex-col items-center gap-1 border-b border-obra-blue-800/50 bg-obra-blue-900 px-4 py-4 lg:w-auto lg:items-start lg:border-b-0 lg:border-r lg:px-4 lg:py-4"
-            >
-              <ul className="flex flex-row justify-between gap-2 overflow-x-auto lg:flex-col lg:justify-start lg:overflow-visible">
-                {visibleEbooks.map((ebook) => {
-                  const isCurrent = ebook.id === selectedEbookId;
-                  const Icon = ebook.type === "bonus" ? Gift : ebook.type === "order_bump" ? TrendingUp : Book;
-                  return (
-                    <li key={ebook.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectEbook(ebook.id)}
-                        title={tabLabel(ebook)}
-                        aria-label={tabLabel(ebook)}
-                        aria-current={isCurrent ? "page" : undefined}
-                        className={[
-                          "relative flex size-11 shrink-0 items-center justify-center rounded-md border font-body transition-colors",
-                          isCurrent
-                            ? "border-obra-blue-500/60 bg-obra-blue-700 text-white"
-                            : "border-transparent bg-transparent text-white/60 hover:bg-obra-blue-800/60 hover:text-white",
-                        ].join(" ")}
-                      >
-                        <Icon className="size-5 shrink-0" aria-hidden />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          ) : null}
-
-          {/* Chapter nav — light child sidebar */}
+          {/* Chapter nav — light sidebar */}
           {selectedChapters.length > 0 ? (
             <ContentChapterNav
               t={t}
@@ -650,24 +626,27 @@ export function WizardPreviewPage() {
               </div>
             ) : previewSrcDoc ? (
               <div className="flex min-h-0 w-full flex-col gap-3 p-4">
-                {shellStale ? (
-                  <div className="shrink-0 space-y-3">
+                {/* Per-artifact toolbar: regenerate button + stale warning */}
+                <div className="shrink-0 flex flex-wrap items-start gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => void handleRegenerateShell()}
+                    disabled={shellLoading}
+                  >
+                    <RefreshCw className="size-3.5" aria-hidden />
+                    {t("wizard.preview.shell.regenerateCta")}
+                  </Button>
+                  {shellStale ? (
                     <ObraAlert
                       variant="warning"
                       title={t("wizard.preview.shell.staleTitle")}
                       description={t("wizard.preview.shell.staleDesc")}
+                      className="flex-1"
                     />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => void handleRegenerateShell()}
-                      disabled={shellLoading}
-                    >
-                      <RefreshCw className="size-4" aria-hidden />
-                      {t("wizard.preview.shell.updateCta")}
-                    </Button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
                 <iframe
                   srcDoc={previewSrcDoc}
                   title={t("wizard.preview.iframeTitle")}
@@ -795,7 +774,6 @@ export function WizardPreviewPage() {
               <Button
                 type="button"
                 variant="secondary"
-                size="small"
                 disabled={!project?.id}
                 onClick={() => setIsZipModalOpen(true)}
               >
