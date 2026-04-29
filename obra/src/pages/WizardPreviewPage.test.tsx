@@ -305,6 +305,40 @@ describe("WizardPreviewPage", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Shell generation — tab switching behavior
+  // ---------------------------------------------------------------------------
+
+  describe("shell generation on tab switch", () => {
+    it("generates shells for all tabs simultaneously on first visit and makes no new calls when switching tabs", async () => {
+      renderPreviewPage();
+
+      // Initial load should trigger generate-document-template for every ebook (main + bonus)
+      await waitFor(() => {
+        const shellCalls = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
+          String(url).includes("generate-document-template"),
+        );
+        expect(shellCalls).toHaveLength(2);
+      });
+
+      vi.mocked(globalThis.fetch).mockClear();
+
+      // Switch to the Bonus tab
+      const bonusTab = screen.getByRole("tab", { name: /Bonus 1/i });
+      await userEvent.click(bonusTab);
+
+      // Give effects a chance to settle, then assert no new generation calls were made
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: /Bonus 1/i })).toBeTruthy();
+      });
+
+      const newShellCalls = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
+        String(url).includes("generate-document-template"),
+      );
+      expect(newShellCalls).toHaveLength(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // ZIP export
   // ---------------------------------------------------------------------------
 
