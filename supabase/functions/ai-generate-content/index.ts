@@ -498,6 +498,7 @@ Deno.serve(async (req: Request) => {
     system: promptBundle.system,
     user: promptBundle.user,
     maxTokens: 8192,
+    clientId: "ai-generate-content",
   });
 
   if (!ai.ok) {

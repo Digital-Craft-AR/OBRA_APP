@@ -224,6 +224,7 @@ Deno.serve(async (req: Request) => {
     system: promptBundle.system,
     user: promptBundle.user,
     maxTokens: packageTargetKind === "bonus" ? 2048 : 8192,
+    clientId: "ai-generate-index",
   });
   if (!ai.ok) {
     return json({ ok: false, error: ai.error }, 502);

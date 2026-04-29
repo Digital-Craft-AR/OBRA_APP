@@ -188,6 +188,7 @@ Deno.serve(async (req: Request) => {
         user: headerPrompt.user,
         maxTokens: 8192,
         temperature: 0.3,
+        clientId: "generate-document-template:header",
       });
       if (!headerResult.ok) {
         await send({ type: "error", error: headerResult.error, status: 502 });
@@ -229,6 +230,7 @@ Deno.serve(async (req: Request) => {
               maxTokens: 8192,
               temperature: 0.4,
               model: getClaudeChapterModel(),
+              clientId: "generate-document-template:chapter",
             });
             chaptersDone++;
             return r.ok ? extractTag(r.text, "obra-chapter") : null;

@@ -193,6 +193,7 @@ Deno.serve(async (req: Request) => {
       user: prompt.user,
       maxTokens: 1500,
       temperature: 0.3,
+      clientId: "ai-split-proposal",
     });
 
     if (!claudeResult.ok) {
