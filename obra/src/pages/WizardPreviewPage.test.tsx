@@ -59,10 +59,12 @@ const mockChains = vi.hoisted(() => {
   const selectChain = vi.fn();
   const inChain = vi.fn();
   const isChain = vi.fn();
+  const pdfJobsOrder = vi.fn();
 
-  return { single, maybeSingle, order, eqChain, selectChain, inChain, isChain };
+  return { single, maybeSingle, order, eqChain, selectChain, inChain, isChain, pdfJobsOrder };
 });
 
+const mockCreateSignedUrl = vi.hoisted(() => vi.fn());
 const mockFunctionsInvoke = vi.hoisted(() => vi.fn());
 const mockGetSession = vi.hoisted(() => vi.fn());
 
@@ -94,8 +96,7 @@ vi.mock("@/lib/supabaseClient", () => ({
       }
       if (table === "pdf_export_jobs") {
         // Supports: .select().eq(project_id).eq(status).not().order() — load initial PDF URLs query
-        const orderFn = vi.fn().mockResolvedValue({ data: [], error: null });
-        const notFn = vi.fn(() => ({ order: orderFn }));
+        const notFn = vi.fn(() => ({ order: mockChains.pdfJobsOrder }));
         const eq2Fn = vi.fn(() => ({ not: notFn }));
         const eq1Fn = vi.fn(() => ({ eq: eq2Fn }));
         return {
@@ -120,6 +121,11 @@ vi.mock("@/lib/supabaseClient", () => ({
       };
     }),
     functions: { invoke: mockFunctionsInvoke },
+    storage: {
+      from: vi.fn(() => ({
+        createSignedUrl: mockCreateSignedUrl,
+      })),
+    },
   },
 }));
 
@@ -161,8 +167,14 @@ describe("WizardPreviewPage", () => {
     mockChains.maybeSingle.mockReset();
     mockChains.order.mockReset();
     mockChains.inChain.mockReset();
+    mockChains.pdfJobsOrder.mockReset();
+    mockCreateSignedUrl.mockReset();
     mockFunctionsInvoke.mockReset();
     mockGetSession.mockReset();
+
+    // Default: no completed PDF export jobs
+    mockChains.pdfJobsOrder.mockResolvedValue({ data: [], error: null });
+    mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: "https://cdn/test.pdf" } });
 
     // Default: project loads successfully, ebooks load, chapters load
     mockChains.single.mockResolvedValue({ data: projectData, error: null });
@@ -422,6 +434,72 @@ describe("WizardPreviewPage", () => {
           }),
         );
       });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // PDF button mutual exclusion (issue #209)
+  // ---------------------------------------------------------------------------
+
+  describe("PDF export button mutual exclusion", () => {
+    it("shows only Generate PDF when status is draft and no PDF URL exists", async () => {
+      // Default setup: publish_status=draft, no completed PDF jobs
+      renderPreviewPage();
+      await screen.findByRole("button", { name: /Generar PDF/i });
+      expect(screen.queryByRole("button", { name: /Descargar PDF/i })).toBeNull();
+    });
+
+    it("shows only Download PDF when status is published and a PDF URL exists", async () => {
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "published" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Descargar PDF/i })).toBeTruthy();
+      });
+      expect(screen.queryByRole("button", { name: /Generar PDF/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Re-generar PDF/i })).toBeNull();
+    });
+
+    it("shows only Re-generate PDF when status is modified and a PDF URL exists", async () => {
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "modified" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Re-generar PDF/i })).toBeTruthy();
+      });
+      expect(screen.queryByRole("button", { name: /Descargar PDF/i })).toBeNull();
+    });
+
+    it("never shows both Download PDF and Generate PDF simultaneously", async () => {
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "published" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Descargar PDF/i })).toBeTruthy();
+      });
+
+      const downloadBtns = screen.queryAllByRole("button", { name: /Descargar PDF/i });
+      const generateBtns = screen.queryAllByRole("button", { name: /Generar PDF/i });
+      const regenerateBtns = screen.queryAllByRole("button", { name: /Re-generar PDF/i });
+
+      expect(downloadBtns.length).toBe(1);
+      expect(generateBtns.length).toBe(0);
+      expect(regenerateBtns.length).toBe(0);
     });
   });
 
