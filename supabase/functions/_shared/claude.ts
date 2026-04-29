@@ -55,12 +55,13 @@ export async function callClaudeJsonText(args: {
         "content-type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": ANTHROPIC_VERSION,
+        "anthropic-beta": "prompt-caching-2024-07-31",
       },
       body: JSON.stringify({
         model,
         max_tokens: args.maxTokens,
         ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
-        system: args.system,
+        system: [{ type: "text", text: args.system, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: args.user }],
       }),
     });
