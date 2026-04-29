@@ -53,6 +53,7 @@ verify_jwt = false
 
 [functions.generate-document-template]
 verify_jwt = false
+execution_timeout_ms = 360000  # 6 min: header + up to ~10 long chapters
 
 [functions.export-pdf]
 verify_jwt = false

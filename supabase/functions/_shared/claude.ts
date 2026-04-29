@@ -25,18 +25,24 @@ export function getClaudeModel(): string {
   return m && m.trim() ? m.trim() : "claude-sonnet-4-20250514";
 }
 
+export function getClaudeChapterModel(): string {
+  const m = Deno.env.get("CLAUDE_CHAPTER_MODEL");
+  return m && m.trim() ? m.trim() : "claude-haiku-4-5-20251001";
+}
+
 export async function callClaudeJsonText(args: {
   system: string;
   user: string;
   maxTokens: number;
   temperature?: number;
+  model?: string;
 }): Promise<ClaudeResult> {
   const apiKey = getApiKey();
   if (!apiKey) {
     return { ok: false, error: "anthropic_not_configured" };
   }
 
-  const model = getClaudeModel();
+  const model = args.model ?? getClaudeModel();
   const controller = new AbortController();
   const timeoutMs = Number(Deno.env.get("CLAUDE_REQUEST_TIMEOUT_MS") ?? "120000");
   const tid = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120_000);

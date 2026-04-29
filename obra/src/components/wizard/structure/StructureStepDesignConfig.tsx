@@ -95,45 +95,8 @@ export function StructureStepDesignConfig({
     });
   }
 
-
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-obra-blue-950">
-          {t("wizard.structure.design.bookTemplate.title")}
-        </h3>
-        <p className="text-xs text-obra-neutral-600">{t("wizard.structure.design.bookTemplate.subtitle")}</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {eligibleTemplates.map((id) => {
-            const selected = bookTemplateId === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onBookTemplateChange(id)}
-                className={`flex w-full flex-col gap-1 rounded-xl border px-4 py-3 text-left transition-colors ${
-                  selected ? "border-obra-blue-700 bg-obra-blue-50" : "border-obra-neutral-200 bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-obra-blue-950">
-                    {t(`wizard.structure.design.bookTemplate.${id}.name`)}
-                  </span>
-                  {selected ? (
-                    <Check className="size-4 shrink-0 text-obra-blue-700" aria-hidden />
-                  ) : (
-                    <span className="size-4 shrink-0" aria-hidden />
-                  )}
-                </div>
-                <p className="text-xs text-obra-neutral-600">
-                  {t(`wizard.structure.design.bookTemplate.${id}.description`)}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.page.title")}</h3>
         <div className="grid grid-cols-2 gap-3">

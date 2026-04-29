@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
@@ -13,10 +13,6 @@ import {
   StructureStepInnerProgress,
   StructureStepTitleBlock,
 } from "@/components/wizard/structure/StructureStepHeader";
-import {
-  StructurePackageCountsModal,
-  type StructurePackageModifyKind,
-} from "@/components/wizard/structure/StructurePackageCountsModal";
 import { StructureStepPackage } from "@/components/wizard/structure/StructureStepPackage";
 import { StructureStepTopic } from "@/components/wizard/structure/StructureStepTopic";
 import { WizardGuidedTour } from "@/components/wizard/WizardGuidedTour";
@@ -44,8 +40,6 @@ export function WizardStructurePage() {
   const [structureGateError, setStructureGateError] = useState<string | null>(null);
   const [avatarResetModalOpen, setAvatarResetModalOpen] = useState(false);
   const [avatarResetModalStep, setAvatarResetModalStep] = useState<1 | 2>(1);
-  const [packageModifyKind, setPackageModifyKind] = useState<StructurePackageModifyKind | null>(null);
-
   const flow = useWizardStructureFlow({
     project,
     setProject,
@@ -61,8 +55,6 @@ export function WizardStructurePage() {
       navigate("/app/dashboard", { replace: true });
     }
   }, [loading, project, navigate]);
-
-  const packageCountsLocked = Boolean(project?.structure_completed_at);
 
   const globalSteps = useMemo(
     () => [
@@ -84,24 +76,20 @@ export function WizardStructurePage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
-      <div className="relative border-b border-obra-blue-800/50 bg-obra-blue-900 px-8 py-4">
+      <div className="flex items-center justify-between bg-obra-blue-900 px-6 pt-4 pb-2">
+        <WizardGlobalStepper steps={globalSteps} dark />
         <button
           type="button"
           onClick={() => navigate("/app/dashboard")}
-          className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
+          aria-label={t("wizard.structure.back")}
+          className="rounded-md p-1.5 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         >
-          <ChevronLeft className="size-3.5" aria-hidden />
-          {t("wizard.structure.back")}
+          <X className="size-5" aria-hidden />
         </button>
-        <WizardGlobalStepper steps={globalSteps} dark />
       </div>
 
       <StructureStepInnerProgress
-        stepCounterLabel={t("wizard.structure.stepCounter", {
-          current: flow.innerStepIndex + 1,
-          total: INNER_STEPS.length,
-          step: t(INNER_STEPS[flow.innerStepIndex]),
-        })}
+        stepName={t(INNER_STEPS[flow.innerStepIndex] ?? "")}
         currentStep={flow.innerStepIndex}
         totalSteps={INNER_STEPS.length}
       />
@@ -187,11 +175,6 @@ export function WizardStructurePage() {
                   saving={flow.packageSaving}
                   savingLabel={t("wizard.structure.package.saving")}
                   message={flow.packageMessage}
-                  countsLocked={packageCountsLocked}
-                  modifyBonusesLabel={t("wizard.structure.packageModify.openButtonBonus")}
-                  modifyBumpsLabel={t("wizard.structure.packageModify.openButtonBump")}
-                  onOpenModifyBonuses={() => setPackageModifyKind("bonus")}
-                  onOpenModifyBumps={() => setPackageModifyKind("bump")}
                   onBonusChange={flow.setBonusCount}
                   onBumpChange={flow.setBumpCount}
                 />
@@ -510,17 +493,6 @@ export function WizardStructurePage() {
         </ModalFooter>
       </Modal>
 
-      {project && packageModifyKind ? (
-        <StructurePackageCountsModal
-          kind={packageModifyKind}
-          open
-          project={project}
-          onClose={() => setPackageModifyKind(null)}
-          onApplied={(patch) => {
-            setProject((current) => (current ? { ...current, ...patch } : current));
-          }}
-        />
-      ) : null}
     </div>
   );
 }
