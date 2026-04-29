@@ -21,7 +21,7 @@ import {
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
-import { fetchOrGenerateShell, regenerateShell, hashChapters, type ShellMeta } from "@/lib/preview/documentShellApi";
+import { fetchOrGenerateShell, regenerateShell, hashChapters, type ShellMeta, type ShellProgress } from "@/lib/preview/documentShellApi";
 import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { queuePdfExport, downloadPdf, getErrorMessage } from "@/utils/pdf-export";
@@ -171,6 +171,7 @@ export function WizardPreviewPage() {
    * while the first generation still runs) must not clear loading until every request for that id ends.
    */
   const [shellInflightByEbook, setShellInflightByEbook] = useState<Record<string, number>>({});
+  const [shellProgressByEbook, setShellProgressByEbook] = useState<Record<string, ShellProgress>>({});
   const beginShellInflight = useCallback((ebookId: string) => {
     setShellInflightByEbook((prev) => ({ ...prev, [ebookId]: (prev[ebookId] ?? 0) + 1 }));
   }, []);
@@ -306,6 +307,7 @@ export function WizardPreviewPage() {
       const ebookId = selectedEbookId;
       beginShellInflight(ebookId);
       setShellError(null);
+      setShellProgressByEbook((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
       const chapters = chaptersCache[ebookId]!;
       const dc = (project.design_config ?? {}) as Record<string, unknown>;
       const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
@@ -316,6 +318,7 @@ export function WizardPreviewPage() {
         currentPageSize: page.size,
         currentPageOrientation: page.orientation,
         currentContentHash: hashChapters(chapters),
+        onProgress: (p) => setShellProgressByEbook((prev) => ({ ...prev, [ebookId]: p })),
       });
       if (cancelled) {
         endShellInflight(ebookId);
@@ -365,7 +368,12 @@ export function WizardPreviewPage() {
     const ebookId = selectedEbookId;
     beginShellInflight(ebookId);
     setShellError(null);
-    const result = await regenerateShell({ projectId: project.id, ebookId });
+    setShellProgressByEbook((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
+    const result = await regenerateShell({
+      projectId: project.id,
+      ebookId,
+      onProgress: (p) => setShellProgressByEbook((prev) => ({ ...prev, [ebookId]: p })),
+    });
     if (selectedEbookIdRef.current !== ebookId) {
       endShellInflight(ebookId);
       return;
@@ -667,7 +675,14 @@ export function WizardPreviewPage() {
 
           {/* Preview content */}
           <div ref={previewScrollRef} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#e8edf2]">
-            {shellLoading ? <ObraShellGeneratingOverlay /> : chaptersLoading ? <ObraLoadingOverlay /> : null}
+            {shellLoading ? (
+              <ObraShellGeneratingOverlay
+                current={selectedEbookId ? shellProgressByEbook[selectedEbookId]?.current : undefined}
+                total={selectedEbookId ? (shellProgressByEbook[selectedEbookId]?.total ?? selectedChapters.length) : selectedChapters.length}
+              />
+            ) : chaptersLoading ? (
+              <ObraLoadingOverlay />
+            ) : null}
 
             {isLoading ? (
               <ObraSpinner size="lg" className="py-16" />
