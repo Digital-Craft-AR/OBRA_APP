@@ -12,6 +12,7 @@ import {
   type PackageSlotRow,
 } from "@/lib/wizard/structurePackageLockedPersistence";
 import type { ProjectRow } from "@/lib/wizard/structureTypes";
+import { toast } from "@/toast";
 
 export type StructurePackageModifyKind = "bonus" | "bump";
 
@@ -61,14 +62,12 @@ export function StructurePackageCountsModal({
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [bonusDraft, setBonusDraft] = useState<PackageSlotRow[]>([]);
   const [bumpDraft, setBumpDraft] = useState<PackageSlotRow[]>([]);
   const [warnedEbookIds, setWarnedEbookIds] = useState<Set<string>>(() => new Set());
 
   const resetFromProject = useCallback(async () => {
     setLoading(true);
-    setError(null);
     const ebooks = await listProjectPackageEbooks(project.id);
     if (kind === "bonus") {
       setBonusDraft(buildBonusDraft(project, ebooks));
@@ -93,12 +92,14 @@ export function StructurePackageCountsModal({
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null);
     if (kind === "bonus") {
       const result = await applyLockedBonusSlotsOnly(project.id, bonusDraft, project.bump_count, project.bump_items);
       setSaving(false);
       if (!result.ok) {
-        setError(t("wizard.structure.packageModify.saveError"));
+        toast.error({
+          title: t("wizard.structure.packageModify.saveError"),
+          description: t("toast.api.genericHint"),
+        });
         return;
       }
       onApplied({
@@ -111,7 +112,10 @@ export function StructurePackageCountsModal({
       const result = await applyLockedBumpSlotsOnly(project.id, bumpDraft, project.bonus_count, project.bonus_items);
       setSaving(false);
       if (!result.ok) {
-        setError(t("wizard.structure.packageModify.saveError"));
+        toast.error({
+          title: t("wizard.structure.packageModify.saveError"),
+          description: t("toast.api.genericHint"),
+        });
         return;
       }
       onApplied({
@@ -144,11 +148,6 @@ export function StructurePackageCountsModal({
       <ModalContent className="space-y-6 max-h-[70vh] overflow-y-auto">
         <p className="text-sm text-obra-neutral-600">{t(subtitleKey)}</p>
         {loading ? <p className="text-sm text-obra-neutral-600">{t("common.loading")}</p> : null}
-        {error ? (
-          <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
 
         {kind === "bonus" ? (
           <section className="space-y-3">

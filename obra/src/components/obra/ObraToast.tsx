@@ -7,7 +7,7 @@ export type ObraToastVariant = "success" | "error" | "info";
 type ObraToastProps = HTMLAttributes<HTMLDivElement> & {
   variant?: ObraToastVariant;
   title: string;
-  description: string;
+  description?: string;
   timeoutMs?: number;
   onTimeout?: () => void;
   /** Accessible label for the close control (default: English "Close"). */
@@ -146,7 +146,7 @@ export function ObraToast({
         </span>
         <div className="min-w-0 flex-1 pr-1">
           <p className="font-body text-sm font-semibold text-obra-blue-950">{title}</p>
-          <p className="mt-0.5 font-body text-xs text-obra-neutral-600">{description}</p>
+          {description ? <p className="mt-0.5 font-body text-xs text-obra-neutral-600">{description}</p> : null}
         </div>
       </div>
     </div>

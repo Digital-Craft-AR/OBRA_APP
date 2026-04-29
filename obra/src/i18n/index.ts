@@ -992,6 +992,10 @@ const resources = {
       "settings.privacy.deleteHeading": "Eliminar cuenta",
       "settings.privacy.deleteBody":
         "Esta acción es irreversible. Si tenés suscripción activa en Mercado Pago, puede ser necesario resolverla antes.",
+      "settings.saveError": "No se pudieron guardar los cambios.",
+      "settings.security.passwordUpdateFailed": "No se pudo actualizar la contraseña.",
+      "settings.security.unlinkFailed": "No se pudo desvincular el proveedor.",
+      "settings.security.linkFailed": "No se pudo vincular la cuenta de Google.",
       "toast.regionLabel": "Notifications",
       "toast.close": "Close",
       "toast.api.genericHint": "Si el problema continúa, recargá la página o volvé a iniciar sesión.",
@@ -2001,6 +2005,10 @@ const resources = {
       "settings.privacy.deleteHeading": "Excluir conta",
       "settings.privacy.deleteBody":
         "Esta ação é irreversível. Se houver assinatura ativa no Mercado Pago, pode ser necessário resolvê-la antes.",
+      "settings.saveError": "Não foi possível salvar as alterações.",
+      "settings.security.passwordUpdateFailed": "Não foi possível atualizar a senha.",
+      "settings.security.unlinkFailed": "Não foi possível desvincular o provedor.",
+      "settings.security.linkFailed": "Não foi possível vincular a conta do Google.",
       "toast.regionLabel": "Notifications",
       "toast.close": "Close",
       "toast.api.genericHint": "Se o problema continuar, recarregue a página ou entre novamente.",
