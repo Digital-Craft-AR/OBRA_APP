@@ -44,12 +44,14 @@ function indexJsonStringFromRow(raw: unknown): string | null {
 /**
  * When `index_json` was never saved (or only `{}`), build a minimal structure from chapter
  * rows so prompts can run, and persist it for subsequent calls.
+ * context.topic should be the first line of projects.topic (the optimized title).
  */
 async function resolveIndexJsonForGeneration(
   admin: AdminClient,
   ebookId: string,
   ebookType: string,
   rawIndexJson: unknown,
+  context?: { ebookTitle?: string; topic?: string },
 ): Promise<{ jsonString: string; backfilled: boolean } | null> {
   const direct = indexJsonStringFromRow(rawIndexJson);
   if (direct) return { jsonString: direct, backfilled: false };
@@ -62,18 +64,51 @@ async function resolveIndexJsonForGeneration(
 
   if (error || !rows?.length) return null;
 
+  const totalCount = rows.length;
   const wordDefault = ebookType === "bonus" ? 900 : 1200;
+  const bookLabel = context?.ebookTitle ? `"${context.ebookTitle}"` : "this ebook";
+  const topicContext = context?.topic ? ` about "${context.topic}"` : "";
+
   const chapters = rows
     .map((r) => {
       const sortOrder = Number(r.sort_order);
       const title = String(r.title ?? "").trim() || " ";
       if (!Number.isFinite(sortOrder) || sortOrder < 1) return null;
+
+      const isFirst = sortOrder === 1;
+      const isLast = sortOrder === totalCount;
+
+      let description: string;
+      let key_concepts: string[];
+
+      if (isFirst) {
+        description = `Opening chapter of ${bookLabel}${topicContext}. Hook the reader, validate their main frustration, and open the transformation promise.`;
+        key_concepts = [
+          `Validate the core struggle that "${title}" addresses`,
+          `Introduce the transformation ${bookLabel} delivers`,
+          "Open a loop the remaining chapters will close",
+        ];
+      } else if (isLast) {
+        description = `Closing chapter of ${bookLabel}. Consolidate the transformation built across all chapters and give concrete next steps.`;
+        key_concepts = [
+          `Summarize the key capability built through "${title}"`,
+          "Provide actionable next steps the reader can take independently",
+          "Close the narrative arc without external CTAs",
+        ];
+      } else {
+        description = `Core chapter of ${bookLabel}${topicContext}: deliver "${title}" with practical, concrete guidance the reader can apply immediately.`;
+        key_concepts = [
+          `Main method or insight for "${title}"`,
+          "Practical application with concrete examples for the reader's situation",
+          "How this chapter advances the overall transformation",
+        ];
+      }
+
       return {
         number: sortOrder,
         title,
-        description:
-          `Develop "${title}" with concrete examples tied to the reader avatar and ebook topic.`,
-        key_concepts: [`Core ideas for: ${title}`, "Practical application for the reader"],
+        description,
+        key_concepts,
         word_count_target: wordDefault,
       };
     })
@@ -81,11 +116,11 @@ async function resolveIndexJsonForGeneration(
 
   if (chapters.length === 0) return null;
 
-  const payload = {
-    narrative_arc:
-      "Synthesized from confirmed chapter titles (full AI outline was missing). Regenerate the outline in Content to replace this placeholder.",
-    chapters,
-  };
+  const narrativeArc = context?.ebookTitle
+    ? `Guide for "${context.ebookTitle}"${topicContext}: synthesized from confirmed chapter titles (full AI outline was missing).`
+    : `Synthesized from confirmed chapter titles (full AI outline was missing). Regenerate the outline in Content to replace this placeholder.`;
+
+  const payload = { narrative_arc: narrativeArc, chapters };
   const jsonString = JSON.stringify(payload);
   const { error: saveErr } = await admin.from("ebooks").update({ index_json: payload }).eq("id", ebookId);
   if (saveErr) {
@@ -230,7 +265,7 @@ Deno.serve(async (req: Request) => {
   const { data: project, error: projectError } = await admin
     .from("projects")
     .select(
-      "id, user_id, content_source, content_locale, main_title, topic, problem, target_avatar, structure_completed_at, design_config",
+      "id, user_id, content_source, content_locale, main_title, topic, problem, target_avatar, author, structure_completed_at, design_config",
     )
     .eq("id", projectId)
     .maybeSingle();
@@ -405,11 +440,19 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Anthropic path: resolve index before calling Claude, debit on success ────
+  // First line of projects.topic is the optimized title (see wizardOptimizeUnifiedText.ts)
+  const topicFirstLine =
+    typeof project.topic === "string" ? project.topic.split("\n")[0].trim() : undefined;
+
   const indexResolved = await resolveIndexJsonForGeneration(
     admin,
     chapter.ebook_id as string,
     ebookType,
     ebook.index_json,
+    {
+      ebookTitle: typeof ebook.title === "string" ? ebook.title.trim() || undefined : undefined,
+      topic: topicFirstLine || undefined,
+    },
   );
   if (!indexResolved) {
     return json(
@@ -451,6 +494,9 @@ Deno.serve(async (req: Request) => {
     }));
 
   let promptBundle;
+  const projectAuthor =
+    typeof project.author === "string" && project.author.trim() ? project.author.trim() : null;
+
   if (ebookType === "bonus") {
     promptBundle = generateBonusChapterPrompt({
       content_locale: contentLocale,
@@ -461,6 +507,7 @@ Deno.serve(async (req: Request) => {
       bonus_product_title: typeof ebook.title === "string" ? ebook.title.trim() : "",
       tone: contentTone,
       bonus_index: indexJsonString,
+      author: projectAuthor,
     });
   } else if (ebookType === "order_bump") {
     promptBundle = generateBumpChapterPrompt({
@@ -472,6 +519,7 @@ Deno.serve(async (req: Request) => {
       index: indexJsonString,
       chapter_number: chapterNumber,
       previous_chapters: previousChapters,
+      author: projectAuthor,
     });
   } else {
     // main ebook
@@ -486,6 +534,7 @@ Deno.serve(async (req: Request) => {
       chapter_number: chapterNumber,
       chapter_count: chapterCount,
       previous_chapters: previousChapters,
+      author: projectAuthor,
     });
   }
 

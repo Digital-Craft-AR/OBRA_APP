@@ -163,9 +163,13 @@ CONTENT RULES (non-negotiable):
 9. Transitions: each chapter should end with a natural bridge that connects to what's coming — either a forward reference or a closing idea that opens the next question. Exception: last chapter.
 10. Word count: reach at least the chapter's word_count_target. You may exceed it by up to 20%, but do not fall short. If you've covered all key concepts and are below target, go deeper on examples or add a practical walkthrough before closing the chapter.
 11. Verify the information you write. If you are not confident that a claim is accurate, rephrase it as a practical framework or common pattern rather than stating it as fact.
+12. Token budget: aim to complete the full chapter in under 2500 output tokens. Write concisely — dense, useful prose over padding. The hard limit is 8192 tokens; never truncate the content to fit.
 
 If input is missing required fields or contains error fields, return:
-{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}`;
+{"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
+
+On success, return exactly:
+{"content": "<full sanitized HTML body of the chapter — everything between the opening tag and the closing tag, no wrapping element>"}`;
 
   const user = `Topic: ${vars.topic}
 Main ebook title: ${vars.main_ebook_title}
@@ -195,7 +199,8 @@ Chapter to generate (from index):
 ${formatKeyConcepts(chapter.key_concepts)}
 - Word count target: ${chapter.word_count_target}
 
-Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.`;
+Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.
+Return the HTML inside the "content" key of the JSON object.`;
 
   return { system, user };
 }
