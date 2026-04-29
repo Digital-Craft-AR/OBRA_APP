@@ -313,13 +313,58 @@ export async function replaceEbookDraftChapters(
 /** @deprecated Use `replaceEbookDraftChapters` */
 export const replaceMainEbookDraftChapters = replaceEbookDraftChapters;
 
+/**
+ * Builds the chapter insert rows for `upsertEbookDraftChaptersFromRows`, preserving
+ * content and approval for chapters whose id matches an existing DB row.
+ */
+export function buildChapterInsertsPreservingContent(
+  ebookId: string,
+  rows: TocChapterRow[],
+  existing: ChapterDraftRow[],
+): Array<{
+  ebook_id: string;
+  sort_order: number;
+  title: string;
+  content: string | null;
+  approved_at: string | null;
+}> {
+  const preservedById = new Map(
+    existing.map((r) => [r.id, { content: r.content, approved_at: r.approved_at }]),
+  );
+  return rows.map((row, index) => {
+    const preserved = preservedById.get(row.id);
+    return {
+      ebook_id: ebookId,
+      sort_order: index + 1,
+      title: row.title.trim() || " ",
+      content: preserved?.content ?? null,
+      approved_at: preserved?.approved_at ?? null,
+    };
+  });
+}
+
+/**
+ * Replaces the chapter list for an ebook while preserving content/approval for chapters that
+ * remain (matched by row.id). Chapters removed from `rows` are deleted; chapters whose id is
+ * new (locally-generated, not in DB) are inserted with null content.
+ */
 export async function upsertEbookDraftChaptersFromRows(
   ebookId: string,
   rows: TocChapterRow[],
 ): Promise<{ ok: true; rows: TocChapterRow[] } | { ok: false }> {
-  const titles = rows.map((r) => r.title);
-  const okReplace = await replaceEbookDraftChapters(ebookId, titles);
-  if (!okReplace.ok) return { ok: false };
+  const existing = await loadEbookChaptersDraft(ebookId);
+  if (!existing.ok) return { ok: false };
+
+  const { error: delError } = await supabase.from("chapters").delete().eq("ebook_id", ebookId);
+  if (delError) return { ok: false };
+
+  if (rows.length === 0) return { ok: true, rows: [] };
+
+  const inserts = buildChapterInsertsPreservingContent(ebookId, rows, existing.rows);
+
+  const { error: insError } = await supabase.from("chapters").insert(inserts);
+  if (insError) return { ok: false };
+
   const loaded = await loadEbookChapters(ebookId);
   if (!loaded.ok) return { ok: false };
   return { ok: true, rows: loaded.rows };
@@ -404,8 +449,9 @@ export type SyncMainTocResult =
   | { ok: false };
 
 /**
- * When TOC row count and chapter ids match DB, update titles in place (preserves bodies).
- * Otherwise caller should use `upsertEbookDraftChaptersFromRows` (destructive replace of draft rows).
+ * When TOC row count and chapter ids match DB, update titles in place (fast path, preserves bodies).
+ * Otherwise caller should use `upsertEbookDraftChaptersFromRows` which also preserves bodies for
+ * chapters that remain (matched by id) while dropping only truly removed chapters.
  */
 export async function trySyncMainEbookTocBeforeFreeze(
   ebookId: string,
