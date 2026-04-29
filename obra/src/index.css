@@ -38,6 +38,13 @@
   --max-width-content: 900px;
   --max-width-toast: 360px;
   --width-modal-full: calc(100vw - 2rem);
+
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(250%); }
 }
 
 @layer base {

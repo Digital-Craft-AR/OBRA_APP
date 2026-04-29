@@ -317,7 +317,6 @@ const resources = {
         "Armando la portada y los capítulos…",
         "Podés estirar las piernas mientras esperás."
       ],
-      "wizard.preview.shell.regenerateCta": "Regenerar vista previa",
       "wizard.preview.shell.errorTitle": "No se pudo generar la vista previa",
       "wizard.preview.shell.errorDesc": "Ocurrió un error al diseñar el documento. Podés volver a intentarlo.",
       "wizard.preview.shell.retryCta": "Volver a intentar",
@@ -1366,7 +1365,6 @@ const resources = {
         "Montando a capa e os capítulos…",
         "Você pode alongar as pernas enquanto espera."
       ],
-      "wizard.preview.shell.regenerateCta": "Regenerar prévia",
       "wizard.preview.shell.errorTitle": "Não foi possível gerar a prévia",
       "wizard.preview.shell.errorDesc": "Ocorreu um erro ao criar o design do documento. Você pode tentar novamente.",
       "wizard.preview.shell.retryCta": "Tentar novamente",
