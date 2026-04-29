@@ -1782,6 +1782,7 @@ export function WizardContentPage() {
                     onGenerate={() => void handleGenerateChapter()}
                     onApprove={() => void handleApproveChapter()}
                     generateLoading={chapterGenerateLoading}
+                    generateAllLoading={autoGenerating}
                     approveLoading={chapterApproveLoading}
                     richTextResetKey={chapterRichTextKey}
                     progressValue={chapterProgressValue}

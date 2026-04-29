@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { corsJson, corsOptions, CORS_HEADERS } from "../_shared/cors.ts";
 import { isSubscriptionEntitled } from "../_shared/auth.ts";
 import { callClaudeJsonText, getClaudeChapterModel } from "../_shared/claude.ts";
 import {
@@ -14,17 +14,18 @@ import type { ArtifactType, ContentLocale } from "../_shared/prompts.ts";
  *
  * Uses a two-phase approach to avoid output token limits:
  *   Phase 1: CSS toolkit + cover + title page + TOC  (1 Claude call)
- *   Phase 2: Chapter opener + body per chapter        (N parallel Claude calls)
+ *   Phase 2: Chapter opener + body per chapter        (N sequential Claude calls)
  * Assembly: header + chapters + </body></html>
+ *
+ * Returns a streaming NDJSON response to avoid Supabase's 150s idle timeout.
+ * Each line is a JSON object:
+ *   { type: "ping", ... }  — keepalive (sent after each phase/chapter)
+ *   { type: "done", htmlShell: string, shellMeta: ShellMeta }
+ *   { type: "error", error: string, status?: number }
  *
  * Staleness is tracked via content_hash (djb2 over chapter titles + content).
  *
- * Concurrent invocations for the same ebook are rejected with HTTP 409
- * (`generation_in_progress`) when `SUPABASE_DB_URL` or `DATABASE_URL` is set
- * (direct Postgres session; see `_shared/shellGenerationLock.ts`).
- *
  * POST body: { projectId: string, ebookId: string }
- * Response:  { ok: true, htmlShell: string, shellMeta: ShellMeta }
  */
 
 const json = corsJson;
@@ -68,12 +69,19 @@ Deno.serve(async (req: Request) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const authHeader = req.headers.get("Authorization") ?? "";
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: userData, error: authError } = await userClient.auth.getUser();
-  if (authError || !userData?.user?.id) return json({ error: "unauthorized" }, 401);
-  const userId = userData.user.id;
+  const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!jwt) {
+    console.error("generate-document-template: missing_bearer", { authHeader: authHeader ? "[present but not Bearer]" : "[empty]" });
+    return json({ error: "unauthorized", detail: "missing_bearer" }, 401);
+  }
+
+  const pub = createClient(supabaseUrl, anonKey);
+  const { data: { user }, error: authError } = await pub.auth.getUser(jwt);
+  if (authError || !user) {
+    console.error("generate-document-template: getUser failed", { errorMessage: authError?.message, hasUser: !!user });
+    return json({ error: "unauthorized", detail: "invalid_or_expired_session" }, 401);
+  }
+  const userId = user.id;
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -151,82 +159,130 @@ Deno.serve(async (req: Request) => {
   const title = typeof ebook.title === "string" ? ebook.title : "Ebook";
   const author = typeof project.author === "string" && project.author ? project.author : null;
 
-  // ── Phase 1: Generate document header (CSS + cover + title page + TOC) ──────
-  const headerPrompt = generateDocumentHeaderPrompt({
-    content_locale: locale,
-    artifact_type: artifactType,
-    title,
-    author,
-    chapter_titles: sorted.map((ch) => ch.title),
-    palette,
-    fonts,
-    page,
+  // ── Streaming NDJSON response ─────────────────────────────────────────────
+  // Each line is a JSON object. Sending bytes after each phase/chapter prevents
+  // Supabase's 150s idle timeout from firing on long documents.
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+
+  const send = (data: Record<string, unknown>): Promise<void> =>
+    writer.write(enc.encode(JSON.stringify(data) + "\n"));
+
+  (async () => {
+    try {
+      // ── Phase 1: Generate document header (CSS + cover + title page + TOC) ──
+      const headerPrompt = generateDocumentHeaderPrompt({
+        content_locale: locale,
+        artifact_type: artifactType,
+        title,
+        author,
+        chapter_titles: sorted.map((ch) => ch.title),
+        palette,
+        fonts,
+        page,
+      });
+
+      const headerResult = await callClaudeJsonText({
+        system: headerPrompt.system,
+        user: headerPrompt.user,
+        maxTokens: 8192,
+        temperature: 0.3,
+      });
+      if (!headerResult.ok) {
+        await send({ type: "error", error: headerResult.error, status: 502 });
+        return;
+      }
+
+      const headerHtml = extractTag(headerResult.text, "obra-header");
+      if (!headerHtml) {
+        console.error("generate_document_template: header extraction failed");
+        await send({ type: "error", error: "header_parse_failed", status: 502 });
+        return;
+      }
+
+      await send({ type: "ping", phase: 1 });
+
+      // ── Phase 2: Generate chapters in parallel (reduces total wall-clock time) ──
+      // A periodic ping keeps the idle timer alive during parallel HTTP waits.
+      let chaptersDone = 0;
+      const pingTimer = setInterval(() => {
+        send({ type: "ping", chapters_done: chaptersDone, total: sorted.length }).catch(() => {});
+      }, 20_000);
+
+      let chapterResults: (string | null)[] = [];
+      try {
+        chapterResults = await Promise.all(
+          sorted.map(async (ch, idx) => {
+            const prompt = generateChapterHtmlPrompt({
+              content_locale: locale,
+              chapter_number: idx + 1,
+              chapter_total: sorted.length,
+              chapter_title: ch.title,
+              chapter_content: ch.content ?? "<p>—</p>",
+              palette,
+              fonts,
+            });
+            const r = await callClaudeJsonText({
+              system: prompt.system,
+              user: prompt.user,
+              maxTokens: 8192,
+              temperature: 0.4,
+              model: getClaudeChapterModel(),
+            });
+            chaptersDone++;
+            return r.ok ? extractTag(r.text, "obra-chapter") : null;
+          }),
+        );
+      } finally {
+        clearInterval(pingTimer);
+      }
+
+      await send({ type: "ping", chapters_done: sorted.length, total: sorted.length });
+
+      if (chapterResults.some((c) => c === null)) {
+        console.error("generate_document_template: one or more chapter generations failed");
+        await send({ type: "error", error: "chapter_generation_failed", status: 502 });
+        return;
+      }
+
+      // ── Assembly ───────────────────────────────────────────────────────────
+      const htmlShell = [
+        headerHtml,
+        ...chapterResults,
+        "</body>",
+        "</html>",
+      ].join("\n");
+
+      const contentHash = hashChapters(sorted);
+      const shellMeta: ShellMeta = {
+        chapter_count: sorted.length,
+        page_size: page.size,
+        page_orientation: page.orientation,
+        content_hash: contentHash,
+        generated_at: new Date().toISOString(),
+      };
+
+      await admin
+        .from("ebooks")
+        .update({ html_shell: htmlShell, shell_meta: shellMeta, updated_at: new Date().toISOString() })
+        .eq("id", ebookId);
+
+      await send({ type: "done", htmlShell, shellMeta });
+    } catch (e) {
+      try {
+        await send({ type: "error", error: String(e), status: 500 });
+      } catch { /* writer may already be closed */ }
+    } finally {
+      try { await writer.close(); } catch { /* already closed */ }
+    }
+  })();
+
+  return new Response(readable, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      ...CORS_HEADERS,
+    },
   });
-
-  const headerResult = await callClaudeJsonText({
-    system: headerPrompt.system,
-    user: headerPrompt.user,
-    maxTokens: 8192,
-    temperature: 0.3,
-  });
-  if (!headerResult.ok) return json({ error: headerResult.error }, 502);
-
-  const headerHtml = extractTag(headerResult.text, "obra-header");
-  if (!headerHtml) {
-    console.error("generate_document_template: header extraction failed");
-    return json({ error: "header_parse_failed" }, 502);
-  }
-
-  // ── Phase 2: Generate each chapter sequentially (avoids rate-limit bursts) ──
-  const chapterResults: (string | null)[] = [];
-  for (let idx = 0; idx < sorted.length; idx++) {
-    const ch = sorted[idx]!;
-    const prompt = generateChapterHtmlPrompt({
-      content_locale: locale,
-      chapter_number: idx + 1,
-      chapter_total: sorted.length,
-      chapter_title: ch.title,
-      chapter_content: ch.content ?? "<p>—</p>",
-      palette,
-      fonts,
-    });
-    const r = await callClaudeJsonText({
-      system: prompt.system,
-      user: prompt.user,
-      maxTokens: 8192,
-      temperature: 0.4,
-      model: getClaudeChapterModel(),
-    });
-    chapterResults.push(r.ok ? extractTag(r.text, "obra-chapter") : null);
-  }
-
-  // Fail if any chapter failed to generate
-  if (chapterResults.some((c) => c === null)) {
-    console.error("generate_document_template: one or more chapter generations failed");
-    return json({ error: "chapter_generation_failed" }, 502);
-  }
-
-  // ── Assembly ──────────────────────────────────────────────────────────────
-  const htmlShell = [
-    headerHtml,
-    ...chapterResults,
-    "</body>",
-    "</html>",
-  ].join("\n");
-
-  const contentHash = hashChapters(sorted);
-  const shellMeta: ShellMeta = {
-    chapter_count: sorted.length,
-    page_size: page.size,
-    page_orientation: page.orientation,
-    content_hash: contentHash,
-    generated_at: new Date().toISOString(),
-  };
-
-  await admin
-    .from("ebooks")
-    .update({ html_shell: htmlShell, shell_meta: shellMeta, updated_at: new Date().toISOString() })
-    .eq("id", ebookId);
-
-  return json({ ok: true, htmlShell, shellMeta });
 });

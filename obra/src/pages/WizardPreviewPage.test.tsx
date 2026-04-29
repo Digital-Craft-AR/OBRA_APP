@@ -64,9 +64,11 @@ const mockChains = vi.hoisted(() => {
 });
 
 const mockFunctionsInvoke = vi.hoisted(() => vi.fn());
+const mockGetSession = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
+    auth: { getSession: mockGetSession },
     from: vi.fn((table: string) => {
       if (table === "ebooks") {
         return {
@@ -160,6 +162,7 @@ describe("WizardPreviewPage", () => {
     mockChains.order.mockReset();
     mockChains.inChain.mockReset();
     mockFunctionsInvoke.mockReset();
+    mockGetSession.mockReset();
 
     // Default: project loads successfully, ebooks load, chapters load
     mockChains.single.mockResolvedValue({ data: projectData, error: null });
@@ -173,6 +176,30 @@ describe("WizardPreviewPage", () => {
       if (callCount <= 1) return Promise.resolve({ data: ebooksData, error: null });
       return Promise.resolve({ data: chaptersData, error: null });
     });
+
+    // generate-document-template uses fetch() + auth.getSession() (streaming NDJSON).
+    // shell_meta.content_hash won't match computed hash so generation is triggered each time.
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: "test-token" } } });
+    const generatedShellNdjson = JSON.stringify({
+      type: "done",
+      htmlShell: "<html><head></head><body><p>Generated shell</p></body></html>",
+      shellMeta: {
+        chapter_count: 1,
+        page_size: "a4",
+        page_orientation: "portrait",
+        content_hash: "generated",
+        generated_at: "2026-01-01T00:00:00.000Z",
+      },
+    }) + "\n";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(generatedShellNdjson, {
+          status: 200,
+          headers: { "Content-Type": "application/x-ndjson" },
+        }),
+      ),
+    );
   });
 
   it("renders global stepper with preview step active", async () => {
@@ -202,9 +229,9 @@ describe("WizardPreviewPage", () => {
   it("shows deliverable tabs when ebooks are loaded", async () => {
     renderPreviewPage();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Ebook principal/i })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
     });
-    expect(screen.getByRole("button", { name: /Bonus 1/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Bonus 1/i })).toBeTruthy();
   });
 
   it("shows loading state initially", () => {
@@ -336,7 +363,7 @@ describe("WizardPreviewPage", () => {
 
       // Wait for ebooks tab to load
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /Ebook principal/i })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
       });
 
       // Find the file input rendered by ImageSlot for cover

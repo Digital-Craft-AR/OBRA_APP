@@ -63,6 +63,23 @@ export function hashChapters(
   return (hash >>> 0).toString(16);
 }
 
+/** Returns true when the cached shell_meta no longer matches current document params. */
+export function isShellMetaStale(
+  meta: ShellMeta | null,
+  chapterCount: number,
+  pageSize: string,
+  orientation: string,
+  contentHash: string,
+): boolean {
+  if (!meta) return true;
+  return (
+    meta.chapter_count !== chapterCount ||
+    meta.page_size !== pageSize ||
+    meta.page_orientation !== orientation ||
+    meta.content_hash !== contentHash
+  );
+}
+
 /**
  * Returns the HTML document for an ebook, using the cached version when valid,
  * regenerating via generate-document-template otherwise.
@@ -93,17 +110,19 @@ export async function fetchOrGenerateShell(opts: {
     .maybeSingle();
 
   const cached = ebookRow as { html_shell: string | null; shell_meta: ShellMeta | null } | null;
+  const htmlShell = cached?.html_shell?.trim() ?? null;
 
-  if (cached?.html_shell && cached.shell_meta) {
-    const meta = cached.shell_meta;
-    const isStale =
-      meta.chapter_count !== currentChapterCount ||
-      meta.page_size !== currentPageSize ||
-      meta.page_orientation !== currentPageOrientation ||
-      meta.content_hash !== currentContentHash;
+  if (htmlShell && cached?.shell_meta) {
+    const stale = isShellMetaStale(
+      cached.shell_meta,
+      currentChapterCount,
+      currentPageSize,
+      currentPageOrientation,
+      currentContentHash,
+    );
 
-    if (!isStale) {
-      return { ok: true, htmlShell: cached.html_shell, shellMeta: meta, cached: true, stale: false };
+    if (!stale) {
+      return { ok: true, htmlShell, shellMeta: cached.shell_meta, cached: true, stale: false };
     }
   }
 
@@ -121,20 +140,71 @@ export async function regenerateShell(opts: {
 }
 
 async function _invokeGenerate(projectId: string, ebookId: string): Promise<FetchShellResult> {
-  const { data, error } = await supabase.functions.invoke("generate-document-template", {
-    body: { projectId, ebookId },
-  });
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) return { ok: false, error: "unauthorized" };
 
-  if (error || !data?.ok || typeof data?.htmlShell !== "string") {
-    const code = await resolveShellTemplateInvokeErrorCode(data, error);
-    return { ok: false, error: code };
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  let res: Response;
+  try {
+    res = await fetch(`${supabaseUrl}/functions/v1/generate-document-template`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ projectId, ebookId }),
+    });
+  } catch {
+    return { ok: false, error: "invoke_failed" };
   }
 
-  return {
-    ok: true,
-    htmlShell: data.htmlShell as string,
-    shellMeta: data.shellMeta as ShellMeta,
-    cached: false,
-    stale: false,
-  };
+  if (!res.ok || !res.body) {
+    try {
+      const errBody: unknown = await res.json();
+      return { ok: false, error: shellTemplateInvokeErrorCode(errBody) ?? "invoke_failed" };
+    } catch {
+      return { ok: false, error: "invoke_failed" };
+    }
+  }
+
+  // Read streaming NDJSON — each line is a JSON chunk:
+  //   { type: "ping" }          keepalive, ignored
+  //   { type: "done", ... }     final result
+  //   { type: "error", ... }    generation error
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let chunk: Record<string, unknown>;
+        try { chunk = JSON.parse(line) as Record<string, unknown>; }
+        catch { continue; }
+        if (chunk.type === "done") {
+          return {
+            ok: true,
+            htmlShell: chunk.htmlShell as string,
+            shellMeta: chunk.shellMeta as ShellMeta,
+            cached: false,
+            stale: false,
+          };
+        }
+        if (chunk.type === "error") {
+          return { ok: false, error: (chunk.error as string) ?? "generation_failed" };
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { ok: false, error: "stream_ended_unexpectedly" };
 }

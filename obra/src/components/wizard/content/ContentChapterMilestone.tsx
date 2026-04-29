@@ -31,6 +31,8 @@ type ContentChapterMilestoneProps = {
   showAiGenerateButton?: boolean;
   /** Inline success message shown as ObraAlert, auto-cleared by parent. */
   successMessage?: string | null;
+  /** True while the "generate all" operation is running (changes single-chapter button label). */
+  generateAllLoading?: boolean;
 };
 
 export function ContentChapterMilestone({
@@ -49,6 +51,7 @@ export function ContentChapterMilestone({
   progressMax = 1,
   showAiGenerateButton = true,
   successMessage,
+  generateAllLoading = false,
 }: ContentChapterMilestoneProps) {
   const current = chapters[selectedIndex];
   const dirty = current ? !chapterHtmlEquals(bodyValue, current.content ?? "") : false;
