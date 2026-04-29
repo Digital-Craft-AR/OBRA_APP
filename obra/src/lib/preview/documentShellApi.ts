@@ -8,35 +8,6 @@ function shellTemplateInvokeErrorCode(data: unknown): string | undefined {
   return undefined;
 }
 
-/**
- * On non-2xx, `functions.invoke` sets `data` to null and `error` to `FunctionsHttpError`
- * whose `context` is the fetch `Response` — the JSON body must be read from there.
- */
-async function resolveShellTemplateInvokeErrorCode(data: unknown, error: unknown): Promise<string> {
-  const fromData = shellTemplateInvokeErrorCode(data);
-  if (fromData) return fromData;
-
-  if (
-    error &&
-    typeof error === "object" &&
-    "name" in error &&
-    (error as { name: string }).name === "FunctionsHttpError" &&
-    "context" in error &&
-    (error as { context: unknown }).context instanceof Response
-  ) {
-    const res = (error as { context: Response }).context;
-    try {
-      const body: unknown = await res.json();
-      const fromBody = shellTemplateInvokeErrorCode(body);
-      if (fromBody) return fromBody;
-    } catch {
-      /* response may not be JSON */
-    }
-    if (res.status === 409) return "generation_in_progress";
-  }
-
-  return "invoke_failed";
-}
 
 export type ShellMeta = {
   chapter_count: number;
@@ -49,6 +20,8 @@ export type ShellMeta = {
 export type FetchShellResult =
   | { ok: true; htmlShell: string; shellMeta: ShellMeta; cached: boolean; stale: boolean }
   | { ok: false; error: string };
+
+export type ShellProgress = { current: number; total: number };
 
 /** djb2 hash over all chapter titles and content for staleness detection. */
 export function hashChapters(
@@ -93,6 +66,7 @@ export async function fetchOrGenerateShell(opts: {
   currentPageSize: string;
   currentPageOrientation: string;
   currentContentHash: string;
+  onProgress?: (progress: ShellProgress) => void;
 }): Promise<FetchShellResult> {
   const {
     projectId,
@@ -101,6 +75,7 @@ export async function fetchOrGenerateShell(opts: {
     currentPageSize,
     currentPageOrientation,
     currentContentHash,
+    onProgress,
   } = opts;
 
   const { data: ebookRow } = await supabase
@@ -126,7 +101,7 @@ export async function fetchOrGenerateShell(opts: {
     }
   }
 
-  return _invokeGenerate(projectId, ebookId);
+  return _invokeGenerate(projectId, ebookId, onProgress);
 }
 
 /**
@@ -135,11 +110,16 @@ export async function fetchOrGenerateShell(opts: {
 export async function regenerateShell(opts: {
   projectId: string;
   ebookId: string;
+  onProgress?: (progress: ShellProgress) => void;
 }): Promise<FetchShellResult> {
-  return _invokeGenerate(opts.projectId, opts.ebookId);
+  return _invokeGenerate(opts.projectId, opts.ebookId, opts.onProgress);
 }
 
-async function _invokeGenerate(projectId: string, ebookId: string): Promise<FetchShellResult> {
+async function _invokeGenerate(
+  projectId: string,
+  ebookId: string,
+  onProgress?: (progress: ShellProgress) => void,
+): Promise<FetchShellResult> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) return { ok: false, error: "unauthorized" };
@@ -188,6 +168,9 @@ async function _invokeGenerate(projectId: string, ebookId: string): Promise<Fetc
         let chunk: Record<string, unknown>;
         try { chunk = JSON.parse(line) as Record<string, unknown>; }
         catch { continue; }
+        if (chunk.type === "ping" && typeof chunk.chapters_done === "number" && typeof chunk.total === "number") {
+          onProgress?.({ current: chunk.chapters_done as number, total: chunk.total as number });
+        }
         if (chunk.type === "done") {
           return {
             ok: true,
