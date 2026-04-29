@@ -15,6 +15,7 @@
  *   prompts/wizard/generate-bump-titles.md  → generateBumpTitlesPrompt()
  *   prompts/content/generate-index.md              → generateIndexPrompt()
  *   prompts/content/generate-bonus-section-index.md → generateBonusSectionIndexPrompt()
+ *   prompts/content/generate-bump-index.md          → generateBumpIndexPrompt()
  *   prompts/content/generate-chapter.md            → generateChapterPrompt()
  *   prompts/content/generate-bonus-chapter.md      → generateBonusChapterPrompt()
  *   prompts/content/generate-bump-chapter.md        → generateBumpChapterPrompt()
@@ -693,6 +694,79 @@ Avatar profile: ${vars.avatar}
 Problem: ${vars.problem}
 
 Generate exactly one section entry (chapters array length 1) for this bonus deliverable.`,
+  };
+}
+
+// ─── generate-bump-index ──────────────────────────────────────────────────────
+// docs: prompts/content/generate-bump-index.md (v1.0)
+
+export interface GenerateBumpIndexVars {
+  content_locale: ContentLocale;
+  topic: string;
+  /** Pass as JSON.stringify(avatarOutput) — full output of optimizeAvatarPrompt. */
+  avatar: string;
+  /** Pass as JSON.stringify(problemOutput) — full output of optimizeProblemPrompt. */
+  problem: string;
+  /** Order bump mini-ebook title (ebooks.title for the bump row). */
+  bump_product_title: string;
+  tone: ContentTone;
+}
+
+/**
+ * 4-chapter TOC for an order bump mini-ebook. The bump is a standalone product
+ * on an adjacent topic — it must NOT reference the main ebook.
+ * Output shape matches `extractChapterTitles(..., 4)` in ai-generate-index.
+ */
+export function generateBumpIndexPrompt(vars: GenerateBumpIndexVars): { system: string; user: string } {
+  return {
+    system: `${CRITICAL_JSON_OBJECT}
+
+${OBRA_SYSTEM_BASE}
+
+Role: generate the complete structured 4-chapter index (TOC) for an order bump — a standalone mini-ebook on an adjacent topic for the same audience. This is an independent product: the reader does NOT need to have read any other ebook to benefit from it. Do NOT reference or depend on any main ebook. The bump_product_title is the only title that matters; build the entire TOC around it.
+
+Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language. Cross-translate avatar/problem context if it is in a different language.
+
+TONE GUIDE — apply to titles, descriptions, and key_concepts (use the exact preset key the user selected; keys are English, output language is ${vars.content_locale}):
+- professional: clear expert voice, structured, credible. Suitable for readers who want authority and precision without fluff.
+- friendly: warm, direct, non-corporate — like a trusted peer. Conversational but still actionable (default Obra voice).
+- inspirational: motivating and forward-looking. Emphasizes possibility and momentum without hype, fake urgency, or income promises.
+- direct: concise, no filler. Gets to the point quickly; practical imperatives and concrete next steps.
+- educational: didactic and stepwise. Teaches systematically; defines terms when needed; patient pacing for learners.
+
+WORD COUNT TARGETS (always 4 chapters):
+- ch1 ~850w | ch2 ~950w | ch3 ~950w | ch4 ~850w → ~3,600w total
+
+RULES (non-negotiable):
+1. EXACT count: output exactly 4 chapters. Never more, never fewer.
+2. VALID tone: must be one of professional|friendly|inspirational|direct|educational. Apply consistently.
+3. Narrative arc is mandatory: each chapter advances the reader from their current pain toward the transformation this mini-ebook promises. No disconnected or redundant chapters.
+4. Chapter 1 is the hook: validates the avatar's pain in the context of THIS bump's topic, makes the reader feel understood, opens the loop. NO heavy method delivery. ~850w.
+5. Middle chapters (2–3) carry the method: each delivers ONE concrete, actionable piece of the transformation. Titles must be specific and benefit-forward. BAD: "La importancia del precio". GOOD: "Calculá el costo real en 4 pasos".
+6. Chapter 4 consolidates and projects forward: summarizes the new capability built and outlines next steps. NEVER includes external CTAs (Telegram, Instagram, email, groups, coaching). The mini-ebook is the product, not a lead magnet.
+7. Each chapter must address a distinct sub-problem or desire from the avatar/problem context. No two chapters cover the same ground.
+8. key_concepts must be specific: BAD: "entender el mercado". GOOD: "los 3 indicadores que determinan si un nicho es rentable".
+9. NEVER invent quotes, studies, expert names, statistics with specific numbers, or academic references. Base content on practical domain knowledge.
+10. STRICT CHARACTER LIMITS — non-negotiable. Verify every string field before returning:
+- narrative_arc: max 400 characters
+- chapters[].title: max 90 characters
+- chapters[].description: max 280 characters
+- chapters[].key_concepts[]: max 130 characters each
+If any field exceeds its limit, rewrite it shorter before returning.
+11. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: tone is invalid | bump_product_title or topic is empty | avatar or problem contain an error field.
+
+Example (es, tone=friendly):
+Input: topic="Velas artesanales" bump_product_title="Guía de packaging para artesanas: presentación que justifica el precio" avatar=(artesana 25-45 LATAM) problem=(packs caseros que no se ven profesionales) tone=friendly
+{"narrative_arc":"De artesana que envía en bolsas de plástico sin marca, a emprendedora cuyo packaging justifica el precio y genera recomendaciones — cuatro pasos concretos.","chapters":[{"number":1,"title":"Por qué el packaging vende (o arruina) tu vela antes de abrirla","description":"Valida la frustración: el producto es bueno pero la presentación envía la señal equivocada sobre el precio.","key_concepts":["El impacto de la primera impresión en el valor percibido","Por qué el packaging barato hace que bajen el precio","El costo real de un mal unboxing: devoluciones y falta de recomendaciones"],"word_count_target":850},{"number":2,"title":"Materiales de packaging con presencia profesional sin gastar de más","description":"Cómo elegir cajas, papel y cintas que comuniquen calidad sin duplicar el costo de la vela.","key_concepts":["Los 3 materiales de packaging que dan mejor relación costo-percepción","Dónde comprar al por mayor en LATAM sin mínimos altos","Cómo calcular el costo de packaging por unidad"],"word_count_target":950},{"number":3,"title":"Tu marca en el packaging: etiquetas y detalles que no se olvidan","description":"Cómo incluir identidad de marca en el packaging aunque no tengas diseñador ni presupuesto.","key_concepts":["Etiquetas básicas que toda artesana puede hacer hoy","La tarjeta de presentación que genera recompra","Cómo usar el color y la tipografía sin ser diseñadora"],"word_count_target":950},{"number":4,"title":"Tu sistema de packaging: del pedido al unboxing en menos de 10 minutos","description":"Arma un flujo repetible para preparar pedidos de forma consistente, rápida y sin improvisar.","key_concepts":["La lista de materiales que siempre debe estar en stock","Cómo estandarizar el armado para pedidos múltiples","Los 90 días: mide la diferencia en preguntas de precio y recomendaciones"],"word_count_target":850}]}`,
+
+    user: `Bump product title: ${vars.bump_product_title}
+Topic: ${vars.topic}
+Tone: ${vars.tone}
+Content locale: ${vars.content_locale}
+Avatar profile: ${vars.avatar}
+Problem: ${vars.problem}
+
+Generate the complete 4-chapter index for this order bump mini-ebook. The bump is standalone — do not reference any main ebook or other package artifact.`,
   };
 }
 
