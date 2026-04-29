@@ -138,6 +138,29 @@ Deno.test("callClaudeJsonText: omits temperature when not provided", async () =>
   Deno.env.delete("ANTHROPIC_API_KEY");
 });
 
+Deno.test("callClaudeJsonText: sends metadata.user_id when clientId is provided", async () => {
+  Deno.env.set("ANTHROPIC_API_KEY", "test-key");
+  const mock = mockFetch(anthropicOk("hi"));
+
+  await callClaudeJsonText({ system: "s", user: "u", maxTokens: 100, clientId: "ai-generate-content" });
+
+  const meta = mock.captured!.body.metadata as Record<string, string>;
+  assertEquals(meta.user_id, "ai-generate-content");
+  mock.restore();
+  Deno.env.delete("ANTHROPIC_API_KEY");
+});
+
+Deno.test("callClaudeJsonText: omits metadata when clientId is not provided", async () => {
+  Deno.env.set("ANTHROPIC_API_KEY", "test-key");
+  const mock = mockFetch(anthropicOk("hi"));
+
+  await callClaudeJsonText({ system: "s", user: "u", maxTokens: 100 });
+
+  assertEquals("metadata" in mock.captured!.body, false);
+  mock.restore();
+  Deno.env.delete("ANTHROPIC_API_KEY");
+});
+
 Deno.test("callClaudeJsonText: includes temperature when provided", async () => {
   Deno.env.set("ANTHROPIC_API_KEY", "test-key");
   const mock = mockFetch(anthropicOk("hi"));
