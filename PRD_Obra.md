@@ -246,7 +246,50 @@ Sketch (names may vary in migrations): users/profiles with `ui_locale`; projects
 - **Single launch plan**; **USD ~29/mo** anchor; local ARS/BRL at checkout.  
 - **No** free tier, **no** trial, **no** freemium—active subscription required to use the tool.  
 - **Monthly included credits** refresh each cycle—**no rollover**. **Top-up packs** (fixed sizes/prices TBD) **accumulate** until used.  
-- **Credit economics** (included count, per-action table) are a **product research** task before public numeric promises.
+- **Credit economics** — finalized based on API cost analysis (April 2026 data). See tables below.
+
+#### Credit unit definition
+
+**1 crédito Obra ≈ 1 output token de Sonnet 4** (unidad interna abstracta; el usuario nunca ve tokens).
+
+API cost anchors (verified April 2026):
+- Haiku 4.5: ~\$1/MTok input · ~\$5/MTok output
+- Sonnet 4: ~\$3/MTok input · ~\$15/MTok output
+
+#### Included credits per subscription cycle
+
+| Subscription | Credits/month | Covers | API cost to Obra |
+|---|---|---|---|
+| Single launch plan | **5,000 credits** | ~3–4 complete projects | ~\$5–6 USD |
+
+No rollover on included credits. Top-up packs accumulate indefinitely.
+
+#### Per-action credit table
+
+| Action | Model | Credits |
+|--------|-------|---------|
+| Chapter generation — main ebook | Sonnet 4 | **80** |
+| Chapter generation — bonus | Sonnet 4 | **55** |
+| Order bump generation | Sonnet 4 | **35** |
+| TOC / package structure | Haiku | **10** |
+| AI chat refinement message | Haiku | **8** |
+| "Improve text" (wizard fields) | Haiku | **5** |
+| Document parse + split (upload) | Haiku | **20** |
+| Image generation — cover/section (Gemini) | Gemini | **40** |
+
+> Full project cost estimate: ~1,200–1,500 credits · ~\$1.50 API cost to Obra. Credits deducted only after successful backend completion (user story 49).
+
+#### Top-up packs
+
+| Pack | Credits | Price (USD anchor) | Markup |
+|------|---------|-------------------|--------|
+| Small | 1,500 | ~\$5 | 3.3x API cost |
+| Medium | 5,000 | ~\$14 | 2.8x API cost |
+| Large | 15,000 | ~\$35 | 2.3x API cost |
+
+Prices shown at checkout in local currency (ARS/BRL) with USD anchor. The Medium pack intentionally mirrors one subscription month to anchor plan value.
+
+> **Note:** Prompt caching on Sonnet 4 (same-project repeated context) can reduce input costs up to 90% — evaluate before launch to improve margin.
 
 ### Acquisition gates
 
