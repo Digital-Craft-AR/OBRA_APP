@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -7,7 +7,7 @@ import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle 
 import { ObraToast } from "@/components/obra/ObraToast";
 import { ContentIndexMilestone } from "@/components/wizard/content/ContentIndexMilestone";
 import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/content/ContentChapterMilestone";
-import { ContentPlanAccordion } from "@/components/wizard/content/ContentPlanAccordion";
+import { ContentArtifactTabs } from "@/components/wizard/content/ContentArtifactTabs";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { ObraSpinner } from "@/components/obra/ObraSpinner";
 import { ObraAlert } from "@/components/obra/ObraAlert";
@@ -164,9 +164,6 @@ export function WizardContentPage() {
   const [bumpTocEntryResolved, setBumpTocEntryResolved] = useState<Record<string, boolean>>({});
   const [insufficientCreditsToastOpen, setInsufficientCreditsToastOpen] = useState(false);
   const [insufficientCreditsSource, setInsufficientCreditsSource] = useState<"index" | "chapter">("index");
-  // Plan review: accordion tracking
-  const [planOpenKey, setPlanOpenKey] = useState<string | null>(null);
-  const [accordionExpandedKeys, setAccordionExpandedKeys] = useState<Set<string>>(new Set());
   // Generating phase
   const [backWarningOpen, setBackWarningOpen] = useState(false);
   const [artifactApproveLoading, setArtifactApproveLoading] = useState(false);
@@ -178,6 +175,7 @@ export function WizardContentPage() {
   const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
+  const [chapterSuccessMessage, setChapterSuccessMessage] = useState<string | null>(null);
   const [chapterRichTextKey, setChapterRichTextKey] = useState(0);
   const [chapterBodyPresence, setChapterBodyPresence] = useState<Record<string, boolean>>({});
   const [artifactApprovedByKey, setArtifactApprovedByKey] = useState<Record<string, boolean>>({});
@@ -193,6 +191,13 @@ export function WizardContentPage() {
       setManuscriptCommitted(true);
     }
   }, [manuscriptRow]);
+
+  // Auto-clear chapter success message after 4 s
+  useEffect(() => {
+    if (!chapterSuccessMessage) return;
+    const id = setTimeout(() => setChapterSuccessMessage(null), 4000);
+    return () => clearTimeout(id);
+  }, [chapterSuccessMessage]);
   const [contentSourceIntroDone, setContentSourceIntroDone] = useState(() =>
     readContentSourceIntroDone(params.projectId),
   );
@@ -1026,7 +1031,6 @@ export function WizardContentPage() {
     );
     setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
     void refreshChapterBodyPresence();
-    setActionAnnouncement(t("wizard.content.chapters.saveSuccess"));
     // Mark project as modified if it was already published (content changed after export).
     // Conditional update: only applies when publish_status = 'published', no-op otherwise.
     if (project?.id) {
@@ -1089,7 +1093,7 @@ export function WizardContentPage() {
     setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
     setChapterRichTextKey((k) => k + 1);
     void refreshChapterBodyPresence();
-    setActionAnnouncement(t("wizard.content.chapters.generateSuccess"));
+    setChapterSuccessMessage(t("wizard.content.chapters.generateSuccess"));
   }, [chapterRows, chapterIdx, project?.id, t, refreshChapterBodyPresence, selectedKey]);
 
   const handleApproveChapter = useCallback(async () => {
@@ -1136,7 +1140,7 @@ export function WizardContentPage() {
     const allApproved = nextRows.length > 0 && nextRows.every((row) => Boolean(row.approved_at));
     setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: allApproved }));
     void refreshChapterBodyPresence();
-    setActionAnnouncement(t("wizard.content.chapters.approveSuccess"));
+    setChapterSuccessMessage(t("wizard.content.chapters.approveSuccess"));
   }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, selectedEbookId]);
 
   const handleIntroContentSourceSelect = useCallback(
@@ -1332,6 +1336,12 @@ export function WizardContentPage() {
 
   const confirmDisabled = !globalIndexReady;
 
+  /** True when every artifact (main + bonuses + bumps) has all its chapters approved. */
+  const allArtifactsApproved = useMemo(
+    () => navItems.length > 0 && navItems.every((item) => item.tocConfirmed),
+    [navItems],
+  );
+
   // ── Content UI phase ─────────────────────────────────────────────────────────
   type ContentUiPhase = "loading" | "intro" | "upload_alignment" | "plan_review" | "generating" | "complete";
   const contentUiPhase = useMemo((): ContentUiPhase => {
@@ -1342,20 +1352,6 @@ export function WizardContentPage() {
     if (allArtifactsApproved) return "complete";
     return "generating";
   }, [loading, workspaceReady, awaitingContentIntro, currentPhase, allArtifactsApproved]);
-
-  const allAccordionsExpanded = useMemo(
-    () => navItems.length > 0 && navItems.every((item) => accordionExpandedKeys.has(item.key)),
-    [navItems, accordionExpandedKeys],
-  );
-
-  const chapterCountByKey = useMemo((): Record<string, number> => {
-    const result: Record<string, number> = {};
-    result["main"] = mainTocRows.length;
-    for (const [key, rows] of Object.entries(bonusBumpToc)) {
-      result[key] = rows.length;
-    }
-    return result;
-  }, [mainTocRows, bonusBumpToc]);
 
   const canApproveArtifact = !artifactApproveLoading && !autoGenerating && chapterRows.length > 0;
 
@@ -1444,12 +1440,6 @@ export function WizardContentPage() {
     [chapterRows],
   );
 
-  /** True when every artifact (main + bonuses + bumps) has all its chapters approved. */
-  const allArtifactsApproved = useMemo(
-    () => navItems.length > 0 && navItems.every((item) => item.tocConfirmed),
-    [navItems],
-  );
-
   const handleEditIndexFromFooter = useCallback(async () => {
     if (!project?.id) return;
     const persisted = await persistCurrentChapterDraftIfDirty();
@@ -1472,17 +1462,13 @@ export function WizardContentPage() {
     setActionAnnouncement(t("wizard.content.index.reopenIndexSuccess"));
   }, [project?.id, persistCurrentChapterDraftIfDirty, t]);
 
-  // ── Plan accordion handler ────────────────────────────────────────────────────
-  const handlePlanAccordionToggle = useCallback((key: string) => {
-    setPlanOpenKey((prev) => {
-      const isClosing = prev === key;
-      if (!isClosing) {
-        setSelectedKey(key);
-        setAccordionExpandedKeys((ek) => new Set([...ek, key]));
-      }
-      return isClosing ? null : key;
-    });
-  }, []);
+  // ── Tab selection ─────────────────────────────────────────────────────────────
+  const handleTabSelect = useCallback(
+    (key: string) => {
+      void handleSelectPackageKey(key);
+    },
+    [handleSelectPackageKey],
+  );
 
   // ── Auto-generate all chapters for current artifact ───────────────────────────
   const handleGenerateAllChapters = useCallback(async () => {
@@ -1557,17 +1543,20 @@ export function WizardContentPage() {
 
     const now = new Date().toISOString();
     setChapterRows(draft.rows.map((r) => ({ ...r, approved_at: now })));
-    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: true }));
+
+    // Build updated approvals locally — stale closure can't be used here
+    const updatedApprovals = { ...artifactApprovedByKey, [selectedKey]: true };
+    setArtifactApprovedByKey(updatedApprovals);
     setArtifactApproveLoading(false);
     toast.success({ title: t("wizard.content.generating.artifactApproved") });
 
-    // Advance to next non-approved artifact
+    // Advance to next unapproved artifact using locally-updated map
     const currentIdx = navItems.findIndex((item) => item.key === selectedKey);
-    const nextUnapproved = navItems.find((item, idx) => idx > currentIdx && !artifactApprovedByKey[item.key] && item.key !== selectedKey);
+    const nextUnapproved = navItems.find((item, idx) => idx > currentIdx && !updatedApprovals[item.key]);
     if (nextUnapproved) {
-      void handleSelectPackageKey(nextUnapproved.key);
+      setSelectedKey(nextUnapproved.key);
     }
-  }, [selectedEbookId, persistCurrentChapterDraftIfDirty, selectedKey, navItems, artifactApprovedByKey, handleSelectPackageKey, t]);
+  }, [selectedEbookId, persistCurrentChapterDraftIfDirty, selectedKey, navItems, artifactApprovedByKey, t]);
 
   const handleBackFromGenerating = useCallback(() => {
     setBackWarningOpen(true);
@@ -1585,49 +1574,54 @@ export function WizardContentPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white">
-      <div className="relative border-b border-obra-blue-800/50 bg-obra-blue-900 px-8 py-4">
+      <div className="flex items-center justify-between bg-obra-blue-900 px-6 pt-4 pb-2">
+        <WizardGlobalStepper steps={globalSteps} dark />
         <button
           type="button"
           onClick={() => navigate("/app/dashboard")}
-          className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
+          aria-label={t("wizard.structure.back")}
+          className="rounded-md p-1.5 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         >
-          <ChevronLeft className="size-3.5" aria-hidden />
-          {t("wizard.structure.back")}
+          <X className="size-5" aria-hidden />
         </button>
-        <WizardGlobalStepper steps={globalSteps} dark />
       </div>
 
-      <div className="border-b border-obra-blue-800/50 bg-obra-blue-950 px-8 py-2.5">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-xs font-medium text-white/60">
-            {t("wizard.content.stepCounter", {
-              current: contentInnerStepCurrent,
-              total: contentInnerStepTotal,
-              step: contentInnerStepLabel,
-            })}
-          </span>
+      <div className="shrink-0 bg-obra-blue-900 px-8 pt-2 pb-4">
+        <div className="flex items-center gap-3">
           <div
-            className="flex items-center gap-1"
             role="progressbar"
+            aria-valuenow={contentInnerStepCurrent}
             aria-valuemin={1}
             aria-valuemax={contentInnerStepTotal}
-            aria-valuenow={contentInnerStepCurrent}
             aria-label={contentInnerStepLabel}
+            className="flex items-center gap-1"
           >
             {Array.from({ length: contentInnerStepTotal }).map((_, index) => (
               <div
                 key={index}
-                className={`h-1 w-8 rounded-full transition-all ${
+                className={`h-1 w-6 rounded-full transition-all ${
                   index < contentInnerStepCurrent ? "bg-obra-green-400" : "bg-white/20"
                 }`}
               />
             ))}
           </div>
+          <span className="text-xs font-medium text-white">{contentInnerStepLabel}</span>
         </div>
       </div>
 
+      {/* ── Artifact tab bar ───────────────────────────────────────────────── */}
+      {(contentUiPhase === "plan_review" || contentUiPhase === "generating" || contentUiPhase === "complete") &&
+        navItems.length > 0 && (
+          <ContentArtifactTabs
+            tabs={navItems}
+            selectedKey={selectedKey}
+            onSelect={handleTabSelect}
+            approvedByKey={contentUiPhase !== "plan_review" ? artifactApprovedByKey : undefined}
+          />
+        )}
+
       {/* ── Main content ───────────────────────────────────────────────────── */}
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-obra-blue-50">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
 
         {/* Loading / error states */}
         {contentUiPhase === "loading" ? (
@@ -1648,8 +1642,8 @@ export function WizardContentPage() {
 
         {/* ── Intro: choose content source ───────────────────────────────── */}
         {contentUiPhase === "intro" && project ? (
-          <div className="flex min-h-0 flex-1 overflow-y-auto">
-            <div className="w-full bg-white px-8 py-10">
+          <div className="flex min-h-0 flex-1 overflow-y-auto py-4">
+            <div className="w-ful px-8 py-10">
               <ContentSourceIntroPanel
                 t={t}
                 contentSource={project.content_source}
@@ -1698,11 +1692,13 @@ export function WizardContentPage() {
           </div>
         ) : null}
 
-        {/* ── Plan review: accordion of all artifacts ────────────────────── */}
+        {/* ── Plan review: tab-driven index editing ──────────────────────── */}
         {contentUiPhase === "plan_review" && project ? (
           <div className="flex min-h-0 flex-1 overflow-y-auto">
             <div className="w-full bg-white px-8 py-10">
-              {!bannerDismissed ? (
+              
+              <div className="mx-auto w-full max-w-2xl">
+                {!bannerDismissed ? (
                 <ObraAlert
                   variant="info"
                   title={t("wizard.content.banner.body")}
@@ -1711,60 +1707,37 @@ export function WizardContentPage() {
                   className="mb-6"
                 />
               ) : null}
-              <div className="mx-auto w-full max-w-2xl">
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-obra-blue-950">
-                    {t("wizard.content.planReview.title")}
-                  </h2>
-                  <p className="mt-1 text-sm text-obra-neutral-600">
-                    {t("wizard.content.planReview.subtitle")}
-                  </p>
-                  {!allAccordionsExpanded && navItems.length > 0 && (
-                    <p className="mt-2 text-xs text-obra-blue-500">
-                      {t("wizard.content.planReview.expandHint")}
-                    </p>
-                  )}
-                </div>
-                <ContentPlanAccordion
+              
+                <ContentIndexMilestone
                   t={t}
-                  navItems={navItems}
-                  openKey={planOpenKey}
-                  expandedKeys={accordionExpandedKeys}
-                  onToggle={handlePlanAccordionToggle}
-                  chapterCountByKey={chapterCountByKey}
-                  renderOpenContent={() => (
-                    <ContentIndexMilestone
-                      t={t}
-                      selectedTarget={selectedTarget}
-                      panelTitle={panelCopy.title}
-                      panelSubtitle={panelCopy.subtitle}
-                      tocRows={currentTocRows}
-                      onChangeToc={setCurrentToc}
-                      onRegenerateOutline={() => {
-                        if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
-                        else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
-                        else void handleRegenerateBonusOutline();
-                      }}
-                      regenerateDisabled={
-                        selectedTarget.kind === "main"
-                          ? regenerateDisabledMain
-                          : selectedTarget.kind === "bump"
-                            ? regenerateDisabledBump
-                            : regenerateDisabledBonus
-                      }
-                      regenerateLoading={generateLoading}
-                      tocReadOnly={tocReadOnly}
-                      actionAnnouncement={actionAnnouncement}
-                      showMainTocEmptyChoice={showMainTocEmptyChoice}
-                      mainTocEmptyShowGenerate={project.content_source === "ai"}
-                      onMainTocChooseManual={handleEmptyTocChooseManual}
-                      onMainTocChooseGenerate={() => {
-                        if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
-                        else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
-                        else void handleRegenerateBonusOutline();
-                      }}
-                    />
-                  )}
+                  selectedTarget={selectedTarget}
+                  panelTitle={panelCopy.title}
+                  panelSubtitle={panelCopy.subtitle}
+                  tocRows={currentTocRows}
+                  onChangeToc={setCurrentToc}
+                  onRegenerateOutline={() => {
+                    if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
+                    else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
+                    else void handleRegenerateBonusOutline();
+                  }}
+                  regenerateDisabled={
+                    selectedTarget.kind === "main"
+                      ? regenerateDisabledMain
+                      : selectedTarget.kind === "bump"
+                        ? regenerateDisabledBump
+                        : regenerateDisabledBonus
+                  }
+                  regenerateLoading={generateLoading}
+                  tocReadOnly={tocReadOnly}
+                  actionAnnouncement={actionAnnouncement}
+                  showMainTocEmptyChoice={showMainTocEmptyChoice}
+                  mainTocEmptyShowGenerate={project.content_source === "ai"}
+                  onMainTocChooseManual={handleEmptyTocChooseManual}
+                  onMainTocChooseGenerate={() => {
+                    if (selectedTarget.kind === "main") void handleRegenerateMainOutline();
+                    else if (selectedTarget.kind === "bump") void handleRegenerateBumpOutline();
+                    else void handleRegenerateBonusOutline();
+                  }}
                 />
               </div>
             </div>
@@ -1781,33 +1754,12 @@ export function WizardContentPage() {
               onSelectChapterIndex={(i) => void handleSelectChapterIndex(i)}
               generateLoading={chapterGenerateLoading || autoGenerating}
               title={navItems.find((item) => item.key === selectedKey)?.navTitle}
+              onGenerateAll={project.content_source === "ai" ? () => void handleGenerateAllChapters() : undefined}
+              generateAllLoading={autoGenerating}
             />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="w-full min-h-full bg-white px-8 py-10">
-                  {/* Artifact progress pills */}
-                  <div className="mb-5 flex flex-wrap items-center gap-x-1 gap-y-2">
-                    {navItems.map((item, idx) => {
-                      const isApproved = artifactApprovedByKey[item.key];
-                      const isCurrent = item.key === selectedKey;
-                      return (
-                        <div key={item.key} className="flex items-center gap-1">
-                          {idx > 0 && <div className="h-px w-3 shrink-0 bg-obra-blue-200" aria-hidden />}
-                          <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                            isApproved
-                              ? "bg-obra-green-100 text-obra-green-700"
-                              : isCurrent
-                                ? "bg-obra-blue-100 text-obra-blue-700 ring-1 ring-obra-blue-300"
-                                : "bg-obra-blue-50 text-obra-blue-400"
-                          }`}>
-                            {isApproved && <CheckCircle2 className="size-3 shrink-0" aria-hidden />}
-                            <span>{item.navTitle}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
                   {/* Complete banner */}
                   {contentUiPhase === "complete" && (
                     <div className="mb-5 rounded-lg border border-obra-green-300 bg-obra-green-50 px-5 py-3">
@@ -1827,16 +1779,15 @@ export function WizardContentPage() {
                     selectedIndex={chapterIdx}
                     bodyValue={chapterBodyDraft}
                     onBodyChange={setChapterBodyDraft}
-                    onSave={() => void handleSaveChapterBody()}
                     onGenerate={() => void handleGenerateChapter()}
                     onApprove={() => void handleApproveChapter()}
-                    saveLoading={chapterSaveLoading}
                     generateLoading={chapterGenerateLoading}
                     approveLoading={chapterApproveLoading}
                     richTextResetKey={chapterRichTextKey}
                     progressValue={chapterProgressValue}
                     progressMax={Math.max(chapterRows.length, 1)}
                     showAiGenerateButton={project.content_source === "ai"}
+                    successMessage={chapterSuccessMessage}
                   />
                 </div>
               </div>
@@ -1880,7 +1831,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
-              disabled={!confirmVisible || confirmDisabled || confirmLoading || !allAccordionsExpanded}
+              disabled={!confirmVisible || confirmDisabled || confirmLoading}
               onClick={() => void handleConfirmGlobalIndex()}
             >
               {confirmLoading ? t("wizard.content.index.confirmLoading") : t("wizard.content.planReview.confirm")}
@@ -1896,31 +1847,17 @@ export function WizardContentPage() {
               <ChevronRight className="size-4" aria-hidden />
             </Button>
           ) : contentUiPhase === "generating" ? (
-            <div className="flex items-center gap-2">
-              {project?.content_source === "ai" ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => void handleGenerateAllChapters()}
-                  disabled={chapterGenerateLoading && !autoGenerating}
-                >
-                  {autoGenerating
-                    ? t("wizard.content.generating.stopGenerate")
-                    : t("wizard.content.generating.generateAll")}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!canApproveArtifact}
-                onClick={() => void handleApproveArtifact()}
-              >
-                {artifactApproveLoading
-                  ? t("wizard.content.generating.approveArtifactLoading")
-                  : t("wizard.content.generating.approveArtifact")}
-                <ChevronRight className="size-4" aria-hidden />
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!canApproveArtifact}
+              onClick={() => void handleApproveArtifact()}
+            >
+              {artifactApproveLoading
+                ? t("wizard.content.generating.approveArtifactLoading")
+                : t("wizard.content.generating.approveArtifact")}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
           ) : null}
         </div>
       </div>
