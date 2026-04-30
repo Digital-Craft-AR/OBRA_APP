@@ -411,6 +411,8 @@ Deno.serve(async (req: Request) => {
     }
     if (/^chapter-\d+-image-1$/.test(row.slot_key)) {
       imageUrls[row.slot_key] = signedUrl;
+      // Also inject using legacy key for shells generated before the prompt fix
+      imageUrls[row.slot_key.replace(/-image-\d+$/, "-img")] = signedUrl;
     }
   }
 
