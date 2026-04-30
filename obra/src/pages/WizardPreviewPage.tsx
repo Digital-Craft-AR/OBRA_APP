@@ -863,7 +863,8 @@ export function WizardPreviewPage() {
               <Button
                 type="button"
                 variant="secondary"
-                disabled={!project?.id}
+                size="small"
+                disabled={!project?.id || shellLoading}
                 onClick={() => setIsZipModalOpen(true)}
               >
                 <Package className="size-4" aria-hidden />
@@ -874,6 +875,8 @@ export function WizardPreviewPage() {
                 <Button
                   type="button"
                   variant="primary"
+                  size="small"
+                  disabled={shellLoading}
                   onClick={() => downloadPdf(ebookPdfUrls[selectedEbookId!]!, `${project?.main_title ?? "ebook"}.pdf`)}
                 >
                   <FileDown className="size-4" aria-hidden />
@@ -883,7 +886,8 @@ export function WizardPreviewPage() {
                 <Button
                   type="button"
                   variant="primary"
-                  disabled={!selectedEbook || exportLoading}
+                  size="small"
+                  disabled={!selectedEbook || exportLoading || shellLoading}
                   onClick={() => void handleExportPdf()}
                 >
                   <FileDown className="size-4" aria-hidden />
