@@ -347,10 +347,10 @@ Deno.serve(async (req: Request) => {
     return json({ error: "storage_upload_failed" }, 500);
   }
 
-  // Mark done
+  // Mark done — persist the prompt for traceability and future "regenerate with same prompt"
   await admin
     .from("project_images")
-    .update({ status: "done", storage_path: storagePath, updated_at: new Date().toISOString() })
+    .update({ status: "done", storage_path: storagePath, prompt, updated_at: new Date().toISOString() })
     .eq("id", imageId);
 
   // Deduct credits on success

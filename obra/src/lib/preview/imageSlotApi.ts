@@ -26,6 +26,7 @@ export type ProjectImageRow = {
   layout_id: string;
   storage_path: string | null;
   status: ImageSlotStatus;
+  prompt: string | null;
 };
 
 export async function loadProjectImages(
@@ -33,7 +34,7 @@ export async function loadProjectImages(
 ): Promise<{ ok: true; rows: ProjectImageRow[] } | { ok: false }> {
   const { data, error } = await supabase
     .from("project_images")
-    .select("id, project_id, ebook_id, chapter_id, slot_key, layout_id, storage_path, status")
+    .select("id, project_id, ebook_id, chapter_id, slot_key, layout_id, storage_path, status, prompt")
     .eq("project_id", projectId);
 
   if (error || !data) return { ok: false };
