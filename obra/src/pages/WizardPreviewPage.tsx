@@ -17,6 +17,7 @@ import {
   generateImage,
   getSignedImageUrl,
   loadProjectImages,
+  removeImage,
   uploadImage,
   type ImageSlotStatus,
   type ProjectImageRow,
@@ -520,6 +521,7 @@ export function WizardPreviewPage() {
   }, [project?.id, resolveSlotArgs, markModified]);
 
   const handleSlotRemove = useCallback((htmlSlotKey: string) => {
+    if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
     const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     setImageSlots((prev) => {
@@ -528,7 +530,8 @@ export function WizardPreviewPage() {
       return next;
     });
     markModified(ebookId);
-  }, [resolveSlotArgs, markModified]);
+    void removeImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, chapterId });
+  }, [project?.id, resolveSlotArgs, markModified]);
 
   // postMessage listener — receives slot actions from the preview iframe
   useEffect(() => {
