@@ -1406,7 +1406,7 @@ Generate ONE chapter: opener + body page(s). Include EVERY word of the content v
 OPENER: <div class="obra-page obra-chapter-opener" id="chapter-${vars.chapter_number}">
   • "${chapter} ${numPadded}" — 4-5rem, var(--font-heading), white or var(--color-accent)
   • Chapter title — var(--font-heading), 2rem+, high-contrast on var(--color-primary) bg
-  • Optional: <div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-img" data-slot-type="chapter" data-slot-description="[vivid description]"></div>
+  • Optional: <div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-image-1" data-slot-type="chapter" data-slot-description="[vivid description]"></div>
 
 BODY: <div class="obra-page obra-body"> (split naturally if long)
   CSS classes (defined in <head> — just use them):
