@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -342,6 +342,85 @@ describe("WizardPreviewPage", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Algunos PDFs no se pudieron generar/i)).toBeTruthy();
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Chapter image generation via postMessage
+  // ---------------------------------------------------------------------------
+
+  describe("chapter image generation", () => {
+    it("calls generateImage with chapter-N-image-1 slot key when iframe posts obra:slot:generate with current format", async () => {
+      const generateSpy = vi.mocked(imageSlotApiModule.generateImage);
+      generateSpy.mockResolvedValue({
+        ok: true,
+        imageId: "img-ch1",
+        signedUrl: "https://cdn/chapter1.jpg",
+        credits_balance_after: 4,
+        aspectRatio: "16:9",
+      });
+
+      renderPreviewPage();
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
+      });
+
+      // Simulate iframe postMessage for current slot key format
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "obra:slot:generate", slotKey: "chapter-1-image-1" },
+        }),
+      );
+
+      // Modal should open; confirm generation scoped to dialog to avoid matching other buttons
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(within(dialog).getByRole("button", { name: /^Generar$/ }));
+
+      await waitFor(() => {
+        expect(generateSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId: PROJECT_ID,
+            slotKey: "chapter-1-image-1",
+          }),
+        );
+      });
+    });
+
+    it("calls generateImage with chapter-N-image-1 slot key when iframe posts obra:slot:generate with legacy chapter-N-img format", async () => {
+      const generateSpy = vi.mocked(imageSlotApiModule.generateImage);
+      generateSpy.mockResolvedValue({
+        ok: true,
+        imageId: "img-ch1-legacy",
+        signedUrl: "https://cdn/chapter1-legacy.jpg",
+        credits_balance_after: 3,
+        aspectRatio: "16:9",
+      });
+
+      renderPreviewPage();
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
+      });
+
+      // Simulate iframe postMessage with the old slot key format (chapter-N-img)
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "obra:slot:generate", slotKey: "chapter-1-img" },
+        }),
+      );
+
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(within(dialog).getByRole("button", { name: /^Generar$/ }));
+
+      // Must normalize to chapter-1-image-1 before calling the API
+      await waitFor(() => {
+        expect(generateSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId: PROJECT_ID,
+            slotKey: "chapter-1-image-1",
+          }),
+        );
       });
     });
   });
