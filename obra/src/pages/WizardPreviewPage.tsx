@@ -49,7 +49,8 @@ function rowSlotKey(row: ProjectImageRow): string {
  * so handlers stay consistent with keys produced by rowSlotKey on initial load).
  */
 function compositeSlotKey(dbSlotKey: string, ebookId: string | undefined, chapterId: string | undefined): string {
-  if (dbSlotKey === "cover_art" && !ebookId && !chapterId) return "cover_art";
+  // Cover slots are scoped per ebook: each deliverable has its own cover.
+  if (dbSlotKey === "cover_art") return ebookId ? `${ebookId}:cover_art` : "cover_art";
   // Legacy rows stored with slot_key="hero" before the chapter-N-image-1 migration
   if (dbSlotKey === "hero" && ebookId && chapterId) return `${ebookId}:${chapterId}:hero`;
   // New chapter slots: slot_key is already the html_shell key (e.g. "chapter-1-image-1")
@@ -448,7 +449,7 @@ export function WizardPreviewPage() {
       if (htmlSlotKey === "cover") {
         return {
           dbSlotKey: "cover_art" as const,
-          ebookId: undefined as string | undefined,
+          ebookId: selectedEbookId ?? undefined,
           chapterId: undefined as string | undefined,
         };
       }
@@ -597,7 +598,8 @@ export function WizardPreviewPage() {
     const sorted = chaptersSortedByOrder(selectedChapters);
     for (const [key, slot] of Object.entries(imageSlots)) {
       if (!slot.url) continue;
-      if (key === "cover_art") {
+      // Cover is keyed per ebook as "{ebookId}:cover_art"
+      if (key === `${selectedEbookId}:cover_art`) {
         imageUrls.cover = slot.url;
         continue;
       }
