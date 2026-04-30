@@ -574,6 +574,20 @@ CREATE POLICY "users_own_data" ON projects
 -- Repetir patrón para todas las tablas vía project_id → user_id
 ```
 
+**`project_images` — política DELETE requerida:** Supabase RLS no retorna error cuando una operación DELETE no coincide con ninguna política — simplemente no borra nada. La tabla `project_images` necesita una política `FOR DELETE` explícita (ver `supabase/migrations/20260501120000_project_images_delete_policy.sql`):
+```sql
+create policy "project_images_owner_delete"
+  on public.project_images for delete
+  using (
+    exists (
+      select 1 from public.projects p
+      where p.id = project_images.project_id
+        and p.user_id = auth.uid()
+    )
+  );
+```
+Sin esta política, la eliminación de imágenes desde el cliente (`removeImage()` en `imageSlotApi.ts`) es silenciosamente ignorada.
+
 ### Supabase Storage
 - Bucket: `project-images` (privado, acceso via signed URLs)
 - Path: `{user_id}/{project_id}/{image_id}.webp`
@@ -734,6 +748,10 @@ El cliente **sanitiza** el HTML (DOMPurify, subset de etiquetas) antes de persis
 - La **portada** en el worker se inyecta como CSS `background-image` en `.obra-page.obra-cover` (no como `<img>`) — pagedjs 0.4.x no soporta `position:absolute; inset:0` dentro de áreas de página de forma fiable.
 - El worker inyecta `width`/`height` fijos (desde `design_config.page`) en `.obra-page.obra-cover` y `.obra-page.obra-chapter-opener` para prevenir cálculos incorrectos de pagedjs.
 - La función siempre crea un **nuevo job** en cada llamada (no reutiliza por timestamp) porque los cambios de imagen no actualizan `ebooks.updated_at` ni `chapters.updated_at`.
+- **Slot keys de imágenes en el worker:** la convención actual es `chapter-N-image-1` (N = 1-based). Shells generadas antes del fix del prompt usaban `chapter-N-img`; el worker añade un alias de compatibilidad retroactiva (`chapter-N-img` → mismo valor) para que ambos formatos resuelvan imágenes correctamente.
+- **Compresión de imágenes (Sharp):** antes de convertir las imágenes a data URIs base64, el worker las comprime con Sharp — JPEG calidad 80, máximo 1200px de ancho (`fit: "inside", withoutEnlargement: true`). Si Sharp falla, se usa la imagen original como fallback. Esto reduce el tamaño del HTML de ~5-6 MB a ~1-2 MB y evita timeouts de Puppeteer.
+- **Google Fonts stripping:** el worker elimina todas las etiquetas `<link>` de `fonts.googleapis.com` y `fonts.gstatic.com` del HTML antes de cargarlo con `page.setContent()`. Las solicitudes bloqueadas a fonts.googleapis.com dentro de Puppeteer generan un evento `ProgressEvent` que crashea pagedjs. Las fuentes de sistema son suficientes para la renderización en PDF.
+- **`waitUntil: "domcontentloaded"`:** Puppeteer usa `domcontentloaded` (no `networkidle2`) para `page.setContent()`. `networkidle2` espera que la red quede idle, lo cual puede tardar 55s+ si hay recursos externos inaccesibles; `domcontentloaded` dispara en cuanto el DOM está parseado, que es suficiente dado que todas las imágenes van embebidas como data URIs.
 
 ---
 
