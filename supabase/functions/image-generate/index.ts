@@ -190,6 +190,9 @@ Deno.serve(async (req: Request) => {
   if (!projectId || !slotKey) {
     return json({ error: "missing_params", detail: "projectId + slotKey required" }, 400);
   }
+  if (slotKey === "cover_art" && !ebookId) {
+    return json({ error: "missing_params", detail: "ebookId required for cover_art" }, 400);
+  }
   if (slotKey !== "cover_art" && (!ebookId || !chapterId)) {
     return json({ error: "missing_params", detail: "ebookId + chapterId required for chapter slots" }, 400);
   }
@@ -233,16 +236,17 @@ Deno.serve(async (req: Request) => {
   // Instead: try SELECT first, then UPDATE or INSERT.
   let imageId: string;
   {
-    const isCover = slotKey === "cover_art" && !ebookId && !chapterId;
+    const isCover = slotKey === "cover_art";
     let existingId: string | null = null;
 
     if (isCover) {
+      // ebookId is validated above; each ebook has its own cover row.
       const { data } = await admin
         .from("project_images")
         .select("id")
         .eq("project_id", projectId)
         .eq("slot_key", slotKey)
-        .is("ebook_id", null)
+        .eq("ebook_id", ebookId)
         .is("chapter_id", null)
         .maybeSingle();
       existingId = (data as { id: string } | null)?.id ?? null;
@@ -293,8 +297,20 @@ Deno.serve(async (req: Request) => {
   const aspectRatio = slotAspectRatio(slotKey);
   let prompt: string;
   if (slotKey === "cover_art") {
+    // Load this ebook's title so each deliverable gets its own cover prompt.
+    let coverTitle = typeof project.main_title === "string" ? project.main_title : "Ebook";
+    if (ebookId) {
+      const { data: ebookRow } = await admin
+        .from("ebooks")
+        .select("title")
+        .eq("id", ebookId)
+        .maybeSingle();
+      if (typeof (ebookRow as { title?: string } | null)?.title === "string") {
+        coverTitle = (ebookRow as { title: string }).title;
+      }
+    }
     prompt = buildCoverPrompt({
-      title: typeof project.main_title === "string" ? project.main_title : "Ebook",
+      title: coverTitle,
       author: typeof project.author === "string" ? project.author : null,
       imageStyle,
       primaryColor,
