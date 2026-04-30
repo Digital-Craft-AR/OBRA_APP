@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockStorage = vi.hoisted(() => ({
   upload: vi.fn(),
   createSignedUrl: vi.fn(),
+  remove: vi.fn(),
 }));
 
 const mockFrom = vi.hoisted(() => vi.fn());
@@ -18,6 +19,7 @@ vi.mock("@/lib/supabaseClient", () => ({
       from: () => ({
         upload: mockStorage.upload,
         createSignedUrl: mockStorage.createSignedUrl,
+        remove: mockStorage.remove,
       }),
     },
     from: mockFrom,
@@ -30,6 +32,7 @@ import {
   generateImage,
   getSignedImageUrl,
   loadProjectImages,
+  removeImage,
   uploadImage,
 } from "@/lib/preview/imageSlotApi";
 
@@ -64,6 +67,12 @@ function makeUpdateChain(result: unknown) {
   const eq = vi.fn().mockResolvedValue(result);
   const update = vi.fn(() => ({ eq }));
   return { update, eq };
+}
+
+function makeDeleteChain(result: unknown) {
+  const eq = vi.fn().mockResolvedValue(result);
+  const del = vi.fn(() => ({ eq }));
+  return { delete: del, eq };
 }
 
 function makeInsertChain(result: unknown) {
@@ -447,5 +456,59 @@ describe("uploadImage — storagePath derivation", () => {
 
     const result = await uploadImage({ projectId: "p1", slotKey: "cover_art", file });
     expect(result.ok && result.storagePath).toBe("user-1/p1/cover_art.jpg");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// removeImage
+// ---------------------------------------------------------------------------
+
+describe("removeImage", () => {
+  beforeEach(() => {
+    mockStorage.remove.mockReset();
+  });
+
+  it("returns ok:true and deletes row and storage when row exists", async () => {
+    const { select } = makeSelectChain({ data: { id: "img-1", storage_path: "user/p1/cover_art.jpg" }, error: null });
+    const delChain = makeDeleteChain({ error: null });
+    mockFrom.mockReturnValue({ select, delete: delChain.delete });
+    mockStorage.remove.mockResolvedValue({ error: null });
+
+    const result = await removeImage({ projectId: "p1", slotKey: "cover_art" });
+
+    expect(result).toEqual({ ok: true });
+    expect(delChain.delete).toHaveBeenCalled();
+    expect(delChain.eq).toHaveBeenCalledWith("id", "img-1");
+    expect(mockStorage.remove).toHaveBeenCalledWith(["user/p1/cover_art.jpg"]);
+  });
+
+  it("returns ok:true without calling delete when row does not exist", async () => {
+    const { select } = makeSelectChain({ data: null, error: null });
+    mockFrom.mockReturnValue({ select });
+
+    const result = await removeImage({ projectId: "p1", slotKey: "chapter-1-image-1", ebookId: "eb-1", chapterId: "ch-1" });
+
+    expect(result).toEqual({ ok: true });
+    expect(mockStorage.remove).not.toHaveBeenCalled();
+  });
+
+  it("returns ok:false when DB delete fails", async () => {
+    const { select } = makeSelectChain({ data: { id: "img-2", storage_path: null }, error: null });
+    const delChain = makeDeleteChain({ error: { message: "rls violation" } });
+    mockFrom.mockReturnValue({ select, delete: delChain.delete });
+
+    const result = await removeImage({ projectId: "p1", slotKey: "cover_art" });
+
+    expect(result).toEqual({ ok: false });
+  });
+
+  it("skips storage remove when storage_path is null", async () => {
+    const { select } = makeSelectChain({ data: { id: "img-3", storage_path: null }, error: null });
+    const delChain = makeDeleteChain({ error: null });
+    mockFrom.mockReturnValue({ select, delete: delChain.delete });
+
+    await removeImage({ projectId: "p1", slotKey: "cover_art" });
+
+    expect(mockStorage.remove).not.toHaveBeenCalled();
   });
 });
