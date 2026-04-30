@@ -61,8 +61,9 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.error("Missing Supabase environment variables");
       return corsJson({ error: "server_error" }, 500);
     }
@@ -71,6 +72,9 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+
+    // Service-role client for storage deletion (bypasses RLS)
+    const admin = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData?.user) {
@@ -126,6 +130,31 @@ Deno.serve(async (req: Request) => {
         { jobId: existingJobs[0].id, estimatedSeconds: 60 } satisfies ExportPdfQueueResponse,
         200,
       );
+    }
+
+    // ── Delete stale PDF files from previous completed jobs ───────────────────
+    // The Railway worker stores each job's PDF at a unique path ({user_id}/{job_id}.pdf).
+    // Collect all distinct storage_paths from old completed jobs and remove them
+    // so they don't accumulate in the bucket.
+    const { data: oldJobs } = await admin
+      .from("pdf_export_jobs")
+      .select("storage_path")
+      .eq("ebook_id", ebookId)
+      .eq("status", "completed")
+      .not("storage_path", "is", null);
+
+    if (oldJobs?.length) {
+      const stalePaths = [
+        ...new Set(
+          (oldJobs as Array<{ storage_path: string }>).map((j) => j.storage_path),
+        ),
+      ];
+      const { error: removeErr } = await admin.storage
+        .from("project-pdfs")
+        .remove(stalePaths);
+      if (removeErr) {
+        console.warn("pdf_stale_cleanup_failed", removeErr.message ?? removeErr);
+      }
     }
 
     // ── Create new job ────────────────────────────────────────────────────────
