@@ -484,30 +484,6 @@ Deno.serve(async (req: Request) => {
     return json({ error: "storage_upload_failed" }, 500);
   }
 
-  // Delete any old PDF files from previous jobs that used a different storage path.
-  // New file is confirmed written above before we touch old ones (atomicity).
-  const { data: oldJobs } = await admin
-    .from("pdf_export_jobs")
-    .select("storage_path")
-    .eq("ebook_id", ebookId)
-    .eq("status", "completed")
-    .not("storage_path", "is", null)
-    .neq("storage_path", storagePath);
-
-  if (oldJobs?.length) {
-    const stalePaths = [
-      ...new Set(
-        (oldJobs as Array<{ storage_path: string }>).map((j) => j.storage_path),
-      ),
-    ];
-    const { error: removeErr } = await admin.storage
-      .from("project-pdfs")
-      .remove(stalePaths);
-    if (removeErr) {
-      console.warn("pdf_stale_cleanup_failed", removeErr.message ?? removeErr);
-    }
-  }
-
   // Return signed URL (1-hour expiry)
   const { data: signedData } = await admin.storage
     .from("project-pdfs")
