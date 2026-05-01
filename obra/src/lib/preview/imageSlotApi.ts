@@ -173,18 +173,19 @@ export async function uploadImage(args: {
 
   // Upsert project_images row using select-then-update/insert
   // (partial unique indexes can't be targeted by .upsert onConflict)
-  const isCover = slotKey === "cover_art" && !ebookId && !chapterId;
+  const isCover = slotKey === "cover_art";
   let existingId: string | null = null;
 
   if (isCover) {
-    const { data } = await supabase
+    // Cover slots are scoped per ebook; ebookId must be provided by caller.
+    let q = supabase
       .from("project_images")
       .select("id")
       .eq("project_id", projectId)
       .eq("slot_key", slotKey)
-      .is("ebook_id", null)
-      .is("chapter_id", null)
-      .maybeSingle();
+      .is("chapter_id", null);
+    if (ebookId) q = q.eq("ebook_id", ebookId); else q = q.is("ebook_id", null);
+    const { data } = await q.maybeSingle();
     existingId = (data as { id: string } | null)?.id ?? null;
   } else {
     let q = supabase
