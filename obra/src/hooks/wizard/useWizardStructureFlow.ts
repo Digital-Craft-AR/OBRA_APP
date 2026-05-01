@@ -519,10 +519,11 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const key = `${kind}-${index}`;
     setItemRegeneratingKey(key);
     setItemsMessage(null);
-    const lockedTitles = items.filter((x) => x.locked).map((x) => x.title.trim()).filter(Boolean);
-    const previousTitles = items
-      .map((x) => x.title.trim())
+    // All other titles (locked or not) are passed as locked_titles so the model
+    // strictly avoids them. previous_titles is not needed here since we want hard avoidance.
+    const lockedTitles = items
       .filter((_, i) => i !== index)
+      .map((x) => x.title.trim())
       .filter(Boolean);
     const result = await suggestSingleWizardTitle({
       projectId: project.id,
@@ -534,7 +535,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       contentLocale: project.content_locale ?? null,
       ebookTitle: ebookTitleForAi,
       lockedTitles,
-      previousTitles,
     });
     setItemRegeneratingKey(null);
     if (!result.ok || !result.suggestion) {
@@ -578,12 +578,15 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     let hadError = false;
     let creditBlocked = false;
     const updates: Record<number, string> = {};
+    // Titles already set (locked or not) that are not being regenerated in this batch.
+    const baseTitles = sourceItems
+      .filter((x) => x.locked)
+      .map((x) => x.title.trim())
+      .filter(Boolean);
     for (const index of unlockedIndexes) {
-      const lockedTitles = sourceItems.filter((x) => x.locked).map((x) => x.title.trim()).filter(Boolean);
-      const previousTitles = sourceItems
-        .map((x) => x.title.trim())
-        .filter((_, i) => i !== index)
-        .filter(Boolean);
+      // Pass locked source titles + titles already generated in this batch so the model
+      // cannot repeat any of them.
+      const lockedTitles = [...baseTitles, ...Object.values(updates)];
       const result = await suggestSingleWizardTitle({
         projectId: project.id,
         field: kind === "bonus" ? "bonus_title" : "bump_title",
@@ -594,7 +597,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
         contentLocale: project.content_locale ?? null,
         ebookTitle: ebookTitleForAi,
         lockedTitles,
-        previousTitles,
       });
       if (!result.ok || !result.suggestion) {
         hadError = true;
