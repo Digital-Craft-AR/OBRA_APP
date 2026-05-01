@@ -235,12 +235,16 @@
   color: #888;
 }
 
-/* Chapter opener — height is fixed by parent .preview-page aspect-ratio */
+/* Chapter opener — aspect-ratio from .preview-page establishes the height.
+   Do NOT set height:100% here: the parent .preview-chapter has height:auto,
+   so height:100% would resolve to auto, making aspect-ratio act as min-height
+   and allowing the page to grow unbounded. Without an explicit height the
+   aspect-ratio gives a definite height (width × ratio) and justify-content
+   centers correctly within that fixed page boundary. */
 .preview-chapter-opener {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 100%;
   padding: 2.5rem 2rem;
   background: var(--preview-color-secondary, #e8f0f7);
 }
