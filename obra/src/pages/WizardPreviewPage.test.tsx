@@ -214,13 +214,17 @@ describe("WizardPreviewPage", () => {
         generated_at: "2026-01-01T00:00:00.000Z",
       },
     }) + "\n";
+    // Use mockImplementation (not mockResolvedValue) so each parallel fetch call gets its own
+    // Response instance with a fresh ReadableStream — reusing one instance locks the stream.
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(generatedShellNdjson, {
-          status: 200,
-          headers: { "Content-Type": "application/x-ndjson" },
-        }),
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(generatedShellNdjson, {
+            status: 200,
+            headers: { "Content-Type": "application/x-ndjson" },
+          }),
+        ),
       ),
     );
   });
