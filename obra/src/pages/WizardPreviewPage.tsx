@@ -282,6 +282,20 @@ export function WizardPreviewPage() {
     };
   }, [selectedEbookId, chaptersCache]);
 
+  const markModified = useCallback((ebookId?: string) => {
+    setPublishStatus((prev) => (prev === "published" ? "modified" : prev));
+    // Clear the cached PDF URL for this ebook and reset the export job so the modal remounts fresh.
+    if (ebookId) setEbookPdfUrls((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
+    setExportJobId(null);
+    if (project?.id) {
+      void supabase
+        .from("projects")
+        .update({ publish_status: "modified" })
+        .eq("id", project.id)
+        .then(({ error }) => { if (error) console.error("mark_modified_error", error); });
+    }
+  }, [project?.id]);
+
   // Load or generate the HTML shell when chapters for selected ebook are ready
   useEffect(() => {
     if (!project?.id || !selectedEbookId) return;
@@ -335,6 +349,11 @@ export function WizardPreviewPage() {
           [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
         }));
         setShellStale(result.stale);
+        // Shell had to be regenerated (not served from cache) → content changed since last export.
+        // Mark the project as modified so the stale PDF URL is cleared and Download PDF is hidden.
+        if (!result.cached) {
+          markModified(ebookId);
+        }
       } else if (result.error !== "generation_in_progress") {
         setShellError(result.error);
       }
@@ -343,21 +362,7 @@ export function WizardPreviewPage() {
 
     void load();
     return () => { cancelled = true; };
-  }, [project, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const markModified = useCallback((ebookId?: string) => {
-    setPublishStatus((prev) => (prev === "published" ? "modified" : prev));
-    // Clear the cached PDF URL for this ebook and reset the export job so the modal remounts fresh.
-    if (ebookId) setEbookPdfUrls((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
-    setExportJobId(null);
-    if (project?.id) {
-      void supabase
-        .from("projects")
-        .update({ publish_status: "modified" })
-        .eq("id", project.id)
-        .then(({ error }) => { if (error) console.error("mark_modified_error", error); });
-    }
-  }, [project?.id]);
+  }, [project, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight, markModified]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExportSuccess = useCallback((pdfUrl: string) => {
     if (!selectedEbookId) return;
@@ -858,36 +863,39 @@ export function WizardPreviewPage() {
               <Button
                 type="button"
                 variant="secondary"
-                disabled={!project?.id}
+                size="small"
+                disabled={!project?.id || shellLoading}
                 onClick={() => setIsZipModalOpen(true)}
               >
                 <Package className="size-4" aria-hidden />
                 {t("wizard.preview.export.zip")}
               </Button>
 
-              {selectedEbookId && ebookPdfUrls[selectedEbookId] ? (
+              {selectedEbookId && ebookPdfUrls[selectedEbookId] && publishStatus === "published" ? (
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="primary"
                   size="small"
+                  disabled={shellLoading}
                   onClick={() => downloadPdf(ebookPdfUrls[selectedEbookId!]!, `${project?.main_title ?? "ebook"}.pdf`)}
                 >
                   <FileDown className="size-4" aria-hidden />
                   {t("wizard.preview.export.download")}
                 </Button>
-              ) : null}
-
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!selectedEbook || exportLoading}
-                onClick={() => void handleExportPdf()}
-              >
-                <FileDown className="size-4" aria-hidden />
-                {exportLoading ? "…" : selectedEbookId && ebookPdfUrls[selectedEbookId]
-                  ? t("wizard.preview.export.regeneratePdf")
-                  : t("wizard.preview.export.generatePdf")}
-              </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  disabled={!selectedEbook || exportLoading || shellLoading}
+                  onClick={() => void handleExportPdf()}
+                >
+                  <FileDown className="size-4" aria-hidden />
+                  {exportLoading ? "…" : selectedEbookId && ebookPdfUrls[selectedEbookId]
+                    ? t("wizard.preview.export.regeneratePdf")
+                    : t("wizard.preview.export.generatePdf")}
+                </Button>
+              )}
             </div>
           </div>
         </div>
