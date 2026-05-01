@@ -1330,11 +1330,12 @@ Pagination (mandatory — do not modify):
   @media screen { html { zoom: 0.75; } }
   @media screen { body { background: #e8edf2; padding: 32px 16px; } }
   @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
-  @media screen { .obra-cover, .obra-chapter-opener { min-height: ${dims.h}; padding: 0; overflow: hidden; position: relative; } }
+  @media screen { .obra-cover, .obra-chapter-opener { height: ${dims.h} !important; max-height: ${dims.h} !important; overflow: hidden !important; padding: 0; position: relative; } }
   @media screen { .obra-toc, .obra-body { padding: 20mm; min-height: ${dims.h}; box-sizing: border-box; } }
   @page { size: ${pageDimensions}; }
 
-INLINE STYLE PROHIBITION: Never add inline style attributes for height, min-height, max-height, or width on .obra-page elements. Use only the CSS classes above.
+⛔ INLINE STYLE RULE: Never use viewport units (vh, vw) in inline styles — they break inside iframes.
+If you must set a height inline, use 100% (not 100vh). The page height is already enforced by the CSS classes above.
 
 ═══ PAGES TO GENERATE ═══
 
@@ -1414,7 +1415,7 @@ BODY: <div class="obra-page obra-body"> (split naturally if long)
   obra-two-col (dense prose) | obra-styled-list (on ul/ol) | obra-highlight (key terms inline)
   h2/h3 for headings | multiple .obra-body divs if content is long
 
-NO inline height/min-height/max-height/width on .obra-page. NO placeholders. NO added content.`;
+NO viewport units (vh/vw) in inline styles — use 100% if needed, never 100vh. NO placeholders. NO added content.`;
 
   const user = `Chapter ${vars.chapter_number} of ${vars.chapter_total}: ${vars.chapter_title}
 
