@@ -193,13 +193,6 @@ export function WizardPreviewPage() {
   /** Tracks ebook IDs for which shell generation has already been started, preventing duplicate
    * concurrent invocations when the shell effect re-fires due to React state updates. */
   const shellGenerationStartedRef = useRef(new Set<string>());
-  /** Set to false only on component unmount, used to skip state updates from in-flight
-   * generation calls after the component is gone. NOT reset on effect dep changes, so that
-   * concurrent parallel generations can all update shellCache even when the effect re-runs. */
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    return () => { mountedRef.current = false; };
-  }, []);
   /** True when current chapters count/page config differs from what the shell was generated with */
   const [shellStale, setShellStale] = useState(false);
 
@@ -367,7 +360,6 @@ export function WizardPreviewPage() {
         currentContentHash: hashChapters(chapters),
         onProgress: (p) => setShellProgressByEbook((prev) => ({ ...prev, [ebookId]: p })),
       }).then((result) => {
-        if (!mountedRef.current) return;
         if (result.ok) {
           setShellCache((prev) => ({
             ...prev,
