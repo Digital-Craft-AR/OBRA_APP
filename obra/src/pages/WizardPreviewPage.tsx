@@ -189,6 +189,9 @@ export function WizardPreviewPage() {
   const [shellError, setShellError] = useState<string | null>(null);
   const selectedEbookIdRef = useRef<string | null>(null);
   selectedEbookIdRef.current = selectedEbookId;
+  /** Tracks ebook IDs for which shell generation has already been started, preventing duplicate
+   * concurrent invocations when the shell effect re-fires due to React state updates. */
+  const shellGenerationStartedRef = useRef(new Set<string>());
   /** True when current chapters count/page config differs from what the shell was generated with */
   const [shellStale, setShellStale] = useState(false);
 
@@ -260,27 +263,31 @@ export function WizardPreviewPage() {
     };
   }, [project?.id, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load chapters for the selected ebook when not yet cached
+  // Load chapters for ALL visible ebooks in parallel on first visit
   useEffect(() => {
-    if (!selectedEbookId || chaptersCache[selectedEbookId] !== undefined) return;
+    const missing = visibleEbooks.filter((e) => chaptersCache[e.id] === undefined);
+    if (missing.length === 0) return;
     let cancelled = false;
 
-    async function load() {
-      if (!selectedEbookId) return;
+    async function loadAll() {
       setChaptersLoading(true);
-      const result = await loadEbookChaptersDraft(selectedEbookId);
+      const pairs = await Promise.all(
+        missing.map(async (e) => ({ id: e.id, result: await loadEbookChaptersDraft(e.id) })),
+      );
       if (cancelled) return;
-      if (result.ok) {
-        setChaptersCache((prev) => ({ ...prev, [selectedEbookId]: result.rows }));
+      const updates: Record<string, ChapterDraftRow[]> = {};
+      for (const { id, result } of pairs) {
+        if (result.ok) updates[id] = result.rows;
       }
+      setChaptersCache((prev) => ({ ...prev, ...updates }));
       setChaptersLoading(false);
     }
 
-    void load();
+    void loadAll();
     return () => {
       cancelled = true;
     };
-  }, [selectedEbookId, chaptersCache]);
+  }, [visibleEbooks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markModified = useCallback((ebookId?: string) => {
     setPublishStatus((prev) => (prev === "published" ? "modified" : prev));
@@ -296,37 +303,54 @@ export function WizardPreviewPage() {
     }
   }, [project?.id]);
 
-  // Load or generate the HTML shell when chapters for selected ebook are ready
+  // Generate shells for ALL ebooks with chapters simultaneously; tab switches reuse the cache
   useEffect(() => {
-    if (!project?.id || !selectedEbookId) return;
-    const chapters = chaptersCache[selectedEbookId];
-    if (!chapters || chapters.length === 0) return;
-    // Already cached for this ebook
-    if (shellCache[selectedEbookId]) {
+    if (!project?.id) return;
+
+    // Staleness check for the currently selected ebook (UI state only, no generation)
+    if (selectedEbookId && shellCache[selectedEbookId]) {
       const meta = shellCache[selectedEbookId]!.meta;
-      const dc = (project.design_config ?? {}) as Record<string, unknown>;
-      const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      const contentHash = hashChapters(chapters);
-      const stale =
-        meta.chapter_count !== chapters.length ||
-        meta.page_size !== page.size ||
-        meta.page_orientation !== page.orientation ||
-        meta.content_hash !== contentHash;
-      setShellStale(stale);
-      return;
+      const chapters = chaptersCache[selectedEbookId];
+      if (chapters && chapters.length > 0) {
+        const dc = (project.design_config ?? {}) as Record<string, unknown>;
+        const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
+        const contentHash = hashChapters(chapters);
+        const stale =
+          meta.chapter_count !== chapters.length ||
+          meta.page_size !== page.size ||
+          meta.page_orientation !== page.orientation ||
+          meta.content_hash !== contentHash;
+        setShellStale(stale);
+      }
     }
 
-    let cancelled = false;
-    async function load() {
-      if (!project?.id || !selectedEbookId) return;
-      const ebookId = selectedEbookId;
+    const dc = (project.design_config ?? {}) as Record<string, unknown>;
+    const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
+
+    // Collect ebooks that need generation (chapters ready, no cached shell, not already started)
+    const toGenerate = visibleEbooks.filter((e) => {
+      const chapters = chaptersCache[e.id];
+      return (
+        chapters &&
+        chapters.length > 0 &&
+        !shellCache[e.id] &&
+        !shellGenerationStartedRef.current.has(e.id)
+      );
+    });
+
+    if (toGenerate.length === 0) return;
+
+    setShellError(null);
+
+    for (const ebook of toGenerate) {
+      const ebookId = ebook.id;
+      shellGenerationStartedRef.current.add(ebookId);
       beginShellInflight(ebookId);
-      setShellError(null);
       setShellProgressByEbook((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
+
       const chapters = chaptersCache[ebookId]!;
-      const dc = (project.design_config ?? {}) as Record<string, unknown>;
-      const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      const result = await fetchOrGenerateShell({
+
+      void fetchOrGenerateShell({
         projectId: project.id,
         ebookId,
         currentChapterCount: chapters.length,
@@ -334,35 +358,25 @@ export function WizardPreviewPage() {
         currentPageOrientation: page.orientation,
         currentContentHash: hashChapters(chapters),
         onProgress: (p) => setShellProgressByEbook((prev) => ({ ...prev, [ebookId]: p })),
-      });
-      if (cancelled) {
-        endShellInflight(ebookId);
-        return;
-      }
-      if (selectedEbookIdRef.current !== ebookId) {
-        endShellInflight(ebookId);
-        return;
-      }
-      if (result.ok) {
-        setShellCache((prev) => ({
-          ...prev,
-          [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
-        }));
-        setShellStale(result.stale);
-        // Shell had to be regenerated (not served from cache) → content changed since last export.
-        // Mark the project as modified so the stale PDF URL is cleared and Download PDF is hidden.
-        if (!result.cached) {
-          markModified(ebookId);
+      }).then((result) => {
+        if (result.ok) {
+          setShellCache((prev) => ({
+            ...prev,
+            [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
+          }));
+          if (selectedEbookIdRef.current === ebookId) setShellStale(result.stale);
+          // Shell had to be regenerated (not served from cache) → content changed since last export.
+          // Mark the project as modified so the stale PDF URL is cleared and Download PDF is hidden.
+          if (!result.cached) markModified(ebookId);
+        } else if (result.error !== "generation_in_progress") {
+          // Allow retry on error so the effect can restart generation if triggered again
+          shellGenerationStartedRef.current.delete(ebookId);
+          if (selectedEbookIdRef.current === ebookId) setShellError(result.error);
         }
-      } else if (result.error !== "generation_in_progress") {
-        setShellError(result.error);
-      }
-      endShellInflight(ebookId);
+        endShellInflight(ebookId);
+      });
     }
-
-    void load();
-    return () => { cancelled = true; };
-  }, [project, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight, markModified]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project, visibleEbooks, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight, markModified]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExportSuccess = useCallback((pdfUrl: string) => {
     if (!selectedEbookId) return;
