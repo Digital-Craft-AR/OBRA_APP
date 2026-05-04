@@ -72,7 +72,7 @@ export function WizardGuidedTour({
         <p className="mt-2 text-sm font-body text-obra-neutral-600">{body}</p>
 
         <div className="mt-5 flex items-center justify-between gap-3">
-          <Button variant="tertiary" size="small" onClick={onSkip}>
+          <Button variant="tertiary" size="small" data-testid="wizard-tour-skip" onClick={onSkip}>
             {skipLabel}
           </Button>
           <div className="flex items-center gap-2">

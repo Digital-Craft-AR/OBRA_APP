@@ -87,6 +87,7 @@ export function ContentSourceCards({ t, value, variant, onSelect, disabled = fal
             <li key={option}>
               <button
                 type="button"
+                data-testid={`new-project-source-${option}`}
                 disabled={disabled}
                 onClick={() => {
                   if (disabled) return;

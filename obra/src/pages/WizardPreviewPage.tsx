@@ -665,7 +665,7 @@ export function WizardPreviewPage() {
   if (!params.projectId) return null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-white">
+    <div className="flex h-screen flex-col overflow-hidden bg-white" data-testid="preview-page">
       {/* Top bar + stepper */}
       <div className="flex items-center justify-between bg-obra-blue-900 px-6 pt-4 pb-2">
         <WizardGlobalStepper steps={globalSteps} dark />
@@ -880,6 +880,7 @@ export function WizardPreviewPage() {
                 type="button"
                 variant="secondary"
                 size="small"
+                data-testid="preview-export-zip"
                 disabled={!project?.id || shellLoading}
                 onClick={() => setIsZipModalOpen(true)}
               >
@@ -903,6 +904,7 @@ export function WizardPreviewPage() {
                   type="button"
                   variant="primary"
                   size="small"
+                  data-testid="preview-export-pdf"
                   disabled={!selectedEbook || exportLoading || shellLoading}
                   onClick={() => void handleExportPdf()}
                 >

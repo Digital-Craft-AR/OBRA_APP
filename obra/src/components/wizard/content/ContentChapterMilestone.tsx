@@ -129,6 +129,7 @@ export function ContentChapterMilestone({
             type="button"
             variant="secondary"
             size="medium"
+            data-testid="content-generate-chapter"
             disabled={generateDisabled}
             onClick={onGenerate}
           >
@@ -141,6 +142,7 @@ export function ContentChapterMilestone({
           type="button"
           variant="primary"
           size="medium"
+          data-testid="content-approve-chapter"
           disabled={approveDisabled}
           onClick={onApprove}
         >

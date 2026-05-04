@@ -317,6 +317,7 @@ export function WizardStructurePage() {
         <div className="mx-auto flex w-full items-center justify-between">
           <Button
             variant="tertiary"
+            data-testid="wizard-structure-prev"
             disabled={flow.innerStepIndex === 0}
             onClick={() => flow.setInnerStepIndex((current) => Math.max(0, current - 1))}
           >
@@ -325,6 +326,7 @@ export function WizardStructurePage() {
           </Button>
           <Button
             variant="primary"
+            data-testid="wizard-structure-next"
             disabled={
               flow.innerStepIndex === INNER_STEPS.length - 1 ? flow.designSaving : flow.mainTitleSaving
             }

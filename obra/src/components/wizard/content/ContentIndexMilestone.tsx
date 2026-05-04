@@ -141,6 +141,7 @@ export function ContentIndexMilestone({
                   type="button"
                   variant="primary"
                   size="medium"
+                  data-testid="content-toc-generate"
                   disabled={regenerateDisabled || regenerateLoading}
                   onClick={() => onMainTocChooseGenerate?.()}
                 >
@@ -151,6 +152,7 @@ export function ContentIndexMilestone({
                 type="button"
                 variant="tertiary"
                 size="medium"
+                data-testid="content-toc-manual"
                 disabled={tocAiBusy}
                 onClick={() => onMainTocChooseManual?.()}
               >
@@ -166,6 +168,7 @@ export function ContentIndexMilestone({
               type="button"
               variant="secondary"
               size="medium"
+              data-testid="content-generate-outline"
               onClick={onRegenerateOutline}
               disabled={regenerateDisabled || regenerateLoading}
             >

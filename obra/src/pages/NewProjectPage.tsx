@@ -90,6 +90,7 @@ export function NewProjectPage() {
                 <button
                   key={locale}
                   type="button"
+                  data-testid={`new-project-locale-${locale}`}
                   onClick={() => setContentLocale(locale)}
                   className={`flex items-center justify-between rounded-card border px-4 py-3 text-left text-sm transition-all ${
                     selected
@@ -124,7 +125,7 @@ export function NewProjectPage() {
           <Button variant="tertiary" onClick={() => navigate("/app/dashboard")} disabled={isSubmitting}>
             {t("wizard.create.cancel")}
           </Button>
-          <Button variant="primary" onClick={() => void handleCreateProject()} disabled={isSubmitting}>
+          <Button variant="primary" data-testid="new-project-submit" onClick={() => void handleCreateProject()} disabled={isSubmitting}>
             {isSubmitting ? t("wizard.create.creating") : t("wizard.create.continue")}
           </Button>
         </div>

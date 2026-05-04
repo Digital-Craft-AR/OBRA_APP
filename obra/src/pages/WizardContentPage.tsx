@@ -1829,7 +1829,7 @@ export function WizardContentPage() {
 
           {/* Right: primary action */}
           {contentUiPhase === "intro" ? (
-            <Button type="button" variant="primary" onClick={handleContentIntroContinue}>
+            <Button type="button" variant="primary" data-testid="content-intro-continue" onClick={handleContentIntroContinue}>
               {t("wizard.content.sourceIntro.continue")}
               <ChevronRight className="size-4" aria-hidden />
             </Button>
@@ -1838,6 +1838,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
+              data-testid="content-confirm-index"
               disabled={!confirmVisible || confirmDisabled || confirmLoading}
               onClick={() => void handleConfirmGlobalIndex()}
             >
@@ -1848,6 +1849,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
+              data-testid="content-go-to-preview"
               onClick={() => void navigate(`/app/projects/${params.projectId ?? ""}/preview`)}
             >
               {t("wizard.content.footer.goToPreview")}
@@ -1857,6 +1859,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
+              data-testid="content-approve-artifact"
               disabled={!canApproveArtifact}
               onClick={() => void handleApproveArtifact()}
             >
