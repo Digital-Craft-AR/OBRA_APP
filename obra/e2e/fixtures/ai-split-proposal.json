@@ -1,0 +1,10 @@
+{
+  "chapters": [
+    { "order": 1, "title": "Introducción", "start_heading": "Introducción" },
+    { "order": 2, "title": "Capítulo 1: Fundamentos", "start_heading": "Capítulo 1" },
+    { "order": 3, "title": "Capítulo 2: Estrategia", "start_heading": "Capítulo 2" },
+    { "order": 4, "title": "Capítulo 3: Implementación", "start_heading": "Capítulo 3" },
+    { "order": 5, "title": "Conclusión", "start_heading": "Conclusión" }
+  ],
+  "warnings": []
+}

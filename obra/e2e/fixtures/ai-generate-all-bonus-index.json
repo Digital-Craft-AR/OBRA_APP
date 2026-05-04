@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "bonuses": [
+    {
+      "ebook_id": "__placeholder__",
+      "chapters": [
+        { "title": "Plantillas de contenido listas para usar" },
+        { "title": "Checklist de lanzamiento" },
+        { "title": "Recursos y herramientas recomendadas" }
+      ]
+    }
+  ],
+  "credits_balance_after": 870
+}
