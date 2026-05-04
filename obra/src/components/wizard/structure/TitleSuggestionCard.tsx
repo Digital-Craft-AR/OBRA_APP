@@ -5,12 +5,14 @@ type TitleSuggestionCardProps = {
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
+  "data-testid"?: string;
 };
 
-export function TitleSuggestionCard({ title, selected, onSelect, disabled = false }: TitleSuggestionCardProps) {
+export function TitleSuggestionCard({ title, selected, onSelect, disabled = false, "data-testid": testId }: TitleSuggestionCardProps) {
   return (
     <button
       type="button"
+      data-testid={testId}
       disabled={disabled}
       onClick={onSelect}
       className={`rounded-card border p-4 text-left transition-colors ${

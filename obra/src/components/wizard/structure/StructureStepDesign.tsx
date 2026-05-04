@@ -78,6 +78,7 @@ export function StructureStepDesign({
                   selected={selectedTitleIndex === index}
                   disabled={suggestionsLoading || saving}
                   onSelect={() => onSelectSuggestion(index)}
+                  data-testid={`structure-title-suggestion-${index}`}
                 />
               ))}
             </div>
@@ -91,6 +92,7 @@ export function StructureStepDesign({
                     selected={selectedTitleIndex === realIndex}
                     disabled={suggestionsLoading || saving}
                     onSelect={() => onSelectSuggestion(realIndex)}
+                    data-testid={`structure-title-suggestion-${realIndex}`}
                   />
                 );
               })}
