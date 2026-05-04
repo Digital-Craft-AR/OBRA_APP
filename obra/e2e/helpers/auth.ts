@@ -31,9 +31,9 @@ export function testUser(index: 1 | 2 | 3 = 1): TestCredentials {
 export async function signIn(page: Page, credentials?: TestCredentials): Promise<void> {
   const { email, password } = credentials ?? testUser(1);
   await page.goto("/login");
-  await page.getByLabel(/e-?mail/i).fill(email);
-  await page.getByLabel(/contraseña|senha|password/i).fill(password);
-  await page.getByRole("button", { name: /iniciar sesión|entrar|sign in|log in/i }).click();
+  await page.getByTestId("login-email").fill(email);
+  await page.getByTestId("login-password").fill(password);
+  await page.getByTestId("login-submit").click();
   await page.waitForURL(/\/app\/dashboard/, { timeout: 15_000 });
 }
 

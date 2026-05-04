@@ -7,6 +7,8 @@
  * Seed users (creator-seed-1..3@obratest.invalid) are created by
  * obra/scripts/seed-test-users.mjs with email_confirm=true and
  * subscription_status=active. Passwords come from TEST_USER_PASSWORD env var.
+ *
+ * All selectors use data-testid for stability across locale changes.
  */
 
 import { test, expect } from "../helpers/test-fixture.js";
@@ -35,23 +37,15 @@ test("new unverified user is redirected to verify-email", async ({ page }) => {
 
   await page.goto("/register");
 
-  // Fill the signup form
-  await page.getByLabel(/nombre completo|nome completo/i).fill("Test Unverified");
-  await page.getByLabel(/correo|e-?mail/i).fill(uniqueEmail);
-  // Use the password-field with autocomplete=new-password to avoid hitting the
-  // "current-password" field on the login page (in case of navigation issues).
-  await page.locator('input[type="password"][autocomplete="new-password"]').fill("TestPass123!");
-
-  await page.getByRole("button", { name: /crear cuenta|registrar|sign up|cadastrar/i }).click();
+  await page.getByTestId("register-name").fill("Test Unverified");
+  await page.getByTestId("register-email").fill(uniqueEmail);
+  await page.getByTestId("register-password").fill("TestPass123!");
+  await page.getByTestId("register-submit").click();
 
   // Local Supabase requires email confirmation for new signups.
   // The app shows a "check your email" screen in the register page itself
   // (checkEmailOnly state), OR navigates to /app/verify-email if a session is
   // returned with an unverified email. Either way, the user does NOT reach /app/dashboard.
-  //
-  // We wait for either outcome:
-  //   a) The register page transitions to its "check email" confirmation view
-  //   b) The URL changes to /app/verify-email
   await Promise.race([
     page.waitForURL(/\/app\/verify-email/, { timeout: 15_000 }).catch(() => null),
     page.getByRole("heading", { name: /revisa tu correo|verifique seu e-mail|check your email/i })
@@ -63,7 +57,6 @@ test("new unverified user is redirected to verify-email", async ({ page }) => {
   const url = page.url();
   expect(url).not.toMatch(/\/app\/dashboard/);
 
-  // One of these should be true: URL is verify-email OR heading is visible
   const onVerifyEmailRoute = url.includes("/app/verify-email");
   const checkEmailHeadingVisible = await page
     .getByRole("heading", { name: /revisa tu correo|verifique seu e-mail|check your email/i })
@@ -79,9 +72,9 @@ test("new unverified user is redirected to verify-email", async ({ page }) => {
 test("login page rejects wrong password", async ({ page }) => {
   await page.goto("/login");
 
-  await page.getByLabel(/correo|e-?mail/i).fill(testUser(1).email);
-  await page.getByLabel(/contraseña|senha|password/i).fill("definitely-wrong-password-xyz");
-  await page.getByRole("button", { name: /iniciar sesión|entrar|sign in|log in|acessar/i }).click();
+  await page.getByTestId("login-email").fill(testUser(1).email);
+  await page.getByTestId("login-password").fill("definitely-wrong-password-xyz");
+  await page.getByTestId("login-submit").click();
 
   // The LoginPage renders an error paragraph with role="alert" on bad credentials.
   await expect(page.getByRole("alert")).toBeVisible({ timeout: 10_000 });
@@ -102,11 +95,7 @@ test("unauthenticated access to /app/dashboard redirects to /login", async ({ pa
 // 5. Subscription gate: pending-subscription page shows checkout button
 // ---------------------------------------------------------------------------
 test("subscription gate: pending-subscription page shows checkout CTA", async ({ page }) => {
-  // Intercept the create-subscription-checkout Edge Function so no real
-  // Mercado Pago request is made.
   await page.route("**/functions/v1/create-subscription-checkout", async (route) => {
-    // Return a redirect_url — the page calls window.location.assign() with this.
-    // We intercept the navigation so the test stays on the same origin.
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -114,30 +103,18 @@ test("subscription gate: pending-subscription page shows checkout CTA", async ({
     });
   });
 
-  // Sign in as the seeded active user first, then override the entitlement via
-  // the dev override query param. The entitlement layout honours
-  // ?dev_entitlement=pending_subscription in development mode.
-  //
-  // If the override param is not active, navigate directly — the entitlement
-  // guard will redirect active users away, but we can still assert the page
-  // renders when we're allowed (e.g. via the param).
   await signIn(page, testUser(1));
 
-  // Navigate directly to the pending-subscription page.
-  // Active users are redirected away by EntitlementLayout, so we use the dev
-  // override to force the gate open.
+  // Use dev override to force the pending-subscription gate.
   await page.goto("/app/pending-subscription?dev_entitlement=pending_subscription");
 
-  // If redirected to dashboard (no dev override available), skip gracefully.
+  // If dev override isn't wired up, active users are redirected to dashboard — skip.
   const currentUrl = page.url();
   if (currentUrl.includes("/app/dashboard")) {
-    // Dev entitlement override not active; skip assertion — the gate redirect
-    // itself is the entitlement system working correctly.
     test.skip();
     return;
   }
 
-  // The PendingSubscriptionShellPage renders a CTA button ("Ir al pago" / "Ir para o pagamento").
   await expect(
     page.getByRole("button", { name: /ir al pago|ir para o pagamento|pago|pagamento|suscribir|assinar/i }),
   ).toBeVisible({ timeout: 10_000 });
