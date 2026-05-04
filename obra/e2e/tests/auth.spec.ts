@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from "../helpers/test-fixture.js";
-import { signIn, testUser, waitForAuthToken, waitForAuthSignup } from "../helpers/auth.js";
+import { signIn, testUser, waitForAuthToken } from "../helpers/auth.js";
 
 // ---------------------------------------------------------------------------
 // 1. Seeded user can log in and reach dashboard
@@ -21,9 +21,9 @@ test("seeded user can log in and reach dashboard", async ({ page }) => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. New unverified user is redirected to verify-email
+// 2. New unverified user sees the "check your email" gate
 // ---------------------------------------------------------------------------
-test("new unverified user is redirected to verify-email", async ({ page }) => {
+test("new unverified user sees check-email gate", async ({ page }) => {
   const uniqueEmail = `test-unverified-${Date.now()}@obratest.invalid`;
 
   await page.goto("/register");
@@ -31,31 +31,21 @@ test("new unverified user is redirected to verify-email", async ({ page }) => {
   await page.getByTestId("register-email").fill(uniqueEmail);
   await page.getByTestId("register-password").fill("TestPass123!");
 
-  // Register the waiter BEFORE clicking to avoid the race.
+  // Signup sends POST /auth/v1/signup — wait for it before asserting UI state.
   const signupDone = waitForAuthSignup(page);
   await page.getByTestId("register-submit").click();
   await signupDone;
 
-  // Local Supabase returns a session but email_confirm=false for new signups.
-  // The app either stays on /register (showing a "check email" heading) or
-  // navigates to /app/verify-email. Both are valid; neither should be /app/dashboard.
-  await Promise.race([
-    page.waitForURL(/\/app\/verify-email/),
-    page
-      .getByRole("heading", { name: /revisa tu correo|verifique seu e-mail|check your email/i })
-      .waitFor(),
-  ]);
-
-  const url = page.url();
-  expect(url).not.toMatch(/\/app\/dashboard/);
-
-  const onVerifyRoute = url.includes("/app/verify-email");
-  const headingVisible = await page
+  // With enable_confirmations=true in supabase/config.toml, local Supabase
+  // returns session:null. RegisterPage calls setCheckEmailOnly(true), which
+  // renders an in-page "check your email" state — no navigation happens.
+  // We wait for the observable outcome: the heading, not the intermediate response.
+  await page
     .getByRole("heading", { name: /revisa tu correo|verifique seu e-mail|check your email/i })
-    .isVisible()
-    .catch(() => false);
+    .waitFor();
 
-  expect(onVerifyRoute || headingVisible).toBe(true);
+  // The user must NOT land on the dashboard.
+  expect(page.url()).not.toMatch(/\/app\/dashboard/);
 });
 
 // ---------------------------------------------------------------------------

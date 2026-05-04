@@ -120,12 +120,26 @@ await page.waitForURL(/\/login/);
 
 ### When a response check is not enough
 
-If the UI update happens asynchronously after the response (e.g. a React state update renders new elements), chain a `waitFor` on the element instead of a URL:
+If the UI update happens asynchronously after the response (e.g. a React state update renders new elements), wait on the observable DOM outcome directly instead of the intermediate response:
 
 ```typescript
-await indexDone;
-await page.getByTestId("chapter-list").waitFor(); // waits for DOM presence
+// ✅ Espera el resultado visible — no el response intermedio
+await page.getByTestId("register-submit").click();
+await page
+  .getByRole("heading", { name: /revisa tu correo/i })
+  .waitFor(); // el heading aparece cuando el estado cambia
 ```
+
+Si la respuesta y el DOM update son dos eventos distintos, se pueden encadenar:
+
+```typescript
+const indexDone = page.waitForResponse((r) => r.url().includes("/functions/v1/ai-generate-index"));
+await page.getByTestId("generate-index-btn").click();
+await indexDone;
+await page.getByTestId("chapter-list").waitFor(); // espera el DOM separado de la red
+```
+
+**Regla:** esperá siempre lo más cercano al usuario posible. Si podés esperar un elemento visible, hacelo — es más robusto que esperar una respuesta HTTP que el usuario nunca ve.
 
 ---
 
