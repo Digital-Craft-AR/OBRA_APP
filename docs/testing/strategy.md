@@ -27,11 +27,13 @@ See `.cursor/rules/testing-definition-of-done.mdc` for the agent/AI definition o
 
 See `docs/testing/integration.md` for a minimal code snippet and references to live examples.
 
-### E2E tests (future — out of Sprint 1)
+### E2E tests
 
-- **Tool:** Playwright (TBD trigger — see `docs/development/ci-pipeline.md`).
-- **Scope:** 1–3 stable flows (login, create project, one wizard step).
-- **Status:** backlog; do not block MVP on this layer.
+- **Tool:** Playwright (Chromium). Config: `obra/playwright.config.ts`.
+- **Scope:** auth, full AI wizard, upload wizard, project management (Epic #200).
+- **AI calls:** intercepted via `obra/e2e/helpers/ai-intercept.ts` — no real Claude/Gemini credits consumed.
+- **Backend:** `supabase start` (local Docker) with seeded test users (`npm run seed`).
+- **Patterns:** see `docs/testing/e2e-patterns.md` for selector and wait conventions.
 
 ---
 

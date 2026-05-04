@@ -122,6 +122,16 @@ Full token rules: `CONVENCIONES.md` and `obra/src/lib/tokens.ts`.
 - **Prompts / UX copy:** AI and product prompts should assume the project design system where relevant.
 - **Documentation updates (after meaningful work):** `CLAUDE.md`, `ARQUITECTURA_Obra.md`, `PRD_Obra.md`, `CONVENCIONES.md`, `docs/` as relevant, and `ONBOARDING.md` if setup instructions change.
 
+## E2E testing rules
+
+Canonical patterns for Playwright tests live in **`docs/testing/e2e-patterns.md`** — read it before writing or modifying any file under `obra/e2e/`.
+
+Key rules (details and examples in the doc):
+- **Selectors:** always `data-testid`. Never `getByLabel` with locale-dependent text. Add `data-testid` to the source component when missing.
+- **Waits:** always `page.waitForResponse()` tied to the real API call. Register the promise **before** the click that triggers it. Never use arbitrary `timeout: N` as the primary synchronization mechanism.
+- **AI calls:** auto-intercepted via `obra/e2e/helpers/test-fixture.ts`. Additional Edge Functions are intercepted per-test with `page.route()`; pair with `waitForResponse` to know when they complete.
+- **Test isolation:** each test sets up and tears down its own data.
+
 ---
 
 ## Backlog — issues de referencia rápida
