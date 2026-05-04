@@ -53,6 +53,21 @@ const CRITICAL_JSON_OBJECT =
 const CRITICAL_JSON_ARRAY =
   "CRITICAL OUTPUT FORMAT: Your response must be a valid JSON array starting with [ and ending with ]. Do NOT wrap it in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the array. The first character must be [ and the last must be ].";
 
+const STREAM_HTML_OUTPUT =
+  "Output raw sanitized HTML only — no JSON wrapper, no markdown fences, no explanation. Your entire response is the HTML body content. The first character must be <.";
+
+/**
+ * Converts a JSON-format system prompt into a streaming-friendly one that
+ * returns raw HTML instead of {"content": "..."}. Used by ai-generate-content
+ * when stream=true so chunks can be forwarded directly to the client.
+ */
+export function toStreamingSystem(jsonSystem: string): string {
+  return (
+    jsonSystem.replace(CRITICAL_JSON_OBJECT, STREAM_HTML_OUTPUT) +
+    "\n\nOVERRIDE: Output ONLY the raw HTML — NOT wrapped in JSON. Your entire response is the chapter body HTML."
+  );
+}
+
 // ─── optimize-topic ───────────────────────────────────────────────────────────
 // docs: prompts/wizard/optimize-topic.md (v1.0)
 
