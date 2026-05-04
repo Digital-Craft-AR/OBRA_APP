@@ -15,6 +15,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: false,
+    // Exclude Playwright E2E tests — they use a different runner and must
+    // not be picked up by Vitest's default **.spec.ts glob.
+    exclude: ["e2e/**", "node_modules/**"],
     // Provide fake Supabase credentials so the client module initializes
     // without throwing. MSW intercepts the actual HTTP calls in integration
     // tests, so these values never reach the real Supabase API.

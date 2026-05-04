@@ -38,6 +38,7 @@ function loadEnvFile(filename) {
 }
 
 loadEnvFile(".env.seed.local");
+loadEnvFile(".env.e2e.local");
 loadEnvFile(".env.local");
 loadEnvFile(".env");
 
@@ -45,9 +46,14 @@ const TEST_USERS = [
   { email: "creator-seed-1@obratest.invalid" },
   { email: "creator-seed-2@obratest.invalid" },
   { email: "creator-seed-3@obratest.invalid" },
+  { email: "creator-seed-unsubscribed@obratest.invalid" },
 ];
 
 function passwordForUser(index) {
+  const { email } = TEST_USERS[index];
+  if (email === "creator-seed-unsubscribed@obratest.invalid") {
+    return process.env.TEST_USER_PASSWORD_UNSUBSCRIBED ?? process.env.TEST_USER_PASSWORD ?? "";
+  }
   const perUser = process.env[`TEST_USER_PASSWORD_${index + 1}`];
   if (perUser) return perUser;
   return process.env.TEST_USER_PASSWORD ?? "";
@@ -141,23 +147,25 @@ async function main() {
       continue;
     }
 
-    // Grant active subscription so RLS policies allow full app access in E2E tests.
-    const { error: profileErr } = await supabase
-      .from("creator_profiles")
-      .update({
-        subscription_status: "active",
-        subscription_access_until: accessUntil,
-        credits_balance: 1000,
-      })
-      .eq("id", userId);
+    if (email !== "creator-seed-unsubscribed@obratest.invalid") {
+      // Grant active subscription so RLS policies allow full app access in E2E tests.
+      const { error: profileErr } = await supabase
+        .from("creator_profiles")
+        .update({
+          subscription_status: "active",
+          subscription_access_until: accessUntil,
+          credits_balance: 1000,
+        })
+        .eq("id", userId);
 
-    if (profileErr) {
-      console.error(`Failed to patch subscription for ${email}:`, profileErr.message);
-      process.exitCode = 1;
-      return;
+        if (profileErr) {
+          console.error(`Failed to patch subscription for ${email}:`, profileErr.message);
+          process.exitCode = 1;
+          return;
+        }
+    
+        console.log(`  → subscription_status=active, credits_balance=1000 set for ${email}`);
     }
-
-    console.log(`  → subscription_status=active, credits_balance=1000 set for ${email}`);
   }
 
   console.log("Done. Verify: sign in on LoginPage; check public.creator_profiles for subscription_status=active.");

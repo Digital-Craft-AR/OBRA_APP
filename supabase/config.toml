@@ -6,6 +6,11 @@ project_id = "obra_app"
 [api]
 enabled = true
 
+[auth.email]
+# Require email confirmation locally so the E2E test for the verify-email gate
+# matches production behavior. Emails go to Inbucket (http://localhost:54324).
+enable_confirmations = true
+
 [db]
 # Match linked project (see `supabase link` / `.temp/postgres-version` after link).
 major_version = 17
