@@ -53,7 +53,7 @@ export function ObraGeneratingOverlay({ title, messages, ariaLabel, current, tot
 
   return (
     <div
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-white/90 backdrop-blur-sm"
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-white/40 backdrop-blur-md"
       role="status"
       aria-label={ariaLabel}
     >
