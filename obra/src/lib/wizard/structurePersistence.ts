@@ -4,7 +4,6 @@ import type { WizardDesignConfig, WizardTitleItem } from "@/lib/wizard/structure
 
 export type WizardDesignPersistPayload = {
   designConfig: WizardDesignConfig;
-  bookTemplateId: string;
   layoutPageAssignments: Record<string, string>;
 };
 
@@ -99,7 +98,7 @@ export async function saveWizardBonusBumpItems(
 }
 
 export type SaveWizardDesignConfigResult =
-  | { ok: true; persisted: "full" | "design_and_template" | "design_only" }
+  | { ok: true; persisted: "full" | "design_only" }
   | { ok: false };
 
 /**
@@ -117,8 +116,8 @@ export function isLikelyMissingProjectsColumnError(error: { message?: string; co
 }
 
 /**
- * Persists design step fields. Retries with a smaller payload when the DB is missing
- * `layout_page_assignments` and/or `book_template_id` (migrations not applied on the project yet).
+ * Persists design step fields. Retries without `layout_page_assignments` when the DB
+ * column is missing (migration not yet applied).
  */
 export async function saveWizardDesignConfig(
   projectId: string,
@@ -128,7 +127,6 @@ export async function saveWizardDesignConfig(
     .from("projects")
     .update({
       design_config: payload.designConfig,
-      book_template_id: payload.bookTemplateId,
       layout_page_assignments: payload.layoutPageAssignments,
     })
     .eq("id", projectId);
@@ -136,18 +134,6 @@ export async function saveWizardDesignConfig(
   if (!full.error) return { ok: true, persisted: "full" };
 
   if (!isLikelyMissingProjectsColumnError(full.error)) return { ok: false };
-
-  const withoutLayouts = await supabase
-    .from("projects")
-    .update({
-      design_config: payload.designConfig,
-      book_template_id: payload.bookTemplateId,
-    })
-    .eq("id", projectId);
-
-  if (!withoutLayouts.error) return { ok: true, persisted: "design_and_template" };
-
-  if (!isLikelyMissingProjectsColumnError(withoutLayouts.error)) return { ok: false };
 
   const designOnly = await supabase
     .from("projects")

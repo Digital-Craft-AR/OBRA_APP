@@ -13,7 +13,7 @@ describe("isLikelyMissingProjectsColumnError", () => {
   it("detects schema cache wording", () => {
     expect(
       isLikelyMissingProjectsColumnError({
-        message: "Could not find the 'book_template_id' column of 'projects' in the schema cache",
+        message: "Could not find the 'layout_page_assignments' column of 'projects' in the schema cache",
       }),
     ).toBe(true);
   });

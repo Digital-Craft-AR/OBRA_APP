@@ -95,7 +95,7 @@ Deno.serve(async (req: Request) => {
   // --- Verify ownership of source project ---
   const { data: source, error: sourceError } = await admin
     .from("projects")
-    .select("id, user_id, name, content_locale, content_source, topic, main_title, author, target_avatar, problem, structure_completed_at, design_config, bonus_count, bump_count, bonus_items, bump_items, lifecycle_status, book_template_id, layout_page_assignments, publish_status")
+    .select("id, user_id, name, content_locale, content_source, topic, main_title, author, target_avatar, problem, structure_completed_at, design_config, bonus_count, bump_count, bonus_items, bump_items, lifecycle_status, layout_page_assignments, publish_status")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -164,7 +164,6 @@ Deno.serve(async (req: Request) => {
       bump_items: source.bump_items,
       lifecycle_status: "active",
       publish_status: "draft",
-      book_template_id: source.book_template_id,
       layout_page_assignments: source.layout_page_assignments ?? {},
       created_at: now,
       updated_at: now,

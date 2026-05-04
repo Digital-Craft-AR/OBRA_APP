@@ -304,8 +304,6 @@ export function WizardStructurePage() {
               {flow.innerStepIndex === 6 ? (
                 <StructureStepDesignConfig
                   config={flow.designConfig}
-                  bookTemplateId={flow.bookTemplateId}
-                  onBookTemplateChange={flow.setBookTemplateId}
                   message={flow.designMessage}
                   onChange={flow.setDesignConfig}
                 />
