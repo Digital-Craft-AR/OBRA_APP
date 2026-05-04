@@ -43,6 +43,25 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `register-password` | Password input on RegisterPage |
 | `register-submit` | Submit button on RegisterPage |
 | `check-email-heading` | "Revisá tu correo" heading shown after signup (RegisterPage) |
+| `new-project-locale-{locale}` | Locale selector button on NewProjectPage (e.g. `new-project-locale-es`) |
+| `new-project-source-{source}` | Content source card on NewProjectPage (e.g. `new-project-source-ai`) |
+| `new-project-submit` | "Continuar" button that creates the project on NewProjectPage |
+| `wizard-structure-prev` | Previous step button on WizardStructurePage |
+| `wizard-structure-next` | Next step / "Continue to Content" button on WizardStructurePage |
+| `wizard-tour-skip` | "Skip" button on the WizardGuidedTour overlay |
+| `structure-title-suggestion-{n}` | nth title suggestion card on structure step 3 (0-indexed) |
+| `content-intro-continue` | "Continue" button on the content-source intro screen |
+| `content-toc-generate` | "Generate with AI" button in the empty-TOC choice card |
+| `content-toc-manual` | "Enter manually" button in the empty-TOC choice card |
+| `content-generate-outline` | "Regenerate outline" button in the ContentIndexMilestone toolbar |
+| `content-confirm-index` | "Confirm global index" button in the plan-review footer |
+| `content-generate-chapter` | "Generate with AI" button in ContentChapterMilestone |
+| `content-approve-chapter` | "Approve chapter" button in ContentChapterMilestone |
+| `content-approve-artifact` | "Approve [ebook]" button in the generating-phase footer |
+| `content-go-to-preview` | "Go to Preview" button in the complete-phase footer |
+| `preview-page` | Root `<div>` of WizardPreviewPage |
+| `preview-export-pdf` | "Export PDF" / "Regenerate PDF" button in the preview footer |
+| `preview-export-zip` | "Export ZIP" button in the preview footer |
 
 > Add rows to this table as new testids are introduced.
 
@@ -212,6 +231,9 @@ Usan `SUPABASE_SERVICE_ROLE_KEY` del proceso Playwright (cargado desde `.env.e2e
 | `findAuthUserByEmail(email)` | Devuelve el UUID del usuario auth, o `undefined` si no existe |
 | `deleteAuthUser(userId)` | Borra el usuario por id (404 es silenciado) |
 | `deleteAuthUserByEmail(email)` | find + delete; no-op si no existe |
+| `deleteProjectById(projectId)` | Borra un proyecto por id (cascadea a ebooks y chapters) |
+| `deleteProjectsByUserId(userId)` | Borra todos los proyectos de un usuario (by auth user id) |
+| `deleteProjectsByUserEmail(email)` | find user → delete all their projects; no-op si no existe |
 
 ### Usuarios pre-sembrados (no necesitan cleanup)
 

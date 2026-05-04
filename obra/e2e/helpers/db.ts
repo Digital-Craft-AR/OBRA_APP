@@ -68,3 +68,44 @@ export async function deleteAuthUserByEmail(email: string): Promise<void> {
   const id = await findAuthUserByEmail(email);
   if (id) await deleteAuthUser(id);
 }
+
+/**
+ * Delete a project by its id using the service-role key (bypasses RLS).
+ * Cascades to ebooks, chapters, and related rows via DB foreign-key constraints.
+ */
+export async function deleteProjectById(projectId: string): Promise<void> {
+  const resp = await fetch(
+    `${supabaseUrl()}/rest/v1/projects?id=eq.${encodeURIComponent(projectId)}`,
+    {
+      method: "DELETE",
+      headers: adminHeaders(),
+    },
+  );
+  if (!resp.ok && resp.status !== 404) {
+    const body = await resp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to delete project ${projectId}: ${resp.status} ${body}`);
+  }
+}
+
+/**
+ * Delete all projects belonging to a user (by their auth user id).
+ * Useful for cleaning up after wizard E2E tests that create real projects.
+ */
+export async function deleteProjectsByUserId(userId: string): Promise<void> {
+  const resp = await fetch(
+    `${supabaseUrl()}/rest/v1/projects?user_id=eq.${encodeURIComponent(userId)}&select=id`,
+    { headers: adminHeaders() },
+  );
+  if (!resp.ok) return;
+  const rows = (await resp.json()) as Array<{ id: string }>;
+  await Promise.all(rows.map((r) => deleteProjectById(r.id)));
+}
+
+/**
+ * Find the auth user id for a given email, then delete all their projects.
+ * Silently skips if the user doesn't exist.
+ */
+export async function deleteProjectsByUserEmail(email: string): Promise<void> {
+  const userId = await findAuthUserByEmail(email);
+  if (userId) await deleteProjectsByUserId(userId);
+}
