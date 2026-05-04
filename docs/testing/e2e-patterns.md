@@ -174,27 +174,47 @@ Each test must create and clean up its own data. Never rely on state left by a p
 
 ---
 
-## 5. Running E2E locally
+## 5. Entorno local — Supabase local, no remoto
+
+E2E siempre corre contra Supabase local (`supabase start`). Nunca contra el proyecto remoto.
+
+### Cómo funciona
+
+`npm run e2e` inicia el dev server con `vite --mode e2e`. Vite carga los archivos `.env` en este orden para el modo `e2e`:
+
+```
+.env              ← valores base (ignorado si el key ya está definido)
+.env.local        ← NO cargado en modo e2e (Vite solo carga .env.<mode>.local)
+.env.e2e          ← comprometido, defaults para todos
+.env.e2e.local    ← gitignored, valores locales del desarrollador ← prioridad máxima
+```
+
+Esto significa que `npm run dev` (sin modo) sigue usando `.env.local` con el Supabase remoto, y `npm run e2e` usa `.env.e2e.local` con el local. Los dos entornos están completamente aislados.
+
+### Setup inicial
 
 ```bash
-# From obra/
+# 1. Desde la raíz del repo
+supabase start
 
-# 1. Start local Supabase
-supabase start   # from repo root
+# 2. Obtener las credenciales locales
+supabase status
+# anota: API URL, anon key, service_role key
 
-# 2. Seed test users (first time or after supabase db reset)
-npm run seed
+# 3. Crear obra/.env.e2e.local (gitignored)
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=<anon key de supabase status>
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_SERVICE_ROLE_KEY=<service_role key de supabase status>
+TEST_USER_PASSWORD=<contraseña para los usuarios de prueba>
 
-# 3. Run tests (starts dev server automatically)
+# 4. Sembrar usuarios de prueba (primera vez o tras supabase db reset)
+cd obra && npm run seed
+
+# 5. Correr los tests
 npm run e2e          # headless
-npm run e2e:headed   # see the browser
-npm run e2e:ui       # Playwright UI mode
+npm run e2e:headed   # ver el browser
+npm run e2e:ui       # UI mode de Playwright
 ```
 
-Required env file (`obra/.env.e2e.local`, gitignored):
-
-```bash
-TEST_USER_PASSWORD=<same-password-used-with-npm-run-seed>
-```
-
-`playwright.config.ts` loads this file automatically — no shell export needed.
+`playwright.config.ts` ya carga `.env.e2e.local` para el proceso Playwright (para `SUPABASE_SERVICE_ROLE_KEY`, `TEST_USER_PASSWORD`, etc.). Vite lo carga por `--mode e2e` para las vars `VITE_*` que necesita el browser.
