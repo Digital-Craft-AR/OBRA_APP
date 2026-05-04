@@ -128,7 +128,7 @@ html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 /* ── Content pages: padding ES el margen ── */
 .obra-body,
 .obra-toc {
-  padding: 20mm;
+  padding: 2mm;
   background: var(--page-bg);   /* secondary color — siempre el más claro */
   box-sizing: border-box;
 }
