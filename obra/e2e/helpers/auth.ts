@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 
 export interface TestCredentials {
   email: string;
@@ -25,24 +25,58 @@ export function testUser(index: 1 | 2 | 3 = 1): TestCredentials {
 }
 
 /**
- * Sign in via the Obra login page. Assumes the local dev server is running.
- * Navigates to /login, fills credentials, and waits for the dashboard redirect.
+ * Wait for the Supabase auth token exchange to resolve (success or failure).
+ * Returns the Response so callers can inspect status if needed.
+ *
+ * Usage: set up the promise BEFORE the click that triggers the request.
+ *   const authDone = waitForAuthToken(page);
+ *   await page.getByTestId("login-submit").click();
+ *   await authDone;
+ */
+export function waitForAuthToken(page: Page): Promise<Response> {
+  return page.waitForResponse(
+    (resp) =>
+      resp.url().includes("/auth/v1/token") &&
+      resp.request().method() === "POST",
+  );
+}
+
+/**
+ * Wait for the Supabase signup call to resolve.
+ */
+export function waitForAuthSignup(page: Page): Promise<Response> {
+  return page.waitForResponse(
+    (resp) =>
+      resp.url().includes("/auth/v1/signup") &&
+      resp.request().method() === "POST",
+  );
+}
+
+/**
+ * Sign in via the Obra login page.
+ * Waits for the Supabase auth API response (not a timer) before asserting.
  */
 export async function signIn(page: Page, credentials?: TestCredentials): Promise<void> {
   const { email, password } = credentials ?? testUser(1);
   await page.goto("/login");
   await page.getByTestId("login-email").fill(email);
   await page.getByTestId("login-password").fill(password);
+
+  // Set up the response waiter BEFORE clicking — prevents a race where the
+  // response arrives before waitForResponse() has registered.
+  const authDone = waitForAuthToken(page);
   await page.getByTestId("login-submit").click();
-  await page.waitForURL(/\/app\/dashboard/, { timeout: 15_000 });
+  await authDone;
+
+  // After a successful token exchange the entitlement router navigates to /app/dashboard.
+  await page.waitForURL(/\/app\/dashboard/);
 }
 
 /**
- * Sign out via the app. Navigates to the dashboard first if needed.
+ * Sign out via the app.
  */
 export async function signOut(page: Page): Promise<void> {
   await page.goto("/app/dashboard");
-  // Open user menu and click sign out. Selector may need adjustment per actual UI.
   await page.getByRole("button", { name: /salir|sair|sign out|logout/i }).click();
-  await page.waitForURL(/\/(login|$)/, { timeout: 10_000 });
+  await page.waitForURL(/\/(login|$)/);
 }
