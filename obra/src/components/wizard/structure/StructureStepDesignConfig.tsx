@@ -1,7 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { bookTemplateIdsForGeometry, normalizeBookTemplateId } from "@obra/layout-catalog";
 import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import {
   colorToRgbStyleValue,
@@ -17,8 +16,6 @@ import {
 
 type StructureStepDesignConfigProps = {
   config: WizardDesignConfig;
-  bookTemplateId: string;
-  onBookTemplateChange: (templateId: string) => void;
   message: string | null;
   onChange: (next: WizardDesignConfig) => void;
 };
@@ -40,24 +37,10 @@ function formatHexForDisplay(hex: string): string {
 
 export function StructureStepDesignConfig({
   config,
-  bookTemplateId,
-  onBookTemplateChange,
   message,
   onChange,
 }: StructureStepDesignConfigProps) {
   const { t } = useTranslation();
-
-  const eligibleTemplates = useMemo(
-    () => bookTemplateIdsForGeometry({ size: config.page.size, orientation: config.page.orientation }),
-    [config.page.orientation, config.page.size],
-  );
-
-  useEffect(() => {
-    if (eligibleTemplates.length === 0) return;
-    if (!eligibleTemplates.includes(bookTemplateId)) {
-      onBookTemplateChange(eligibleTemplates[0] ?? normalizeBookTemplateId(null));
-    }
-  }, [bookTemplateId, eligibleTemplates, onBookTemplateChange]);
 
   const allPresetFontFamilies = useMemo(
     () => TYPOGRAPHY_PRESETS.flatMap((p) => [p.fonts.heading, p.fonts.body]),

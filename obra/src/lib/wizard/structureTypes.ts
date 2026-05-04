@@ -13,10 +13,6 @@ export type ProjectRow = {
   bonus_items: WizardTitleItem[];
   bump_items: WizardTitleItem[];
   design_config: WizardDesignConfig;
-  /** Book layout template from `@obra/layout-catalog` (nullable until first design save). */
-  book_template_id: string | null;
-  /** Stable logical page key → resolved layout id for Preview/PDF. */
-  layout_page_assignments: Record<string, string>;
   structure_completed_at: string | null;
   lifecycle_status: "active" | "archived" | "trash";
 };
@@ -30,8 +26,6 @@ export type BaseProjectRow = Omit<
   | "bonus_items"
   | "bump_items"
   | "design_config"
-  | "book_template_id"
-  | "layout_page_assignments"
 >;
 
 export type WizardTitleItem = {
