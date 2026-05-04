@@ -43,6 +43,27 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `register-password` | Password input on RegisterPage |
 | `register-submit` | Submit button on RegisterPage |
 | `check-email-heading` | "Revisá tu correo" heading shown after signup (RegisterPage) |
+| `new-project-locale-es` | Spanish locale button on NewProjectPage |
+| `new-project-locale-pt-BR` | Portuguese locale button on NewProjectPage |
+| `new-project-source-ai` | "AI" source card on NewProjectPage |
+| `new-project-source-upload` | "Upload" source card on NewProjectPage |
+| `new-project-create-btn` | Continue/Create button on NewProjectPage |
+| `wizard-structure-next-btn` | Next/Continue button on WizardStructurePage (all 7 inner steps) |
+| `wizard-topic` | Topic textarea (structure wizard step 0) |
+| `wizard-avatar` | Target avatar textarea (structure wizard step 1) |
+| `wizard-problem` | Problem textarea (structure wizard step 1) |
+| `wizard-main-title` | Custom main title input (structure wizard step 3) |
+| `manuscript-file-input` | Hidden file input on ManuscriptUploadPanel |
+| `alignment-generating` | Loading div while ai-split-proposal is running |
+| `alignment-review` | Review panel shown after ai-split-proposal returns |
+| `alignment-approve-btn` | Approve button on ContentUploadAlignmentPanel |
+| `alignment-regenerate-btn` | Regenerate button on ContentUploadAlignmentPanel |
+| `chapter-approve-btn` | Per-chapter Approve button on ContentChapterMilestone |
+| `chapter-generate-btn` | Per-chapter AI Generate button (AI path only) |
+| `content-approve-artifact-btn` | Footer "Approve all chapters" button (generating phase) |
+| `content-go-to-preview-btn` | Footer "Go to preview" button (complete phase) |
+| `preview-export-zip-btn` | ZIP export button on WizardPreviewPage |
+| `preview-export-pdf-btn` | PDF export/generate button on WizardPreviewPage |
 
 > Add rows to this table as new testids are introduced.
 
@@ -212,6 +233,7 @@ Usan `SUPABASE_SERVICE_ROLE_KEY` del proceso Playwright (cargado desde `.env.e2e
 | `findAuthUserByEmail(email)` | Devuelve el UUID del usuario auth, o `undefined` si no existe |
 | `deleteAuthUser(userId)` | Borra el usuario por id (404 es silenciado) |
 | `deleteAuthUserByEmail(email)` | find + delete; no-op si no existe |
+| `deleteProjectById(projectId)` | Borra el proyecto por id via REST (cascada a ebooks, chapters, etc.) |
 
 ### Usuarios pre-sembrados (no necesitan cleanup)
 

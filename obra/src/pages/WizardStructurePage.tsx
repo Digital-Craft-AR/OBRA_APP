@@ -325,6 +325,7 @@ export function WizardStructurePage() {
           </Button>
           <Button
             variant="primary"
+            data-testid="wizard-structure-next-btn"
             disabled={
               flow.innerStepIndex === INNER_STEPS.length - 1 ? flow.designSaving : flow.mainTitleSaving
             }
