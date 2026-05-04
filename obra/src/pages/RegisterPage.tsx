@@ -117,7 +117,7 @@ export function RegisterPage() {
             />
           </div>
           <div className="text-center">
-            <h1 className="font-display text-xl text-obra-blue-950">{t("auth.checkEmailTitle")}</h1>
+            <h1 className="font-display text-xl text-obra-blue-950" data-testid="check-email-heading">{t("auth.checkEmailTitle")}</h1>
           </div>
           <p className="text-center text-sm text-obra-neutral-600">{t("auth.registerCheckEmail")}</p>
           {resendMessage ? (

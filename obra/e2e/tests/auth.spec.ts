@@ -37,9 +37,7 @@ test("new unverified user sees check-email gate", async ({ page }) => {
   // returns session:null → RegisterPage calls setCheckEmailOnly(true) →
   // renders the "check your email" heading in-page (no navigation).
   // We wait for the observable DOM outcome directly.
-  await page
-    .getByRole("heading", { name: /revisa tu correo|verifique seu e-mail|check your email/i })
-    .waitFor();
+  await page.getByTestId("check-email-heading").waitFor();
 
   // The user must NOT land on the dashboard.
   expect(page.url()).not.toMatch(/\/app\/dashboard/);

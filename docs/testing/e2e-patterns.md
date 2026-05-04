@@ -42,6 +42,7 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `register-email` | Email input on RegisterPage |
 | `register-password` | Password input on RegisterPage |
 | `register-submit` | Submit button on RegisterPage |
+| `check-email-heading` | "Revisá tu correo" heading shown after signup (RegisterPage) |
 
 > Add rows to this table as new testids are introduced.
 
