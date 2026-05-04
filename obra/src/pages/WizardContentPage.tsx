@@ -1848,6 +1848,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
+              data-testid="content-go-to-preview-btn"
               onClick={() => void navigate(`/app/projects/${params.projectId ?? ""}/preview`)}
             >
               {t("wizard.content.footer.goToPreview")}
@@ -1857,6 +1858,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
+              data-testid="content-approve-artifact-btn"
               disabled={!canApproveArtifact}
               onClick={() => void handleApproveArtifact()}
             >

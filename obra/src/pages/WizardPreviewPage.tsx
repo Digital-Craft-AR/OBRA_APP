@@ -880,6 +880,7 @@ export function WizardPreviewPage() {
                 type="button"
                 variant="secondary"
                 size="small"
+                data-testid="preview-export-zip-btn"
                 disabled={!project?.id || shellLoading}
                 onClick={() => setIsZipModalOpen(true)}
               >
@@ -903,6 +904,7 @@ export function WizardPreviewPage() {
                   type="button"
                   variant="primary"
                   size="small"
+                  data-testid="preview-export-pdf-btn"
                   disabled={!selectedEbook || exportLoading || shellLoading}
                   onClick={() => void handleExportPdf()}
                 >

@@ -208,6 +208,7 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
       <input
         ref={fileInputRef}
         id={inputId}
+        data-testid="manuscript-file-input"
         type="file"
         accept={MANUSCRIPT_ACCEPT}
         className="sr-only"
