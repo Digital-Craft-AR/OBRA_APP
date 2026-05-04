@@ -6,3 +6,8 @@
 # Dependencies and build
 node_modules
 dist
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
