@@ -179,13 +179,50 @@ await expect(page.getByTestId("export-success")).toBeVisible();
 
 ---
 
-## 4. Test isolation
+## 4. Test isolation — cleanup de datos creados
 
-Each test must create and clean up its own data. Never rely on state left by a previous test.
+Cada test debe dejar la base de datos igual a como la encontró. Nunca dependas de datos de un test anterior.
 
-- Use `testUser(1 | 2 | 3)` for pre-seeded users with active subscriptions.
-- For tests that need fresh DB rows (e.g. project management), use the helpers in `obra/e2e/helpers/db.ts`.
-- Use `test.afterEach` / `test.afterAll` to delete rows created during the test.
+### Regla
+
+Si un test crea datos → registrar `test.afterEach` para eliminarlos **antes** de la acción que los crea. Así el cleanup corre incluso si el test falla.
+
+```typescript
+test("new unverified user sees check-email gate", async ({ page }) => {
+  const uniqueEmail = `test-unverified-${Date.now()}@obratest.invalid`;
+
+  // ✅ Registrar cleanup ANTES de crear el dato
+  test.afterEach(async () => {
+    await deleteAuthUserByEmail(uniqueEmail);
+  });
+
+  // Recién ahora creamos el dato
+  await page.getByTestId("register-email").fill(uniqueEmail);
+  await page.getByTestId("register-submit").click();
+  // ...
+});
+```
+
+### Helpers disponibles — `obra/e2e/helpers/db.ts`
+
+Usan `SUPABASE_SERVICE_ROLE_KEY` del proceso Playwright (cargado desde `.env.e2e.local`). **Nunca** van al browser.
+
+| Función | Qué hace |
+|---|---|
+| `findAuthUserByEmail(email)` | Devuelve el UUID del usuario auth, o `undefined` si no existe |
+| `deleteAuthUser(userId)` | Borra el usuario por id (404 es silenciado) |
+| `deleteAuthUserByEmail(email)` | find + delete; no-op si no existe |
+
+### Usuarios pre-sembrados (no necesitan cleanup)
+
+Los usuarios creados por `npm run seed` son permanentes — no borrarlos en los tests:
+
+| `testUser(...)` | Email | Suscripción |
+|---|---|---|
+| `testUser(1)` | `creator-seed-1@obratest.invalid` | `active` |
+| `testUser(2)` | `creator-seed-2@obratest.invalid` | `active` |
+| `testUser(3)` | `creator-seed-3@obratest.invalid` | `active` |
+| `testUser('unsubscribed')` | `creator-seed-unsubscribed@obratest.invalid` | `none` |
 
 ---
 
