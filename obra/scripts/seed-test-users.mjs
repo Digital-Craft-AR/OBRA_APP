@@ -96,6 +96,9 @@ async function main() {
     },
   });
 
+  /** One year from now — far enough that tests never hit an expiry. */
+  const accessUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
   for (let i = 0; i < TEST_USERS.length; i++) {
     const { email } = TEST_USERS[i];
     const password = passwordForUser(i);
@@ -105,6 +108,8 @@ async function main() {
       return;
     }
 
+    let userId;
+
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -112,21 +117,50 @@ async function main() {
     });
 
     if (!error) {
-      console.log(`Created ${email} (id ${data.user?.id})`);
+      userId = data.user?.id;
+      console.log(`Created ${email} (id ${userId})`);
+    } else if (isAlreadyRegisteredError(error)) {
+      // Look up the existing user id so we can still patch the subscription.
+      const { data: list, error: listErr } = await supabase.auth.admin.listUsers();
+      if (listErr) {
+        console.error(`Failed to list users while resolving ${email}:`, listErr.message);
+        process.exitCode = 1;
+        return;
+      }
+      const existing = list.users.find((u) => u.email === email);
+      userId = existing?.id;
+      console.log(`Skipped (already exists): ${email} (id ${userId})`);
+    } else {
+      console.error(`Failed ${email}:`, error.message ?? error);
+      process.exitCode = 1;
+      return;
+    }
+
+    if (!userId) {
+      console.error(`Could not resolve user id for ${email} — skipping subscription patch.`);
       continue;
     }
 
-    if (isAlreadyRegisteredError(error)) {
-      console.log(`Skipped (already exists): ${email}`);
-      continue;
+    // Grant active subscription so RLS policies allow full app access in E2E tests.
+    const { error: profileErr } = await supabase
+      .from("creator_profiles")
+      .update({
+        subscription_status: "active",
+        subscription_access_until: accessUntil,
+        credits_balance: 1000,
+      })
+      .eq("id", userId);
+
+    if (profileErr) {
+      console.error(`Failed to patch subscription for ${email}:`, profileErr.message);
+      process.exitCode = 1;
+      return;
     }
 
-    console.error(`Failed ${email}:`, error.message ?? error);
-    process.exitCode = 1;
-    return;
+    console.log(`  → subscription_status=active, credits_balance=1000 set for ${email}`);
   }
 
-  console.log("Done. Verify: sign in on LoginPage; check public.creator_profiles for new user ids.");
+  console.log("Done. Verify: sign in on LoginPage; check public.creator_profiles for subscription_status=active.");
 }
 
 await main();
