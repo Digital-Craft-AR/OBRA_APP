@@ -35,7 +35,6 @@ const projectData = {
     page: { size: "a4", orientation: "portrait" },
     image: { mode: "ai", style: "illustration" },
   },
-  layout_page_assignments: { "main:cover": "layout_cover_v1", "main:body": "layout_body_a" },
   structure_completed_at: "2024-01-10T00:00:00.000Z",
   lifecycle_status: "active",
 };

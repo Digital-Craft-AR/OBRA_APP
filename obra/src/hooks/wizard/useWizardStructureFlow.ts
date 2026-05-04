@@ -15,10 +15,6 @@ import {
   type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
 import {
-  computeInitialLayoutAssignments,
-  DEFAULT_BOOK_TEMPLATE_ID,
-} from "@obra/layout-catalog";
-import {
   INVOKE_ERROR_INSUFFICIENT_CREDITS,
   toastApiFailure,
   toastInsufficientCredits,
@@ -633,24 +629,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     if (!project?.id || designSaving) return false;
     setDesignSaving(true);
     setDesignMessage(null);
-    const savedDesign = normalizeDesignConfig(project.design_config);
-    const pageGeomChanged =
-      savedDesign.page.size !== designConfig.page.size ||
-      savedDesign.page.orientation !== designConfig.page.orientation;
-    const existingAssignments = project.layout_page_assignments ?? {};
-    const shouldRecomputeLayouts =
-      pageGeomChanged || Object.keys(existingAssignments).length === 0;
-    const layoutPageAssignments = shouldRecomputeLayouts
-      ? computeInitialLayoutAssignments({
-          projectId: project.id,
-          bookTemplateId: DEFAULT_BOOK_TEMPLATE_ID,
-          geometry: designConfig.page,
-        })
-      : existingAssignments;
-    const result = await saveWizardDesignConfig(project.id, {
-      designConfig,
-      layoutPageAssignments,
-    });
+    const result = await saveWizardDesignConfig(project.id, designConfig);
     setDesignSaving(false);
     if (!result.ok) {
       const key = "wizard.structure.step7.saveError";
@@ -658,23 +637,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       toastApiFailure(t, key);
       return false;
     }
-    setProject((current) => {
-      if (!current) return current;
-      if (result.persisted === "full") {
-        return {
-          ...current,
-          design_config: designConfig,
-          layout_page_assignments: layoutPageAssignments,
-        };
-      }
-      return {
-        ...current,
-        design_config: designConfig,
-      };
-    });
-    setDesignMessage(
-      result.persisted === "full" ? t("wizard.structure.step7.saved") : t("wizard.structure.step7.savedPartial"),
-    );
+    setProject((current) => current ? { ...current, design_config: designConfig } : current);
+    setDesignMessage(t("wizard.structure.step7.saved"));
     return true;
   }
 
