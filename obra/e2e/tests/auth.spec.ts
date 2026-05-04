@@ -3,10 +3,12 @@
  *
  * All selectors use data-testid for stability across locale changes.
  * All waits are tied to real network events (waitForResponse) — no arbitrary timeouts.
+ * Tests that create data clean it up in afterEach.
  */
 
 import { test, expect } from "../helpers/test-fixture.js";
 import { signIn, signInUnsubscribed, testUser, waitForAuthToken } from "../helpers/auth.js";
+import { deleteAuthUserByEmail } from "../helpers/db.js";
 
 // ---------------------------------------------------------------------------
 // 1. Seeded user can log in and reach dashboard
@@ -26,20 +28,22 @@ test("seeded user can log in and reach dashboard", async ({ page }) => {
 test("new unverified user sees check-email gate", async ({ page }) => {
   const uniqueEmail = `test-unverified-${Date.now()}@obratest.invalid`;
 
+  // Clean up the created auth user after the test regardless of outcome.
+  test.afterEach(async () => {
+    await deleteAuthUserByEmail(uniqueEmail);
+  });
+
   await page.goto("/register");
   await page.getByTestId("register-name").fill("Test Unverified");
   await page.getByTestId("register-email").fill(uniqueEmail);
   await page.getByTestId("register-password").fill("TestPass123!");
-
   await page.getByTestId("register-submit").click();
 
   // With enable_confirmations=true in supabase/config.toml, local Supabase
   // returns session:null → RegisterPage calls setCheckEmailOnly(true) →
   // renders the "check your email" heading in-page (no navigation).
-  // We wait for the observable DOM outcome directly.
   await page.getByTestId("check-email-heading").waitFor();
 
-  // The user must NOT land on the dashboard.
   expect(page.url()).not.toMatch(/\/app\/dashboard/);
 });
 
@@ -87,8 +91,7 @@ test("subscription gate: pending-subscription page shows checkout CTA", async ({
 
   // Sign in as the seeded user with subscription_status='none'.
   // The entitlement resolver returns 'pending_subscription' and automatically
-  // redirects to /app/pending-subscription — no URL override or build-time
-  // env var needed.
+  // redirects to /app/pending-subscription — no URL override needed.
   await signInUnsubscribed(page);
 
   await expect(page).toHaveURL(/\/app\/pending-subscription/);
