@@ -13,8 +13,6 @@ export type ProjectRow = {
   bonus_items: WizardTitleItem[];
   bump_items: WizardTitleItem[];
   design_config: WizardDesignConfig;
-  /** Stable logical page key → resolved layout id for Preview/PDF. */
-  layout_page_assignments: Record<string, string>;
   structure_completed_at: string | null;
   lifecycle_status: "active" | "archived" | "trash";
 };
@@ -28,7 +26,6 @@ export type BaseProjectRow = Omit<
   | "bonus_items"
   | "bump_items"
   | "design_config"
-  | "layout_page_assignments"
 >;
 
 export type WizardTitleItem = {

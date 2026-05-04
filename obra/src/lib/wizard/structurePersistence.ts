@@ -2,11 +2,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { getFunctionsInvokeErrorCode } from "@/lib/functionsInvokeErrors";
 import type { WizardDesignConfig, WizardTitleItem } from "@/lib/wizard/structureTypes";
 
-export type WizardDesignPersistPayload = {
-  designConfig: WizardDesignConfig;
-  layoutPageAssignments: Record<string, string>;
-};
-
 export async function saveWizardTopic(projectId: string, topic: string) {
   const { error } = await supabase.from("projects").update({ topic }).eq("id", projectId);
   return { ok: !error };
@@ -97,53 +92,12 @@ export async function saveWizardBonusBumpItems(
   return { ok: !error };
 }
 
-export type SaveWizardDesignConfigResult =
-  | { ok: true; persisted: "full" | "design_only" }
-  | { ok: false };
-
-/**
- * PostgREST / Postgres errors when the remote schema is behind (columns not migrated yet).
- */
-export function isLikelyMissingProjectsColumnError(error: { message?: string; code?: string } | null): boolean {
-  if (!error) return false;
-  const m = (error.message ?? "").toLowerCase();
-  const code = error.code ?? "";
-  if (code === "PGRST204") return true;
-  if (m.includes("schema cache")) return true;
-  if (m.includes("column") && m.includes("does not exist")) return true;
-  if (m.includes("could not find") && m.includes("column")) return true;
-  return false;
-}
-
-/**
- * Persists design step fields. Retries without `layout_page_assignments` when the DB
- * column is missing (migration not yet applied).
- */
-export async function saveWizardDesignConfig(
-  projectId: string,
-  payload: WizardDesignPersistPayload,
-): Promise<SaveWizardDesignConfigResult> {
-  const full = await supabase
+export async function saveWizardDesignConfig(projectId: string, designConfig: WizardDesignConfig) {
+  const { error } = await supabase
     .from("projects")
-    .update({
-      design_config: payload.designConfig,
-      layout_page_assignments: payload.layoutPageAssignments,
-    })
+    .update({ design_config: designConfig })
     .eq("id", projectId);
-
-  if (!full.error) return { ok: true, persisted: "full" };
-
-  if (!isLikelyMissingProjectsColumnError(full.error)) return { ok: false };
-
-  const designOnly = await supabase
-    .from("projects")
-    .update({
-      design_config: payload.designConfig,
-    })
-    .eq("id", projectId);
-
-  if (!designOnly.error) return { ok: true, persisted: "design_only" };
-  return { ok: false };
+  return { ok: !error };
 }
 
 export async function markStructureCompleted(projectId: string) {
