@@ -646,6 +646,52 @@ export async function invokeGenerateIndex(
   };
 }
 
+export type GenerateAllBonusIndexResponse = {
+  ok?: boolean;
+  bonuses?: Array<{ ebook_id: string; chapters: { title: string }[] }>;
+  credits_balance_after?: number;
+  error?: string;
+};
+
+export async function invokeGenerateAllBonusIndex(
+  projectId: string,
+  clientRequestId: string,
+  bonusEbookIds: string[],
+  options?: { contentTone?: string },
+): Promise<
+  | { ok: true; bonuses: Array<{ ebookId: string; titles: string[] }>; creditsBalanceAfter?: number }
+  | { ok: false; code: string }
+> {
+  const body: Record<string, unknown> = {
+    project_id: projectId,
+    client_request_id: clientRequestId,
+    bonus_ebook_ids: bonusEbookIds,
+  };
+  if (options?.contentTone !== undefined && options.contentTone.trim()) {
+    body.content_tone = options.contentTone.trim();
+  }
+  const { data, error } = await supabase.functions.invoke<GenerateAllBonusIndexResponse>(
+    "ai-generate-all-bonus-index",
+    { body },
+  );
+
+  if (error) {
+    const code = await getFunctionsInvokeErrorCode(error);
+    return { ok: false, code: code ?? "invoke_failed" };
+  }
+  if (!data?.ok || !Array.isArray(data.bonuses)) {
+    const err = typeof data?.error === "string" ? data.error : "bad_response";
+    return { ok: false, code: err };
+  }
+  const bonuses = data.bonuses.map((b) => ({
+    ebookId: b.ebook_id,
+    titles: b.chapters
+      .map((c) => (typeof c.title === "string" ? c.title : ""))
+      .filter(Boolean),
+  }));
+  return { ok: true, bonuses, creditsBalanceAfter: data.credits_balance_after };
+}
+
 export async function invokeGenerateChapterContent(
   projectId: string,
   chapterId: string,

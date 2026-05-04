@@ -27,6 +27,7 @@ import {
   confirmOrderBumpIndex,
   ensureContentWorkspace,
   fetchPackageEbookIdMap,
+  invokeGenerateAllBonusIndex,
   invokeGenerateChapterContent,
   invokeGenerateIndex,
   loadEbookChapters,
@@ -819,24 +820,43 @@ export function WizardContentPage() {
     t,
   ]);
 
+  // Generates ALL bonus TOCs in a single Claude call so the model has full package
+  // context and avoids repeating section titles across bonuses (issue #213).
   const handleRegenerateBonusOutline = useCallback(async () => {
     if (selectedTarget.kind !== "bonus" || !project?.id) return;
-    const ebookId = packageEbookIds[selectedKey];
-    if (!ebookId) return;
     if (needsUploadAlignment || indexFrozen) return;
-    const pending = persistTimersRef.current[selectedKey];
-    if (pending) {
-      clearTimeout(pending);
-      delete persistTimersRef.current[selectedKey];
+
+    // Collect all bonus ebook IDs in package_ordinal order.
+    const bonusEntries = Object.entries(packageEbookIds)
+      .filter(([key]) => key.startsWith("bonus:"))
+      .sort(([a], [b]) => {
+        const aIdx = parseInt(a.split(":")[1] ?? "0", 10);
+        const bIdx = parseInt(b.split(":")[1] ?? "0", 10);
+        return aIdx - bIdx;
+      });
+    const bonusEbookIds = bonusEntries.map(([, id]) => id);
+
+    if (bonusEbookIds.length === 0) return;
+
+    // Flush any pending persists for ALL bonus keys before regenerating.
+    for (const [key] of bonusEntries) {
+      const pending = persistTimersRef.current[key];
+      if (pending) {
+        clearTimeout(pending);
+        delete persistTimersRef.current[key];
+      }
     }
+
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("index");
-    const opKey = `bonus-outline:${ebookId}`;
+
+    const opKey = `bonus-outline-all:${project.id}`;
     const clientRequestId = retryIds.current.getOrCreate(opKey);
     setGenerateLoading(true);
-    const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
+    const result = await invokeGenerateAllBonusIndex(project.id, clientRequestId, bonusEbookIds);
     setGenerateLoading(false);
+
     if (!result.ok) {
       const code = result.code;
       if (code === "insufficient_credits") {
@@ -845,40 +865,45 @@ export function WizardContentPage() {
       } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
         toastRateLimited(t);
       } else if (code === "wrong_content_source") {
-        const message = t("wizard.content.index.errorWrongSource");
         toast.error({
           title: t("wizard.content.index.regenerateOutline"),
-          description: message,
+          description: t("wizard.content.index.errorWrongSource"),
         });
       } else {
-        const message = t("wizard.content.index.errorGenerateGeneric");
         toast.error({
           title: t("wizard.content.index.regenerateOutline"),
-          description: message,
+          description: t("wizard.content.index.errorGenerateGeneric"),
         });
       }
       return;
     }
+
     retryIds.current.clear(opKey);
-    const saved = await replaceEbookDraftChapters(ebookId, result.titles);
-    if (!saved.ok) {
-      const message = t("wizard.content.index.errorSaveToc");
-      toast.error({
-        title: t("wizard.content.index.regenerateOutline"),
-        description: message,
-      });
-      return;
+
+    // Persist chapters for every bonus and update all TOC states at once.
+    for (const { ebookId, titles } of result.bonuses) {
+      const bonusKey = bonusEntries.find(([, id]) => id === ebookId)?.[0];
+      if (!bonusKey) continue;
+
+      const saved = await replaceEbookDraftChapters(ebookId, titles);
+      if (!saved.ok) {
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: t("wizard.content.index.errorSaveToc"),
+        });
+        return;
+      }
+      const loaded = await loadEbookChapters(ebookId);
+      if (loaded.ok) {
+        setBonusBumpToc((p) => ({ ...p, [bonusKey]: loaded.rows }));
+      }
     }
-    const loaded = await loadEbookChapters(ebookId);
-    if (loaded.ok) {
-      setBonusBumpToc((p) => ({ ...p, [selectedKey]: loaded.rows }));
-    }
+
     setActionAnnouncement(t("wizard.content.index.regenerateSuccess"));
   }, [
     selectedTarget.kind,
     project?.id,
     packageEbookIds,
-    selectedKey,
     needsUploadAlignment,
     indexFrozen,
     t,

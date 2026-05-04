@@ -770,6 +770,80 @@ Generate the complete 4-chapter index for this order bump mini-ebook. The bump i
   };
 }
 
+// ─── generate-all-bonus-section-index ────────────────────────────────────────
+// docs: prompts/content/generate-all-bonus-section-index.md (v1.0)
+
+export interface GenerateAllBonusSectionIndexVars {
+  content_locale: ContentLocale;
+  topic: string;
+  avatar: string;
+  problem: string;
+  /** Main package ebook title (projects.main_title). */
+  main_ebook_title: string;
+  /** All bonus product titles (ebooks.title per bonus row), in package_ordinal order. */
+  bonus_titles: string[];
+  tone: ContentTone;
+}
+
+/**
+ * Generates section TOC entries for ALL bonuses in a single Claude call so the
+ * model has full package context and avoids repeating titles across bonuses.
+ * Output shape: { bonuses: [{ chapters: [BonusSectionChapter] }, ...] }
+ * where bonuses[i] corresponds to bonus_titles[i].
+ */
+export function generateAllBonusSectionIndexPrompt(
+  vars: GenerateAllBonusSectionIndexVars,
+): { system: string; user: string } {
+  const count = vars.bonus_titles.length;
+  const bonusList = vars.bonus_titles
+    .map((t, i) => `  ${i + 1}. "${t}"`)
+    .join("\n");
+
+  return {
+    system: `${CRITICAL_JSON_OBJECT}
+
+${OBRA_SYSTEM_BASE}
+
+Role: for each bonus in the package, propose exactly ONE primary section title — the editable heading for the single content block inside that deliverable. Each bonus is a compact tool (checklist, planner, script, template, worksheet, ~10–12 pages) that extends the main ebook's promise from a different angle. The bonus product titles are already chosen; your section titles name the single main content block inside each bonus (the reader-facing heading). Section titles must NOT be lazy copies of the product titles — describe what the reader does or gets inside.
+
+This call generates all ${count} bonus section(s) at once so the model has full package context and can guarantee NO TWO section titles repeat or overlap across bonuses.
+
+Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
+
+TONE GUIDE — apply to title, description, and key_concepts (preset key is English; output language is ${vars.content_locale}):
+- professional: clear expert voice, structured, credible.
+- friendly: warm, direct, non-corporate — trusted peer (default Obra voice).
+- inspirational: motivating without hype or income promises.
+- direct: concise, practical imperatives.
+- educational: didactic, stepwise, patient pacing.
+
+RULES (non-negotiable):
+1. Output must be a single JSON object with a single key "bonuses" — an array of exactly ${count} object(s), one per bonus, in the same order as the input list.
+2. Each object in "bonuses" must have exactly one key: "chapters" — an array of exactly ONE chapter object.
+3. Each chapter object must include: number (integer 1), title (string), description (string), key_concepts (array of 2–4 strings), word_count_target (integer, always 900).
+4. chapters[0].title: max 90 characters — specific and benefit-forward. NEVER copy or paraphrase the bonus_product_title. Name what the reader does or gets inside the deliverable.
+5. chapters[0].description: max 280 characters — what this block delivers or what the reader does inside it.
+6. chapters[0].key_concepts: 2–4 strings, max 130 characters each — concrete elements covered. Specific over generic.
+7. UNIQUENESS (non-negotiable): Every section title across all ${count} bonus(es) must be meaningfully different — no shared phrasing, no overlapping topics. If two bonuses address different tools for the same theme, the section titles must be clearly distinct in angle and wording. Verify uniqueness before returning.
+8. Each section must complement the main ebook and extend or apply one piece of its method without repeating it.
+9. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: tone is invalid | topic or main_ebook_title is empty | any bonus_product_title is empty | avatar or problem JSON contains an error field.
+
+Example output (2 bonuses, es, tone=friendly):
+{"bonuses":[{"chapters":[{"number":1,"title":"Tu costo real en una planilla: completá los 6 campos y conocé tu precio mínimo","description":"Una planilla de una página para calcular el costo real de cada vela sin adivinar: materiales, tiempo, costos fijos y ganancia mínima incluidos.","key_concepts":["Los 6 campos que no pueden faltar en el costo de una vela","Cómo cargar tu tiempo de producción sin subestimarlo","El número que resulta: tu precio mínimo no negociable"],"word_count_target":900}]},{"chapters":[{"number":1,"title":"Las 12 objeciones de precio más comunes y cómo responder cada una sin ceder","description":"Scripts listos para usar ante las objeciones más frecuentes: precio alto, comparación con competidores, pedidos de descuento.","key_concepts":["Las 4 categorías de objeción de precio y su lógica","La estructura del script: reconocer, reencuadrar, cerrar","Cuándo negociar tiene sentido y cuándo no"],"word_count_target":900}]}]}`,
+
+    user: `Main ebook title: ${vars.main_ebook_title}
+Topic: ${vars.topic}
+Tone: ${vars.tone}
+Avatar profile: ${vars.avatar}
+Problem: ${vars.problem}
+
+Bonus titles (generate one section entry per bonus, in the same order — bonuses[0] for title 1, bonuses[1] for title 2, etc.):
+${bonusList}
+
+Generate exactly ${count} section entr${count === 1 ? "y" : "ies"} — one per bonus. Return the complete JSON object with the "bonuses" array.`,
+  };
+}
+
 // ─── generate-bonus-chapter ───────────────────────────────────────────────────
 // docs: prompts/content/generate-bonus-chapter.md (v1.0)
 
