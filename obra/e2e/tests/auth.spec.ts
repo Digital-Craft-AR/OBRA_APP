@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from "../helpers/test-fixture.js";
-import { signIn, testUser, waitForAuthToken } from "../helpers/auth.js";
+import { signIn, signInUnsubscribed, testUser, waitForAuthToken } from "../helpers/auth.js";
 
 // ---------------------------------------------------------------------------
 // 1. Seeded user can log in and reach dashboard
@@ -31,15 +31,12 @@ test("new unverified user sees check-email gate", async ({ page }) => {
   await page.getByTestId("register-email").fill(uniqueEmail);
   await page.getByTestId("register-password").fill("TestPass123!");
 
-  // Signup sends POST /auth/v1/signup — wait for it before asserting UI state.
-  const signupDone = waitForAuthSignup(page);
   await page.getByTestId("register-submit").click();
-  await signupDone;
 
   // With enable_confirmations=true in supabase/config.toml, local Supabase
-  // returns session:null. RegisterPage calls setCheckEmailOnly(true), which
-  // renders an in-page "check your email" state — no navigation happens.
-  // We wait for the observable outcome: the heading, not the intermediate response.
+  // returns session:null → RegisterPage calls setCheckEmailOnly(true) →
+  // renders the "check your email" heading in-page (no navigation).
+  // We wait for the observable DOM outcome directly.
   await page
     .getByRole("heading", { name: /revisa tu correo|verifique seu e-mail|check your email/i })
     .waitFor();
@@ -90,17 +87,13 @@ test("subscription gate: pending-subscription page shows checkout CTA", async ({
     }),
   );
 
-  await signIn(page, testUser(1));
+  // Sign in as the seeded user with subscription_status='none'.
+  // The entitlement resolver returns 'pending_subscription' and automatically
+  // redirects to /app/pending-subscription — no URL override or build-time
+  // env var needed.
+  await signInUnsubscribed(page);
 
-  // Use the dev-entitlement override to force the pending-subscription shell.
-  await page.goto("/app/pending-subscription?dev_entitlement=pending_subscription");
-
-  // Active users without the override are redirected to /app/dashboard — skip gracefully.
-  if (page.url().includes("/app/dashboard")) {
-    test.skip();
-    return;
-  }
-
+  await expect(page).toHaveURL(/\/app\/pending-subscription/);
   await expect(
     page.getByRole("button", {
       name: /ir al pago|ir para o pagamento|pago|pagamento|suscribir|assinar/i,
