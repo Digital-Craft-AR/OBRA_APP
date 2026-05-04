@@ -1367,18 +1367,19 @@ You are Obra's editorial design AI. You produce premium infoproduct documents fo
 Your output: complete <!DOCTYPE html> → <head> with <style> → <body> opening → Cover page → TOC page.
 Do NOT include chapter openers, chapter body, or </body></html> — those come separately.
 
-═══ MANDATORY CSS — include these rules verbatim, do not alter ═══
+═══ MANDATORY CSS — copy these rules EXACTLY into <style>. Do NOT add, remove, or alter any rule here. ═══
 
-/* Zero @page margin — all margins via padding on page wrappers */
+/* ⛔ The ONLY margin source is padding on .obra-body/.obra-toc — nothing else. */
 @page { size: ${pageDimensions}; margin: 0; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
 /* Every .obra-page forces a page break after it */
 .obra-page { break-after: page; page-break-after: always; }
 .obra-page:last-child { break-after: avoid; page-break-after: avoid; }
 
-/* Full-bleed pages: fixed height, overflow hidden */
+/* Full-bleed pages: fixed height, overflow hidden — NO padding, NO margin */
 .obra-cover,
 .obra-chapter-opener {
   position: relative;
@@ -1389,7 +1390,7 @@ html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   page-break-inside: avoid;
 }
 
-/* Content pages: padding IS the margin */
+/* Content pages: padding IS the only margin. Background fills the full page. */
 .obra-body,
 .obra-toc {
   padding: 15mm;
@@ -1425,6 +1426,8 @@ blockquote,
   .obra-toc,
   .obra-body { min-height: ${dims.h}; }
 }
+
+⛔ After these mandatory rules, do NOT add any rule that sets margin or padding on body, html, or .obra-page.
 
 ═══ CSS VARIABLES — define in :root ═══
 
@@ -1636,30 +1639,26 @@ export function generateChapterHtmlPrompt(
 
 Generate ONE chapter: opener div + one or more body divs. Include EVERY word of the content verbatim — no omissions, no paraphrasing.
 
-══ OPENER ══
+══ OPENER — FIXED TEMPLATE, copy verbatim. Only change chapter number and title. ══
+
+Every chapter opener MUST use this EXACT structure — same shapes, same layout, same z-index stack.
+Do NOT add, remove, or rearrange any element. Do NOT add image slots. Do NOT vary the design.
+
 <div class="obra-page obra-chapter-opener" id="chapter-${vars.chapter_number}">
+  <!-- z-index 0: solid background -->
+  <div style="position:absolute;inset:0;background:var(--color-primary);z-index:0"></div>
+  <!-- z-index 1: large circle top-right -->
+  <div style="position:absolute;top:-60px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,0.06);z-index:1"></div>
+  <!-- z-index 1: accent bar left -->
+  <div style="position:absolute;bottom:0;left:0;width:5px;height:55%;background:var(--color-accent);z-index:1"></div>
+  <!-- z-index 3: text — always bottom-aligned -->
+  <div style="position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem">
+    <span style="display:block;font-family:var(--font-heading);font-size:4.5rem;line-height:1;color:var(--color-accent);font-weight:700">${chapter} ${numPadded}</span>
+    <h2 style="font-family:var(--font-heading);font-size:2rem;font-weight:700;color:white;line-height:1.2;margin-top:0.6rem;max-width:80%;border:none;padding:0">[chapter title here]</h2>
+  </div>
+</div>
 
-All content inside a positioned wrapper: <div style="position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem">
-
-Required elements:
-  • Chapter label "${chapter} ${numPadded}" — display block; font-family var(--font-heading); font-size 4.5rem; line-height 1;
-    color: var(--color-accent) — this is the big decorative number
-  • Chapter title — font-family var(--font-heading); font-size 2rem; font-weight 700; color: white; line-height 1.2;
-    margin-top: 0.6rem; max-width: 80%
-
-Decorative layer (z-index 0–2, position absolute, behind the text wrapper):
-  • background: var(--color-primary) on the opener itself
-  • 1–2 geometric shapes using <div> elements with position:absolute — circles or bars
-    using rgba(255,255,255,0.07) or rgba(accent,0.15) so they're subtle
-  • Optional image slot (include when the chapter subject benefits from a visual):
-    <div class="obra-image-slot obra-image-slot--chapter"
-         data-slot-key="chapter-${vars.chapter_number}-image-1"
-         data-slot-type="chapter"
-         data-slot-description="[vivid 1–2 sentence visual description matching this chapter topic]"
-         style="position:absolute;inset:0;border-radius:0;height:100%;z-index:1;opacity:0.35"></div>
-    If used, add a gradient overlay (z-index:2) from transparent to rgba(primary,0.9) bottom-to-top.
-
-⛔ No vh/vw — the opener height is enforced by CSS class. No inline height:100vh.
+⛔ No vh/vw. Do not modify the template structure in any way.
 
 ══ BODY ══
 <div class="obra-page obra-body">
@@ -1691,7 +1690,8 @@ This is the correct way to handle long chapters — do not put everything in one
 
 ⛔ No viewport units (vh/vw) anywhere. No placeholders. No invented content. Include ALL original text verbatim.`;
 
-  const user = `Chapter ${vars.chapter_number} of ${vars.chapter_total}: ${vars.chapter_title}
+  const user = `Chapter ${vars.chapter_number} of ${vars.chapter_total}
+Chapter title (use this exact text in the opener <h2>): ${vars.chapter_title}
 
 Design system:
   Primary: ${vars.palette.primary}
@@ -1703,7 +1703,7 @@ Design system:
 ${vars.chapter_content}
 === END CHAPTER CONTENT ===
 
-Generate the chapter opener and body pages for this chapter. Include ALL content verbatim.`;
+Generate the chapter opener (using the fixed template above) and body pages. Include ALL content verbatim.`;
 
   return { system, user };
 }
