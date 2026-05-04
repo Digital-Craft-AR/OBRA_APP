@@ -90,6 +90,7 @@ export function LoginPage() {
             value={email}
             onChange={(ev) => setEmail(ev.target.value)}
             required
+            data-testid="login-email"
           />
           <div className="flex flex-col gap-1">
             <ObraInput
@@ -100,6 +101,7 @@ export function LoginPage() {
               value={password}
               onChange={(ev) => setPassword(ev.target.value)}
               required
+              data-testid="login-password"
             />
             <div className="flex justify-end">
               <Link
@@ -119,7 +121,7 @@ export function LoginPage() {
         ) : null}
 
         <div className="flex flex-col gap-3">
-          <Button type="submit" variant="secondary" className="w-full" disabled={busy || oauthBusy}>
+          <Button type="submit" variant="secondary" className="w-full" disabled={busy || oauthBusy} data-testid="login-submit">
             {busy ? t("auth.working") : t("auth.submit")}
           </Button>
           <Button
