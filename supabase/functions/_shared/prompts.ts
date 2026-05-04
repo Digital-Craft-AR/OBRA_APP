@@ -1374,10 +1374,10 @@ html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   page-break-inside: avoid;
 }
 
-/* Content pages: padding IS the margin — intentionally tight (2mm) */
+/* Content pages: padding IS the margin */
 .obra-body,
 .obra-toc {
-  padding: 2mm;
+  padding: 15mm;
   background: var(--page-bg);
   box-sizing: border-box;
 }
