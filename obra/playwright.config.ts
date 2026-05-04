@@ -68,9 +68,13 @@ export default defineConfig({
   webServer: process.env.CI
     ? undefined
     : {
-        command: "npm run dev",
+        // dev:e2e starts Vite with --mode e2e, which loads .env.e2e.local
+        // (VITE_SUPABASE_URL=http://localhost:54321, etc.) instead of .env.local.
+        // reuseExistingServer is false so we never accidentally run against a
+        // dev server that is pointed at the remote Supabase instance.
+        command: "npm run dev:e2e",
         url: BASE_URL,
-        reuseExistingServer: true,
+        reuseExistingServer: false,
         timeout: 60_000,
       },
 });
