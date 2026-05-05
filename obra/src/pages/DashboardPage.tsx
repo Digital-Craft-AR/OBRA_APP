@@ -871,6 +871,7 @@ export function DashboardPage() {
                       key={localeOption.id}
                       type="button"
                       onClick={() => setProjectLocale(localeOption.id)}
+                      data-testid={`new-project-locale-${localeOption.id}`}
                       className={`flex items-center justify-between rounded-card border p-4 text-left transition-all ${
                         selected
                           ? "border-obra-blue-700 bg-obra-blue-50"
