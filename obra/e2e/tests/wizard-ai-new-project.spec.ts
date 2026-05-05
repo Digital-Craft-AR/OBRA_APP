@@ -6,7 +6,7 @@
  * wizard step 1 (/app/projects/:id/wizard).
  *
  * All selectors use data-testid. Waits are tied to real network events.
- * Each test cleans up the created project in afterEach.
+ * Each test cleans up the created project in a finally block.
  */
 
 import { test, expect } from "../helpers/test-fixture.js";
@@ -27,39 +27,39 @@ function projectIdFromUrl(url: string): string | undefined {
 test("new project (AI, es) redirects to wizard step 1", async ({ page }) => {
   let createdProjectId: string | undefined;
 
-  test.afterEach(async () => {
+  try {
+    await signIn(page, testUser(1));
+    await expect(page).toHaveURL(/\/app\/dashboard/);
+
+    // Open modal
+    await page.getByTestId("new-project-btn").click();
+
+    // Step 1 — project name
+    await page.getByTestId("create-project-name").fill("Test AI Project E2E");
+    await page.getByTestId("create-modal-next").click();
+
+    // Step 2 — locale
+    await page.getByTestId("new-project-locale-es").click();
+    await page.getByTestId("create-modal-next").click();
+
+    // Step 3 — source: AI is selected by default; assert card is present and click it
+    await expect(page.getByTestId("new-project-source-ai")).toBeVisible();
+    await page.getByTestId("new-project-source-ai").click();
+
+    // Submit and wait for the Supabase REST insert to complete
+    const createDone = page.waitForResponse((resp) =>
+      resp.url().includes("/rest/v1/projects") && resp.request().method() === "POST",
+    );
+    await page.getByTestId("create-modal-create").click();
+    await createDone;
+
+    // Assert navigation to wizard step 1
+    await page.waitForURL(/\/app\/projects\/[^/]+\/wizard/);
+    createdProjectId = projectIdFromUrl(page.url());
+    expect(createdProjectId).toBeTruthy();
+  } finally {
     if (createdProjectId) await deleteProjectById(createdProjectId);
-  });
-
-  await signIn(page, testUser(1));
-  await expect(page).toHaveURL(/\/app\/dashboard/);
-
-  // Open modal
-  await page.getByTestId("new-project-btn").click();
-
-  // Step 1 — project name
-  await page.getByTestId("create-project-name").fill("Test AI Project E2E");
-  await page.getByTestId("create-modal-next").click();
-
-  // Step 2 — locale
-  await page.getByTestId("new-project-locale-es").click();
-  await page.getByTestId("create-modal-next").click();
-
-  // Step 3 — source: AI is selected by default; assert card is present and click it
-  await expect(page.getByTestId("new-project-source-ai")).toBeVisible();
-  await page.getByTestId("new-project-source-ai").click();
-
-  // Submit and wait for the Supabase REST insert to complete
-  const createDone = page.waitForResponse((resp) =>
-    resp.url().includes("/rest/v1/projects") && resp.request().method() === "POST",
-  );
-  await page.getByTestId("create-modal-create").click();
-  await createDone;
-
-  // Assert navigation to wizard step 1
-  await page.waitForURL(/\/app\/projects\/[^/]+\/wizard/);
-  createdProjectId = projectIdFromUrl(page.url());
-  expect(createdProjectId).toBeTruthy();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -68,34 +68,34 @@ test("new project (AI, es) redirects to wizard step 1", async ({ page }) => {
 test("locale selection (pt-BR) is remembered through to creation", async ({ page }) => {
   let createdProjectId: string | undefined;
 
-  test.afterEach(async () => {
+  try {
+    await signIn(page, testUser(2));
+    await expect(page).toHaveURL(/\/app\/dashboard/);
+
+    await page.getByTestId("new-project-btn").click();
+
+    await page.getByTestId("create-project-name").fill("Test AI Project pt-BR");
+    await page.getByTestId("create-modal-next").click();
+
+    // Select pt-BR locale
+    await page.getByTestId("new-project-locale-pt-BR").click();
+    await page.getByTestId("create-modal-next").click();
+
+    // Source step — pick AI
+    await page.getByTestId("new-project-source-ai").click();
+
+    const createDone = page.waitForResponse((resp) =>
+      resp.url().includes("/rest/v1/projects") && resp.request().method() === "POST",
+    );
+    await page.getByTestId("create-modal-create").click();
+    await createDone;
+
+    await page.waitForURL(/\/app\/projects\/[^/]+\/wizard/);
+    createdProjectId = projectIdFromUrl(page.url());
+    expect(createdProjectId).toBeTruthy();
+  } finally {
     if (createdProjectId) await deleteProjectById(createdProjectId);
-  });
-
-  await signIn(page, testUser(2));
-  await expect(page).toHaveURL(/\/app\/dashboard/);
-
-  await page.getByTestId("new-project-btn").click();
-
-  await page.getByTestId("create-project-name").fill("Test AI Project pt-BR");
-  await page.getByTestId("create-modal-next").click();
-
-  // Select pt-BR locale
-  await page.getByTestId("new-project-locale-pt-BR").click();
-  await page.getByTestId("create-modal-next").click();
-
-  // Source step — pick AI
-  await page.getByTestId("new-project-source-ai").click();
-
-  const createDone = page.waitForResponse((resp) =>
-    resp.url().includes("/rest/v1/projects") && resp.request().method() === "POST",
-  );
-  await page.getByTestId("create-modal-create").click();
-  await createDone;
-
-  await page.waitForURL(/\/app\/projects\/[^/]+\/wizard/);
-  createdProjectId = projectIdFromUrl(page.url());
-  expect(createdProjectId).toBeTruthy();
+  }
 });
 
 // ---------------------------------------------------------------------------

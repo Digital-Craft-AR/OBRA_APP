@@ -223,24 +223,21 @@ Cada test debe dejar la base de datos igual a como la encontró. Nunca dependas 
 
 ### Regla
 
-Si un test crea datos → declarar la variable de ID y el hook `test.afterEach` **en el scope del módulo** (fuera de cualquier `test()`). Así el cleanup corre incluso si el test falla.
+Si un test crea datos → usar `try/finally` para eliminarlos. El bloque `finally` corre incluso si el test falla.
 
-**`test.afterEach()` no puede estar dentro de un `test()` — Playwright lanza un error en runtime.**
+> **Nota:** `test.afterEach()` llamado dentro del cuerpo de un test no funciona con el fixture extendido de Obra (`test-fixture.ts`). Usar siempre `try/finally` en su lugar.
 
 ```typescript
-// ✅ Correcto — hook y variable al nivel del módulo
-let projectId: string | undefined;
+test("crea y luego borra el proyecto", async ({ page }) => {
+  let createdProjectId: string | undefined;
 
-test.afterEach(async () => {
-  if (projectId) await deleteProjectById(projectId);
-  projectId = undefined; // resetear para el próximo test
-});
-
-test("upload wizard happy path", async ({ page }) => {
-  // El test asigna projectId cuando lo crea
-  await page.waitForURL(/\/projects\/([^/]+)\/wizard/);
-  projectId = page.url().match(/\/projects\/([^/]+)\//)?.[1];
-  // ...
+  try {
+    // ... acciones que crean el proyecto ...
+    createdProjectId = projectIdFromUrl(page.url());
+    expect(createdProjectId).toBeTruthy();
+  } finally {
+    if (createdProjectId) await deleteProjectById(createdProjectId);
+  }
 });
 ```
 
