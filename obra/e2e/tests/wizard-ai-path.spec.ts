@@ -74,9 +74,16 @@ test(
     await page.waitForURL(/\/app\/projects\/[^/]+\/wizard/);
 
     // ── 3. Dismiss guided tour if it appears ────────────────────────────────
+    // The tour visibility is determined by an async Supabase query on
+    // creator_profiles.tour_dismissed_at. We must wait for that GET to land
+    // before checking — otherwise isVisible() races with the network.
+    await page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/rest/v1/creator_profiles") &&
+        resp.request().method() === "GET",
+    );
     const tourSkip = page.getByTestId("wizard-tour-skip");
-    const tourVisible = await tourSkip.isVisible().catch(() => false);
-    if (tourVisible) {
+    if (await tourSkip.isVisible()) {
       await tourSkip.click();
     }
 
