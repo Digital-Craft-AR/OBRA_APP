@@ -28,13 +28,14 @@ const MANUSCRIPT_PATH = resolve(__dirname, "../fixtures/test-manuscript.docx");
 
 test.setTimeout(120_000);
 
+let projectId: string | undefined;
+
+test.afterEach(async () => {
+  if (projectId) await deleteProjectById(projectId);
+  projectId = undefined;
+});
+
 test("upload path happy path: docx → alignment → chapters → preview export", async ({ page }) => {
-  let projectId: string | undefined;
-
-  test.afterEach(async () => {
-    if (projectId) await deleteProjectById(projectId);
-  });
-
   // ── 1. Sign in ────────────────────────────────────────────────────────────
   await signIn(page, testUser(1));
   await expect(page).toHaveURL(/\/app\/dashboard/);
