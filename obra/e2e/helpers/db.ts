@@ -16,6 +16,19 @@
  *   });
  */
 
+const DEFAULT_DESIGN_CONFIG = {
+  chapterCount: 8,
+  contentTone: "friendly",
+  paletteMode: "preset",
+  palettePresetId: "oceanic",
+  palette: { primary: "#F4F8FC", secondary: "#2D6499", accent: "#5A7A94" },
+  typographyMode: "preset",
+  typographyPresetId: "oceanic",
+  fonts: { heading: "Playfair Display", body: "Inter" },
+  page: { size: "a4", orientation: "portrait" },
+  image: { mode: "ai", style: "illustration" },
+};
+
 function adminHeaders(): Record<string, string> {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!key) throw new Error("E2E: SUPABASE_SERVICE_ROLE_KEY not set. Add it to .env.e2e.local.");
@@ -70,6 +83,35 @@ export async function deleteAuthUserByEmail(email: string): Promise<void> {
 }
 
 /**
+ * Insert an active project directly via the admin REST API (bypasses RLS).
+ * Returns the new project id.
+ */
+export async function createActiveProject(userId: string, name: string): Promise<string> {
+  const resp = await fetch(`${supabaseUrl()}/rest/v1/projects`, {
+    method: "POST",
+    headers: {
+      ...adminHeaders(),
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      name,
+      content_locale: "es",
+      content_source: "ai",
+      design_config: DEFAULT_DESIGN_CONFIG,
+      lifecycle_status: "active",
+    }),
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to create project "${name}": ${resp.status} ${body}`);
+  }
+  const rows = (await resp.json()) as Array<{ id: string }>;
+  if (!rows[0]?.id) throw new Error(`E2E: createActiveProject returned no id`);
+  return rows[0].id;
+}
+
+/**
  * Delete a project by ID via the REST API (cascades to ebooks, chapters, etc.).
  * Silently skips on 404.
  */
@@ -81,5 +123,20 @@ export async function deleteProjectById(projectId: string): Promise<void> {
   if (!resp.ok && resp.status !== 404) {
     const body = await resp.text().catch(() => "(no body)");
     throw new Error(`E2E: failed to delete project ${projectId}: ${resp.status} ${body}`);
+  }
+}
+
+/**
+ * Delete all projects belonging to a user (bypasses RLS via service role).
+ * Used for bulk cleanup after tests that create many projects.
+ */
+export async function deleteProjectsByUserId(userId: string): Promise<void> {
+  const resp = await fetch(
+    `${supabaseUrl()}/rest/v1/projects?user_id=eq.${encodeURIComponent(userId)}`,
+    { method: "DELETE", headers: adminHeaders() },
+  );
+  if (!resp.ok && resp.status !== 404) {
+    const body = await resp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to delete projects for user ${userId}: ${resp.status} ${body}`);
   }
 }
