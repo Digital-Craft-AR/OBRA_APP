@@ -47,7 +47,6 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `new-project-locale-pt-BR` | Portuguese locale button on NewProjectPage |
 | `new-project-source-ai` | "AI" source card on NewProjectPage |
 | `new-project-source-upload` | "Upload" source card on NewProjectPage |
-| `new-project-create-btn` | Continue/Create button on NewProjectPage |
 | `wizard-structure-next-btn` | Next/Continue button on WizardStructurePage (all 7 inner steps) |
 | `wizard-topic` | Topic textarea (structure wizard step 0) |
 | `wizard-avatar` | Target avatar textarea (structure wizard step 1) |
