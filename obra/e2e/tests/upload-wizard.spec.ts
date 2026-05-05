@@ -135,7 +135,12 @@ test("upload path happy path: docx → alignment → chapters → preview export
   const fileInput = page.getByTestId("manuscript-file-input");
   await fileInput.waitFor({ state: "attached" });
   await fileInput.setInputFiles(MANUSCRIPT_PATH);
-  await parseDone;
+
+  const parseResp = await parseDone;
+  expect(
+    parseResp.status(),
+    `manuscript-upload-parse failed (${parseResp.status()}): ${await parseResp.text().catch(() => "(unreadable)")}`,
+  ).toBeLessThan(500);
 
   // ── 5. Wait for AI split proposal (auto-triggered, intercepted) ───────────
   await splitProposalDone;
