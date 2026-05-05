@@ -68,3 +68,18 @@ export async function deleteAuthUserByEmail(email: string): Promise<void> {
   const id = await findAuthUserByEmail(email);
   if (id) await deleteAuthUser(id);
 }
+
+/**
+ * Delete a project by ID via the REST API (cascades to ebooks, chapters, etc.).
+ * Silently skips on 404.
+ */
+export async function deleteProjectById(projectId: string): Promise<void> {
+  const resp = await fetch(
+    `${supabaseUrl()}/rest/v1/projects?id=eq.${encodeURIComponent(projectId)}`,
+    { method: "DELETE", headers: adminHeaders() },
+  );
+  if (!resp.ok && resp.status !== 404) {
+    const body = await resp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to delete project ${projectId}: ${resp.status} ${body}`);
+  }
+}

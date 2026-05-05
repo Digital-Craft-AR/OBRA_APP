@@ -43,6 +43,27 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `register-password` | Password input on RegisterPage |
 | `register-submit` | Submit button on RegisterPage |
 | `check-email-heading` | "Revisá tu correo" heading shown after signup (RegisterPage) |
+| `new-project-locale-es` | Spanish locale button on NewProjectPage |
+| `new-project-locale-pt-BR` | Portuguese locale button on NewProjectPage |
+| `new-project-source-ai` | "AI" source card on NewProjectPage |
+| `new-project-source-upload` | "Upload" source card on NewProjectPage |
+| `new-project-create-btn` | Continue/Create button on NewProjectPage |
+| `wizard-structure-next-btn` | Next/Continue button on WizardStructurePage (all 7 inner steps) |
+| `wizard-topic` | Topic textarea (structure wizard step 0) |
+| `wizard-avatar` | Target avatar textarea (structure wizard step 1) |
+| `wizard-problem` | Problem textarea (structure wizard step 1) |
+| `wizard-main-title` | Custom main title input (structure wizard step 3) |
+| `manuscript-file-input` | Hidden file input on ManuscriptUploadPanel |
+| `alignment-generating` | Loading div while ai-split-proposal is running |
+| `alignment-review` | Review panel shown after ai-split-proposal returns |
+| `alignment-approve-btn` | Approve button on ContentUploadAlignmentPanel |
+| `alignment-regenerate-btn` | Regenerate button on ContentUploadAlignmentPanel |
+| `chapter-approve-btn` | Per-chapter Approve button on ContentChapterMilestone |
+| `chapter-generate-btn` | Per-chapter AI Generate button (AI path only) |
+| `content-approve-artifact-btn` | Footer "Approve all chapters" button (generating phase) |
+| `content-go-to-preview-btn` | Footer "Go to preview" button (complete phase) |
+| `preview-export-zip-btn` | ZIP export button on WizardPreviewPage |
+| `preview-export-pdf-btn` | PDF export/generate button on WizardPreviewPage |
 
 > Add rows to this table as new testids are introduced.
 
@@ -185,21 +206,32 @@ Cada test debe dejar la base de datos igual a como la encontró. Nunca dependas 
 
 ### Regla
 
-Si un test crea datos → registrar `test.afterEach` para eliminarlos **antes** de la acción que los crea. Así el cleanup corre incluso si el test falla.
+Si un test crea datos → declarar la variable de ID y el hook `test.afterEach` **en el scope del módulo** (fuera de cualquier `test()`). Así el cleanup corre incluso si el test falla.
+
+**`test.afterEach()` no puede estar dentro de un `test()` — Playwright lanza un error en runtime.**
 
 ```typescript
-test("new unverified user sees check-email gate", async ({ page }) => {
-  const uniqueEmail = `test-unverified-${Date.now()}@obratest.invalid`;
+// ✅ Correcto — hook y variable al nivel del módulo
+let projectId: string | undefined;
 
-  // ✅ Registrar cleanup ANTES de crear el dato
-  test.afterEach(async () => {
-    await deleteAuthUserByEmail(uniqueEmail);
-  });
+test.afterEach(async () => {
+  if (projectId) await deleteProjectById(projectId);
+  projectId = undefined; // resetear para el próximo test
+});
 
-  // Recién ahora creamos el dato
-  await page.getByTestId("register-email").fill(uniqueEmail);
-  await page.getByTestId("register-submit").click();
+test("upload wizard happy path", async ({ page }) => {
+  // El test asigna projectId cuando lo crea
+  await page.waitForURL(/\/projects\/([^/]+)\/wizard/);
+  projectId = page.url().match(/\/projects\/([^/]+)\//)?.[1];
   // ...
+});
+```
+
+```typescript
+// ❌ Incorrecto — test.afterEach() dentro de test() lanza:
+// "Playwright Test did not expect test.afterEach() to be called here"
+test("some test", async ({ page }) => {
+  test.afterEach(async () => { ... }); // ← ERROR
 });
 ```
 
@@ -212,6 +244,7 @@ Usan `SUPABASE_SERVICE_ROLE_KEY` del proceso Playwright (cargado desde `.env.e2e
 | `findAuthUserByEmail(email)` | Devuelve el UUID del usuario auth, o `undefined` si no existe |
 | `deleteAuthUser(userId)` | Borra el usuario por id (404 es silenciado) |
 | `deleteAuthUserByEmail(email)` | find + delete; no-op si no existe |
+| `deleteProjectById(projectId)` | Borra el proyecto por id via REST (cascada a ebooks, chapters, etc.) |
 
 ### Usuarios pre-sembrados (no necesitan cleanup)
 
@@ -270,3 +303,72 @@ npm run e2e:ui       # UI mode de Playwright
 ```
 
 `playwright.config.ts` ya carga `.env.e2e.local` para el proceso Playwright (para `SUPABASE_SERVICE_ROLE_KEY`, `TEST_USER_PASSWORD`, etc.). Vite lo carga por `--mode e2e` para las vars `VITE_*` que necesita el browser.
+
+### Puerto 5173 ocupado al abrir la UI
+
+`playwright.config.ts` tiene `reuseExistingServer: false`. Si `npm run dev` está corriendo en el puerto 5173, la UI de Playwright no puede arrancar su propio servidor y no muestra ningún test. Solución: matar el proceso antes de abrir la UI.
+
+```bash
+# Ver qué proceso ocupa 5173
+lsof -i :5173
+
+# Matarlo
+kill <PID>
+
+# Recién entonces abrir la UI
+npm run e2e:ui
+```
+
+---
+
+## 6. Qué mockear y qué dejar real
+
+Regla general: **mockear todo lo que consuma créditos de IA o dependa de servicios externos**. Dejar real lo que testea integración DB + Edge Function sin IA.
+
+| Edge Function | ¿Mockear? | Razón |
+|---|---|---|
+| `ai-optimize` | ✅ Sí | Llama a Claude — consume créditos |
+| `ai-generate-index` | ✅ Sí | Llama a Claude |
+| `ai-generate-all-bonus-index` | ✅ Sí | Llama a Claude |
+| `ai-generate-content` | ✅ Sí | Llama a Claude |
+| `ai-split-proposal` | ✅ Sí | Llama a Claude |
+| `image-generate` | ✅ Sí | Llama a Gemini |
+| `generate-document-template` | ✅ Sí | Genera HTML pesado |
+| `export-pdf-queue` | ✅ Sí | Encola job en Railway — no hay Railway en E2E |
+| `manuscript-upload-parse` | ❌ No | Sin IA — testea parsing real del .docx y Storage |
+| `approve-alignment` | ❌ No | Sin IA — crea rows de chapters reales en la DB |
+
+Las funciones mockeadas se registran automáticamente desde `test-fixture.ts` vía `interceptAiCalls(page)`. Las por-test (como `export-pdf-queue`) se registran con `page.route()` dentro del test.
+
+---
+
+## 7. Requests auto-disparadas por estado de React
+
+Algunos edge functions no se disparan por un click del usuario sino por un `useEffect` que reacciona al estado (e.g. `autoStart` en `ContentUploadAlignmentPanel`). El patrón es el mismo — registrar el `waitForResponse` **antes de la acción que inicia la cadena** — pero la cadena puede ser más larga:
+
+```
+setInputFiles → manuscript-upload-parse → [React state update]
+  → ContentUploadAlignmentPanel mounts → ai-split-proposal (auto)
+```
+
+```typescript
+// ✅ Registrar AMBOS waiters antes de setInputFiles
+const splitProposalDone = page.waitForResponse(
+  (r) => r.url().includes("/functions/v1/ai-split-proposal"),
+);
+const parseDone = page.waitForResponse(
+  (r) => r.url().includes("/functions/v1/manuscript-upload-parse"),
+);
+
+await fileInput.setInputFiles(MANUSCRIPT_PATH);
+await parseDone;          // parse terminó
+await splitProposalDone;  // auto-trigger terminó
+```
+
+Si `splitProposalDone` nunca resuelve, el problema suele estar en el estado intermedio (React no montó el componente que dispara la llamada). Agregar un `waitFor` sobre el elemento que confirma que el componente montó da un error más claro:
+
+```typescript
+// Diagnosica si ContentUploadAlignmentPanel montó
+await page.getByTestId("alignment-generating").waitFor({ state: "visible", timeout: 10_000 });
+await splitProposalDone;
+```
