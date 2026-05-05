@@ -59,6 +59,7 @@ export function StructureStepAvatarProblem({
     <section className="space-y-4">
       <ObraTextarea
         id="wizard-avatar"
+        data-testid="wizard-avatar"
         label={avatarLabel}
         hint={avatarHint}
         value={avatarValue}
@@ -73,6 +74,7 @@ export function StructureStepAvatarProblem({
       />
       <ObraTextarea
         id="wizard-problem"
+        data-testid="wizard-problem"
         label={problemLabel}
         hint={problemHint}
         value={problemValue}

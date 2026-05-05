@@ -33,6 +33,7 @@ export function StructureStepTopic({
     <section className="space-y-3">
       <ObraTextarea
         id="wizard-topic"
+        data-testid="wizard-topic"
         label={label}
         hint={hint}
         value={value}

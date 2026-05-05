@@ -113,6 +113,7 @@ export function StructureStepDesign({
       <div className="space-y-4">
         <ObraInput
           id="wizard-main-title-custom"
+          data-testid="wizard-main-title"
           label={customTitleLabel}
           value={customMainTitle}
           onChange={(event) => onCustomTitleChange(event.target.value)}
