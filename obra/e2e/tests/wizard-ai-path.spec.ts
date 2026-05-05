@@ -25,13 +25,16 @@ function waitForProjectsWrite(page: import("@playwright/test").Page) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: wait for the content workspace to be ready (ensureContentWorkspace
-// ends with a GET on ebooks that sets up state)
+// Helper: wait for the content workspace to be fully ready.
+// ensureContentWorkspace ends with a GET on project_content_progress (the last
+// query in the chain), after which setWorkspaceReady(true) is called and the
+// plan_review UI (TOC generate button) becomes visible.
 // ---------------------------------------------------------------------------
 function waitForContentWorkspace(page: import("@playwright/test").Page) {
   return page.waitForResponse(
     (resp) =>
-      resp.url().includes("/rest/v1/ebooks") && resp.request().method() === "GET",
+      resp.url().includes("/rest/v1/project_content_progress") &&
+      resp.request().method() === "GET",
   );
 }
 
@@ -159,14 +162,12 @@ test(
     // Should navigate to /app/projects/:id/content
     await page.waitForURL(/\/app\/projects\/[^/]+\/content/, { timeout: 10_000 });
 
-    // ── 11. Content phase — intro screen ────────────────────────────────────
-    // Wait for workspace to be ready (ebooks GET) before interacting.
+    // ── 11. Content phase — plan_review ─────────────────────────────────────
+    // For new AI projects, ensureContentWorkspace sets current_phase = 'main_index'
+    // immediately via the DB trigger on structure_completed_at, so introSkippableByServerProgress
+    // is true and contentUiPhase goes directly to "plan_review" — no intro screen.
+    // Wait for the workspace GET to complete, then wait for the TOC generate button.
     await waitForContentWorkspace(page);
-
-    // Intro screen: AI is pre-selected; click Continue
-    const introContinue = page.getByTestId("content-intro-continue");
-    await expect(introContinue).toBeVisible({ timeout: 8_000 });
-    await introContinue.click();
 
     // ── 12. Content phase — generate main TOC ───────────────────────────────
     // The empty-TOC state shows a "Generate" button (content-toc-generate).
