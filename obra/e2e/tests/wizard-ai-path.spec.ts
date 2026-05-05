@@ -10,7 +10,7 @@
  */
 
 import { test, expect } from "../helpers/test-fixture.js";
-import { signIn, testUser, waitForAuthToken } from "../helpers/auth.js";
+import { signIn, testUser } from "../helpers/auth.js";
 import { deleteProjectsByUserEmail } from "../helpers/db.js";
 
 // ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ function waitForProjectsWrite(page: import("@playwright/test").Page) {
 
 // ---------------------------------------------------------------------------
 // Helper: wait for the content workspace to be ready (ensureContentWorkspace
-// ends with a GET on ebooks that sets up state; we use navigation as signal)
+// ends with a GET on ebooks that sets up state)
 // ---------------------------------------------------------------------------
 function waitForContentWorkspace(page: import("@playwright/test").Page) {
   return page.waitForResponse(
@@ -36,17 +36,20 @@ function waitForContentWorkspace(page: import("@playwright/test").Page) {
 }
 
 // ---------------------------------------------------------------------------
+// Cleanup — must be registered at file scope, not inside a test body.
+// Deletes all projects belonging to the primary test user after each test.
+// ---------------------------------------------------------------------------
+test.afterEach(async () => {
+  await deleteProjectsByUserEmail(testUser(1).email);
+});
+
+// ---------------------------------------------------------------------------
 // Main test
 // ---------------------------------------------------------------------------
 test(
   "happy path: full wizard — AI path (structure → content → preview → export)",
   async ({ page }) => {
     const user = testUser(1);
-
-    // Clean up any projects created by this user from previous runs.
-    test.afterEach(async () => {
-      await deleteProjectsByUserEmail(user.email);
-    });
 
     // ── 1. Sign in ──────────────────────────────────────────────────────────
     await signIn(page, user);
