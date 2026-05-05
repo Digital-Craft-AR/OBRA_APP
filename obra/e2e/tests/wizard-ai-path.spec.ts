@@ -131,25 +131,23 @@ test(
     await titleSaved;
 
     // ── 8. Structure wizard — Step 4: Bonus titles ──────────────────────────
-    // ai-optimize auto-generates bonus titles; wait for them to settle then
-    // proceed (the items will already be populated from the fixture).
-    await page.waitForTimeout(300); // brief settle after AI auto-call
+    // Wait for the bonus-titles section to confirm React has rendered step 4.
+    // Without an explicit DOM wait the click can land on step 3 (title) or be
+    // delayed, causing the wrong handleNextStep branch to run.
+    await page.getByTestId("wizard-bonus-titles").waitFor({ state: "visible" });
     const bonusSaved = waitForProjectsWrite(page);
     await page.getByTestId("wizard-structure-next").click();
     await bonusSaved;
 
     // ── 9. Structure wizard — Step 5: Bump titles ───────────────────────────
-    await page.waitForTimeout(300);
+    await page.getByTestId("wizard-bump-titles").waitFor({ state: "visible" });
     const bumpSaved = waitForProjectsWrite(page);
     await page.getByTestId("wizard-structure-next").click();
     await bumpSaved;
 
     // ── 10. Structure wizard — Step 6: Design config ────────────────────────
-    // Wait for the design-config step to be rendered before clicking Next.
-    // Without this wait the click can land while innerStepIndex is still 5
-    // (React hasn't applied setInnerStepIndex(6) yet), causing persistBonusBumpItems
-    // to run a second time instead of persistDesignConfig → finishedStructure never
-    // fires and navigation to /content never happens.
+    // Wait for the design-config section (step 6) to be rendered before clicking
+    // Next — same race condition guard as steps 4 and 5 above.
     await page.getByTestId("wizard-design-config").waitFor({ state: "visible" });
 
     // Default design config is fine; clicking Next also marks structure complete

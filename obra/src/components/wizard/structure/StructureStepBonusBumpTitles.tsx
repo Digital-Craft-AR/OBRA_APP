@@ -96,7 +96,10 @@ export function StructureStepBonusBumpTitles({
   onRegenerateAllBump,
 }: StructureStepBonusBumpTitlesProps) {
   return (
-    <section className="space-y-6">
+    <section
+      data-testid={showBonus && !showBump ? "wizard-bonus-titles" : !showBonus && showBump ? "wizard-bump-titles" : undefined}
+      className="space-y-6"
+    >
       {showBonus ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
