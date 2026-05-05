@@ -6,7 +6,7 @@
  *   1. Sign in as seeded user
  *   2. Create a new project with content_source="upload"
  *   3. Complete all 7 structure wizard steps
- *   4. Upload test-manuscript.docx → manuscript-upload-parse (real edge fn)
+ *   4. Upload test-manuscript.docx (Libros de colorear para niños, 6 chapters) → manuscript-upload-parse (real edge fn)
  *   5. ai-split-proposal auto-triggers (intercepted)
  *   6. Alignment review panel appears → approve → approve-alignment (real edge fn)
  *   7. Chapter editing UI → approve artifact
@@ -71,7 +71,7 @@ test("upload path happy path: docx → alignment → chapters → preview export
   // Step 0 – Topic
   await page.getByTestId("wizard-topic").waitFor({ state: "visible" });
   await page.getByTestId("wizard-topic").fill(
-    "Cómo crear un negocio digital con inteligencia artificial",
+    "Cómo crear y vender libros de colorear para niños usando inteligencia artificial",
   );
   const patch0 = waitForProjectPatch();
   await nextBtn.click();
@@ -81,10 +81,10 @@ test("upload path happy path: docx → alignment → chapters → preview export
 
   // Step 1 – Avatar & Problem
   await page.getByTestId("wizard-avatar").fill(
-    "Emprendedores digitales que quieren monetizar su conocimiento",
+    "Madres creativas que quieren generar ingresos publicando libros infantiles",
   );
   await page.getByTestId("wizard-problem").fill(
-    "No saben cómo crear y vender infoproductos de forma sistemática",
+    "No saben cómo pasar de la idea al libro publicado de forma sistemática",
   );
   const patch1 = waitForProjectPatch();
   await nextBtn.click();
@@ -98,7 +98,7 @@ test("upload path happy path: docx → alignment → chapters → preview export
   // Step 3 – Main title (ai-optimize is intercepted; wait for input to be enabled)
   await page.getByTestId("wizard-main-title").waitFor({ state: "visible" });
   await expect(page.getByTestId("wizard-main-title")).not.toBeDisabled({ timeout: 10_000 });
-  await page.getByTestId("wizard-main-title").fill("Negocio Digital con IA: La Guía Completa");
+  await page.getByTestId("wizard-main-title").fill("Libros de Colorear con IA: La Guía Completa para Publicar y Vender");
   const patch3 = waitForProjectPatch();
   await nextBtn.click();
   await patch3;
