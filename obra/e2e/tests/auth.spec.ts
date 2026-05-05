@@ -25,13 +25,19 @@ test("seeded user can log in and reach dashboard", async ({ page }) => {
 // ---------------------------------------------------------------------------
 // 2. New unverified user sees the "check your email" gate
 // ---------------------------------------------------------------------------
+// Email created by the next test — tracked at file scope so afterEach can clean it up.
+let unverifiedEmail: string | undefined;
+
+test.afterEach(async () => {
+  if (unverifiedEmail) {
+    await deleteAuthUserByEmail(unverifiedEmail);
+    unverifiedEmail = undefined;
+  }
+});
+
 test("new unverified user sees check-email gate", async ({ page }) => {
   const uniqueEmail = `test-unverified-${Date.now()}@obratest.invalid`;
-
-  // Clean up the created auth user after the test regardless of outcome.
-  test.afterEach(async () => {
-    await deleteAuthUserByEmail(uniqueEmail);
-  });
+  unverifiedEmail = uniqueEmail;
 
   await page.goto("/register");
   await page.getByTestId("register-name").fill("Test Unverified");
