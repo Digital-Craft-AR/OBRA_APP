@@ -122,14 +122,20 @@ test("upload path happy path: docx → alignment → chapters → preview export
 
   // ── 4. Upload manuscript ───────────────────────────────────────────────────
 
-  // Register BEFORE upload: ai-split-proposal auto-triggers after parse succeeds
+  // Register all waiters BEFORE the action that triggers them.
+  // Execution order: setInputFiles → manuscript-upload-parse → fetchActiveManuscript
+  //   (project_manuscripts GET) → onManuscriptCommitted → ContentUploadAlignmentPanel
+  //   mounts with autoStart → ai-split-proposal
   const splitProposalDone = page.waitForResponse(
     (r) => r.url().includes("/functions/v1/ai-split-proposal"),
   );
-
-  // Register BEFORE setInputFiles: manuscript-upload-parse is called synchronously
   const parseDone = page.waitForResponse(
     (r) => r.url().includes("/functions/v1/manuscript-upload-parse"),
+  );
+  // fetchActiveManuscript is called after parse to read extracted_char_count from the DB.
+  // If the row is missing or extracted_char_count = 0, ContentUploadAlignmentPanel never mounts.
+  const manuscriptRowFetched = page.waitForResponse(
+    (r) => r.url().includes("/rest/v1/project_manuscripts") && r.request().method() === "GET",
   );
 
   const fileInput = page.getByTestId("manuscript-file-input");
@@ -137,12 +143,23 @@ test("upload path happy path: docx → alignment → chapters → preview export
   await fileInput.setInputFiles(MANUSCRIPT_PATH);
 
   const parseResp = await parseDone;
+  const parseBody = await parseResp.text().catch(() => "{}");
   expect(
     parseResp.status(),
-    `manuscript-upload-parse failed (${parseResp.status()}): ${await parseResp.text().catch(() => "(unreadable)")}`,
+    `manuscript-upload-parse HTTP error: ${parseBody}`,
   ).toBeLessThan(500);
 
+  // Confirm the DB row has extracted_char_count > 0 — required for ContentUploadAlignmentPanel to mount.
+  const dbResp = await manuscriptRowFetched;
+  const dbBody = await dbResp.text().catch(() => "[]");
+  const dbRows = JSON.parse(dbBody) as Array<{ extracted_char_count?: number | null }>;
+  const charCount = dbRows[0]?.extracted_char_count ?? 0;
+  expect(charCount, `project_manuscripts row has extracted_char_count=${charCount}; parse body was: ${parseBody}`).toBeGreaterThan(0);
+
   // ── 5. Wait for AI split proposal (auto-triggered, intercepted) ───────────
+  // ContentUploadAlignmentPanel mounts when manuscriptCommitted=true → autoStart fires handleGenerate
+  // → invokeAiSplitProposal → intercepted instantly → alignment-generating div appears → alignment-review
+  await page.getByTestId("alignment-generating").waitFor({ state: "visible", timeout: 10_000 });
   await splitProposalDone;
 
   // ── 6. Alignment review → approve ─────────────────────────────────────────
