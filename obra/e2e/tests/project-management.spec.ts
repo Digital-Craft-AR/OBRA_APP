@@ -178,17 +178,15 @@ test("20-project limit: UI shows error when creating a 21st active project", asy
   await page.getByTestId("create-modal-next").click(); // step 1 → 2
   await page.getByTestId("create-modal-next").click(); // step 2 → 3
 
-  // Click create — the count query fires; register the waiter first
-  const countDone = page.waitForResponse(
-    (resp) =>
-      resp.url().includes("/rest/v1/projects") && resp.request().method() === "GET",
-  );
+  // Click create — triggers a HEAD count check (head: true → HEAD method, not GET).
+  // Don't wait on a network event; wait for the visible DOM outcome instead,
+  // which is the canonical pattern (e2e-patterns.md §2).
   await page.getByTestId("create-modal-create").click();
-  await countDone;
 
-  // Modal stays open, limit error appears
-  await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText(/20/);
+  // Modal stays open and shows the limit error
+  const alert = page.getByRole("alert");
+  await alert.waitFor({ state: "visible", timeout: 10_000 });
+  await expect(alert).toContainText(/20/);
 
   // Must NOT have navigated to a wizard
   expect(page.url()).not.toMatch(/\/app\/projects\//);
