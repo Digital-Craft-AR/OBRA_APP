@@ -206,21 +206,32 @@ Cada test debe dejar la base de datos igual a como la encontró. Nunca dependas 
 
 ### Regla
 
-Si un test crea datos → registrar `test.afterEach` para eliminarlos **antes** de la acción que los crea. Así el cleanup corre incluso si el test falla.
+Si un test crea datos → declarar la variable de ID y el hook `test.afterEach` **en el scope del módulo** (fuera de cualquier `test()`). Así el cleanup corre incluso si el test falla.
+
+**`test.afterEach()` no puede estar dentro de un `test()` — Playwright lanza un error en runtime.**
 
 ```typescript
-test("new unverified user sees check-email gate", async ({ page }) => {
-  const uniqueEmail = `test-unverified-${Date.now()}@obratest.invalid`;
+// ✅ Correcto — hook y variable al nivel del módulo
+let projectId: string | undefined;
 
-  // ✅ Registrar cleanup ANTES de crear el dato
-  test.afterEach(async () => {
-    await deleteAuthUserByEmail(uniqueEmail);
-  });
+test.afterEach(async () => {
+  if (projectId) await deleteProjectById(projectId);
+  projectId = undefined; // resetear para el próximo test
+});
 
-  // Recién ahora creamos el dato
-  await page.getByTestId("register-email").fill(uniqueEmail);
-  await page.getByTestId("register-submit").click();
+test("upload wizard happy path", async ({ page }) => {
+  // El test asigna projectId cuando lo crea
+  await page.waitForURL(/\/projects\/([^/]+)\/wizard/);
+  projectId = page.url().match(/\/projects\/([^/]+)\//)?.[1];
   // ...
+});
+```
+
+```typescript
+// ❌ Incorrecto — test.afterEach() dentro de test() lanza:
+// "Playwright Test did not expect test.afterEach() to be called here"
+test("some test", async ({ page }) => {
+  test.afterEach(async () => { ... }); // ← ERROR
 });
 ```
 
@@ -292,3 +303,72 @@ npm run e2e:ui       # UI mode de Playwright
 ```
 
 `playwright.config.ts` ya carga `.env.e2e.local` para el proceso Playwright (para `SUPABASE_SERVICE_ROLE_KEY`, `TEST_USER_PASSWORD`, etc.). Vite lo carga por `--mode e2e` para las vars `VITE_*` que necesita el browser.
+
+### Puerto 5173 ocupado al abrir la UI
+
+`playwright.config.ts` tiene `reuseExistingServer: false`. Si `npm run dev` está corriendo en el puerto 5173, la UI de Playwright no puede arrancar su propio servidor y no muestra ningún test. Solución: matar el proceso antes de abrir la UI.
+
+```bash
+# Ver qué proceso ocupa 5173
+lsof -i :5173
+
+# Matarlo
+kill <PID>
+
+# Recién entonces abrir la UI
+npm run e2e:ui
+```
+
+---
+
+## 6. Qué mockear y qué dejar real
+
+Regla general: **mockear todo lo que consuma créditos de IA o dependa de servicios externos**. Dejar real lo que testea integración DB + Edge Function sin IA.
+
+| Edge Function | ¿Mockear? | Razón |
+|---|---|---|
+| `ai-optimize` | ✅ Sí | Llama a Claude — consume créditos |
+| `ai-generate-index` | ✅ Sí | Llama a Claude |
+| `ai-generate-all-bonus-index` | ✅ Sí | Llama a Claude |
+| `ai-generate-content` | ✅ Sí | Llama a Claude |
+| `ai-split-proposal` | ✅ Sí | Llama a Claude |
+| `image-generate` | ✅ Sí | Llama a Gemini |
+| `generate-document-template` | ✅ Sí | Genera HTML pesado |
+| `export-pdf-queue` | ✅ Sí | Encola job en Railway — no hay Railway en E2E |
+| `manuscript-upload-parse` | ❌ No | Sin IA — testea parsing real del .docx y Storage |
+| `approve-alignment` | ❌ No | Sin IA — crea rows de chapters reales en la DB |
+
+Las funciones mockeadas se registran automáticamente desde `test-fixture.ts` vía `interceptAiCalls(page)`. Las por-test (como `export-pdf-queue`) se registran con `page.route()` dentro del test.
+
+---
+
+## 7. Requests auto-disparadas por estado de React
+
+Algunos edge functions no se disparan por un click del usuario sino por un `useEffect` que reacciona al estado (e.g. `autoStart` en `ContentUploadAlignmentPanel`). El patrón es el mismo — registrar el `waitForResponse` **antes de la acción que inicia la cadena** — pero la cadena puede ser más larga:
+
+```
+setInputFiles → manuscript-upload-parse → [React state update]
+  → ContentUploadAlignmentPanel mounts → ai-split-proposal (auto)
+```
+
+```typescript
+// ✅ Registrar AMBOS waiters antes de setInputFiles
+const splitProposalDone = page.waitForResponse(
+  (r) => r.url().includes("/functions/v1/ai-split-proposal"),
+);
+const parseDone = page.waitForResponse(
+  (r) => r.url().includes("/functions/v1/manuscript-upload-parse"),
+);
+
+await fileInput.setInputFiles(MANUSCRIPT_PATH);
+await parseDone;          // parse terminó
+await splitProposalDone;  // auto-trigger terminó
+```
+
+Si `splitProposalDone` nunca resuelve, el problema suele estar en el estado intermedio (React no montó el componente que dispara la llamada). Agregar un `waitFor` sobre el elemento que confirma que el componente montó da un error más claro:
+
+```typescript
+// Diagnosica si ContentUploadAlignmentPanel montó
+await page.getByTestId("alignment-generating").waitFor({ state: "visible", timeout: 10_000 });
+await splitProposalDone;
+```
