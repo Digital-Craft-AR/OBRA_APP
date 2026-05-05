@@ -145,6 +145,13 @@ test(
     await bumpSaved;
 
     // ── 10. Structure wizard — Step 6: Design config ────────────────────────
+    // Wait for the design-config step to be rendered before clicking Next.
+    // Without this wait the click can land while innerStepIndex is still 5
+    // (React hasn't applied setInnerStepIndex(6) yet), causing persistBonusBumpItems
+    // to run a second time instead of persistDesignConfig → finishedStructure never
+    // fires and navigation to /content never happens.
+    await page.getByTestId("wizard-design-config").waitFor({ state: "visible" });
+
     // Default design config is fine; clicking Next also marks structure complete
     // and navigates to content.
     const designSaved = waitForProjectsWrite(page);

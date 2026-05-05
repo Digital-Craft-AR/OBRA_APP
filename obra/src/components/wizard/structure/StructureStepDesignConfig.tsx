@@ -79,7 +79,7 @@ export function StructureStepDesignConfig({
   }
 
   return (
-    <section className="flex flex-col gap-6">
+    <section data-testid="wizard-design-config" className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.page.title")}</h3>
         <div className="grid grid-cols-2 gap-3">
