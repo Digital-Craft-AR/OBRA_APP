@@ -64,6 +64,24 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `content-go-to-preview-btn` | Footer "Go to preview" button (complete phase) |
 | `preview-export-zip-btn` | ZIP export button on WizardPreviewPage |
 | `preview-export-pdf-btn` | PDF export/generate button on WizardPreviewPage |
+| `new-project-btn` | "New project" button in DashboardPage header |
+| `project-tab-active` | "Active" lifecycle tab button on DashboardPage |
+| `project-tab-archived` | "Archived" lifecycle tab button on DashboardPage |
+| `project-tab-trash` | "Trash" lifecycle tab button on DashboardPage |
+| `project-card-{id}` | Project summary card wrapper (id = project UUID) |
+| `project-card-menu-{id}` | "More actions" kebab button on a project card |
+| `project-card-rename-{id}` | "Rename" item in the project card dropdown |
+| `project-card-duplicate-{id}` | "Duplicate" item in the project card dropdown |
+| `project-card-archive-{id}` | "Archive" item in the project card dropdown |
+| `project-card-trash-{id}` | "Move to trash" item in the project card dropdown |
+| `archive-modal-confirm` | Confirm button in the archive confirmation modal |
+| `archive-modal-cancel` | Cancel button in the archive confirmation modal |
+| `trash-modal-confirm` | Confirm button in the move-to-trash confirmation modal |
+| `trash-modal-cancel` | Cancel button in the move-to-trash confirmation modal |
+| `trash-retention-notice` | 30-day retention warning shown above the Trash tab project list |
+| `create-project-name` | Project name input in the new project modal (step 1) |
+| `create-modal-next` | "Next" button in the new project modal (steps 1 and 2) |
+| `create-modal-create` | "Create" button in the new project modal (step 3) |
 
 > Add rows to this table as new testids are introduced.
 
@@ -244,7 +262,9 @@ Usan `SUPABASE_SERVICE_ROLE_KEY` del proceso Playwright (cargado desde `.env.e2e
 | `findAuthUserByEmail(email)` | Devuelve el UUID del usuario auth, o `undefined` si no existe |
 | `deleteAuthUser(userId)` | Borra el usuario por id (404 es silenciado) |
 | `deleteAuthUserByEmail(email)` | find + delete; no-op si no existe |
+| `createActiveProject(userId, name)` | Inserta un proyecto activo vía admin REST (bypasses RLS); devuelve el id |
 | `deleteProjectById(projectId)` | Borra el proyecto por id via REST (cascada a ebooks, chapters, etc.) |
+| `deleteProjectsByUserId(userId)` | Borra todos los proyectos de un usuario vía admin REST |
 
 ### Usuarios pre-sembrados (no necesitan cleanup)
 
