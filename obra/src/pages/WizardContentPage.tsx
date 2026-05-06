@@ -1743,7 +1743,7 @@ export function WizardContentPage() {
 
         {/* ── Generating / complete: chapter editing per artifact ────────── */}
         {(contentUiPhase === "generating" || contentUiPhase === "complete") && project ? (
-          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div data-testid="content-chapter-section" className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <ContentChapterNav
               t={t}
               chapters={chapterRows}
@@ -1838,6 +1838,7 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
+              data-testid="content-confirm-index-btn"
               disabled={!confirmVisible || confirmDisabled || confirmLoading}
               onClick={() => void handleConfirmGlobalIndex()}
             >
