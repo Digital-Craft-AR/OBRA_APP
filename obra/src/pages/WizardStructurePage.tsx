@@ -330,7 +330,6 @@ export function WizardStructurePage() {
             disabled={
               flow.innerStepIndex === INNER_STEPS.length - 1 ? flow.designSaving : flow.mainTitleSaving
             }
-            data-testid="wizard-structure-next"
             onClick={() =>
               void (async () => {
                 setStructureGateError(null);
