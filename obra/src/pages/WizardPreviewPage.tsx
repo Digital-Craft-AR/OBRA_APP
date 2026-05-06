@@ -739,6 +739,7 @@ export function WizardPreviewPage() {
                   />
                 ) : null}
                 <iframe
+                  data-testid="preview-iframe"
                   srcDoc={previewSrcDoc}
                   title={t("wizard.preview.iframeTitle")}
                   className="w-full min-w-0"
