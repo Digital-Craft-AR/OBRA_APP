@@ -32,3 +32,86 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  e2e:
+    name: E2E Tests (Playwright + Supabase local)
+    runs-on: ubuntu-latest
+    needs: obra
+    defaults:
+      run:
+        working-directory: obra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: obra/package-lock.json
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # supabase start applies all migrations automatically.
+      # Runs from repo root so the CLI can find supabase/config.toml.
+      - name: Start Supabase local
+        working-directory: .
+        run: supabase start
+
+      # Parse local credentials and export them as GITHUB_ENV vars so all
+      # subsequent steps (seed, dev server, Playwright) share them.
+      - name: Export Supabase credentials
+        working-directory: .
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "VITE_SUPABASE_URL=${API_URL}"
+            echo "VITE_SUPABASE_ANON_KEY=${ANON_KEY}"
+          } >> "$GITHUB_ENV"
+
+      - name: Seed test users
+        run: npm run seed
+        env:
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      # Start Vite in e2e mode (reads VITE_ env vars; no .env.e2e.local in CI).
+      - name: Start dev server
+        run: npm run dev:e2e &
+
+      - name: Wait for dev server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5173 > /dev/null && echo "Dev server ready." && break
+            echo "Waiting for dev server... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL: https://www.mercadopago.com.ar/subscriptions
+
+      - name: Stop Supabase
+        if: always()
+        working-directory: .
+        run: supabase stop
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: obra/playwright-report/
+          retention-days: 14
