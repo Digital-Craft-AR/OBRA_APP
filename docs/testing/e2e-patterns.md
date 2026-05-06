@@ -92,6 +92,12 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `content-chapter-approve-btn` | "Approve chapter" button; disabled when editor is empty or chapter already approved clean |
 | `content-chapter-approved-badge` | Green badge shown when `approved_at` is set on the current chapter |
 | `content-chapter-editor` | Wrapper div of `ChapterRichTextEditor`; use `.locator('[contenteditable]')` to interact with the Tiptap surface |
+| `preview-iframe` | `<iframe srcDoc={...}>` in `WizardPreviewPage`; visible once the shell is generated |
+| `preview-export-pdf-btn` | "Generate PDF" / "Export PDF" button in the preview footer (else-branch, not the "Download" button) |
+| `preview-export-zip-btn` | "Export ZIP" button in the preview footer |
+| `export-pdf-success` | Success-state div inside `ExportPdfModal` (contains CheckCircle2 icon) |
+| `export-pdf-download-btn` | "Download PDF" button inside `ExportPdfModal` (visible on success) |
+| `export-zip-modal-content` | `<ModalContent>` inside `ExportZipModal` |
 
 > Add rows to this table as new testids are introduced.
 
