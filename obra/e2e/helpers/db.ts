@@ -112,6 +112,26 @@ export async function createActiveProject(userId: string, name: string): Promise
 }
 
 /**
+ * Set tour_dismissed_at on the creator_profiles row for a given user email.
+ * Useful in E2E tests to prevent the guided tour from covering UI elements.
+ */
+export async function dismissWizardTourForEmail(email: string): Promise<void> {
+  const userId = await findAuthUserByEmail(email);
+  if (!userId) return;
+  await fetch(
+    `${supabaseUrl()}/rest/v1/creator_profiles?id=eq.${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...adminHeaders(),
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ tour_dismissed_at: new Date().toISOString() }),
+    },
+  );
+}
+
+/**
  * Delete a project by ID via the REST API (cascades to ebooks, chapters, etc.).
  * Silently skips on 404.
  */

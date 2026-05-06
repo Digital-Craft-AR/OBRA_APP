@@ -29,7 +29,7 @@ export function StructureStepPackage({
   onBumpChange,
 }: StructureStepPackageProps) {
   return (
-    <section className="space-y-5">
+    <section className="space-y-5" data-testid="wizard-package-step">
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-2">
           <p className="text-sm font-medium text-obra-blue-950">{bonusLabel}</p>

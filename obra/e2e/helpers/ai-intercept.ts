@@ -35,6 +35,13 @@ export async function interceptAiCalls(page: Page): Promise<void> {
   await page.route(`${fnBase}/ai-split-proposal`, routeJson("ai-split-proposal.json"));
   await page.route(`${fnBase}/image-generate`, routeJson("image-generate.json"));
   await page.route(`${fnBase}/generate-document-template`, handleDocumentTemplate);
+
+  // Intercept the subscription reconcile call so it never triggers refetchProfile()
+  // (which briefly sets profileLoading=true, causing EntitlementGate to unmount
+  // WizardStructurePage via the fullscreen loading screen and reset innerStepIndex to 0).
+  await page.route(`${fnBase}/reconcile-subscription-status`, async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
 }
 
 function routeJson(fixtureName: string) {
