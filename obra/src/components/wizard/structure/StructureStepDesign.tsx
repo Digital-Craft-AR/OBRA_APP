@@ -124,6 +124,7 @@ export function StructureStepDesign({
 
         <ObraInput
           id="wizard-author"
+          data-testid="wizard-author"
           label={authorLabel}
           value={authorDraft}
           onChange={(event) => onAuthorChange(event.target.value)}
