@@ -63,6 +63,7 @@ function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunc
         size="icon"
         aria-label={t("projects.card.menuAria")}
         aria-expanded={open}
+        data-testid={`project-card-menu-${id}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -76,6 +77,7 @@ function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunc
         <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-card border border-obra-neutral-200 bg-white py-1 shadow-md">
           <button
             type="button"
+            data-testid={`project-card-rename-${id}`}
             onClick={(e) => {
               e.stopPropagation();
               setOpen(false);
@@ -88,6 +90,7 @@ function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunc
           {actions.onDuplicate ? (
             <button
               type="button"
+              data-testid={`project-card-duplicate-${id}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setOpen(false);
@@ -100,6 +103,7 @@ function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunc
           ) : null}
           <button
             type="button"
+            data-testid={`project-card-archive-${id}`}
             onClick={(e) => {
               e.stopPropagation();
               setOpen(false);
@@ -112,6 +116,7 @@ function CardMenu({ id, name, t, actions }: { id: string; name: string; t: TFunc
           <div className="my-1 border-t border-obra-blue-50" />
           <button
             type="button"
+            data-testid={`project-card-trash-${id}`}
             onClick={(e) => {
               e.stopPropagation();
               setOpen(false);
@@ -176,7 +181,7 @@ export function ProjectSummaryCard({
   );
 
   return (
-    <div className={`${contentCardClass} flex h-full flex-col`}>
+    <div className={`${contentCardClass} flex h-full flex-col`} data-testid={`project-card-${project.id}`}>
       <div className="flex items-center gap-2">
         <p className="flex-1 font-body text-xs text-obra-neutral-600">{formatProjectUpdatedRelative(project.updated_at, t)}</p>
         {isReadOnly ? null : <ObraBadge variant={variant}>{t(statusKey)}</ObraBadge>}
