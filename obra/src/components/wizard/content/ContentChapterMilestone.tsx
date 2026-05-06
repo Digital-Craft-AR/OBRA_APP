@@ -69,6 +69,7 @@ export function ContentChapterMilestone({
 
   return (
     <section
+      data-testid="content-chapter-milestone"
       aria-labelledby="content-chapters-heading"
       className="flex min-w-0 flex-1 flex-col gap-6"
     >
@@ -79,7 +80,10 @@ export function ContentChapterMilestone({
             {panelTitle}
           </h2>
           {current?.approved_at ? (
-            <span className="rounded-full bg-obra-green-50 px-2 py-0.5 font-body text-xs font-medium text-obra-green-800">
+            <span
+              data-testid="content-chapter-approved-badge"
+              className="rounded-full bg-obra-green-50 px-2 py-0.5 font-body text-xs font-medium text-obra-green-800"
+            >
               {t("wizard.content.chapters.approvedBadge")}
             </span>
           ) : null}
@@ -129,7 +133,7 @@ export function ContentChapterMilestone({
             type="button"
             variant="secondary"
             size="medium"
-            data-testid="chapter-generate-btn"
+            data-testid="content-chapter-generate-btn"
             disabled={generateDisabled}
             onClick={onGenerate}
           >
@@ -142,7 +146,7 @@ export function ContentChapterMilestone({
           type="button"
           variant="primary"
           size="medium"
-          data-testid="chapter-approve-btn"
+          data-testid="content-chapter-approve-btn"
           disabled={approveDisabled}
           onClick={onApprove}
         >

@@ -87,6 +87,11 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `content-tab-{key}` | Artifact tab button; `{key}` is `main`, `bonus:0`…`bonus:4`, or `bump:0`…`bump:1` |
 | `content-confirm-index-btn` | "Confirm index" button in the content page footer (plan\_review phase) |
 | `content-chapter-section` | Outer div of the chapter editing area (visible when `contentUiPhase` is `generating` or `complete`) |
+| `content-chapter-milestone` | `<section>` root of `ContentChapterMilestone` (editor + action toolbar) |
+| `content-chapter-generate-btn` | "Generate content" button for the current chapter |
+| `content-chapter-approve-btn` | "Approve chapter" button; disabled when editor is empty or chapter already approved clean |
+| `content-chapter-approved-badge` | Green badge shown when `approved_at` is set on the current chapter |
+| `content-chapter-editor` | Wrapper div of `ChapterRichTextEditor`; use `.locator('[contenteditable]')` to interact with the Tiptap surface |
 
 > Add rows to this table as new testids are introduced.
 

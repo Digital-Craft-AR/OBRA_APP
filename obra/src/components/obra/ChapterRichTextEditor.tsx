@@ -104,6 +104,7 @@ export function ChapterRichTextEditor({
 
   return (
     <div
+      data-testid="content-chapter-editor"
       className={[
         "rounded-card border border-obra-neutral-200 bg-white transition-colors",
         disabled ? "cursor-not-allowed opacity-50" : "focus-within:border-obra-blue-700 focus-within:ring-2 focus-within:ring-obra-blue-700/20",

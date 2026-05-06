@@ -194,6 +194,84 @@ export async function createProjectWithStructure(options: {
 }
 
 /**
+ * Freeze the global index for a project and seed pre-built chapters for the main ebook.
+ *
+ * Use this after `createProjectWithStructure` to skip the TOC generation UI and land
+ * directly on the chapter editing phase.
+ *
+ * Steps performed:
+ *   1. Look up the main ebook row for the project (created by `ensureContentWorkspace`
+ *      or by a prior call to this helper).
+ *   2. Upsert `project_content_progress` with `current_phase = 'main_chapter'` and
+ *      both index frozen timestamps set.
+ *   3. Insert the provided chapters into the `chapters` table.
+ */
+export async function confirmProjectIndexWithChapters(options: {
+  projectId: string;
+  chapters: Array<{ title: string }>;
+}): Promise<void> {
+  const { projectId, chapters } = options;
+  const base = supabaseUrl();
+  const headers = adminHeaders();
+
+  // 1. Find or create the main ebook via ensureContentWorkspace-equivalent:
+  //    Insert ebook row (ignore conflict if it already exists).
+  const ebookInsert = await fetch(`${base}/rest/v1/ebooks`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation,resolution=ignore-duplicates" },
+    body: JSON.stringify({ project_id: projectId, type: "main", package_ordinal: 0, title: "" }),
+  });
+  if (!ebookInsert.ok && ebookInsert.status !== 409) {
+    const body = await ebookInsert.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to upsert main ebook: ${ebookInsert.status} ${body}`);
+  }
+
+  // 2. Fetch the main ebook id.
+  const ebookResp = await fetch(
+    `${base}/rest/v1/ebooks?project_id=eq.${encodeURIComponent(projectId)}&type=eq.main&select=id`,
+    { headers },
+  );
+  if (!ebookResp.ok) throw new Error(`E2E: failed to find main ebook for project ${projectId}`);
+  const ebooks = (await ebookResp.json()) as Array<{ id: string }>;
+  const ebookId = ebooks[0]?.id;
+  if (!ebookId) throw new Error(`E2E: no main ebook found for project ${projectId}`);
+
+  // 3. Upsert content progress to chapter phase.
+  const now = new Date().toISOString();
+  const progResp = await fetch(`${base}/rest/v1/project_content_progress`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=minimal,resolution=merge-duplicates" },
+    body: JSON.stringify({
+      project_id: projectId,
+      current_phase: "main_chapter",
+      main_index_frozen_at: now,
+      global_index_frozen_at: now,
+    }),
+  });
+  if (!progResp.ok) {
+    const body = await progResp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to upsert content progress: ${progResp.status} ${body}`);
+  }
+
+  // 4. Insert chapters for the main ebook.
+  if (chapters.length === 0) return;
+  const rows = chapters.map((ch, i) => ({
+    ebook_id: ebookId,
+    sort_order: i + 1,
+    title: ch.title,
+  }));
+  const chapResp = await fetch(`${base}/rest/v1/chapters`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=minimal" },
+    body: JSON.stringify(rows),
+  });
+  if (!chapResp.ok) {
+    const body = await chapResp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to insert chapters: ${chapResp.status} ${body}`);
+  }
+}
+
+/**
  * Delete a project by ID via the REST API (cascades to ebooks, chapters, etc.).
  * Silently skips on 404.
  */
