@@ -81,6 +81,12 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `create-project-name` | Project name input in the new project modal (step 1) |
 | `create-modal-next` | "Next" button in the new project modal (steps 1 and 2) |
 | `create-modal-create` | "Create" button in the new project modal (step 3) |
+| `content-toc-empty-generate-btn` | "Generate" button in the empty-TOC prompt (main ebook, step 2 content page, before first generation) |
+| `content-toc-regenerate-btn` | "Regenerate outline" button in the TOC toolbar (shown after first generation, or for bonus/bump tabs) |
+| `content-toc-list` | `<ol>` containing TOC chapter rows in `ContentIndexMilestone` |
+| `content-tab-{key}` | Artifact tab button; `{key}` is `main`, `bonus:0`…`bonus:4`, or `bump:0`…`bump:1` |
+| `content-confirm-index-btn` | "Confirm index" button in the content page footer (plan\_review phase) |
+| `content-chapter-section` | Outer div of the chapter editing area (visible when `contentUiPhase` is `generating` or `complete`) |
 
 > Add rows to this table as new testids are introduced.
 
@@ -275,7 +281,51 @@ Los usuarios creados por `npm run seed` son permanentes — no borrarlos en los 
 
 ---
 
-## 5. Entorno local — Supabase local, no remoto
+## 5. Edge Functions que afectan estado global de UI — interceptar siempre
+
+Algunas Edge Functions no son de IA pero tienen **efectos secundarios en la UI** que pueden desmontar componentes en el momento equivocado. El caso más común es `reconcile-subscription-status`.
+
+### El problema
+
+`EntitlementProvider` llama `reconcile-subscription-status` automáticamente al montar la sesión. Cuando la función responde, dispara `refetchProfile()` que hace:
+
+```
+setProfileLoading(true)
+  → EntitlementGate muestra <AuthFlowLoading> (fullscreen)
+  → WizardStructurePage se **desmonta**
+  → innerStepIndex vuelve a 0
+setProfileLoading(false)
+  → WizardStructurePage se **remonta** en step 0
+```
+
+En un run aislado esto ocurre durante la navegación inicial (antes de que el test llegue al wizard). En un run combinado la función llega con cold start más lento y puede caer justo en los pasos 3–4 del wizard, haciendo que `waitFor("wizard-structure-step-4")` nunca resuelva.
+
+### La regla
+
+**Cualquier Edge Function que pueda disparar una recarga de perfil o un cambio de estado global debe estar interceptada en el fixture base.**
+
+`reconcile-subscription-status` ya está interceptada en `obra/e2e/helpers/ai-intercept.ts`:
+
+```typescript
+await page.route(`${fnBase}/reconcile-subscription-status`, async (route) => {
+  await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+});
+```
+
+Si en el futuro se agregan funciones con efectos similares (webhooks de pago, sync de créditos, etc.), agregarlas al mismo archivo.
+
+### Cómo diagnosticar este tipo de fallo
+
+Señales de un componente que se desmontó y remontó inesperadamente:
+- El test falla con `element not found` o `waitFor timeout` en un paso avanzado (ej. step 3 o 4).
+- El screenshot muestra el wizard en **step 0** con el contenido del step anterior guardado en el input.
+- `"Anterior" [disabled]` en el snapshot ARIA (confirma `innerStepIndex === 0`).
+- El test **pasa en aislamiento** pero falla en el run combinado.
+- El tiempo de fallo es siempre el test timeout completo (30s), no un timeout de assertion corto.
+
+---
+
+## 6. Entorno local — Supabase local, no remoto
 
 E2E siempre corre contra Supabase local (`supabase start`). Nunca contra el proyecto remoto.
 

@@ -132,6 +132,68 @@ export async function dismissWizardTourForEmail(email: string): Promise<void> {
 }
 
 /**
+ * Create a project row with structure already completed, bypassing the wizard UI.
+ * Useful for E2E tests that need to start from the Content (step 2) or Preview (step 3) page.
+ *
+ * The `ensureContentWorkspace` call made by the browser when loading the Content page will
+ * automatically create the `ebooks` and `project_content_progress` rows.
+ *
+ * Returns the new project id.
+ */
+export async function createProjectWithStructure(options: {
+  userEmail: string;
+  name?: string;
+  mainTitle?: string;
+  topic?: string;
+  bonusCount?: number;
+  bonusItems?: Array<{ title: string }>;
+}): Promise<string> {
+  const {
+    userEmail,
+    name = "E2E Content Test",
+    mainTitle = "E2E Main Ebook",
+    topic = "E2E test topic",
+    bonusCount = 0,
+    bonusItems = [],
+  } = options;
+
+  const userId = await findAuthUserByEmail(userEmail);
+  if (!userId) throw new Error(`E2E: user not found: ${userEmail}`);
+
+  const resp = await fetch(`${supabaseUrl()}/rest/v1/projects`, {
+    method: "POST",
+    headers: {
+      ...adminHeaders(),
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      name,
+      content_locale: "es",
+      content_source: "ai",
+      structure_completed_at: new Date().toISOString(),
+      main_title: mainTitle,
+      topic,
+      target_avatar: "E2E test avatar",
+      problem: "E2E test problem",
+      author: "E2E Author",
+      bonus_count: bonusCount,
+      bonus_items: bonusItems,
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to create project: ${resp.status} ${body}`);
+  }
+
+  const data = (await resp.json()) as Array<{ id: string }>;
+  const project = data[0];
+  if (!project?.id) throw new Error("E2E: project insert returned no id");
+  return project.id;
+}
+
+/**
  * Delete a project by ID via the REST API (cascades to ebooks, chapters, etc.).
  * Silently skips on 404.
  */
