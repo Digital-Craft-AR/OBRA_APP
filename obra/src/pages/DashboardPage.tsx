@@ -406,6 +406,22 @@ export function DashboardPage() {
       return;
     }
 
+    // Enforce 20 active project limit
+    const { count: activeCount, error: countError } = await supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", session.user.id)
+      .eq("lifecycle_status", "active");
+
+    if (countError) {
+      setProjectCreateError(t("wizard.modal.createError"));
+      return;
+    }
+    if ((activeCount ?? 0) >= 20) {
+      setProjectCreateError(t("wizard.modal.createLimitError"));
+      return;
+    }
+
     setProjectCreateError(null);
     setCreatingProject(true);
     const { data, error: insertError } = await supabase
@@ -486,7 +502,7 @@ export function DashboardPage() {
       <main className="flex min-h-0 flex-1 flex-col bg-white">
         <header className="flex h-18 shrink-0 items-center justify-between border-b border-obra-blue-100 px-10">
           <h1 className="font-display text-xl leading-none text-obra-blue-950 font-bold">{t("projects.pageTitle")}</h1>
-          <Button type="button" variant="primary" className="shrink-0" onClick={openNewProjectModal}>
+          <Button type="button" variant="primary" className="shrink-0" data-testid="new-project-btn" onClick={openNewProjectModal}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -581,6 +597,7 @@ export function DashboardPage() {
                       type="button"
                       role="tab"
                       aria-selected={selected}
+                      data-testid={`project-tab-${tab}`}
                       onClick={() => setLifecycleTab(tab)}
                       className={`rounded-full px-4 py-2 font-body text-sm font-semibold transition-colors ${
                         selected
@@ -601,7 +618,9 @@ export function DashboardPage() {
               ) : null}
 
               {lifecycleTab === "trash" ? (
-                <ObraAlert variant="warning" title={t("projects.trash.notice")} className="mb-4" />
+                <div data-testid="trash-retention-notice">
+                  <ObraAlert variant="warning" title={t("projects.trash.notice")} className="mb-4" />
+                </div>
               ) : null}
 
               {projectsLoading ? (
@@ -691,12 +710,13 @@ export function DashboardPage() {
           ) : null}
         </ModalContent>
         <ModalFooter className="justify-end">
-          <Button type="button" variant="tertiary" onClick={() => setArchiveTargetId(null)} disabled={archiveLoading}>
+          <Button type="button" variant="tertiary" data-testid="archive-modal-cancel" onClick={() => setArchiveTargetId(null)} disabled={archiveLoading}>
             {t("projects.archive.cancel")}
           </Button>
           <Button
             type="button"
             variant="secondary"
+            data-testid="archive-modal-confirm"
             onClick={() => void submitArchive()}
             disabled={archiveLoading}
           >
@@ -723,12 +743,13 @@ export function DashboardPage() {
           ) : null}
         </ModalContent>
         <ModalFooter className="justify-end">
-          <Button type="button" variant="tertiary" onClick={() => setTrashTargetId(null)} disabled={trashLoading}>
+          <Button type="button" variant="tertiary" data-testid="trash-modal-cancel" onClick={() => setTrashTargetId(null)} disabled={trashLoading}>
             {t("projects.trash.cancel")}
           </Button>
           <Button
             type="button"
             variant="destructive"
+            data-testid="trash-modal-confirm"
             onClick={() => void submitMoveToTrash()}
             disabled={trashLoading}
           >
@@ -824,6 +845,7 @@ export function DashboardPage() {
             <div className="flex flex-col gap-1">
               <ObraInput
                 id="project-name"
+                data-testid="create-project-name"
                 label={t("wizard.modal.nameLabel")}
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
@@ -909,19 +931,21 @@ export function DashboardPage() {
             <Button
               type="button"
               variant="secondary"
+              data-testid="create-modal-next"
               onClick={() => setProjectStep(2)}
               disabled={!projectName.trim()}
             >
               {t("wizard.modal.next")}
             </Button>
           ) : projectStep === 2 ? (
-            <Button type="button" variant="secondary" onClick={() => setProjectStep(3)}>
+            <Button type="button" variant="secondary" data-testid="create-modal-next" onClick={() => setProjectStep(3)}>
               {t("wizard.modal.next")}
             </Button>
           ) : (
             <Button
               type="button"
               variant="primary"
+              data-testid="create-modal-create"
               onClick={() => void createProjectFromModal()}
               disabled={creatingProject}
             >
