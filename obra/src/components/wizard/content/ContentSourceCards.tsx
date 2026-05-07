@@ -93,7 +93,6 @@ export function ContentSourceCards({ t, value, variant, onSelect, disabled = fal
                   if (disabled) return;
                   onSelect?.(option);
                 }}
-                data-testid={`new-project-source-${option}`}
                 className={`relative w-full cursor-pointer rounded-card p-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ${surface}`}
               >
                 <SourceCardBody option={option} selected={selected} t={t} />

@@ -59,7 +59,7 @@ test("upload path happy path: docx → alignment → chapters → preview export
   expect(projectId).toBeTruthy();
 
   // ── 3. Structure wizard — 7 steps ─────────────────────────────────────────
-  const nextBtn = page.getByTestId("wizard-structure-next-btn");
+  const nextBtn = page.getByTestId("wizard-structure-next");
 
   // Convenience: register a waiter for the next PATCH to the projects REST endpoint.
   // Always register BEFORE the click that triggers the save.
