@@ -82,7 +82,9 @@ jobs:
       - name: Seed test users
         run: npm run seed
         env:
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          # Fall back to a fixed CI password when the secret is not configured.
+          # Acceptable because this runs against a local throwaway Supabase instance.
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 'E2eTestPwd_CI_2026!' }}
 
       # Start Vite in e2e mode (reads VITE_ env vars; no .env.e2e.local in CI).
       - name: Start dev server
@@ -100,7 +102,7 @@ jobs:
         run: npx playwright test
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:5173
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 'E2eTestPwd_CI_2026!' }}
           VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL: https://www.mercadopago.com.ar/subscriptions
 
       - name: Stop Supabase
