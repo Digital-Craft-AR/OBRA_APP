@@ -168,7 +168,7 @@ export function ExportPdfModal({
 
         {/* Success State */}
         {isCompleted ? (
-          <div className="flex flex-col items-center gap-4 py-6">
+          <div data-testid="export-pdf-success" className="flex flex-col items-center gap-4 py-6">
             <CheckCircle2 className="size-8 text-obra-green-400" />
             <div className="space-y-1 text-center">
               <p className="font-body text-sm font-semibold text-obra-blue-950">{t("wizard.preview.exportPdf.ready")}</p>
@@ -192,7 +192,7 @@ export function ExportPdfModal({
         <div className="flex gap-2 pt-4">
           {isCompleted ? (
             <>
-              <Button onClick={handleDownload} className="flex-1 gap-2" variant="primary">
+              <Button data-testid="export-pdf-download-btn" onClick={handleDownload} className="flex-1 gap-2" variant="primary">
                 <DownloadCloud className="size-4" />
                 {t("wizard.preview.exportPdf.downloadCta")}
               </Button>

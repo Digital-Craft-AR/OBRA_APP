@@ -125,7 +125,7 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
 
       {/* ── Generating ── */}
       {stage === "generating" && (
-        <div className="flex flex-col items-center gap-4 py-8" aria-live="polite">
+        <div data-testid="alignment-generating" className="flex flex-col items-center gap-4 py-8" aria-live="polite">
           <Loader2 className="size-10 animate-spin text-obra-blue-700" aria-hidden />
           <p className="font-body text-sm text-obra-neutral-600">
             {t("wizard.content.splitProposal.generating")}
@@ -168,7 +168,7 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
 
       {/* ── Review ── */}
       {stage === "review" && (
-        <div className="flex flex-col gap-5">
+        <div data-testid="alignment-review" className="flex flex-col gap-5">
           <header className="space-y-1">
             <h2 className="font-display text-xl text-obra-blue-950">
               {t("wizard.content.splitProposal.reviewTitle")}
@@ -246,6 +246,7 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
             <Button
               type="button"
               variant="primary"
+              data-testid="alignment-approve-btn"
               disabled={approvalBusy}
               onClick={() => void handleApprove()}
             >
@@ -256,6 +257,7 @@ export function ContentUploadAlignmentPanel({ t, projectId, onApprove, approvalB
             <Button
               type="button"
               variant="tertiary"
+              data-testid="alignment-regenerate-btn"
               disabled={approvalBusy}
               onClick={handleRegenerate}
             >

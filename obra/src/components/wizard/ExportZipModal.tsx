@@ -317,7 +317,7 @@ export function ExportZipModal({
         <ModalTitle>{t("wizard.preview.exportZip.title")}</ModalTitle>
       </ModalHead>
 
-      <ModalContent className="space-y-4">
+      <ModalContent data-testid="export-zip-modal-content" className="space-y-4">
         {jobs.length > 0 ? (
           <ul className="space-y-2">
             {jobs.map((job) => (

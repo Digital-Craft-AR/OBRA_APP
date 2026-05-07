@@ -117,7 +117,7 @@ export function RegisterPage() {
             />
           </div>
           <div className="text-center">
-            <h1 className="font-display text-xl text-obra-blue-950">{t("auth.checkEmailTitle")}</h1>
+            <h1 className="font-display text-xl text-obra-blue-950" data-testid="check-email-heading">{t("auth.checkEmailTitle")}</h1>
           </div>
           <p className="text-center text-sm text-obra-neutral-600">{t("auth.registerCheckEmail")}</p>
           {resendMessage ? (
@@ -174,6 +174,7 @@ export function RegisterPage() {
             value={fullName}
             onChange={(ev) => setFullName(ev.target.value)}
             required
+            data-testid="register-name"
           />
           <ObraInput
             label={t("auth.email")}
@@ -183,6 +184,7 @@ export function RegisterPage() {
             value={email}
             onChange={(ev) => setEmail(ev.target.value)}
             required
+            data-testid="register-email"
           />
           <ObraInput
             label={t("auth.password")}
@@ -193,6 +195,7 @@ export function RegisterPage() {
             onChange={(ev) => setPassword(ev.target.value)}
             required
             minLength={8}
+            data-testid="register-password"
           />
         </div>
 
@@ -203,7 +206,7 @@ export function RegisterPage() {
         ) : null}
 
         <div className="flex flex-col gap-3">
-          <Button type="submit" variant="cta" className="w-full" disabled={busy || oauthBusy}>
+          <Button type="submit" variant="cta" className="w-full" disabled={busy || oauthBusy} data-testid="register-submit">
             {busy ? t("auth.working") : t("auth.registerSubmit")}
           </Button>
           <Button

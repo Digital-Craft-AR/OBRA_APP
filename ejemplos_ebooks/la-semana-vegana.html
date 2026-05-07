@@ -1,0 +1,5269 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>La Semana Vegana — Pasaporte Plant-Based</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --red: #b03a2e;
+        --red-bg: #fff0ee;
+        --yellow: #f4c842;
+        --yellow-bg: #fffbea;
+        --cream: #f5efe4;
+        --cream2: #ede4d5;
+        --dark: #1c120e;
+        --green: #2a6049;
+        --green-dark: #1a3d2b;
+        --green-light: #3d7a5e;
+        --green-bg: #edfaf3;
+        --muted: #7a6055;
+        --border: #e8ddd4;
+        --orange: #e8622a;
+        --white: #ffffff;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: #e8e0d5;
+        color: var(--dark);
+        font-size: 11pt;
+        line-height: 1.55;
+      }
+
+      /* ── PAGE SETUP ── */
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+        .page {
+          width: 210mm;
+          height: 297mm;
+          overflow: hidden;
+          page-break-after: always;
+          break-after: page;
+        }
+        .page:last-child {
+          page-break-after: avoid;
+          break-after: avoid;
+        }
+        a {
+          text-decoration: none;
+          color: inherit;
+        }
+      }
+
+      @media screen {
+        .page {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 20px auto;
+          background: white;
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.13);
+          page-break-after: always;
+          break-after: page;
+          overflow: hidden;
+        }
+      }
+
+      /* ── COVER ── */
+      .cover {
+        background: var(--green-dark);
+        min-height: 297mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16mm 14mm 14mm;
+        position: relative;
+        overflow: hidden;
+      }
+      .cover::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background: rgba(244, 200, 66, 0.12);
+        z-index: 2;
+      }
+      .cover::after {
+        content: "";
+        position: absolute;
+        bottom: -80px;
+        left: -80px;
+        width: 360px;
+        height: 360px;
+        border-radius: 50%;
+        background: rgba(61, 122, 94, 0.3);
+        z-index: 2;
+      }
+      .cover-img {
+        top: 0;
+        width: 100%;
+        position: absolute;
+        z-index: 0;
+        left: 0;
+        height: 100%;
+      }
+      .cover-overlay {
+        background: var(--green-dark);
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+        opacity: 0.8;
+      }
+      .cover-circle-mid {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        border: 1px solid rgba(244, 200, 66, 0.08);
+        z-index: 2;
+      }
+      .cover-label {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 11pt;
+        font-weight: 700;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--yellow);
+        position: relative;
+        z-index: 2;
+      }
+      .cover-body {
+        position: relative;
+        z-index: 2;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding-bottom: 8mm;
+      }
+      .cover h1 {
+        font-family: "Fraunces", serif;
+        font-size: 58pt;
+        font-weight: 700;
+        font-style: italic;
+        color: var(--cream);
+        line-height: 1.05;
+        margin-bottom: 14px;
+      }
+      .cover h1 em {
+        color: var(--yellow);
+        font-style: italic;
+      }
+      .cover-subtitle {
+        font-size: 13pt;
+        color: rgba(245, 239, 228);
+        font-weight: 400;
+        max-width: 300px;
+        line-height: 1.5;
+        margin-bottom: 32px;
+      }
+      .cover-tag {
+        display: inline-block;
+        background: rgba(244, 200, 66, 0.15);
+        border: 1px solid rgba(244, 200, 66, 0.3);
+        color: var(--yellow);
+        font-size: 11pt;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 5px 12px;
+        border-radius: 20px;
+      }
+      .cover-footer {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-top: 1px solid rgba(244, 200, 66, 0.2);
+        padding-top: 12px;
+      }
+      .cover-footer-brand {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+        font-size: 11pt;
+        color: rgba(245, 239, 228);
+      }
+      .cover-footer-url {
+        font-size: 11pt;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: rgba(244, 200, 66, 0.8);
+      }
+      .cover-icon {
+        font-size: 22pt;
+        position: absolute;
+        top: 14mm;
+        right: 14mm;
+        z-index: 2;
+      }
+
+      /* ── INNER PAGES ── */
+      .page-inner {
+        padding: 14mm 16mm;
+        min-height: 297mm;
+        display: flex;
+        flex-direction: column;
+      }
+      .page-inner.cream-bg {
+        background: var(--cream);
+      }
+      .page-inner.white-bg {
+        background: white;
+      }
+      .page-inner.green-bg {
+        background: var(--green-bg);
+      }
+
+      /* ── PART HEADER ── */
+      .part-header {
+        background: var(--green);
+        min-height: 297mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 16mm 14mm;
+        position: relative;
+        overflow: hidden;
+      }
+      .part-header::before {
+        content: "";
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .part-header::after {
+        content: "";
+        position: absolute;
+        bottom: -80px;
+        left: -80px;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: rgba(26, 61, 43, 0.4);
+      }
+      .part-num {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 11pt;
+        font-weight: 700;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--yellow);
+        margin-bottom: 12px;
+        position: relative;
+        z-index: 2;
+      }
+      .part-header h2 {
+        font-family: "Fraunces", serif;
+        font-size: 38pt;
+        font-weight: 700;
+        font-style: italic;
+        color: var(--cream);
+        line-height: 1.1;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 2;
+      }
+      .part-header p {
+        font-size: 13pt;
+        color: rgba(245, 239, 228, 0.75);
+        max-width: 320px;
+        line-height: 1.55;
+        position: relative;
+        z-index: 2;
+      }
+      .part-header .part-index {
+        position: absolute;
+        bottom: 16mm;
+        right: 14mm;
+        z-index: 2;
+        font-family: "Fraunces", serif;
+        font-size: 80pt;
+        font-weight: 700;
+        font-style: italic;
+        color: rgba(255, 255, 255, 0.06);
+        line-height: 1;
+      }
+
+      /* ── TYPOGRAPHY ── */
+      .page-title {
+        font-family: "Fraunces", serif;
+        font-size: 22pt;
+        font-weight: 700;
+        font-style: italic;
+        color: var(--green);
+        margin-bottom: 6px;
+        line-height: 1.15;
+      }
+      .page-subtitle {
+        font-size: 10pt;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 20px;
+      }
+      .section-label {
+        font-size: 10pt;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      h3.block-title {
+        font-family: "Fraunces", serif;
+        font-size: 14pt;
+        font-style: italic;
+        color: var(--green);
+        margin-bottom: 8px;
+      }
+      .divider {
+        border: none;
+        border-top: 2px solid var(--yellow);
+        margin: 12px 0 16px;
+        width: 40px;
+      }
+      .divider-full {
+        width: 100%;
+        border-color: var(--border);
+        margin: 14px 0;
+      }
+
+      /* ── CARDS & BOXES ── */
+      .card {
+        background: var(--cream);
+        border-radius: 10px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+      }
+      .card-green {
+        background: var(--green-bg);
+        border-color: rgba(42, 96, 73, 0.2);
+      }
+      .card-yellow {
+        background: var(--yellow-bg);
+        border-color: rgba(244, 200, 66, 0.4);
+      }
+      .card-red {
+        background: var(--red-bg);
+        border-color: rgba(176, 58, 46, 0.2);
+      }
+      .card-white {
+        background: white;
+        border-color: var(--border);
+      }
+      .callout {
+        border-left: 3px solid var(--yellow);
+        background: var(--yellow-bg);
+        padding: 10px 14px;
+        border-radius: 0 8px 8px 0;
+        font-size: 11pt;
+      }
+      .callout-green {
+        border-left-color: var(--green);
+        background: var(--green-bg);
+      }
+
+      /* ── STEPS (los 45 minutos) ── */
+      .step-row {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 12px;
+        align-items: flex-start;
+      }
+      .step-time {
+        background: var(--green);
+        color: white;
+        font-size: 11pt;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 20px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .step-content {
+        flex: 1;
+      }
+      .step-content strong {
+        font-size: 11pt;
+        color: var(--dark);
+        display: block;
+        margin-bottom: 2px;
+      }
+      .step-content p {
+        font-size: 10pt;
+        color: var(--muted);
+      }
+
+      /* ── DECISION CARDS ── */
+      .decision-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .decision-card {
+        background: white;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        position: relative;
+      }
+      .decision-num {
+        font-family: "Fraunces", serif;
+        font-size: 30pt;
+        font-weight: 700;
+        font-style: italic;
+        color: rgba(244, 200, 66, 0.35);
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+      .decision-card h4 {
+        font-family: "Fraunces", serif;
+        font-size: 11pt;
+        font-style: italic;
+        color: var(--green);
+        margin-bottom: 6px;
+      }
+      .decision-card p {
+        font-size: 10pt;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .decision-examples {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .tag-sm {
+        background: var(--cream2);
+        font-size: 10pt;
+        padding: 3px 8px;
+        border-radius: 20px;
+        color: var(--dark);
+        font-weight: 500;
+      }
+
+      /* ── FORMULA DEL PLATO ── */
+      .formula-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 14px 0;
+      }
+      .formula-box {
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .formula-box .f-icon {
+        font-size: 22pt;
+      }
+      .formula-box .f-name {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        font-style: italic;
+        font-weight: 700;
+      }
+      .formula-box .f-portion {
+        font-size: 13pt;
+        font-weight: 700;
+      }
+      .formula-box .f-desc {
+        font-size: 10pt;
+        line-height: 1.4;
+      }
+
+      /* ── INGREDIENT CARDS ── */
+      .ingredient-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .ingredient-grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .ingredient-grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .ing-card {
+        background: white;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .ing-icon {
+        font-size: 26pt;
+        line-height: 1;
+        margin-bottom: 2px;
+      }
+      .ing-name {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--dark);
+        line-height: 1.2;
+      }
+      .ing-portion {
+        font-size: 11pt;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .macro-row {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin-top: 2px;
+      }
+      .macro-pill {
+        font-size: 7pt;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
+      .mp-prot {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .mp-carb {
+        background: #fff3e0;
+        color: #b35f00;
+      }
+      .mp-fat {
+        background: var(--yellow-bg);
+        color: #7a5f00;
+      }
+      .mp-kcal {
+        background: var(--cream2);
+        color: var(--muted);
+      }
+      .ing-tip {
+        font-size: 10pt;
+        color: var(--muted);
+        line-height: 1.4;
+        border-top: 1px solid var(--border);
+        padding-top: 6px;
+        margin-top: 2px;
+      }
+
+      /* ── SALSAS ── */
+      .sauce-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .sauce-card {
+        background: white;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .sauce-name {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        font-style: italic;
+        color: var(--green);
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .sauce-ingr {
+        font-size: 10pt;
+        line-height: 1.55;
+        color: var(--dark);
+      }
+      .sauce-ingr li {
+        margin-left: 14px;
+        margin-bottom: 1px;
+      }
+      .sauce-prep {
+        font-size: 11pt;
+        color: var(--muted);
+        margin-top: 6px;
+        border-top: 1px solid var(--border);
+        padding-top: 6px;
+      }
+
+      /* ── MIX & MATCH ── */
+      .combo-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .combo-grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .combo-card {
+        background: white;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .combo-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .combo-name {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        font-style: italic;
+        color: var(--green);
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .combo-stats {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .combo-stat {
+        font-size: 10pt;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 20px;
+      }
+      .cs-kcal {
+        background: var(--cream2);
+        color: var(--muted);
+      }
+      .cs-prot {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .combo-ingr {
+        font-size: 10pt;
+        color: var(--dark);
+        line-height: 1.5;
+      }
+      .combo-ingr li {
+        margin-left: 14px;
+        margin-bottom: 1px;
+      }
+      .combo-note {
+        font-size: 10pt;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        padding-top: 5px;
+        font-style: italic;
+      }
+
+      /* ── TIPS COCCIÓN ── */
+      .tip-block {
+        background: white;
+        border-radius: 10px;
+        border: 1.5px solid var(--border);
+        padding: 14px 16px;
+        margin-bottom: 10px;
+      }
+      .tip-block-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .tip-icon {
+        font-size: 20pt;
+      }
+      .tip-block-header h4 {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        font-style: italic;
+        color: var(--green);
+      }
+      .tip-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .tip-step {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        font-size: 10pt;
+      }
+      .tip-step-num {
+        background: var(--green);
+        color: white;
+        font-size: 10pt;
+        font-weight: 700;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .tip-step-text {
+        color: var(--dark);
+        line-height: 1.45;
+      }
+      .tip-step-text strong {
+        color: var(--green);
+      }
+      .tip-methods {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .tip-method-card {
+        background: var(--cream);
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+      }
+      .tip-method-card .m-icon {
+        font-size: 16pt;
+        margin-bottom: 4px;
+      }
+      .tip-method-card .m-name {
+        font-size: 10pt;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 3px;
+      }
+      .tip-method-card .m-time {
+        font-size: 10pt;
+        color: var(--muted);
+      }
+      .tip-method-card .m-tip {
+        font-size: 7pt;
+        color: var(--muted);
+        line-height: 1.3;
+        margin-top: 3px;
+      }
+
+      /* ── GUARDADO ── */
+      .storage-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9pt;
+        margin-top: 10px;
+      }
+      .storage-table th {
+        background: var(--green);
+        color: white;
+        padding: 7px 10px;
+        text-align: left;
+        font-size: 10pt;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+      }
+      .storage-table td {
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+        line-height: 1.4;
+      }
+      .storage-table tr:nth-child(even) td {
+        background: var(--cream);
+      }
+      .storage-table .veg-name {
+        font-weight: 600;
+        color: var(--dark);
+      }
+      .badge {
+        display: inline-block;
+        font-size: 7pt;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 10px;
+      }
+      .badge-green {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .badge-yellow {
+        background: var(--yellow-bg);
+        color: #7a5f00;
+      }
+      .badge-red {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+
+      /* ── PLANNER ── */
+      .planner-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11pt;
+        margin-top: 10px;
+      }
+      .planner-table th {
+        background: var(--green);
+        color: white;
+        padding: 8px 6px;
+        text-align: center;
+        font-size: 10pt;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .planner-table th.meal-col {
+        background: var(--green-dark);
+        width: 60px;
+      }
+      .planner-table td {
+        border: 1px solid var(--border);
+        padding: 40px 7px;
+        vertical-align: top;
+        width: 13%;
+      }
+      .planner-table td.meal-label {
+        background: var(--cream);
+        font-size: 10pt;
+        font-weight: 700;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        width: 60px;
+        text-align: center;
+        vertical-align: middle;
+      }
+      .planner-note {
+        font-size: 10pt;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        padding-top: 8px;
+        margin-top: 8px;
+        font-style: italic;
+      }
+
+      /* ── SHOPPING LIST ── */
+      .shop-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .shop-section-title {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        color: var(--green);
+        font-weight: 700;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 2px solid var(--yellow);
+      }
+      .shop-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10pt;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--dark);
+      }
+      .checkbox {
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid var(--muted);
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+
+      /* ── CLOSING PAGE ── */
+      .closing-page {
+        background: var(--green-dark);
+        min-height: 297mm;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 16mm 14mm;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .closing-page::before {
+        content: "";
+        position: absolute;
+        top: 150px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+        background: rgba(244, 200, 66, 0.06);
+      }
+      .closing-page blockquote {
+        font-family: "Fraunces", serif;
+        font-size: 20pt;
+        font-style: italic;
+        font-weight: 300;
+        color: var(--cream);
+        line-height: 1.4;
+        max-width: 420px;
+        position: relative;
+        z-index: 2;
+        margin-bottom: 24px;
+      }
+      .closing-page blockquote em {
+        color: var(--yellow);
+      }
+      .closing-brand {
+        font-family: "Fraunces", serif;
+        font-size: 18pt;
+        font-style: italic;
+        color: var(--yellow);
+        position: relative;
+        z-index: 2;
+        margin-bottom: 8px;
+      }
+      .closing-url {
+        font-size: 11pt;
+        letter-spacing: 0.2em;
+        color: rgba(245, 239, 228, 0.5);
+        font-weight: 600;
+        position: relative;
+        z-index: 2;
+      }
+      .closing-icon {
+        font-size: 36pt;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 2;
+      }
+
+      /* ── PAGE FOOTER ── */
+      .page-footer {
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 10pt;
+        color: var(--muted);
+      }
+      .page-footer .pf-brand {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+      }
+
+      /* ── CONDIMENTOS ── */
+      .condimento-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .cond-group {
+        background: white;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .cond-group-title {
+        font-family: "Fraunces", serif;
+        font-size: 13pt;
+        font-style: italic;
+        color: var(--green);
+        font-weight: 700;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .cond-item {
+        font-size: 10pt;
+        color: var(--dark);
+        padding: 3px 0;
+        border-bottom: 1px solid var(--border);
+        line-height: 1.4;
+      }
+      .cond-item:last-child {
+        border-bottom: none;
+      }
+      .cond-item strong {
+        color: var(--green);
+      }
+
+      /* ── FREEZER ── */
+      .freezer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .freezer-si {
+        background: var(--green-bg);
+        border: 1.5px solid rgba(42, 96, 73, 0.25);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .freezer-no {
+        background: var(--red-bg);
+        border: 1.5px solid rgba(176, 58, 46, 0.2);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .freezer-title {
+        font-family: "Fraunces", serif;
+        font-size: 11pt;
+        font-style: italic;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .freezer-si .freezer-title {
+        color: var(--green);
+      }
+      .freezer-no .freezer-title {
+        color: var(--red);
+      }
+      .freezer-item {
+        font-size: 10pt;
+        padding: 3px 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        line-height: 1.4;
+      }
+      .freezer-item:last-child {
+        border-bottom: none;
+      }
+      .freezer-item span {
+        color: var(--muted);
+        font-size: 10pt;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 1 — PORTADA                                  -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="cover">
+        <div class="cover-icon">🌿</div>
+        <div class="cover-circle-mid"></div>
+        <div class="cover-overlay"></div>
+        <img class="cover-img" src="img/cover_a.png" alt="Cover Image">
+        <div class="cover-label">Pasaporte Plant-Based</div>
+        <div class="cover-body">
+          <h1>La Semana<br /><em>Vegana</em></h1>
+          <p class="cover-subtitle">
+            El sistema que te organiza la semana con comida vegetal, sabrosa y
+            con proteína.
+          </p>
+          <span class="cover-tag">Guía de organización de cocina</span>
+        </div>
+        <div class="cover-footer">
+          <span class="cover-footer-brand">Pasaporte Plant-Based</span>
+          <span class="cover-footer-url">pasaporteplantbased.com</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 2 — INTRO                                    -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Para empezar</div>
+        <h2 class="page-title">
+          No necesitás más recetas.<br />Necesitás estructura.
+        </h2>
+        <hr class="divider" />
+
+        <p
+          style="
+            font-size: 12;
+            line-height: 1.65;
+            color: var(--dark);
+            margin-bottom: 14px;
+          "
+        >
+          Seguro ya tenés un montón de recetas guardadas. En Instagram, en
+          Pinterest, en capturas de pantalla que nunca volviste a abrir. El
+          problema no es la falta de ideas. El problema es que cada vez que
+          llega la hora de comer no sabés qué hacer, y terminás improvisando lo
+          primero que encontrás.
+        </p>
+
+        <div class="callout" style="margin-bottom: 14px">
+          <strong>Esta guía no es un recetario.</strong> Es una forma de pensar la comida que hace que la semana fluya sola.
+        </div>
+
+        <p
+          style="
+            font-size: 11pt;
+            line-height: 1.6;
+            color: var(--dark);
+            margin-bottom: 16px;
+          "
+        >
+          La idea es simple: <strong>Un rato del domingo de</strong> te deja la
+          semana organizada. Con ingredientes cocidos, porciones listas y salsas
+          preparadas, armar un plato nutritivo se convierte en algo tan fácil
+          como apilar cosas en un bowl.
+        </p>
+
+        <div
+          class="decision-grid"
+          style="grid-template-columns: 1fr 1fr 1fr; margin-top: 6px"
+        >
+          <div
+            class="card card-green"
+            style="text-align: center; padding: 16px 12px"
+          >
+            <div style="font-size: 20pt; margin-bottom: 6px">🥦</div>
+            <div
+              style="
+                font-family: &quot;Fraunces&quot;, serif;
+                font-style: italic;
+                font-size: 13pt;
+                color: var(--green);
+                font-weight: 700;
+                margin-bottom: 4px;
+              "
+            >
+              100% vegetal
+            </div>
+            <div style="font-size: 11pt; color: var(--muted)">
+              Sin huevos, sin lácteos, sin ningún ingrediente de origen animal.
+            </div>
+          </div>
+          <div
+            class="card card-yellow"
+            style="text-align: center; padding: 16px 12px"
+          >
+            <div style="font-size: 20pt; margin-bottom: 6px">💪</div>
+            <div
+              style="
+                font-family: &quot;Fraunces&quot;, serif;
+                font-style: italic;
+                font-size: 13pt;
+                color: var(--green);
+                font-weight: 700;
+                margin-bottom: 4px;
+              "
+            >
+              Alto en proteína
+            </div>
+            <div style="font-size: 11pt; color: var(--muted)">
+              Tofu, tempeh, seitán, legumbres. Sin suplementos raros.
+            </div>
+          </div>
+          <div
+            class="card card-white"
+            style="text-align: center; padding: 16px 12px"
+          >
+            <div style="font-size: 20pt; margin-bottom: 6px">⏱️</div>
+            <div
+              style="
+                font-family: &quot;Fraunces&quot;, serif;
+                font-style: italic;
+                font-size: 13pt;
+                color: var(--green);
+                font-weight: 700;
+                margin-bottom: 4px;
+              "
+            >
+              El domingo
+            </div>
+            <div style="font-size: 11pt; color: var(--muted)">
+              Un solo momento de cocina te deja la semana resuelta.
+            </div>
+          </div>
+        </div>
+
+        
+
+        <p
+          style="
+            font-size: 11pt;
+            line-height: 1.6;
+            color: var(--dark);
+            margin: 24px 0;
+          "
+        >
+          En esta guía vas a encontrar todo lo que necesitás para implementar el
+          sistema: los ingredientes base, cómo cocinarlos, cómo combinarlos,
+          cómo guardarlos y cómo nunca más quedarte sin saber qué comer.
+        </p>
+
+        <div class="callout callout-green">
+          <strong>¿Cómo usar esta guía?</strong> Primero leé las partes 1 a 3
+          para entender el método. Después usá las partes 4 a 7 como referencia
+          semanal — abrila cuando necesites ideas, tiempos de cocción o chequeá
+          qué va al freezer.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 3 — LAS 4 DECISIONES                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 1 — El Sistema</div>
+        <h2 class="page-title">Cómo funciona el método</h2>
+        <hr class="divider" />
+
+        <p
+          style="
+            font-size: 11pt;
+            color: var(--muted);
+            margin-bottom: 14px;
+            line-height: 1.55;
+          "
+        >
+          Cada plato se construye tomando <strong>4 decisiones</strong>. Son
+          siempre las mismas. Una vez que las incorporás, armar comida pasa de
+          ser un problema a ser automático.
+        </p>
+
+        <div class="decision-grid">
+          <div class="decision-card">
+            <div class="decision-num">1</div>
+            <h4>Elegís tu proteína</h4>
+            <p>
+              La base del plato. Lo que te va a mantener satisfecha y con
+              energía. Apuntá a 100–150g por porción.
+            </p>
+            <div class="decision-examples">
+              <span class="tag-sm">Tofu</span>
+              <span class="tag-sm">Tempeh</span>
+              <span class="tag-sm">Seitán</span>
+              <span class="tag-sm">Lentejas</span>
+              <span class="tag-sm">Garbanzos</span>
+              <span class="tag-sm">Soja texturizada</span>
+              <span class="tag-sm">Edamame</span>
+            </div>
+          </div>
+          <div class="decision-card">
+            <div class="decision-num">2</div>
+            <h4>Elegís tus vegetales</h4>
+            <p>
+              La mitad del plato. Frescos, cocidos, asados o salteados. Cuanto
+              más variedad de color, mejor.
+            </p>
+            <div class="decision-examples">
+              <span class="tag-sm">Espinaca</span>
+              <span class="tag-sm">Brócoli</span>
+              <span class="tag-sm">Zucchini</span>
+              <span class="tag-sm">Berenjena</span>
+              <span class="tag-sm">Kale</span>
+              <span class="tag-sm">Hongos</span>
+              <span class="tag-sm">Morrón</span>
+            </div>
+          </div>
+          <div class="decision-card">
+            <div class="decision-num">3</div>
+            <h4>Elegís tu carbohidrato</h4>
+            <p>
+              La energía del plato. Un cuarto del plato es suficiente. Cereales
+              o tubérculos, lo que tengas cocido.
+            </p>
+            <div class="decision-examples">
+              <span class="tag-sm">Quinoa</span>
+              <span class="tag-sm">Arroz</span>
+              <span class="tag-sm">Burgol</span>
+              <span class="tag-sm">Cuscús</span>
+              <span class="tag-sm">Batata</span>
+              <span class="tag-sm">Papa</span>
+              <span class="tag-sm">Polenta</span>
+            </div>
+          </div>
+          <div class="decision-card">
+            <div class="decision-num">4</div>
+            <h4>Elegís tu salsa o grasa</h4>
+            <p>
+              Lo que convierte un bowl genérico en algo rico. Una cucharada de
+              salsa cambia todo el plato.
+            </p>
+            <div class="decision-examples">
+              <span class="tag-sm">Tahini-limón</span>
+              <span class="tag-sm">Soja-jengibre</span>
+              <span class="tag-sm">Palta</span>
+              <span class="tag-sm">Chimichurri</span>
+              <span class="tag-sm">Maní</span>
+              <span class="tag-sm">Vinagreta</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top: 14px">
+          <strong>El secreto del sistema:</strong> no necesitás pensar una
+          receta. Solo elegís uno de cada categoría y combinás. Las
+          combinaciones siempre funcionan.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 4 — LOS 45 MINUTOS DEL DOMINGO               -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 1 — El Sistema</div>
+        <h2 class="page-title">El domingo</h2>
+        <hr class="divider" />
+
+        <p
+          style="
+            font-size: 11pt;
+            color: var(--muted);
+            margin-bottom: 14px;
+            line-height: 1.55;
+          "
+        >
+          La clave es cocinar ingredientes base, no platos terminados. Así podés
+          combinarlos distinto cada día sin aburrirte.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div class="step-row">
+            <div class="step-content">
+              <strong>Cocinar legumbres</strong>
+              <p>
+                Si vas a usar lentejas o arvejas (que no necesitan remojo
+                previo), directamente al agua. Si usás garbanzos o porotos ya
+                cocidos en lata, los escurrís y reservás. Si cocinas legumbres que requieran remojar, tenelas desde el Sábado a la noche en remojo.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-row">
+            <div class="step-content">
+              <strong>Cocinás los cereales</strong>
+              <p>
+                Quinoa (15 min), burgol (10 min), cuscús (5 min de hidratado),
+                arroz integral (25–30 min — si usás este, arrancá antes). Hacé
+                suficiente para toda la semana: 3–4 tazas en seco. Guardás en
+                táper en la heladera.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-row">
+            <div class="step-content">
+              <strong>Preparás la proteína principal</strong>
+              <p>
+                Tofu al horno o a la plancha (pág. 24), tempeh marinado (pág.
+                24), seitán salteado (pág. 25) o soja texturizada hidratada y
+                salteada (pág. 25). Podés preparar más de una. Se guardan 4–5
+                días en heladera.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-row">
+            <div class="step-content">
+              <strong>Asás o salteás vegetales</strong>
+              <p>
+                Elegí 2–3 vegetales de la semana. Brócoli al vapor, berenjena y
+                zucchini al horno, morrón asado. Los vegetales de hoja
+                (espinaca, rúcula, kale) no los cocinés ahora — van frescos o se
+                saltean rápido al momento.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-row">
+            <div class="step-content">
+              <strong>Preparás las salsas</strong>
+              <p>
+                Hacé 2–3 salsas de las que aparecen más adelante en el ebook. Se guardan 5–7
+                días en frasquitos en la heladera y cambian completamente el
+                sabor de cada plato.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-row">
+            <div class="step-content">
+              <strong>Ordenás todo en tápers</strong>
+              <p>
+                Cada ingrediente en su recipiente. Etiquetá con fecha si querés.
+                Cuando llegue la hora de comer, solo abrís y combinás.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top: 12px">
+          <strong>Tip:</strong> el arroz integral tarda 30 min, así que si lo
+          vas a usar, poné agua a hervir lo primero de todo. Mientras hierve
+          hacés todo lo demás.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 5 — LA FÓRMULA DEL PLATO                     -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 1 — El Sistema</div>
+        <h2 class="page-title">La fórmula del plato</h2>
+        <hr class="divider" />
+
+        <p
+          style="
+            font-size: 11pt;
+            color: var(--muted);
+            margin-bottom: 14px;
+            line-height: 1.55;
+          "
+        >
+          No hay que pesar ni contar. Esta fórmula funciona mirando el plato.
+          Cada porción te da entre 380 y 550 kcal con 20–35g de proteína
+          vegetal.
+        </p>
+
+        <div class="formula-grid">
+          <div
+            class="formula-box"
+            style="
+              background: var(--green-bg);
+              border: 1.5px solid rgba(42, 96, 73, 0.2);
+            "
+          >
+            <div class="f-icon">🍢</div>
+            <div class="f-name" style="color: var(--green)">Proteína</div>
+            <div class="f-portion" style="color: var(--green)">
+              100–150g cocida
+            </div>
+            <div class="f-desc" style="color: var(--muted)">
+              Un cuarto del plato. Tofu, tempeh, seitán, legumbres o soja
+              texturizada.
+            </div>
+          </div>
+          <div
+            class="formula-box"
+            style="
+              background: #f0fff7;
+              border: 1.5px solid rgba(42, 96, 73, 0.15);
+            "
+          >
+            <div class="f-icon">🥦</div>
+            <div class="f-name" style="color: var(--green)">Vegetales</div>
+            <div class="f-portion" style="color: var(--green)">200–300g</div>
+            <div class="f-desc" style="color: var(--muted)">
+              La mitad del plato. Cuanto más variados, mejor. Al menos uno crudo
+              y uno cocido.
+            </div>
+          </div>
+          <div
+            class="formula-box"
+            style="
+              background: #fff8e1;
+              border: 1.5px solid rgba(244, 200, 66, 0.35);
+            "
+          >
+            <div class="f-icon">🌾</div>
+            <div class="f-name" style="color: #7a5f00">Carbohidrato</div>
+            <div class="f-portion" style="color: #7a5f00">80–120g cocido</div>
+            <div class="f-desc" style="color: var(--muted)">
+              Un cuarto del plato. Cereales o tubérculos. Lo que hayas cocinado
+              el domingo.
+            </div>
+          </div>
+          <div
+            class="formula-box"
+            style="background: var(--cream); border: 1.5px solid var(--border)"
+          >
+            <div class="f-icon">🥑</div>
+            <div class="f-name" style="color: var(--muted)">Grasa</div>
+            <div class="f-portion" style="color: var(--muted)">20–30g</div>
+            <div class="f-desc" style="color: var(--muted)">
+              Un chorrito, un puñado chico o media palta. Lo que le da cuerpo y
+              saciedad.
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="
+            background: var(--green);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-top: 12px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+          "
+        >
+          <div style="font-size: 22pt; flex-shrink: 0">🥣</div>
+          <div>
+            <div
+              style="
+                font-family: &quot;Fraunces&quot;, serif;
+                font-style: italic;
+                font-size: 13pt;
+                color: var(--yellow);
+                font-weight: 700;
+                margin-bottom: 5px;
+              "
+            >
+              La salsa: el ingrediente secreto
+            </div>
+            <p
+              style="
+                font-size: 10pt;
+                color: rgba(245, 239, 228, 0.85);
+                line-height: 1.5;
+              "
+            >
+              2–3 cucharadas de salsa al gusto. No está en la fórmula porque va
+              por encima de todo. Una buena salsa convierte un bowl básico en
+              algo que querés repetir. Hacé siempre 2–3 salsas distintas los
+              domingos para rotar durante la semana.
+            </p>
+          </div>
+        </div>
+
+        <div
+          style="
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+          "
+        >
+          <div class="card" style="text-align: center; padding: 12px">
+            <div style="font-size: 17pt; margin-bottom: 4px">📊</div>
+            <div style="font-weight: 700; font-size: 12; color: var(--green)">
+              380–550 kcal
+            </div>
+            <div style="font-size: 11pt; color: var(--muted)">
+              por porción promedio
+            </div>
+          </div>
+          <div class="card" style="text-align: center; padding: 12px">
+            <div style="font-size: 17pt; margin-bottom: 4px">💪</div>
+            <div style="font-weight: 700; font-size: 12; color: var(--green)">
+              20–35g proteína
+            </div>
+            <div style="font-size: 11pt; color: var(--muted)">
+              100% vegetal por plato
+            </div>
+          </div>
+          <div class="card" style="text-align: center; padding: 12px">
+            <div style="font-size: 17pt; margin-bottom: 4px">⚡</div>
+            <div style="font-weight: 700; font-size: 12; color: var(--green)">
+              Sin contar nada
+            </div>
+            <div style="font-size: 11pt; color: var(--muted)">
+              solo mirás el plato
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 6 — PROTEÍNAS: TOFU, TEMPEH, SEITÁN          -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Proteínas</div>
+        <h2 class="page-title">Las proteínas potentes</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Tofu, tempeh y seitán son las estrellas proteicas del sistema. Alta
+          proteína, versátiles, se adaptan a cualquier sabor.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <!-- Tofu -->
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >            
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Tofu firme</div>
+              <div class="ing-portion">Porción: 150 g cocido</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 12g</span>
+                <span class="macro-pill mp-carb">Carbs 6g</span>
+                <span class="macro-pill mp-fat">Grasa 7.5g</span>
+                <span class="macro-pill mp-kcal">125 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Cómo comprarlo:</strong> en bloque, refrigerado. Hay
+                firme y extra firme — el extra firme queda más crocante.<br />
+                <strong>Tip clave:</strong> siempre prensarlo antes de cocinar.
+                Envolvelo en papel de cocina, poné algo pesado encima 15 min.
+                Elimina el exceso de agua y el resultado es muy superior.<br />
+                <strong>Sabor neutro:</strong> absorbe cualquier marinada. Una
+                hora en soja + ajo + jengibre lo transforma completamente.
+              </div>
+            </div>
+          </div>
+
+          <!-- Tempeh -->
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Tempeh</div>
+              <div class="ing-portion">Porción: 100 g cocido</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 19g</span>
+                <span class="macro-pill mp-carb">Carbs 9g</span>
+                <span class="macro-pill mp-fat">Grasa 11g</span>
+                <span class="macro-pill mp-kcal">193 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Cómo comprarlo:</strong> en bloque en dietéticas o
+                supermercados con sección vegetariana. También congelado.<br />
+                <strong>Tip anti-amargor:</strong> hervirlo 10 minutos antes de
+                cocinarlo. Eso elimina el sabor amargo que mucha gente le
+                encuentra la primera vez.<br />
+                <strong>Textura:</strong> más firme y con más estructura que el
+                tofu. Ideal para salteados, wraps o para comer en tiras con
+                salsa.
+              </div>
+            </div>
+          </div>
+
+          <!-- Seitán -->
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Seitán</div>
+              <div class="ing-portion">Porción: 100 g cocido</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 25g</span>
+                <span class="macro-pill mp-carb">Carbs 14g</span>
+                <span class="macro-pill mp-fat">Grasa 1.5g</span>
+                <span class="macro-pill mp-kcal">185 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Cómo comprarlo:</strong> hecho y refrigerado en
+                dietéticas, o en bloque para cortar. También podés hacerlo
+                casero con harina de gluten vital.<br />
+                <strong>Textura carnosa:</strong> la proteína más "cárnica" de
+                todas. Ideal para saltear, asar a la plancha o hacer tiras.<br />
+                <strong>Ojo:</strong> contiene gluten. No apto para personas con
+                celiaquía.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 7 — PROTEÍNAS: SOJA TEXTURIZADA + EDAMAME    -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Proteínas</div>
+        <h2 class="page-title">Soja texturizada &amp; edamame</h2>
+        <hr class="divider" />
+
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">
+                Soja texturizada fina
+              </div>
+              <div class="ing-portion">
+                Porción: 50 g seca (rinde ~150 g hidratada)
+              </div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 25g</span>
+                <span class="macro-pill mp-carb">Carbs 15g</span>
+                <span class="macro-pill mp-fat">Grasa 1.5g</span>
+                <span class="macro-pill mp-kcal">175 kcal</span>
+              </div>
+              <div class="ing-tip" style="margin-top: 8px">
+                <strong>Paso a paso:</strong><br />
+                1. Cubrí con agua caliente o caldo (hierve + apagás +
+                sumergís).<br />
+                2. Dejá reposar 10 minutos tapado.<br />
+                3. Escurrí y exprimí bien con las manos — esto es clave para que
+                no quede gomoso.<br />
+                4. Salteá en sartén caliente con aceite, ajo, pimentón ahumado y
+                soja. Dejá que se dore sin mover.<br />
+                <br />
+                <strong>Guardado:</strong> hidratada y salteada dura 4 días en
+                heladera. Seca en bolsa cierre hermético, 6 meses.
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Edamame</div>
+              <div class="ing-portion">
+                Porción: 150 g (desgranado, sin vaina)
+              </div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 16g</span>
+                <span class="macro-pill mp-carb">Carbs 12g</span>
+                <span class="macro-pill mp-fat">Grasa 7.5g</span>
+                <span class="macro-pill mp-kcal">183 kcal</span>
+              </div>
+              <div class="ing-tip" style="margin-top: 8px">
+                <strong>Cómo conseguirlo:</strong> congelado en bolsa, pelado o
+                en vaina. En supermercados grandes o dietéticas asiáticas.<br />
+                <br />
+                <strong>Preparación:</strong> hervir 4–5 minutos en agua con
+                sal, escurrir. Listo. No necesita más cocción.<br />
+                <br />
+                <strong>Cómo usarlo:</strong> en bowls fríos, en ensaladas,
+                salteado con soja y sésamo, o como proteína en un wrap. También
+                funciona frío directamente de la heladera sobre una ensalada
+                tibia.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top: 12px">
+          <strong>¿Cuánta proteína necesitás por día?</strong> Una referencia
+          útil: 1,2 a 1,6 g por kg de peso corporal. Con el sistema de esta
+          guía, llegás fácil. Un plato con seitán + legumbres ya te da 30–40g.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 8 — LEGUMBRES                                -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Legumbres</div>
+        <h2 class="page-title">Legumbres: el power pack</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Proteína + fibra + carbohidrato complejo en un solo ingrediente. Son
+          la base más económica y nutritiva del sistema.
+        </p>
+
+        <div class="ingredient-grid ingredient-grid-2">
+          <div class="ing-card">
+            <div class="ing-name">Lentejas</div>
+            <div class="ing-portion">Porción: 150 g cocidas</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 13.5g</span>
+              <span class="macro-pill mp-carb">Carbs 30g</span>
+              <span class="macro-pill mp-fat">Grasa 0.6g</span>
+              <span class="macro-pill mp-kcal">174 kcal</span>
+            </div>
+            <div class="ing-tip">
+              No necesitan remojo previo aunque sin remojo tardan mas en cocinarse. Las rojas cocinan en 15 min, las
+              verdes en 25. Perfectas para purés, guisos o bowls. Se congelan
+              excelente.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Garbanzos</div>
+            <div class="ing-portion">Porción: 150 g cocidos</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 13.5g</span>
+              <span class="macro-pill mp-carb">Carbs 40g</span>
+              <span class="macro-pill mp-fat">Grasa 4.5g</span>
+              <span class="macro-pill mp-kcal">246 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Remojo de 8–12 hs + 45–60 min de cocción. O comprá en
+              lata/tetrabrik ya cocidos: misma nutrición, cero esfuerzo.
+              Crocantes al horno con pimentón son un 10.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Porotos negros</div>
+            <div class="ing-portion">Porción: 150 g cocidos</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 13.5g</span>
+              <span class="macro-pill mp-carb">Carbs 34g</span>
+              <span class="macro-pill mp-fat">Grasa 0.75g</span>
+              <span class="macro-pill mp-kcal">198 kcal</span>
+            </div>
+            <div class="ing-tip">
+              También: porotos alubia, pinto, colorado. Remojo 8 hs + 60–90 min
+              cocción. O en lata. Ideal para ensaladas tibias, sobre polenta o
+              en wraps.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Arvejas</div>
+            <div class="ing-portion">Porción: 120 g cocidas</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 6g</span>
+              <span class="macro-pill mp-carb">Carbs 17g</span>
+              <span class="macro-pill mp-fat">Grasa 0.5g</span>
+              <span class="macro-pill mp-kcal">97 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Frescas o congeladas: hiervén en 4–5 min. Las secas necesitan
+              remojo. Muy versátiles: en sopas, como guarnición, en ensaladas o
+              simplificadas en puré.
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top: 12px">
+          <strong>Tip de organización:</strong> cocinás un lote grande de
+          legumbres el domingo y freezás en porciones de 150g. Así la semana que
+          viene tenés listas sin esfuerzo. Duran 3 meses en freezer.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 9 — VEGETALES: HOJAS VERDES                  -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Vegetales</div>
+        <h2 class="page-title">Hojas verdes</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          La base de cualquier plato. Pocas calorías, mucha densidad
+          nutricional. Podés comerlas crudas o cocidas.
+        </p>
+
+        <div class="ingredient-grid">
+          <div class="ing-card">
+            <div class="ing-name">Espinaca</div>
+            <div class="ing-portion">Cruda: 80g · Cocida: 150g</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3g</span>
+              <span class="macro-pill mp-carb">Carbs 3g</span>
+              <span class="macro-pill mp-kcal">23 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Saltea en 2 min con ajo. Cruda en bowls fríos. Se reduce muchísimo
+              al cocinar: 200g crudos = 60g cocidos.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Rúcula</div>
+            <div class="ing-portion">Cruda: 60–80g</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 2.5g</span>
+              <span class="macro-pill mp-carb">Carbs 3.5g</span>
+              <span class="macro-pill mp-kcal">25 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Sabor picante y terroso. Siempre cruda. Base de ensaladas tibias.
+              Va increíble con garbanzos crocantes y limón.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Kale</div>
+            <div class="ing-portion">Crudo: 80g · Cocido: 120g</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3g</span>
+              <span class="macro-pill mp-carb">Carbs 6g</span>
+              <span class="macro-pill mp-kcal">35 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Masajealo con aceite y sal 2 min si vas crudo — ablanda las
+              fibras. Cocido: saltea 4–5 min con ajo. Muy resistente en heladera
+              (5–7 días).
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Acelga</div>
+            <div class="ing-portion">Cocida: 150g</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 2.5g</span>
+              <span class="macro-pill mp-carb">Carbs 3.5g</span>
+              <span class="macro-pill mp-kcal">20 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Hervirla o saltearla. Los tallos se cocinan más tiempo que las
+              hojas. Muy económica. Combina bien con legumbres y cereales.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Lechuga</div>
+            <div class="ing-portion">Cruda: 80–100g</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 1g</span>
+              <span class="macro-pill mp-carb">Carbs 2g</span>
+              <span class="macro-pill mp-kcal">15 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Siempre cruda. Base de ensaladas o como wraps naturales. Variedad
+              romana o mantecosa son las más firmes y fáciles de usar.
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              background: var(--green-bg);
+              border-color: rgba(42, 96, 73, 0.2);
+            "
+          >
+            <div class="ing-icon">💡</div>
+            <div
+              class="ing-name"
+              style="font-size: 11pt; font-style: normal; color: var(--green)"
+            >
+              Tip general
+            </div>
+            <div
+              class="ing-tip"
+              style="border: none; padding: 0; margin: 0; font-size: 10pt"
+            >
+              Guardá las hojas verdes lavadas y secas en un táper con papel de
+              cocina. Duran 3–5 días. No las cocinés el domingo, se ponen
+              marrones. Van al plato al momento.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 10 — VEGETALES: CRUCÍFERAS                   -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Vegetales</div>
+        <h2 class="page-title">Crucíferas</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Brócoli, coliflor y repollo son los vegetales más versátiles del
+          sistema. Se cocinan el domingo y aguantan toda la semana.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Brócoli</div>
+              <div class="ing-portion">Porción: 150 g cocido</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 4g</span>
+                <span class="macro-pill mp-carb">Carbs 7g</span>
+                <span class="macro-pill mp-fat">Grasa 0.5g</span>
+                <span class="macro-pill mp-kcal">45 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Al vapor:</strong> 4–5 min → queda verde vibrante, firme
+                y con todos los nutrientes. <br />
+                <strong>Al horno:</strong> 200°C, 20–25 min con aceite y sal →
+                se carameliza, sabor intenso. <br />
+                <strong>Guardado:</strong> cocido en táper, 4 días. No se
+                congela bien (se ablanda demasiado).
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Coliflor</div>
+              <div class="ing-portion">Porción: 150 g cocida</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 2g</span>
+                <span class="macro-pill mp-carb">Carbs 5g</span>
+                <span class="macro-pill mp-fat">Grasa 0.3g</span>
+                <span class="macro-pill mp-kcal">30 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Al horno con cúrcuma y comino:</strong> se vuelve dorada
+                y fragante. <br />
+                <strong>Como "arroz":</strong> procesala cruda y salteá 3 min —
+                baja en carbos, suma volumen. <br />
+                <strong>Puré:</strong> herví + procesá con aceite de oliva →
+                textura cremosa sin lácteos.
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Repollo</div>
+              <div class="ing-portion">Porción: 100 g (crudo o cocido)</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 1.5g</span>
+                <span class="macro-pill mp-carb">Carbs 5g</span>
+                <span class="macro-pill mp-fat">Grasa 0.1g</span>
+                <span class="macro-pill mp-kcal">26 kcal</span>
+              </div>
+              <div class="ing-tip">
+                El vegetal más económico y duradero (dura 2 semanas en heladera
+                sin cocinar). <br />
+                <strong>Crudo rallado:</strong> ensalada coleslaw vegana con
+                tahini o mayonesa de anacardos. <br />
+                <strong>Salteado:</strong> con soja y sésamo, 5 min a fuego
+                fuerte. Queda crujiente.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 11 — VEGETALES NO ALMIDONADOS                -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Vegetales</div>
+        <h2 class="page-title">Vegetales no almidonados</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Volumen sin calorías. Zucchini, berenjena, pepino, hongos y espárragos
+          llenan el plato y no "pesan" en macros.
+        </p>
+
+        <div class="ingredient-grid">
+          <div class="ing-card">
+            <div class="ing-name">Zucchini</div>
+            <div class="ing-portion">Porción: 150 g cocido</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 1.5g</span>
+              <span class="macro-pill mp-carb">Carbs 4g</span>
+              <span class="macro-pill mp-kcal">22 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Al horno (200°C, 20 min) o salteado (5 min). En espirales queda
+              como pasta vegetal. Muy suave de sabor, absorbe condimentos.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Berenjena</div>
+            <div class="ing-portion">Porción: 150 g cocida</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 1g</span>
+              <span class="macro-pill mp-carb">Carbs 5g</span>
+              <span class="macro-pill mp-kcal">28 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Al horno con aceite y sal: 200°C, 25–30 min. Queda cremosa por
+              dentro. Salar antes (15 min) y secar reduce el amargor y la
+              humedad.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Pepino</div>
+            <div class="ing-portion">Porción: 100 g crudo</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 0.7g</span>
+              <span class="macro-pill mp-carb">Carbs 3.5g</span>
+              <span class="macro-pill mp-kcal">16 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Siempre crudo. Da frescura y textura crujiente a cualquier bowl.
+              Cortado en rodajas o cubos. Con sal y limón ya está.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Hongos</div>
+            <div class="ing-portion">Porción: 100 g cocidos</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3g</span>
+              <span class="macro-pill mp-carb">Carbs 4g</span>
+              <span class="macro-pill mp-kcal">28 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Salteados a fuego alto con ajo y soja: sabor umami intenso. No
+              llenar la sartén (se cuecen en el vapor y quedan blandos). En
+              capas y bien caliente.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Espárragos</div>
+            <div class="ing-portion">Porción: 100 g cocidos</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 2.5g</span>
+              <span class="macro-pill mp-carb">Carbs 4g</span>
+              <span class="macro-pill mp-kcal">24 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Al horno (200°C, 12–15 min) o a la plancha (5–7 min). Cortá 2 cm
+              del extremo fibroso. Con limón y aceite de oliva, perfectos.
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              background: var(--yellow-bg);
+              border-color: rgba(244, 200, 66, 0.35);
+            "
+          >
+            <div class="ing-icon">💡</div>
+            <div
+              class="ing-name"
+              style="font-size: 11pt; font-style: normal; color: #7a5f00"
+            >
+              Regla de los no almidonados
+            </div>
+            <div
+              class="ing-tip"
+              style="
+                border: none;
+                padding: 0;
+                margin: 0;
+                font-size: 10pt;
+                color: var(--dark);
+              "
+            >
+              Podés comerlos en la cantidad que quieras. Son de muy bajo aporte
+              calórico pero dan volumen, textura y nutrientes. Llenán el plato
+              sin "ocupar el cupo" del carbo.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 12 — VEGETALES DE COLOR + AROMÁTICOS         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Vegetales</div>
+        <h2 class="page-title">Vegetales de color y aromáticos</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Morrón, zanahoria, tomate y los aromáticos (cebolla, ajo, jengibre)
+          son los que le dan sabor al sistema. Sin ellos, la comida es aburrida.
+        </p>
+
+        <div class="ingredient-grid">
+          <div class="ing-card">
+            <div class="ing-name">Morrón</div>
+            <div class="ing-portion">100 g crudo o asado</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 1g</span>
+              <span class="macro-pill mp-carb">Carbs 6g</span>
+              <span class="macro-pill mp-kcal">31 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Asado al horno o en tiras salteadas. El rojo y amarillo son más
+              dulces que el verde. Asado pelado se conserva 5 días en heladera
+              con aceite.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Zanahoria</div>
+            <div class="ing-portion">100 g cruda o cocida</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 1g</span>
+              <span class="macro-pill mp-carb">Carbs 10g</span>
+              <span class="macro-pill mp-kcal">41 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Cruda rallada en ensaladas, cocida en guisos o asada al horno.
+              Rallada con limón y pimentón es un snack perfecto. Barata y dura
+              semanas en heladera.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Tomate cherry</div>
+            <div class="ing-portion">100 g crudos</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 1g</span>
+              <span class="macro-pill mp-carb">Carbs 4g</span>
+              <span class="macro-pill mp-kcal">20 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Siempre crudos en bowls. O asados al horno 15 min con aceite y ajo
+              — se convierten en salsa semi seca intensísima.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Cebolla</div>
+            <div class="ing-portion">50 g (media cebolla)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 0.6g</span>
+              <span class="macro-pill mp-carb">Carbs 5g</span>
+              <span class="macro-pill mp-kcal">22 kcal</span>
+            </div>
+            <div class="ing-tip">
+              La base aromática de casi todo. Bien dorada, caramelizada (20 min
+              a fuego bajo) transforma cualquier plato. En láminas crudas para
+              ensaladas.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Ajo</div>
+            <div class="ing-portion">1–2 dientes</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-kcal">~10 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Imprescindible. Siempre en heladera pelado en un frasco. Salteado
+              a fuego medio, no quemar. Asado entero en el horno queda dulce y
+              suave.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Jengibre fresco</div>
+            <div class="ing-portion">1 cdita rallada</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-kcal">~5 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Rallado en marinadas, salsas y salteados asiáticos. Intenso,
+              picante y fresco. Se conserva meses pelado en el freezer — rallá
+              directo congelado.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 13 — CARBOHIDRATOS: CEREALES                 -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Carbohidratos</div>
+        <h2 class="page-title">Cereales</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          La energía sostenida del plato. Cocinás el domingo, guardás en táper y
+          tenés para toda la semana.
+        </p>
+
+        <div class="ingredient-grid">
+          <div class="ing-card">
+            <div class="ing-name">Quinoa</div>
+            <div class="ing-portion">80 g cocida (30 g seca)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3.2g</span>
+              <span class="macro-pill mp-carb">Carbs 18g</span>
+              <span class="macro-pill mp-fat">Grasa 1.6g</span>
+              <span class="macro-pill mp-kcal">96 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Lavar antes de cocinar. Agua 1:2, hervir 15 min tapado. Proteína
+              completa — tiene los 9 aminoácidos esenciales. La más nutritiva de
+              los cereales.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Arroz integral</div>
+            <div class="ing-portion">100 g cocido (35 g seco)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 2.5g</span>
+              <span class="macro-pill mp-carb">Carbs 23g</span>
+              <span class="macro-pill mp-fat">Grasa 0.9g</span>
+              <span class="macro-pill mp-kcal">111 kcal</span>
+            </div>
+            <div class="ing-tip">
+              El más versátil. Agua 1:2, hervir 30–35 min tapado a fuego mínimo.
+              El blanco tarda 15–18 min. Cocinar en lote grande: dura 5 días en
+              heladera.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Avena</div>
+            <div class="ing-portion">80 g cocida (30 g seca)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3.5g</span>
+              <span class="macro-pill mp-carb">Carbs 20g</span>
+              <span class="macro-pill mp-fat">Grasa 1.7g</span>
+              <span class="macro-pill mp-kcal">110 kcal</span>
+            </div>
+            <div class="ing-tip">
+              No solo para el desayuno. La avena salada con caldo de verduras +
+              proteína + vegetales es un bowl nutritivo y rápido. Agua/leche
+              vegetal 1:2, 5 min.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Burgol (trigo)</div>
+            <div class="ing-portion">100 g cocido (35 g seco)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3g</span>
+              <span class="macro-pill mp-carb">Carbs 18g</span>
+              <span class="macro-pill mp-fat">Grasa 0.2g</span>
+              <span class="macro-pill mp-kcal">83 kcal</span>
+            </div>
+            <div class="ing-tip">
+              El más rápido: cubrir con agua hirviendo 1:1.5, tapar 10 min,
+              escurrir. Sin cocción. Base perfecta para tabulé y ensaladas
+              frías. Sabor a nuez.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Cuscús</div>
+            <div class="ing-portion">100 g cocido (35 g seco)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 3.8g</span>
+              <span class="macro-pill mp-carb">Carbs 23g</span>
+              <span class="macro-pill mp-fat">Grasa 0.2g</span>
+              <span class="macro-pill mp-kcal">112 kcal</span>
+            </div>
+            <div class="ing-tip">
+              El más rápido de todos: agua hirviendo 1:1, tapar 5 min. Listo.
+              Suave, ligero. Base para combinaciones mediterráneas y marroquíes.
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              background: var(--green-bg);
+              border-color: rgba(42, 96, 73, 0.2);
+            "
+          >
+            <div class="ing-icon">📦</div>
+            <div
+              class="ing-name"
+              style="font-size: 11pt; font-style: normal; color: var(--green)"
+            >
+              Cantidad base del domingo
+            </div>
+            <div
+              class="ing-tip"
+              style="
+                border: none;
+                padding: 0;
+                margin: 0;
+                font-size: 10pt;
+                color: var(--dark);
+              "
+            >
+              Para 5 porciones durante la semana, cocinás en seco: 1 taza de
+              quinoa · 1.5 tazas de arroz · 1 taza de burgol. Guardás en tápers
+              separados. 5 días en heladera.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 14 — CARBOHIDRATOS: TUBÉRCULOS + MAÍZ        -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Carbohidratos</div>
+        <h2 class="page-title">Tubérculos y maíz</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Los carbohidratos más saciantes del sistema. Asados al horno el
+          domingo, están listos para la semana.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">
+                Batata (boniato)
+              </div>
+              <div class="ing-portion">Porción: 120 g cocida</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 2g</span>
+                <span class="macro-pill mp-carb">Carbs 27g</span>
+                <span class="macro-pill mp-fat">Grasa 0.1g</span>
+                <span class="macro-pill mp-kcal">118 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Al horno:</strong> 200°C, 35–40 min entera sin pelar, o
+                cubos 20–25 min. Naturalmente dulce. Combo perfecto con
+                legumbres, tahini y hojas verdes. Congela bien cocida.
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Papa</div>
+              <div class="ing-portion">Porción: 120 g cocida</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 2g</span>
+                <span class="macro-pill mp-carb">Carbs 22g</span>
+                <span class="macro-pill mp-fat">Grasa 0.1g</span>
+                <span class="macro-pill mp-kcal">97 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Hervida:</strong> 20 min.
+                <strong>Al horno en cubos:</strong> 200°C, 30 min con aceite y
+                pimentón. <strong>Puré:</strong> hervida + aceite de oliva +
+                nuez moscada, sin lácteos. No la guardes en heladera cruda
+                pelada (se pone negra).
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">
+                Choclo / Polenta
+              </div>
+              <div class="ing-portion">
+                Choclo: 80 g · Polenta: 100 g cocida
+              </div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 2.5g</span>
+                <span class="macro-pill mp-carb">Carbs 18g</span>
+                <span class="macro-pill mp-fat">Grasa 1g</span>
+                <span class="macro-pill mp-kcal">90 kcal</span>
+              </div>
+              <div class="ing-tip">
+                <strong>Choclo congelado:</strong> hervir 4–5 min. Perfecto en
+                ensaladas y bowls. <br />
+                <strong>Polenta:</strong> agua hirviendo con sal 1:4, revolver 5
+                min. Dejar descansar. Queda cremosa. O enfriar en molde y cortar
+                en porciones para luego asar a la plancha.
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Mandioca</div>
+              <div class="ing-portion">Porción: 100 g cocida</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 1.4g</span>
+                <span class="macro-pill mp-carb">Carbs 38g</span>
+                <span class="macro-pill mp-fat">Grasa 0.3g</span>
+                <span class="macro-pill mp-kcal">160 kcal</span>
+              </div>
+              <div class="ing-tip">
+                Alta en carbos. Hervir 25–30 min. Queda cremosa o crocante al
+                horno. Con salsa de maní o chimichurri, es una base espectacular
+                y diferente.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 15 — GRASAS: PALTA, ACEITUNAS, ACEITES       -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Grasas</div>
+        <h2 class="page-title">Grasas buenas (I)</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          La grasa es lo que hace que un plato sea saciante. Sin ella, en dos
+          horas tenés hambre de nuevo. Un puñado o un chorrito es suficiente.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Palta</div>
+              <div class="ing-portion">Porción: media palta (~75g)</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 1.5g</span>
+                <span class="macro-pill mp-carb">Carbs 7g</span>
+                <span class="macro-pill mp-fat">Grasa 11g</span>
+                <span class="macro-pill mp-kcal">120 kcal</span>
+              </div>
+              <div class="ing-tip">
+                La grasa estrella. En rodajas sobre cualquier bowl, aplastada
+                con limón y sal, o como guacamole rápido. Para que madure más
+                rápido: en bolsa de papel con una banana. Una vez abierta,
+                guardar con el carozo y limón para que no se oxide.
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">Aceitunas</div>
+              <div class="ing-portion">Porción: 30g (~10 unidades)</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-prot">Prot 0.5g</span>
+                <span class="macro-pill mp-carb">Carbs 2g</span>
+                <span class="macro-pill mp-fat">Grasa 5g</span>
+                <span class="macro-pill mp-kcal">52 kcal</span>
+              </div>
+              <div class="ing-tip">
+                Negras o verdes, enteras o picadas. Dan sabor salado y umami a
+                cualquier ensalada o bowl mediterráneo. También en cuscús, en
+                tapenade, o como snack directo.
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="ing-card"
+            style="
+              flex-direction: row;
+              gap: 14px;
+              align-items: flex-start;
+              padding: 14px 16px;
+            "
+          >
+            <div style="flex: 1">
+              <div class="ing-name" style="font-size: 13pt">
+                Aceite de oliva
+              </div>
+              <div class="ing-portion">Porción: 1 cucharada (14g)</div>
+              <div class="macro-row">
+                <span class="macro-pill mp-carb">Carbs 0g</span>
+                <span class="macro-pill mp-fat">Grasa 14g</span>
+                <span class="macro-pill mp-kcal">120 kcal</span>
+              </div>
+              <div class="ing-tip">
+                El aceite base del sistema. Para cocinar, para aderezar en
+                crudo, para terminar platos. Extra virgen en crudo, el refinado
+                para cocinar a alta temperatura. También: aceite de sésamo (para
+                platos asiáticos), aceite de coco (curry).
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top: 12px">
+          <strong>¿Cuánta grasa por porción?</strong> Con media palta OR un
+          chorrito de aceite OR un puñado de frutos secos (elige uno por plato)
+          ya tenés la grasa necesaria. No es necesario combinarlos en una sola
+          comida.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 16 — GRASAS: FRUTOS SECOS, SEMILLAS, UNTABLES -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 2 — Ingredientes · Grasas</div>
+        <h2 class="page-title">Grasas buenas (II)</h2>
+        <hr class="divider" />
+
+        <div class="ingredient-grid">
+          <div class="ing-card">
+          
+            <div class="ing-name">Maní</div>
+            <div class="ing-portion">Porción: 30g (~puñado)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 7g</span>
+              <span class="macro-pill mp-carb">Carbs 5g</span>
+              <span class="macro-pill mp-fat">Grasa 14g</span>
+              <span class="macro-pill mp-kcal">170 kcal</span>
+            </div>
+            <div class="ing-tip">
+              El fruto seco más proteico. Como snack, triturado en salsas (salsa
+              de maní, pág. 18) o entero sobre bowls. También en mantequilla de
+              maní natural.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Nueces</div>
+            <div class="ing-portion">Porción: 30g (~7 mitades)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 4g</span>
+              <span class="macro-pill mp-carb">Carbs 4g</span>
+              <span class="macro-pill mp-fat">Grasa 18g</span>
+              <span class="macro-pill mp-kcal">196 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Tostadas en sartén seca 3 min quedan crujientísimas. Sobre
+              ensaladas de rúcula o bowls de lentejas. También en salsas o
+              trituradas como cobertura.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Semillas de sésamo</div>
+            <div class="ing-portion">Porción: 1 cda (10g)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 2g</span>
+              <span class="macro-pill mp-carb">Carbs 2g</span>
+              <span class="macro-pill mp-fat">Grasa 5g</span>
+              <span class="macro-pill mp-kcal">57 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Para terminar platos asiáticos. También como tahini (semillas
+              molidas con aceite). Tostadas en sartén seca: sabor completamente
+              distinto.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Semillas de girasol</div>
+            <div class="ing-portion">Porción: 2 cdas (20g)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 5g</span>
+              <span class="macro-pill mp-carb">Carbs 4g</span>
+              <span class="macro-pill mp-fat">Grasa 11g</span>
+              <span class="macro-pill mp-kcal">130 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Crunch natural en ensaladas y bowls. Económicas y con buena
+              proteína. Tostadas son adictivas. También en la granola salada o
+              como cobertura de hummus.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Tahini</div>
+            <div class="ing-portion">Porción: 1 cda (15g)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 2.5g</span>
+              <span class="macro-pill mp-carb">Carbs 3g</span>
+              <span class="macro-pill mp-fat">Grasa 8g</span>
+              <span class="macro-pill mp-kcal">90 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Pasta de sésamo. Base de la salsa más usada del sistema (pág. 18).
+              Revolvelo bien antes de usar — el aceite se separa. En heladera
+              dura meses.
+            </div>
+          </div>
+
+          <div class="ing-card">
+            <div class="ing-name">Mantequilla de maní</div>
+            <div class="ing-portion">Porción: 1 cda (16g)</div>
+            <div class="macro-row">
+              <span class="macro-pill mp-prot">Prot 4g</span>
+              <span class="macro-pill mp-carb">Carbs 3g</span>
+              <span class="macro-pill mp-fat">Grasa 8g</span>
+              <span class="macro-pill mp-kcal">94 kcal</span>
+            </div>
+            <div class="ing-tip">
+              Natural, sin azúcar. En salsas (pág. 18), en tostadas, para dar
+              cremosidad a bowls. Elegí versión solo maní en la etiqueta: sin
+              aceites de palma ni azúcares.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 2: Ingredientes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 17 — CONDIMENTOS SALVAVIDAS                  -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 3 — Salsas y Condimentos</div>
+        <h2 class="page-title">Condimentos salvavidas</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Estos son los ingredientes que hacen que la comida simple se convierta
+          en algo rico. Tenelos siempre en la alacena.
+        </p>
+
+        <div class="condimento-grid">
+          <div class="cond-group">
+            <div class="cond-group-title">🧂 Básicos de sabor</div>
+            <div class="cond-item">
+              <strong>Salsa de soja / tamari</strong> — umami, sal, profundidad.
+              Base de marinadas.
+            </div>
+            <div class="cond-item">
+              <strong>Vinagre de arroz</strong> — ácido suave, para salsas y
+              aderezos asiáticos.
+            </div>
+            <div class="cond-item">
+              <strong>Miso blanco</strong> — fermentado, cremoso, muy umami.
+              Para salsas y sopas.
+            </div>
+            <div class="cond-item">
+              <strong>Levadura nutricional</strong> — sabor a queso. En pastas,
+              purés, salsas.
+            </div>
+            <div class="cond-item">
+              <strong>Caldo de verduras</strong> — para cocinar cereales y
+              legumbres con más sabor.
+            </div>
+          </div>
+
+          <div class="cond-group">
+            <div class="cond-group-title">🍋 Ácidos</div>
+            <div class="cond-item">
+              <strong>Limón fresco</strong> — imprescindible. Realza todo.
+              Siempre terminar con unas gotitas.
+            </div>
+            <div class="cond-item">
+              <strong>Lima</strong> — más aromática que el limón. Para platos
+              con coco, maní o coriandro.
+            </div>
+            <div class="cond-item">
+              <strong>Vinagre de manzana</strong> — ácido moderado para
+              vinagretas y marinadas.
+            </div>
+            <div class="cond-item">
+              <strong>Vinagre balsámico</strong> — dulce y ácido. Para ensaladas
+              y vegetales asados.
+            </div>
+          </div>
+
+          <div class="cond-group">
+            <div class="cond-group-title">🌶️ Especias esenciales</div>
+            <div class="cond-item">
+              <strong>Pimentón ahumado</strong> — humo sin fuego. En soja
+              texturizada y garbanzos.
+            </div>
+            <div class="cond-item">
+              <strong>Cúrcuma</strong> — color y levemente terrosa. En arroces,
+              coliflor, curry.
+            </div>
+            <div class="cond-item">
+              <strong>Comino</strong> — cálido, terroso. Con legumbres siempre.
+            </div>
+            <div class="cond-item">
+              <strong>Ají molido / cayena</strong> — picante al gusto. Arrancar
+              con poco.
+            </div>
+            <div class="cond-item">
+              <strong>Orégano seco</strong> — mediterráneo, en salsas de tomate
+              y vegetales.
+            </div>
+            <div class="cond-item">
+              <strong>Canela</strong> — con batata, porridge de avena o en curry
+              marroquí.
+            </div>
+          </div>
+
+          <div class="cond-group">
+            <div class="cond-group-title">🌿 Frescos</div>
+            <div class="cond-item">
+              <strong>Coriandro fresco</strong> — intenso, para platos asiáticos
+              y mexicanos.
+            </div>
+            <div class="cond-item">
+              <strong>Perejil</strong> — neutro y fresco. Base del chimichurri y
+              tabulé.
+            </div>
+            <div class="cond-item">
+              <strong>Albahaca</strong> — mediterránea, para pastas, tostadas y
+              salsas frescas.
+            </div>
+            <div class="cond-item">
+              <strong>Cebolla de verdeo</strong> — suave y crujiente. Para
+              terminar cualquier bowl.
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top: 10px">
+          <strong>El combo de rescate:</strong> soja + limón + ajo + aceite de
+          sésamo. Con eso podés aderezar cualquier cosa y va a quedar bien.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 3: Salsas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 18 — 6 SALSAS RÁPIDAS                        -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 3 — Salsas y Condimentos</div>
+        <h2 class="page-title">6 salsas que lo cambian todo</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 10px">
+          Hacé 2–3 el domingo. Se guardan 5–7 días en frasquito en la heladera.
+          Son lo que diferencia comer bien de comer rico.
+        </p>
+
+        <div class="sauce-grid">
+          <div class="sauce-card">
+            <div class="sauce-name">Tahini-limón</div>
+            <ul class="sauce-ingr">
+              <li>3 cdas tahini</li>
+              <li>2 cdas jugo de limón</li>
+              <li>1 diente ajo rallado</li>
+              <li>2–3 cdas agua fría</li>
+              <li>Sal al gusto</li>
+            </ul>
+            <p class="sauce-prep">
+              <strong>Preparación:</strong> mezclar todo hasta cremoso. Agregar
+              agua de a poco hasta la textura deseada. Va con: bowls de
+              legumbres, vegetales asados, falafel, brócoli.
+            </p>
+          </div>
+
+          <div class="sauce-card">
+            <div class="sauce-name">Soja-limón-sésamo</div>
+            <ul class="sauce-ingr">
+              <li>3 cdas salsa de soja</li>
+              <li>1 cda jugo de limón</li>
+              <li>1 cdita aceite de sésamo</li>
+              <li>1 cdita jengibre rallado</li>
+              <li>½ cdita miel de maple</li>
+            </ul>
+            <p class="sauce-prep">
+              <strong>Preparación:</strong> mezclar todo. Sin cocción. Va con:
+              tofu, tempeh, edamame, salteados, bowl de arroz.
+            </p>
+          </div>
+
+          <div class="sauce-card">
+            <div class="sauce-name">Mostaza-maple</div>
+            <ul class="sauce-ingr">
+              <li>2 cdas mostaza de Dijon</li>
+              <li>1 cda miel de maple</li>
+              <li>1 cda vinagre de manzana</li>
+              <li>2 cdas aceite de oliva</li>
+              <li>Sal y pimienta</li>
+            </ul>
+            <p class="sauce-prep">
+              <strong>Preparación:</strong> emulsionar con tenedor. Va con:
+              ensaladas tibias, garbanzos, seitán a la plancha, wrap de lechuga.
+            </p>
+          </div>
+
+          <div class="sauce-card">
+            <div class="sauce-name">Vinagreta verde</div>
+            <ul class="sauce-ingr">
+              <li>3 cdas aceite de oliva</li>
+              <li>1.5 cdas vinagre de manzana</li>
+              <li>1 cdita mostaza</li>
+              <li>Perejil picado fino</li>
+              <li>Sal, pimienta y ajo en polvo</li>
+            </ul>
+            <p class="sauce-prep">
+              <strong>Preparación:</strong> mezclar bien. La clásica
+              multipropósito. Va con: ensaladas, lentejas frías, cuscús
+              mediterráneo.
+            </p>
+          </div>
+
+          <div class="sauce-card">
+            <div class="sauce-name">Chimichurri vegano</div>
+            <ul class="sauce-ingr">
+              <li>1 taza perejil picado fino</li>
+              <li>3 cdas orégano seco</li>
+              <li>3 dientes ajo rallados</li>
+              <li>Ají molido al gusto</li>
+              <li>4 cdas aceite de oliva</li>
+              <li>2 cdas vinagre rojo</li>
+              <li>Sal y pimienta</li>
+            </ul>
+            <p class="sauce-prep">
+              <strong>Preparación:</strong> mezclar todo. Reposar 30 min. Va
+              con: seitán, mandioca, vegetales asados, burgol.
+            </p>
+          </div>
+
+          <div class="sauce-card">
+            <div class="sauce-name">Salsa de maní</div>
+            <ul class="sauce-ingr">
+              <li>3 cdas mantequilla de maní natural</li>
+              <li>2 cdas salsa de soja</li>
+              <li>1 cda jugo de lima o limón</li>
+              <li>1 cdita jengibre rallado</li>
+              <li>½ cdita ají picante</li>
+              <li>2–3 cdas agua caliente</li>
+            </ul>
+            <p class="sauce-prep">
+              <strong>Preparación:</strong> mezclar todo. Agua para ajustar
+              textura. Va con: tempeh, tofu, fideos de arroz, wrap asiático.
+            </p>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 3: Salsas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 19 — MIX & MATCH (1)                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 4 — Mix &amp; Match</div>
+        <h2 class="page-title">Combinaciones que funcionan</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 10px">
+          18 platos armados con la fórmula del sistema. Cada uno tiene
+          ingredientes con porciones, calorías estimadas y proteína.
+        </p>
+
+        <div class="combo-grid">
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Bowl verde con tofu y quinoa</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~450 kcal</span>
+              <span class="combo-stat cs-prot">28g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>150g espinaca fresca</li>
+              <li>150g tofu firme dorado a la plancha</li>
+              <li>80g quinoa cocida</li>
+              <li>½ palta en rodajas</li>
+              <li>2 cdas salsa tahini-limón</li>
+              <li>Sésamo tostado encima</li>
+            </ul>
+            <div class="combo-note">
+              Armado en frío. Quinoa tibia sobre espinaca cruda.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">
+                Salteado de tempeh con brócoli y arroz
+              </div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~520 kcal</span>
+              <span class="combo-stat cs-prot">34g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g tempeh en cubos salteado</li>
+              <li>150g brócoli al vapor</li>
+              <li>100g arroz integral cocido</li>
+              <li>3 cdas salsa soja-limón-sésamo</li>
+              <li>1 cdita aceite de sésamo</li>
+              <li>Cebolla de verdeo</li>
+            </ul>
+            <div class="combo-note">
+              Saltear tempeh con la salsa 2 min antes de servir.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Wrap de garbanzos y palta</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~480 kcal</span>
+              <span class="combo-stat cs-prot">18g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>1 tortilla integral grande</li>
+              <li>150g garbanzos cocidos condimentados</li>
+              <li>½ palta</li>
+              <li>80g lechuga o rúcula</li>
+              <li>Tomate cherry cortado</li>
+              <li>1 cda mostaza-maple</li>
+            </ul>
+            <div class="combo-note">
+              Calentar la tortilla 1 min en sartén seca antes de armar.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Bowl de lentejas con batata</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~430 kcal</span>
+              <span class="combo-stat cs-prot">22g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>150g lentejas cocidas</li>
+              <li>120g batata asada en cubos</li>
+              <li>80g espinaca salteada con ajo</li>
+              <li>2 cdas tahini-limón</li>
+              <li>Pimentón ahumado + comino</li>
+              <li>Jugo de limón fresco</li>
+            </ul>
+            <div class="combo-note">
+              Servir tibio. Las lentejas rojas van bien acá por su textura.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 4: Combinaciones</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 20 — MIX & MATCH (2)                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 4 — Mix &amp; Match</div>
+        <h2 class="page-title">Combinaciones (2)</h2>
+        <hr class="divider" />
+
+        <div class="combo-grid">
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Seitán a la plancha con burgol</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~490 kcal</span>
+              <span class="combo-stat cs-prot">30g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g seitán en tiras a la plancha</li>
+              <li>100g burgol cocido</li>
+              <li>150g zucchini salteado con ajo</li>
+              <li>Tomate cherry fresco</li>
+              <li>2 cdas chimichurri vegano</li>
+              <li>Perejil fresco picado</li>
+            </ul>
+            <div class="combo-note">
+              El seitán en tiras finas se dora en 3–4 min a fuego alto.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Ensalada tibia de porotos</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~380 kcal</span>
+              <span class="combo-stat cs-prot">16g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>150g porotos negros cocidos</li>
+              <li>80g rúcula fresca</li>
+              <li>80g choclo cocido</li>
+              <li>½ morrón rojo asado</li>
+              <li>30g nueces tostadas</li>
+              <li>2 cdas vinagreta verde</li>
+            </ul>
+            <div class="combo-note">
+              Calentar apenas los porotos — el contraste tibio/frío es la
+              gracia.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Polenta con ragú de soja</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~420 kcal</span>
+              <span class="combo-stat cs-prot">24g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g polenta cremosa cocida</li>
+              <li>50g soja texturizada hidratada y salteada</li>
+              <li>100g hongos salteados</li>
+              <li>½ cebolla caramelizada</li>
+              <li>1 cda levadura nutricional</li>
+              <li>Aceite de oliva + orégano</li>
+            </ul>
+            <div class="combo-note">
+              La levadura nutricional en la polenta le da sabor a queso
+              parmesano.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Cuscús mediterráneo</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~440 kcal</span>
+              <span class="combo-stat cs-prot">17g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g cuscús cocido</li>
+              <li>150g garbanzos cocidos</li>
+              <li>½ pepino en cubos</li>
+              <li>30g aceitunas negras</li>
+              <li>Tomate cherry + perejil</li>
+              <li>2 cdas vinagreta verde + limón</li>
+            </ul>
+            <div class="combo-note">
+              Frío o temperatura ambiente. Ideal para llevar en táper.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 4: Combinaciones</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 21 — MIX & MATCH (3)                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 4 — Mix &amp; Match</div>
+        <h2 class="page-title">Combinaciones (3)</h2>
+        <hr class="divider" />
+
+        <div class="combo-grid">
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Bowl power de soja texturizada</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~490 kcal</span>
+              <span class="combo-stat cs-prot">33g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>50g soja texturizada hidratada y dorada</li>
+              <li>80g kale salteado con ajo</li>
+              <li>100g arroz integral cocido</li>
+              <li>30g maní tostado</li>
+              <li>2 cdas salsa de maní</li>
+              <li>Lima + coriandro fresco</li>
+            </ul>
+            <div class="combo-note">
+              El maní doble (en salsa + entero) da textura y sabor increíble.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Tempeh teriyaki con sésamo</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~530 kcal</span>
+              <span class="combo-stat cs-prot">28g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g tempeh en tiras marinado</li>
+              <li>150g brócoli al vapor</li>
+              <li>100g arroz integral cocido</li>
+              <li>2 cdas salsa soja-limón-sésamo</li>
+              <li>Sésamo tostado + cebolla de verdeo</li>
+              <li>Zanahoria rallada cruda</li>
+            </ul>
+            <div class="combo-note">
+              Marinar el tempeh 30 min en la salsa antes de saltear.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Bowl de edamame y arroz</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~390 kcal</span>
+              <span class="combo-stat cs-prot">22g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>150g edamame cocido</li>
+              <li>100g arroz cocido</li>
+              <li>½ pepino en rodajas</li>
+              <li>Zanahoria rallada</li>
+              <li>½ palta</li>
+              <li>2 cdas salsa soja-limón + sésamo</li>
+            </ul>
+            <div class="combo-note">
+              Bowl estilo japonés. Rápido si todo está cocinado del domingo.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Tofu al curry con garbanzos</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~510 kcal</span>
+              <span class="combo-stat cs-prot">26g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>150g tofu firme salteado</li>
+              <li>100g garbanzos cocidos</li>
+              <li>150g coliflor al horno con cúrcuma</li>
+              <li>100g arroz basmati o blanco</li>
+              <li>Curry en polvo + cúrcuma + comino</li>
+              <li>Coriandro fresco + limón</li>
+            </ul>
+            <div class="combo-note">
+              Saltear tofu + garbanzos con especias 3–4 min en sartén bien
+              caliente.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 4: Combinaciones</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 22 — MIX & MATCH (4)                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 4 — Mix &amp; Match</div>
+        <h2 class="page-title">Combinaciones (4)</h2>
+        <hr class="divider" />
+
+        <div class="combo-grid">
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Ensalada tibia de arvejas</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~420 kcal</span>
+              <span class="combo-stat cs-prot">14g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>120g arvejas cocidas</li>
+              <li>80g rúcula fresca</li>
+              <li>120g batata asada</li>
+              <li>30g nueces tostadas</li>
+              <li>Morrón rojo asado</li>
+              <li>2 cdas vinagreta + mostaza</li>
+            </ul>
+            <div class="combo-note">
+              La batata tibia sobre la rúcula cruda crea el contraste perfecto.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Burgol con verduras asadas</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~400 kcal</span>
+              <span class="combo-stat cs-prot">13g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g burgol cocido</li>
+              <li>150g berenjena asada</li>
+              <li>100g zucchini asado</li>
+              <li>Tomate cherry fresco</li>
+              <li>2 cdas tahini-limón</li>
+              <li>Perejil + semillas de sésamo</li>
+            </ul>
+            <div class="combo-note">
+              Estilo shawarma vegano. El tahini es imprescindible acá.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Polenta cremosa con hongos</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~360 kcal</span>
+              <span class="combo-stat cs-prot">15g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g polenta cremosa</li>
+              <li>120g hongos salteados con soja y ajo</li>
+              <li>80g espinaca salteada</li>
+              <li>1 cda levadura nutricional</li>
+              <li>Aceite de oliva al terminar</li>
+              <li>Tomillo seco + pimienta negra</li>
+            </ul>
+            <div class="combo-note">
+              Comfort food vegana. La levadura nutricional en la polenta es un
+              game changer.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Salteado de seitán con repollo</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~440 kcal</span>
+              <span class="combo-stat cs-prot">28g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>100g seitán en tiras</li>
+              <li>100g repollo blanco en juliana</li>
+              <li>1 zanahoria en juliana</li>
+              <li>100g arroz integral cocido</li>
+              <li>2 cdas salsa soja-jengibre</li>
+              <li>Sésamo + cebolla de verdeo</li>
+            </ul>
+            <div class="combo-note">
+              Estilo yakisoba sin fideos. Fuego alto, poco tiempo, mucho
+              movimiento.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 4: Combinaciones</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 23 — MIX & MATCH (5)                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 4 — Mix &amp; Match</div>
+        <h2 class="page-title">Combinaciones (5)</h2>
+        <hr class="divider" />
+
+        <div class="combo-grid">
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Bowl de lentejas rojas y coco</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~460 kcal</span>
+              <span class="combo-stat cs-prot">20g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>150g lentejas rojas cocidas en leche de coco</li>
+              <li>120g batata asada</li>
+              <li>80g espinaca salteada</li>
+              <li>100g arroz basmati</li>
+              <li>Curry + cúrcuma + jengibre</li>
+              <li>Lima + coriandro fresco</li>
+            </ul>
+            <div class="combo-note">
+              Cocinar las lentejas directamente en leche de coco diluida:
+              cremosas y con sabor increíble.
+            </div>
+          </div>
+
+          <div class="combo-card">
+            <div class="combo-header">
+              <div class="combo-name">Wrap de tempeh y palta</div>
+            </div>
+            <div class="combo-stats">
+              <span class="combo-stat cs-kcal">~510 kcal</span>
+              <span class="combo-stat cs-prot">27g prot</span>
+            </div>
+            <ul class="combo-ingr">
+              <li>1 tortilla integral grande</li>
+              <li>100g tempeh en tiras salteadas</li>
+              <li>½ palta en rodajas</li>
+              <li>80g repollo morado rallado</li>
+              <li>Tomate cherry cortado</li>
+              <li>2 cdas salsa de maní + lima</li>
+            </ul>
+            <div class="combo-note">
+              El repollo crudo da el crunch que completa la textura del tempeh.
+            </div>
+          </div>
+        </div>
+
+        
+
+        <div style="margin-top: 8px">
+          <div class="section-label" style="margin-bottom: 12px">
+            Referencia rápida: variaciones por base
+          </div>
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px"
+          >
+            <div class="card card-green" style="padding: 12px">
+              <div
+                style="
+                  font-family: &quot;Fraunces&quot;, serif;
+                  font-style: italic;
+                  font-size: 13pt;
+                  color: var(--green);
+                  font-weight: 700;
+                  margin-bottom: 6px;
+                "
+              >
+                Base: Quinoa
+              </div>
+              <div
+                style="font-size: 11pt; color: var(--muted); line-height: 1.5"
+              >
+                + Tofu + Espinaca + Tahini<br />+ Garbanzos + Rúcula +
+                Vinagreta<br />+ Edamame + Pepino + Soja-sésamo
+              </div>
+            </div>
+            <div class="card card-yellow" style="padding: 12px">
+              <div
+                style="
+                  font-family: &quot;Fraunces&quot;, serif;
+                  font-style: italic;
+                  font-size: 13pt;
+                  color: #7a5f00;
+                  font-weight: 700;
+                  margin-bottom: 6px;
+                "
+              >
+                Base: Arroz
+              </div>
+              <div
+                style="font-size: 11pt; color: var(--muted); line-height: 1.5"
+              >
+                + Tempeh + Brócoli + Soja-sésamo<br />+ Seitán + Repollo +
+                Chimichurri<br />+ Soja texturizada + Kale + Maní
+              </div>
+            </div>
+            <div class="card" style="padding: 12px">
+              <div
+                style="
+                  font-family: &quot;Fraunces&quot;, serif;
+                  font-style: italic;
+                  font-size: 13pt;
+                  color: var(--dark);
+                  font-weight: 700;
+                  margin-bottom: 6px;
+                "
+              >
+                Base: Batata
+              </div>
+              <div
+                style="font-size: 11pt; color: var(--muted); line-height: 1.5"
+              >
+                + Lentejas + Espinaca + Tahini<br />+ Arvejas + Rúcula +
+                Mostaza<br />+ Garbanzos + Kale + Limón
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top: 10px">
+          <strong>La regla:</strong> cualquier proteína + cualquier vegetal +
+          cualquier base + cualquier salsa = plato que funciona. No podés
+          "arruinarlo". Solo rotar ingredientes da variedad infinita.
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 4: Combinaciones</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 24 — TIPS DE COCCIÓN: TOFU + TEMPEH          -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 5 — Tips de Cocción</div>
+        <h2 class="page-title">Tofu y tempeh perfectos</h2>
+        <hr class="divider" />
+
+        <div class="tip-block">
+          <div class="tip-block-header">
+            <h4>Tofu: cómo que quede dorado y crocante</h4>
+          </div>
+          <div class="tip-steps">
+            <div class="tip-step">
+              <div class="tip-step-num">1</div>
+              <div class="tip-step-text">
+                <strong>Elegí tofu firme o extra firme.</strong> El sedoso no
+                sirve para saltear — tiene demasiada agua.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">2</div>
+              <div class="tip-step-text">
+                <strong>Prensalo 15 minutos.</strong> Cortalo en cubos o
+                láminas. Envolvé en papel de cocina, poné una tabla y algo
+                pesado encima. Así elimina el exceso de agua.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">3</div>
+              <div class="tip-step-text">
+                <strong>Marinalo si tenés tiempo.</strong> Soja + ajo + jengibre
+                + aceite de sésamo, 30 min o toda la noche. Cambia completamente
+                el resultado.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">4</div>
+              <div class="tip-step-text">
+                <strong>Sartén o horno bien caliente.</strong> Plancha: fuego
+                alto, aceite, no mover hasta que se forme la costra dorada (4–5
+                min por lado). Horno: 200°C, 25–30 min, vuelta a la mitad.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">5</div>
+              <div class="tip-step-text">
+                <strong>Almidón de maíz opcional.</strong> Rebozar los cubos en
+                1 cda de almidón antes de cocinar: queda más crocante,
+                especialmente al horno.
+              </div>
+            </div>
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              font-size: 10pt;
+              color: var(--muted);
+              background: var(--cream);
+              border-radius: 6px;
+              padding: 8px 10px;
+            "
+          >
+            <strong>Guardado:</strong> tofu cocinado dura 4–5 días en heladera
+            en táper. No freezar — la textura se vuelve esponjosa.
+          </div>
+        </div>
+
+        <div class="tip-block" style="margin-top: 10px">
+          <div class="tip-block-header">
+            <h4>Tempeh: cómo eliminar el amargor</h4>
+          </div>
+          <div class="tip-steps">
+            <div class="tip-step">
+              <div class="tip-step-num">1</div>
+              <div class="tip-step-text">
+                <strong>Hervirlo antes de cocinarlo.</strong> Sumergir el bloque
+                entero en agua hirviendo 10 minutos. Esto elimina el sabor
+                amargo y lo hace más receptivo a la marinada.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">2</div>
+              <div class="tip-step-text">
+                <strong>Cortar y marinar.</strong> En cubos, tiras o láminas.
+                Marinada básica: soja + ajo + miel de maple + aceite. Al menos
+                20 min.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">3</div>
+              <div class="tip-step-text">
+                <strong>Saltear a fuego alto</strong> 3–4 min por lado hasta que
+                quede dorado. También funciona al horno: 200°C, 20–25 min,
+                vuelta a la mitad.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">4</div>
+              <div class="tip-step-text">
+                <strong>Glasear al final.</strong> Al sacar del fuego, agregar
+                una cucharada de la marinada y saltear 1 minuto más: queda
+                caramelizado y brillante.
+              </div>
+            </div>
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              font-size: 10pt;
+              color: var(--muted);
+              background: var(--cream);
+              border-radius: 6px;
+              padding: 8px 10px;
+            "
+          >
+            <strong>Guardado:</strong> 4–5 días en heladera. También congela
+            bien (es la excepción entre las proteínas).
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 5: Cocción</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 25 — TIPS DE COCCIÓN: SEITÁN + SOJA TEXturizada     -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 5 — Tips de Cocción</div>
+        <h2 class="page-title">Seitán y soja texturizada</h2>
+        <hr class="divider" />
+
+        <div class="tip-block">
+          <div class="tip-block-header">
+            <h4>Seitán: la proteína más carnosa</h4>
+          </div>
+          <div class="tip-steps">
+            <div class="tip-step">
+              <div class="tip-step-num">1</div>
+              <div class="tip-step-text">
+                <strong>Si lo comprás hecho:</strong> escurrí el líquido y
+                secalo con papel. Cortalo en tiras, cubos o dejalo en bloque
+                para asar.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">2</div>
+              <div class="tip-step-text">
+                <strong>A la plancha:</strong> sartén con aceite a fuego alto.
+                Sin moverlo hasta que forme costra (3–4 min). Dar vuelta y
+                repetir. Queda dorado y con textura firme.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">3</div>
+              <div class="tip-step-text">
+                <strong>Condimentado:</strong> funciona muy bien con pimentón
+                ahumado, ajo, orégano y un toque de soja. Mezclar antes de
+                saltear.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">4</div>
+              <div class="tip-step-text">
+                <strong>Al horno:</strong> 200°C, 20 min. Más seco pero más
+                crocante. Para usar en wraps o picar sobre bowls.
+              </div>
+            </div>
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              font-size: 10pt;
+              color: var(--red-bg);
+              background: var(--red-bg);
+              border-radius: 6px;
+              padding: 8px 10px;
+              border: 1px solid rgba(176, 58, 46, 0.15);
+            "
+          >
+            <span style="color: var(--red); font-weight: 700">Atención:</span>
+            <span style="color: var(--dark)"
+              >el seitán contiene gluten. No es apto para personas celíacas o
+              con intolerancia al gluten.</span
+            >
+          </div>
+        </div>
+
+        <div class="tip-block" style="margin-top: 10px">
+          <div class="tip-block-header">
+            <h4>Soja texturizada: paso a paso completo</h4>
+          </div>
+          <div class="tip-steps">
+            <div class="tip-step">
+              <div class="tip-step-num">1</div>
+              <div class="tip-step-text">
+                <strong>Hidratación:</strong> en un bol, cubrir la soja seca con
+                agua caliente o caldo hirviendo. Proporción: 1:1.5 en volumen.
+                Tapar y dejar reposar 10 minutos.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">2</div>
+              <div class="tip-step-text">
+                <strong>Escurrir y EXPRIMIR bien.</strong> Este paso es clave.
+                Usar las manos o un colador apretando fuerte. Si queda húmeda,
+                en la sartén se cocina al vapor en vez de dorarse.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">3</div>
+              <div class="tip-step-text">
+                <strong>Sartén caliente con aceite</strong> (fuego medio-alto).
+                Agregar la soja y sin mover dejar 4–5 min hasta que se forme
+                costra en la base.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">4</div>
+              <div class="tip-step-text">
+                <strong>Condimentar:</strong> añadir ajo, pimentón ahumado, soja
+                y revolver. Cocinar 2 min más. La soja absorbe todo el sabor que
+                le agregues.
+              </div>
+            </div>
+            <div class="tip-step">
+              <div class="tip-step-num">5</div>
+              <div class="tip-step-text">
+                <strong>Opcional:</strong> una cucharadita de pasta de tomate o
+                caldo concentrado al final le da profundidad de sabor tipo
+                "ragú".
+              </div>
+            </div>
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              font-size: 10pt;
+              color: var(--muted);
+              background: var(--cream);
+              border-radius: 6px;
+              padding: 8px 10px;
+            "
+          >
+            <strong>Guardado:</strong> 4 días en heladera. Congela excelente por
+            hasta 3 meses. Hacer el doble el domingo y freezar la mitad.
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 5: Cocción</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 26 — TIPS DE COCCIÓN: VEGETALES              -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 5 — Tips de Cocción</div>
+        <h2 class="page-title">Vegetales: cuatro métodos</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          El mismo vegetal preparado distinto tiene sabor completamente
+          diferente. Rotar el método de cocción es la forma más fácil de evitar
+          la monotonía.
+        </p>
+
+        <div class="tip-methods">
+          <div class="tip-method-card">
+            <div class="m-icon">♨️</div>
+            <div class="m-name">Al vapor</div>
+            <div class="m-time">4–8 min</div>
+            <div class="m-tip">
+              Conserva color, textura y nutrientes. Brócoli: 5 min. Zanahoria: 7
+              min. Espárragos: 4 min. Usar vaporera o colador sobre agua
+              hirviendo tapado.
+            </div>
+          </div>
+          <div class="tip-method-card">
+            <div class="m-icon">🔥</div>
+            <div class="m-name">Al horno</div>
+            <div class="m-time">200°C, 20–35 min</div>
+            <div class="m-tip">
+              Caramelización y sabor intenso. Rociar con aceite + sal +
+              especias. Piezas del mismo tamaño para cocción pareja. Vuelta a la
+              mitad del tiempo.
+            </div>
+          </div>
+          <div class="tip-method-card">
+            <div class="m-icon">🍳</div>
+            <div class="m-name">Salteado</div>
+            <div class="m-time">3–7 min</div>
+            <div class="m-tip">
+              Fuego alto, sartén caliente, poco aceite. No llenar la sartén (se
+              cuecen al vapor). Sin mover continuamente: dejar que se dore.
+              Condimentar al final.
+            </div>
+          </div>
+          <div class="tip-method-card">
+            <div class="m-icon">🥗</div>
+            <div class="m-name">Crudo</div>
+            <div class="m-time">Sin cocción</div>
+            <div class="m-tip">
+              Pepino, morrón, tomate, zanahoria rallada, rúcula. Siempre con
+              acidez (limón o vinagre) + sal para realzar el sabor. Brindan
+              frescura y crunch.
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px">
+          <div class="section-label">Tiempos de referencia por vegetal</div>
+          <table class="storage-table" style="margin-top: 8px">
+            <thead>
+              <tr>
+                <th>Vegetal</th>
+                <th>Horno (200°C)</th>
+                <th>Vapor</th>
+                <th>Salteado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="veg-name">Brócoli</td>
+                <td>22–25 min</td>
+                <td>4–5 min</td>
+                <td>5–6 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Coliflor</td>
+                <td>25–30 min</td>
+                <td>5–7 min</td>
+                <td>6–8 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Berenjena (cubos)</td>
+                <td>25–30 min</td>
+                <td>—</td>
+                <td>7–10 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Zucchini (rodajas)</td>
+                <td>18–22 min</td>
+                <td>—</td>
+                <td>4–5 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Hongos (enteros)</td>
+                <td>20–22 min</td>
+                <td>—</td>
+                <td>5–7 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Morrón (tiras)</td>
+                <td>25–30 min</td>
+                <td>—</td>
+                <td>5–7 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Espárragos</td>
+                <td>12–15 min</td>
+                <td>4 min</td>
+                <td>4–5 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Zanahoria (cubos)</td>
+                <td>25–30 min</td>
+                <td>7–8 min</td>
+                <td>8–10 min</td>
+              </tr>
+              <tr>
+                <td class="veg-name">Espinaca / Kale</td>
+                <td>—</td>
+                <td>2–3 min</td>
+                <td>2–4 min</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 5: Cocción</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 27 — TIPS DE COCCIÓN: CEREALES               -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 5 — Tips de Cocción</div>
+        <h2 class="page-title">Cereales: la guía completa</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          Una vez que sabés las proporciones exactas, los cereales salen siempre
+          bien. Sin adivinar, sin revisar.
+        </p>
+
+        <table class="storage-table" style="margin-bottom: 12px">
+          <thead>
+            <tr>
+              <th>Cereal</th>
+              <th>Agua por taza seca</th>
+              <th>Tiempo</th>
+              <th>Rinde</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="veg-name">Quinoa</td>
+              <td>2 tazas agua</td>
+              <td>15 min + reposo 5 min</td>
+              <td>~3 tazas cocida</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Arroz integral</td>
+              <td>2 tazas agua</td>
+              <td>30–35 min tapado</td>
+              <td>~2.5 tazas cocido</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Arroz blanco</td>
+              <td>1.5 tazas agua</td>
+              <td>15–18 min tapado</td>
+              <td>~2.5 tazas cocido</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Burgol</td>
+              <td>1.5 tazas agua hirviendo</td>
+              <td>10 min tapado, sin fuego</td>
+              <td>~2.5 tazas cocido</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Cuscús</td>
+              <td>1 taza agua hirviendo</td>
+              <td>5 min tapado, sin fuego</td>
+              <td>~2 tazas cocido</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Avena arrollada</td>
+              <td>2 tazas agua/leche vegetal</td>
+              <td>5 min a fuego medio</td>
+              <td>~2 tazas cocida</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+          <div class="tip-block">
+            <div class="tip-block-header" style="margin-bottom: 8px">
+              <h4>Quinoa perfecta</h4>
+            </div>
+            <div style="font-size: 10pt; line-height: 1.55; color: var(--dark)">
+              1. Lavar bajo agua fría (elimina la saponina — sabor amargo).<br />
+              2. Hervir con agua y sal. Cuando rompe el hervor, bajar al mínimo
+              y tapar.<br />
+              3. A los 15 min, apagar y dejar reposar 5 min SIN destapar.<br />
+              4. Esponjar con tenedor antes de servir.
+            </div>
+          </div>
+
+          <div class="tip-block">
+            <div class="tip-block-header" style="margin-bottom: 8px">
+              <h4>Arroz que no se pega</h4>
+            </div>
+            <div style="font-size: 10pt; line-height: 1.55; color: var(--dark)">
+              1. Opcional: tostar el arroz en seco 2 min antes de agregar agua.
+              Más sabor.<br />
+              2. Agua hirviendo + sal. Tapar y fuego mínimo.<br />
+              3. No destapar ni mezclar mientras cocina.<br />
+              4. Reposar 5 min tapado antes de servir.
+            </div>
+          </div>
+
+          <div class="tip-block">
+            <div class="tip-block-header" style="margin-bottom: 8px">
+              <h4>Cocinar en caldo</h4>
+            </div>
+            <div style="font-size: 10pt; line-height: 1.55; color: var(--dark)">
+              En lugar de agua, usá caldo de verduras para cocinar cualquier
+              cereal. El resultado es mucho más sabroso y no requiere
+              condimentar después. Especialmente útil para quinoa y arroz.
+            </div>
+          </div>
+
+          <div class="tip-block">
+            <div class="tip-block-header" style="margin-bottom: 8px">
+              <h4>Guardar y recalentar</h4>
+            </div>
+            <div style="font-size: 10pt; line-height: 1.55; color: var(--dark)">
+              Heladera: 5 días en táper hermético. Al recalentar, agregar 1–2
+              cdas de agua antes de microwavear (30 seg, revolver, otro 30 seg).
+              Evita que quede seco.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 5: Cocción</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 28 — GUARDADO DE VEGETALES A-Z               -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 6 — Guardado</div>
+        <h2 class="page-title">Vegetales: cómo guardarlos</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 10px">
+          La clave para no desperdiciar y tener vegetales listos toda la semana.
+        </p>
+
+        <table class="storage-table">
+          <thead>
+            <tr>
+              <th>Vegetal</th>
+              <th>Dónde</th>
+              <th>Duración</th>
+              <th>Tip</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="veg-name">Acelga y espinaca</td>
+              <td>Heladera</td>
+              <td>3–4 días</td>
+              <td>Lavadas y secas en táper con papel. No apilar mucho.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Ajo</td>
+              <td>Temperatura ambiente</td>
+              <td>3–4 semanas</td>
+              <td>En lugar fresco y oscuro, o pelado en frasco en heladera.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Arvejas (frescas)</td>
+              <td>Heladera</td>
+              <td>3–4 días</td>
+              <td>Sin desgranar hasta usar. Congeladas duran 12 meses.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Berenjena</td>
+              <td>Heladera</td>
+              <td>5–7 días cruda</td>
+              <td>Entera, sin cortar. Asada: 3–4 días en táper.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Brócoli</td>
+              <td>Heladera</td>
+              <td>4–5 días crudo</td>
+              <td>En táper sin lavar hasta usar. Cocido: 4 días.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Cebolla</td>
+              <td>Temperatura ambiente</td>
+              <td>2–3 semanas</td>
+              <td>Entera: lugar fresco. Cortada: heladera en táper, 3 días.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Choclo</td>
+              <td>Heladera</td>
+              <td>2–3 días crudo</td>
+              <td>Con chala. Cocido: 3 días. Congelado: 12 meses.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Coliflor</td>
+              <td>Heladera</td>
+              <td>5–7 días cruda</td>
+              <td>Entera o en ramitos en bolsa perforada. Cocida: 4 días.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Espárragos</td>
+              <td>Heladera</td>
+              <td>3–4 días</td>
+              <td>
+                Como flores: en vaso con agua, tapados con bolsa plástica.
+              </td>
+            </tr>
+            <tr>
+              <td class="veg-name">Hongos</td>
+              <td>Heladera</td>
+              <td>5–7 días</td>
+              <td>En bolsa de papel (no plástico — se condensan). Crudos.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Kale</td>
+              <td>Heladera</td>
+              <td>5–7 días</td>
+              <td>Muy resistente. En bolsa o táper. Puede ir lavado y seco.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Lechuga / Rúcula</td>
+              <td>Heladera</td>
+              <td>3–5 días</td>
+              <td>
+                Lavada, centrifugada y en táper con papel. No mojar de más.
+              </td>
+            </tr>
+            <tr>
+              <td class="veg-name">Morrón</td>
+              <td>Heladera</td>
+              <td>5–7 días crudo</td>
+              <td>Entero, sin cortar. Asado con aceite: 5 días en frasco.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Pepino</td>
+              <td>Heladera</td>
+              <td>5–7 días</td>
+              <td>Entero. Una vez cortado: 2 días en táper.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Repollo</td>
+              <td>Heladera</td>
+              <td>2 semanas</td>
+              <td>Entero. Cortado en táper: 5–7 días. El más duradero.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Tomate cherry</td>
+              <td>Temperatura ambiente</td>
+              <td>5–7 días</td>
+              <td>
+                No en heladera (pierde sabor y textura). Fuera del sol directo.
+              </td>
+            </tr>
+            <tr>
+              <td class="veg-name">Zanahoria</td>
+              <td>Heladera</td>
+              <td>2–3 semanas</td>
+              <td>Sin tops verdes. En bolsa o táper. Cortada: 5 días.</td>
+            </tr>
+            <tr>
+              <td class="veg-name">Zucchini</td>
+              <td>Heladera</td>
+              <td>5–7 días</td>
+              <td>Entero. Cocido en táper: 4 días.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 6: Guardado</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 29 — GUARDADO: PROTEÍNAS Y CEREALES          -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 6 — Guardado</div>
+        <h2 class="page-title">Proteínas y cereales cocidos</h2>
+        <hr class="divider" />
+
+        <div
+          style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+          "
+        >
+          <div>
+            <div class="section-label" style="margin-bottom: 8px">
+              Proteínas cocidas
+            </div>
+            <table class="storage-table">
+              <thead>
+                <tr>
+                  <th>Proteína</th>
+                  <th>Heladera</th>
+                  <th>Freezer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="veg-name">Tofu cocinado</td>
+                  <td>4–5 días</td>
+                  <td>No recomendado*</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Tempeh cocinado</td>
+                  <td>4–5 días</td>
+                  <td>2–3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Seitán cocido</td>
+                  <td>4–5 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Soja texturizada cocida</td>
+                  <td>4 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Edamame cocido</td>
+                  <td>4 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Lentejas cocidas</td>
+                  <td>5 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Garbanzos cocidos</td>
+                  <td>5 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Porotos cocidos</td>
+                  <td>5 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="font-size: 10pt; color: var(--muted); margin-top: 6px">
+              *Tofu congelado cambia de textura: queda esponjoso. Algunas
+              personas lo prefieren así (absorbe más sabor), pero es diferente.
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label" style="margin-bottom: 8px">
+              Cereales y tubérculos cocidos
+            </div>
+            <table class="storage-table">
+              <thead>
+                <tr>
+                  <th>Base</th>
+                  <th>Heladera</th>
+                  <th>Freezer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="veg-name">Quinoa</td>
+                  <td>5 días</td>
+                  <td>2 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Arroz</td>
+                  <td>5 días</td>
+                  <td>2 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Burgol</td>
+                  <td>5 días</td>
+                  <td>2 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Cuscús</td>
+                  <td>4–5 días</td>
+                  <td>2 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Avena cocida</td>
+                  <td>3–4 días</td>
+                  <td>2 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Batata cocida</td>
+                  <td>4–5 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Papa cocida</td>
+                  <td>4–5 días</td>
+                  <td>3 meses ✓</td>
+                </tr>
+                <tr>
+                  <td class="veg-name">Polenta</td>
+                  <td>4 días</td>
+                  <td>2 meses ✓</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-bottom: 10px">
+          <strong>Regla de los tápers:</strong> guardar en porciones
+          individuales (una porción = una comida). Así abrís y servís sin
+          pensar. Los tápers de vidrio son mejores que los de plástico para
+          recalentar.
+        </div>
+
+        <div
+          style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px"
+        >
+          <div
+            class="card card-green"
+            style="padding: 10px 12px; text-align: center"
+          >
+            <div style="font-size: 16pt; margin-bottom: 4px">🌡️</div>
+            <div style="font-size: 11pt; font-weight: 700; color: var(--green)">
+              Enfriar antes de guardar
+            </div>
+            <div style="font-size: 10pt; color: var(--muted); margin-top: 3px">
+              No meter caliente en heladera. Esperar 30 min o poner el táper en
+              agua fría.
+            </div>
+          </div>
+          <div
+            class="card card-yellow"
+            style="padding: 10px 12px; text-align: center"
+          >
+            <div style="font-size: 16pt; margin-bottom: 4px">🏷️</div>
+            <div style="font-size: 11pt; font-weight: 700; color: #7a5f00">
+              Etiquetar siempre
+            </div>
+            <div style="font-size: 10pt; color: var(--muted); margin-top: 3px">
+              Nombre + fecha en cinta de papel. Lo que no tiene fecha se "come
+              luego" y termina en la basura.
+            </div>
+          </div>
+          <div class="card" style="padding: 10px 12px; text-align: center">
+            <div style="font-size: 16pt; margin-bottom: 4px">🔄</div>
+            <div style="font-size: 11pt; font-weight: 700; color: var(--dark)">
+              FIFO (First In, First Out)
+            </div>
+            <div style="font-size: 10pt; color: var(--muted); margin-top: 3px">
+              Poner lo más nuevo atrás. Usar primero lo que tiene menos días.
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 6: Guardado</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 30 — GUÍA DE FREEZER                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 6 — Guardado</div>
+        <h2 class="page-title">El freezer: tu mejor aliado</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 12px">
+          El freezer multiplica el domingo. Lo que cocinás de más esta semana se
+          convierte en el rescate de la semana que viene.
+        </p>
+
+        <div class="freezer-grid">
+          <div class="freezer-si">
+            <div class="freezer-title">✅ Sí va al freezer</div>
+            <div class="freezer-item">
+              <strong>Legumbres cocidas</strong>
+              <span>— en porciones de 150g. 3 meses.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Soja texturizada cocida</strong>
+              <span>— 3 meses. Regenerar en sartén.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Tempeh cocinado</strong>
+              <span>— 2–3 meses. En porciones planas.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Seitán</strong>
+              <span>— 3 meses. En bolsa con líquido de cocción.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Arroz, quinoa, burgol cocidos</strong>
+              <span>— 2 meses. En porciones.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Batata y papa cocidas</strong>
+              <span>— 3 meses. En cubos o aplastadas.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Brócoli y coliflor</strong>
+              <span>— blanquear antes 2 min, luego freezar. 3 meses.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Choclo desgranado</strong>
+              <span>— directo al freezer, sin cocinar. 12 meses.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Tomate procesado / salsa</strong>
+              <span>— 3 meses en porciones pequeñas.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Ajo pelado</strong>
+              <span>— entero o rallado. 12 meses. Usar directo congelado.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Jengibre fresco</strong>
+              <span>— rallado directo congelado. 12 meses.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Hierbas frescas picadas</strong>
+              <span>— en cubetas con aceite. 3 meses.</span>
+            </div>
+          </div>
+
+          <div class="freezer-no">
+            <div class="freezer-title">❌ No va al freezer</div>
+            <div class="freezer-item">
+              <strong>Pepino, lechuga y rúcula</strong>
+              <span>— pierden toda la textura.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Tomates crudos enteros</strong>
+              <span>— quedan blandos y acuosos.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Palta entera</strong>
+              <span>— se oxida y cambia de textura. Guacamole sí puede.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Tofu sin cocinar</strong>
+              <span
+                >— cambia textura (queda esponjoso). Si querés eso, podés
+                congelarlo intencionalmente.</span
+              >
+            </div>
+            <div class="freezer-item">
+              <strong>Papas crudas</strong>
+              <span>— forman cristales. Solo cocidas.</span>
+            </div>
+            <div class="freezer-item">
+              <strong>Cebolla y morrón crudos</strong>
+              <span>— quedan blandos. Cocidos sí van.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top: 12px">
+          <strong>Cómo desconglar:</strong> pasar la noche anterior a la
+          heladera (el método más seguro). Para cereales y legumbres: directo al
+          microondas 2–3 minutos. Para proteínas: sartén a fuego medio con un
+          chorrito de agua.
+        </div>
+
+        <div
+          style="
+            margin-top: 10px;
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border);
+          "
+        >
+          <div
+            style="
+              font-size: 10pt;
+              font-weight: 700;
+              color: var(--dark);
+              margin-bottom: 6px;
+            "
+          >
+            Cómo etiquetar el freezer
+          </div>
+          <div style="font-size: 10pt; color: var(--muted); line-height: 1.55">
+            Usá masking tape o etiquetas. Escribí:
+            <strong>nombre · fecha de entrada · fecha límite</strong>. Ejemplo:
+            <em>"Lentejas · 22/3 · hasta 22/6"</em>. Sin esto, el freezer se
+            convierte en un misterio de tápers sin identificar.
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 6: Guardado</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 31 — PLANNER SEMANAL IMPRIMIBLE              -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner white-bg">
+        <div class="section-label">Parte 7 — Herramientas</div>
+        <h2 class="page-title">Planner semanal</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 10px">
+          Completalo el domingo después de cocinar. Anotar lo que tenés
+          preparado ya es la mitad del trabajo.
+        </p>
+
+        <table class="planner-table">
+          <thead>
+            <tr>
+              <th class="meal-col">Comida</th>
+              <th>Lunes</th>
+              <th>Martes</th>
+              <th>Miércoles</th>
+              <th>Jueves</th>
+              <th>Viernes</th>
+              <th>Sábado</th>
+              <th>Domingo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="meal-label">Desayuno</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="meal-label">Almuerzo</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="meal-label">Merienda</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="meal-label">Cena</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          style="
+            margin-top: 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+          "
+        >
+          <div class="section-label" style="margin-bottom: 8px">
+            Lo que cocinaste este domingo
+          </div>
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px"
+          >
+            <div>
+              <div
+                style="
+                  font-size: 11pt;
+                  font-weight: 700;
+                  color: var(--green);
+                  margin-bottom: 6px;
+                "
+              >
+                🍢 Proteínas
+              </div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+            </div>
+            <div>
+              <div
+                style="
+                  font-size: 11pt;
+                  font-weight: 700;
+                  color: var(--green);
+                  margin-bottom: 6px;
+                "
+              >
+                🌾 Cereales/Bases
+              </div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+            </div>
+            <div>
+              <div
+                style="
+                  font-size: 11pt;
+                  font-weight: 700;
+                  color: var(--green);
+                  margin-bottom: 6px;
+                "
+              >
+                🥣 Salsas listas
+              </div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+              <div
+                style="
+                  border-bottom: 1px solid var(--border);
+                  height: 32px;
+                  margin-bottom: 8px;
+                "
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="planner-note">
+          Tip: no planifiques todo al detalle — solo anotá qué tenés listo. Con
+          esa info podés improvisar en el momento sin pensar desde cero.
+        </p>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 7: Herramientas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 32 — LISTA DE COMPRAS MAESTRA                -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 7 — Herramientas</div>
+        <h2 class="page-title">Lista de compras maestra</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 10px">
+          Tachá lo que ya tenés, circulá lo que necesitás comprar. Una compra
+          semanal bien hecha = una semana resuelta.
+        </p>
+
+        <div class="shop-grid">
+          <div class="shop-section">
+            <div class="shop-section-title">🍢 Proteínas</div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Tofu firme
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Tempeh
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Seitán
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Soja texturizada fina
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Edamame congelado
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Lentejas (rojas o verdes)
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Garbanzos (secos o lata)
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Porotos negros (secos o lata)
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Arvejas congeladas
+            </div>
+          </div>
+
+          <div class="shop-section">
+            <div class="shop-section-title">🥦 Vegetales frescos</div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Espinaca
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Rúcula o lechuga
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Kale
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Brócoli
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Zucchini
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Berenjena
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Morrón
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Tomate cherry
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Pepino
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Hongos
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Zanahoria
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Repollo
+            </div>
+          </div>
+
+          <div class="shop-section">
+            <div class="shop-section-title">🌾 Cereales y bases</div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Quinoa
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Arroz integral
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Burgol
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Cuscús
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Avena arrollada
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Batata
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Papa
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Polenta
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Tortillas integrales
+            </div>
+          </div>
+
+          <div class="shop-section">
+            <div class="shop-section-title">🥑 Grasas y salsas</div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Palta
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Aceitunas
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Aceite de oliva
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Aceite de sésamo
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Tahini
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Mantequilla de maní natural
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Nueces o maní
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Semillas (sésamo, girasol)
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Salsa de soja / tamari
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Miel de maple
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 7: Herramientas</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="page-inner cream-bg">
+        <div class="section-label">Parte 7 — Herramientas</div>
+        <h2 class="page-title">Lista de compras maestra</h2>
+        <hr class="divider" />
+        <p style="font-size: 10pt; color: var(--muted); margin-bottom: 10px">
+          Tachá lo que ya tenés, circulá lo que necesitás comprar. Una compra
+          semanal bien hecha = una semana resuelta.
+        </p>
+
+        <div class="shop-grid">        
+
+          <div class="shop-section">
+            <div class="shop-section-title">🧂 Aromáticos y condimentos</div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Ajo (cabeza)
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Cebolla
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Jengibre fresco
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Limones
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Pimentón ahumado
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Cúrcuma y comino
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Mostaza de Dijon
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Vinagre de manzana
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Levadura nutricional
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Caldo de verduras
+            </div>
+          </div>
+
+          <div class="shop-section">
+            <div class="shop-section-title">📦 Despensa básica</div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Leche vegetal (avena/soja)
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Pasta de tomate
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Tomates perita en lata
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Leche de coco en lata
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Curry en polvo
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Almidón de maíz
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Salsa teriyaki vegana
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Papel de cocina
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Bolsas para freezer
+            </div>
+            <div class="shop-item">
+              <div class="checkbox"></div>
+              Etiquetas o masking tape
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <span class="pf-brand">La Semana Vegana</span>
+          <span>Pasaporte Plant-Based · Parte 7: Herramientas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- PÁGINA 33 — CIERRE                                  -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="page">
+      <div class="closing-page">
+        <div class="closing-icon">🌿</div>
+        <blockquote>
+          "La semana vegana no es una dieta.<br />
+          Es saber que en un rato del Domingo <br />
+          tenés la comida resuelta<br />
+          <em>para toda la semana."</em>
+        </blockquote>
+        <div
+          style="
+            width: 40px;
+            height: 2px;
+            background: rgba(244, 200, 66, 0.4);
+            margin: 20px auto;
+          "
+        ></div>
+        <p
+          style="
+            font-size: 10pt;
+            color: rgba(245, 239, 228, 0.6);
+            max-width: 300px;
+            line-height: 1.6;
+            margin-bottom: 28px;
+            position: relative;
+            z-index: 2;
+            text-align: center;
+          "
+        >
+          Ahora que tenés el sistema, el siguiente paso es arrancarlo. Elegí un
+          domingo, ponés a hervir los cereales, y de ahí en adelante la semana
+          se organiza sola.
+        </p>
+        <div class="closing-brand">Pasaporte Plant-Based</div>
+        <div class="closing-url">pasaporteplantbased.com</div>
+        <div
+          style="
+            position: absolute;
+            bottom: 14mm;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+          "
+        >
+          <div
+            style="
+              font-size: 11pt;
+              color: rgba(245, 239, 228, 0.4);
+              letter-spacing: 0.1em;
+              text-align: center;
+            "
+          >
+            La Semana Vegana — Guía de organización de cocina<br />
+            © Pasaporte Plant-Based · Todos los derechos reservados
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

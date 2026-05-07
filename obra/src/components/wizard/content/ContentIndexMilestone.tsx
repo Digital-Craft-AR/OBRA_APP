@@ -141,6 +141,7 @@ export function ContentIndexMilestone({
                   type="button"
                   variant="primary"
                   size="medium"
+                  data-testid="content-toc-empty-generate-btn"
                   disabled={regenerateDisabled || regenerateLoading}
                   onClick={() => onMainTocChooseGenerate?.()}
                 >
@@ -166,6 +167,7 @@ export function ContentIndexMilestone({
               type="button"
               variant="secondary"
               size="medium"
+              data-testid="content-toc-regenerate-btn"
               onClick={onRegenerateOutline}
               disabled={regenerateDisabled || regenerateLoading}
             >
@@ -182,7 +184,7 @@ export function ContentIndexMilestone({
         ) : null}
 
         {!showMainTocEmptyChoice ? (
-          <ol className="space-y-3">
+          <ol data-testid="content-toc-list" className="space-y-3">
             {tocRows.map((row, index) =>
               usesChapterList ? (
                 <li

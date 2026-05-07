@@ -102,7 +102,7 @@ export function WizardStructurePage() {
           {structureGateError ? <ObraAlert variant="error" title={structureGateError} className="mb-4" /> : null}
 
           {project && !loading ? (
-            <div className="space-y-5">
+            <div className="space-y-5" data-testid={`wizard-structure-step-${flow.innerStepIndex}`}>
               {flow.innerStepIndex === 0 ? (
                 <StructureStepTopic
                   label={t("wizard.structure.topic.label")}
@@ -319,12 +319,14 @@ export function WizardStructurePage() {
             variant="tertiary"
             disabled={flow.innerStepIndex === 0}
             onClick={() => flow.setInnerStepIndex((current) => Math.max(0, current - 1))}
+            data-testid="wizard-structure-prev"
           >
             <ChevronLeft className="size-4" aria-hidden />
             {t("wizard.structure.previous")}
           </Button>
           <Button
             variant="primary"
+            data-testid="wizard-structure-next"
             disabled={
               flow.innerStepIndex === INNER_STEPS.length - 1 ? flow.designSaving : flow.mainTitleSaving
             }

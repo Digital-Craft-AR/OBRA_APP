@@ -29,6 +29,7 @@ export function ContentArtifactTabs({
             key={item.key}
             type="button"
             role="tab"
+            data-testid={`content-tab-${item.key}`}
             aria-selected={isActive}
             onClick={() => onSelect(item.key)}
             className={[

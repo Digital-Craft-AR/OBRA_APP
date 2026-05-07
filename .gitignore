@@ -1,6 +1,3 @@
-# Local ebook examples / reference files (not part of the repo)
-ejemplos_ebooks/
-
 # Figma Make bundle (Vite app under figma_make/)
 figma_make/node_modules/
 

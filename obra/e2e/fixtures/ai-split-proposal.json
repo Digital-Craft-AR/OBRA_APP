@@ -1,0 +1,35 @@
+{
+  "chapters": [
+    {
+      "order": 1,
+      "title": "De la idea al sistema: por qué algunas madres venden y otras no",
+      "start_heading": "La diferencia entre tener ideas y saber ejecutarlas"
+    },
+    {
+      "order": 2,
+      "title": "Investigación de mercado: detectar tendencias y validar nichos",
+      "start_heading": "Capitulo 2"
+    },
+    {
+      "order": 3,
+      "title": "Creación visual con IA: diseño sin ser ilustradora",
+      "start_heading": "Capitulo 3"
+    },
+    {
+      "order": 4,
+      "title": "Estructura y contenido: el libro que los niños quieren usar",
+      "start_heading": "Capitulo 4"
+    },
+    {
+      "order": 5,
+      "title": "Tu identidad y marca: diferenciarte en un mercado lleno de opciones",
+      "start_heading": "Capitulo 5"
+    },
+    {
+      "order": 6,
+      "title": "Publicación y ventas: de Etsy a Amazon KDP con sistema propio",
+      "start_heading": "Capitulo 6"
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "imageId": "00000000-0000-0000-0000-000000000001",
+  "storagePath": "test/fixture-image.png",
+  "signedUrl": "http://localhost:54321/storage/v1/object/sign/project-images/test/fixture-image.png?token=fixture",
+  "credits_balance_after": 800,
+  "aspectRatio": "1:1"
+}

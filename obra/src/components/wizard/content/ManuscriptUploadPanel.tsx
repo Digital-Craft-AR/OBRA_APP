@@ -90,8 +90,14 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
         setLastFailedFile(null);
         const refreshed = await fetchActiveManuscript(projectId);
         if (refreshed.ok && refreshed.row) {
-          setLocalRow(refreshed.row);
-          onManuscriptCommitted(refreshed.row);
+          // The parse response is authoritative for extracted_char_count — the DB row
+          // may be stale (created before text extraction completes) and return 0.
+          const row: ProjectManuscriptRow = {
+            ...refreshed.row,
+            extracted_char_count: refreshed.row.extracted_char_count || result.extracted_char_count,
+          };
+          setLocalRow(row);
+          onManuscriptCommitted(row);
         } else {
           const row: ProjectManuscriptRow = {
             id: result.manuscript_id,
@@ -208,6 +214,7 @@ export function ManuscriptUploadPanel({ t, projectId, initialManuscript, onManus
       <input
         ref={fileInputRef}
         id={inputId}
+        data-testid="manuscript-file-input"
         type="file"
         accept={MANUSCRIPT_ACCEPT}
         className="sr-only"

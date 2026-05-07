@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "chapters": [
+    { "title": "Introducción al negocio digital" },
+    { "title": "Identifica a tu cliente ideal" },
+    { "title": "Define tu propuesta de valor" },
+    { "title": "Crea tu primer producto digital" },
+    { "title": "Estrategias de marketing de contenidos" },
+    { "title": "Lanza tu tienda online" },
+    { "title": "Automatiza tus ventas" },
+    { "title": "Escala tu negocio con IA" }
+  ],
+  "credits_balance_after": 900
+}
