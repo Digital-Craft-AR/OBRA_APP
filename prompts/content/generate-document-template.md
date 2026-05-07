@@ -201,7 +201,7 @@ Todas estas clases las define el CSS del header. Los capítulos (Phase 2) las us
 | `.obra-two-col` | Prose densa o listas de ≥ 6 items | — |
 | `h2`, `h3` | Headings de sección | `break-after: avoid` |
 | `table` | Datos comparativos | `break-inside: avoid` |
-| `.obra-image-slot--chapter` | Slot de imagen contextual | `break-inside: avoid` |
+| `.obra-image-slot--chapter` | (Clase CSS definida, reservada para uso futuro inline en body) | `break-inside: avoid` |
 
 ---
 
@@ -225,7 +225,29 @@ Todas estas clases las define el CSS del header. Los capítulos (Phase 2) las us
 
 ---
 
-## 10. Inyección de imágenes (`injectAll`)
+## 10. Image slots
+
+### Portada
+
+Generado en Phase 1 por el header prompt. Slot `data-slot-key="cover"`, full-bleed (z-index 1), con overlay CSS `::after` para legibilidad del texto.
+
+### Chapter openers (uno por capítulo)
+
+Generado en Phase 2 por el chapter prompt. Cada opener incluye un slot full-bleed:
+
+```html
+<div class="obra-image-slot"
+     data-slot-key="chapter-N-image-1"
+     data-slot-type="chapter"
+     style="position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:hidden;background:transparent">
+</div>
+```
+
+- `background:transparent` → cuando vacío, el fondo de color primario (z-index 0) se ve a través.
+- Cuando se inyecta una imagen, el slot se convierte en full-bleed image sobre el opener.
+- El texto del opener (z-index 3) queda siempre encima.
+
+### Inyección de URLs
 
 Después de recibir el `htmlShell`, el cliente llama a `injectAll()` para reemplazar los image slots con URLs firmadas:
 
@@ -234,7 +256,7 @@ Después de recibir el `htmlShell`, el cliente llama a `injectAll()` para reempl
 injectAll(htmlShell, { images: { "cover": signedUrl, "chapter-1-image-1": signedUrl2 } })
 ```
 
-Los slots tienen `data-slot-key`, `data-slot-type`, y `data-slot-description` (prompt para Gemini). `injectAll` inserta un `<img>` dentro del div cuando hay URL disponible.
+`injectAll` busca `<div ... data-slot-key="{key}" ...></div>` e inserta `<img src="...">` dentro. El slot key en el estado del cliente tiene el formato compuesto `{ebookId}:{slotKey}` y se mapea a la key del HTML al armar `imageUrls`.
 
 ---
 

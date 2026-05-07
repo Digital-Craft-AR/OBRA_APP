@@ -1538,40 +1538,38 @@ Tables — always no-split:
 Image slots:
   .obra-image-slot { display: block; background: var(--color-secondary); overflow: hidden; }
   .obra-image-slot--cover { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  .obra-image-slot--opener { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; background: transparent; }
   .obra-image-slot--chapter { width: 100%; height: 180px; border-radius: 8px; margin: 1.4rem 0; }
   .obra-image-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-═══ COVER PAGE — premium editorial quality is mandatory ═══
+═══ COVER PAGE — FIXED TEMPLATE, copy verbatim ═══
 
-The cover MUST feel like a commercially published book. Use the full design budget.
-Structure: <div class="obra-page obra-cover">
+Copy this EXACT structure. Only fill in: slot description, category label, title, tagline, and author.
+Do NOT change any style, z-index, class, or structural property.
 
-Required elements (z-index layer order):
-  z-index 0 — solid background: background: var(--color-primary)
-  z-index 1 — image slot (will be replaced with a real AI image):
-    <div class="obra-image-slot obra-image-slot--cover" data-slot-key="cover" data-slot-type="cover"
-         data-slot-description="[vivid 2-sentence visual prompt for AI image gen matching the ebook topic and mood]"></div>
-  z-index 2 — gradient overlay for title legibility:
-    a CSS ::after overlay: linear-gradient from transparent at top to rgba(primary,0.85) at bottom
-  z-index 3 — text content wrapper (position: absolute; bottom: 0; left: 0; right: 0; padding: 2.5rem)
-    containing title + author
-
-Decorative shapes (add 2–3 for visual richness):
-  • Large circle: position absolute; top -60px; right -80px; width 300px; height 300px; border-radius 50%;
-    background: rgba(accent, 0.12) or rgba(white, 0.06)
-  • Accent bar: position absolute; bottom Xmm; left 0; width 4px; height 60mm; background: var(--color-accent)
-  • Optional diagonal stripe, second circle, or geometric element in a derived tint
-
-Title typography:
-  font-family: var(--font-heading); font-size: 3rem+; font-weight: 700; color: white; line-height: 1.1
-  Consider letter-spacing: -0.02em for large headings
-
-Author (if present):
-  color: rgba(255,255,255,0.85); font-size: 0.95rem; margin-top: 0.5rem; font-weight: 500
-
-Optional enhancements:
-  • Category/topic badge using var(--color-accent) background — uppercase, letter-spacing, small font
-  • Subtle "Obra" brand mark or decorative line at cover top/bottom
+<div class="obra-page obra-cover">
+  <!-- Layer 0: solid primary color — always visible, serves as background when no image -->
+  <div style="position:absolute;inset:0;background:var(--color-primary);z-index:0;pointer-events:none"></div>
+  <!-- Layer 1: full-bleed cover image -->
+  <div class="obra-image-slot obra-image-slot--cover" data-slot-key="cover" data-slot-type="cover"
+       data-slot-description="[vivid 2-sentence visual for AI image gen — describe mood, setting, and style matching the ebook topic and palette]"
+       style="position:absolute;inset:0;z-index:1"></div>
+  <!-- Layer 2: primary color overlay ~78% — creates dark editorial look over any image -->
+  <div style="position:absolute;inset:0;z-index:2;background:var(--color-primary);opacity:0.78;pointer-events:none"></div>
+  <!-- Layer 3: decorative circles — visual texture -->
+  <div style="position:absolute;top:-80px;right:-100px;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,0.05);z-index:3;pointer-events:none"></div>
+  <div style="position:absolute;bottom:-60px;right:60px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,0.04);z-index:3;pointer-events:none"></div>
+  <div style="position:absolute;top:38%;left:-60px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.04);z-index:3;pointer-events:none"></div>
+  <!-- Layer 3: accent bar at bottom edge -->
+  <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:var(--color-accent);z-index:3;pointer-events:none"></div>
+  <!-- Layer 4: editorial content — bottom-left. Extra bottom padding leaves room for the JS-injected image button. -->
+  <div style="position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem 2.5rem 5.5rem 2.5rem;pointer-events:none">
+    <p style="font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:0.9rem">[TOPIC CATEGORY — 2–3 words]</p>
+    <h1 style="font-family:var(--font-heading);font-size:4.5rem;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-0.03em;margin-bottom:0.9rem">[exact ebook title]</h1>
+    <p style="font-size:1rem;color:rgba(255,255,255,0.7);max-width:380px;line-height:1.55;margin-bottom:0">[1-sentence tagline — core promise of the ebook]</p>
+    [if author present: <p style="margin-top:1.4rem;font-size:0.88rem;color:rgba(255,255,255,0.48);font-weight:500">por [Author Name]</p>]
+  </div>
+</div>
 
 ═══ TOC PAGE ═══
 
@@ -1639,20 +1637,24 @@ export function generateChapterHtmlPrompt(
 
 Generate ONE chapter: opener div + one or more body divs. Include EVERY word of the content verbatim — no omissions, no paraphrasing.
 
-══ OPENER — FIXED TEMPLATE, copy verbatim. Only change chapter number and title. ══
+══ OPENER — FIXED TEMPLATE, copy verbatim. Only replace [chapter title here]. ══
 
 Every chapter opener MUST use this EXACT structure — same shapes, same layout, same z-index stack.
-Do NOT add, remove, or rearrange any element. Do NOT add image slots. Do NOT vary the design.
+Do NOT add, remove, or rearrange any element. Do NOT vary the design.
+All values (id, data-slot-key, span text) are already set — only replace [chapter title here] in the h2.
 
 <div class="obra-page obra-chapter-opener" id="chapter-${vars.chapter_number}">
-  <!-- z-index 0: solid background -->
+  <!-- z-index 0: solid primary background -->
   <div style="position:absolute;inset:0;background:var(--color-primary);z-index:0"></div>
-  <!-- z-index 1: large circle top-right -->
-  <div style="position:absolute;top:-60px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,0.06);z-index:1"></div>
-  <!-- z-index 1: accent bar left -->
-  <div style="position:absolute;bottom:0;left:0;width:5px;height:55%;background:var(--color-accent);z-index:1"></div>
-  <!-- z-index 3: text — always bottom-aligned -->
-  <div style="position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem">
+  <!-- z-index 1: decorative elements — visible through the transparent slot when no image is set -->
+  <div style="position:absolute;top:-60px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,0.06);z-index:1;pointer-events:none"></div>
+  <div style="position:absolute;bottom:0;left:0;width:5px;height:55%;background:var(--color-accent);z-index:1;pointer-events:none"></div>
+  <!-- z-index 2: full-bleed image slot — transparent background so primary shows through when empty -->
+  <div class="obra-image-slot obra-image-slot--opener" data-slot-key="chapter-${vars.chapter_number}-image-1" data-slot-type="chapter" style="z-index:2;background:transparent"></div>
+  <!-- z-index 3: gradient overlay — improves text legibility over any image -->
+  <div style="position:absolute;inset:0;z-index:3;background:linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 60%);pointer-events:none"></div>
+  <!-- z-index 4: text — bottom-left. Extra bottom padding leaves room for the JS-injected image button. -->
+  <div style="position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem 2.5rem 5.5rem 2.5rem">
     <span style="display:block;font-family:var(--font-heading);font-size:4.5rem;line-height:1;color:var(--color-accent);font-weight:700">${chapter} ${numPadded}</span>
     <h2 style="font-family:var(--font-heading);font-size:2rem;font-weight:700;color:white;line-height:1.2;margin-top:0.6rem;max-width:80%;border:none;padding:0">[chapter title here]</h2>
   </div>
@@ -1663,7 +1665,10 @@ Do NOT add, remove, or rearrange any element. Do NOT add image slots. Do NOT var
 ══ BODY ══
 <div class="obra-page obra-body">
 
-Convert chapter content into rich editorial HTML using these CSS classes actively:
+⚠️ The FIRST element inside every .obra-body MUST be this image slot — copy verbatim, do not change anything:
+<div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-image-2" data-slot-type="chapter"></div>
+
+Then convert chapter content into rich editorial HTML using these CSS classes actively:
 
   obra-callout — for key concepts, tips, warnings, definitions
     ⚠️ BREAK SAFETY: keep each callout ≤ 4 lines. break-inside: avoid only works if the element fits within one page.

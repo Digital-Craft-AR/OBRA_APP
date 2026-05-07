@@ -135,11 +135,10 @@ export async function ensureContentWorkspace(projectId: string): Promise<
 
   const phase = proj.content_source === "upload" ? "upload_alignment" : "main_index";
 
-  const { error: progInsertErr } = await supabase.from("project_content_progress").insert({
-    project_id: projectId,
-    current_phase: phase,
-  });
-  if (progInsertErr && progInsertErr.code !== "23505") {
+  const { error: progInsertErr } = await supabase
+    .from("project_content_progress")
+    .upsert({ project_id: projectId, current_phase: phase }, { onConflict: "project_id", ignoreDuplicates: true });
+  if (progInsertErr) {
     return { ok: false, code: "db_error" };
   }
 

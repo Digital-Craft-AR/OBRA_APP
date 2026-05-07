@@ -23,16 +23,18 @@ const SLOT_UI_CSS = `
   overflow: hidden !important;
   cursor: pointer !important;
 }
-.obra-image-slot:not(.obra-image-slot--cover) {
+/* Body-banner slots flow in the normal document; cover and opener slots are abs-pos full-bleed. */
+.obra-image-slot:not(.obra-image-slot--cover):not(.obra-image-slot--opener) {
   position: relative !important;
 }
-/* Cover: ensure position:relative on the page so the abs-pos slot renders correctly
-   even when the shell's own rule was accidentally scoped inside @media screen. */
-.obra-page.obra-cover {
+/* Ensure the page container establishes a stacking context for abs-pos slots. */
+.obra-page.obra-cover,
+.obra-page.obra-chapter-opener {
   position: relative !important;
   overflow: hidden !important;
 }
-.obra-image-slot--cover {
+.obra-image-slot--cover,
+.obra-image-slot--opener {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -40,7 +42,8 @@ const SLOT_UI_CSS = `
   display: block !important;
   overflow: hidden !important;
 }
-.obra-image-slot--cover img {
+.obra-image-slot--cover img,
+.obra-image-slot--opener img {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -106,6 +109,37 @@ const SLOT_UI_CSS = `
 .obra-slot-btn--upload  { background: #ffffff; color: #0f172a; }
 .obra-slot-btn--generate { background: #c8e62b; color: #0f172a; }
 .obra-slot-btn--remove  { background: rgba(255,255,255,0.12); color: #ffffff; border: 1px solid rgba(255,255,255,0.28); }
+/* Permanent floating image-action buttons for cover and chapter opener pages */
+.obra-page-img-btn {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  z-index: 200;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.obra-page-img-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.1s ease, opacity 0.15s;
+}
+.obra-page-img-pill:hover { transform: scale(1.04); }
+.obra-page-img-pill--upload { background: rgba(255,255,255,0.88); color: #0f172a; }
+.obra-page-img-pill--generate { background: rgba(200,230,43,0.92); color: #0f172a; }
+.obra-page-img-pill--remove { background: rgba(255,255,255,0.18); color: #ffffff; border: 1px solid rgba(255,255,255,0.35); }
 </style>`;
 
 const SLOT_UI_JS = `
@@ -113,6 +147,64 @@ const SLOT_UI_JS = `
 (function() {
   var UPLOAD_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
   var CAM_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2" ry="2"/><circle cx="12" cy="13" r="3"/><path d="M9 6l1.5-2.5h3L15 6"/></svg>';
+
+  function makeFileInput(key) {
+    var fi = document.createElement('input');
+    fi.type = 'file';
+    fi.accept = 'image/jpeg,image/png,image/webp';
+    fi.style.display = 'none';
+    fi.addEventListener('change', function() {
+      var file = fi.files && fi.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        window.parent.postMessage({
+          type: 'obra:slot:file',
+          slotKey: key,
+          dataUrl: ev.target.result,
+          fileName: file.name,
+          mimeType: file.type
+        }, '*');
+      };
+      reader.readAsDataURL(file);
+      fi.value = '';
+    });
+    return fi;
+  }
+
+  /* Adds a permanent pill-button group to a cover or opener page element. */
+  function addPageImgBtn(page, key, hasImg) {
+    if (page.dataset.imgBtnAdded) return;
+    page.dataset.imgBtnAdded = '1';
+    var fi = makeFileInput(key);
+    page.appendChild(fi);
+    var group = document.createElement('div');
+    group.className = 'obra-page-img-btn';
+    var uploadBtn = document.createElement('button');
+    uploadBtn.className = 'obra-page-img-pill obra-page-img-pill--upload';
+    uploadBtn.innerHTML = UPLOAD_ICON + ' Subir imagen';
+    uploadBtn.addEventListener('click', function(e) { e.stopPropagation(); fi.click(); });
+    group.appendChild(uploadBtn);
+    var genBtn = document.createElement('button');
+    genBtn.className = 'obra-page-img-pill obra-page-img-pill--generate';
+    genBtn.innerHTML = '✦ Generar con IA';
+    genBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      window.parent.postMessage({ type: 'obra:slot:generate', slotKey: key }, '*');
+    });
+    group.appendChild(genBtn);
+    if (hasImg) {
+      var removeBtn = document.createElement('button');
+      removeBtn.className = 'obra-page-img-pill obra-page-img-pill--remove';
+      removeBtn.innerHTML = '✕ Eliminar';
+      removeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.parent.postMessage({ type: 'obra:slot:remove', slotKey: key }, '*');
+      });
+      group.appendChild(removeBtn);
+    }
+    page.appendChild(group);
+  }
 
   function enhanceSlots() {
     document.querySelectorAll('.obra-image-slot').forEach(function(slot) {
@@ -123,7 +215,21 @@ const SLOT_UI_JS = `
       if (!key) return;
       var hasImg = !!slot.querySelector('img');
 
-      // Placeholder when no image
+      /* Cover: permanent button on the page — no hover overlay needed */
+      if (slot.classList.contains('obra-image-slot--cover')) {
+        var coverPage = slot.closest('.obra-cover');
+        if (coverPage) addPageImgBtn(coverPage, key, hasImg);
+        return;
+      }
+
+      /* Chapter opener: permanent button on the page — no hover overlay needed */
+      if (slot.classList.contains('obra-image-slot--opener')) {
+        var openerPage = slot.closest('.obra-chapter-opener');
+        if (openerPage) addPageImgBtn(openerPage, key, hasImg);
+        return;
+      }
+
+      /* Regular body-banner slot: placeholder + hover overlay */
       if (!hasImg) {
         var ph = document.createElement('div');
         ph.className = 'obra-slot-placeholder';
@@ -131,31 +237,10 @@ const SLOT_UI_JS = `
         slot.appendChild(ph);
       }
 
-      // Overlay
       var overlay = document.createElement('div');
       overlay.className = 'obra-slot-overlay';
 
-      // Hidden file input
-      var fi = document.createElement('input');
-      fi.type = 'file';
-      fi.accept = 'image/jpeg,image/png,image/webp';
-      fi.style.display = 'none';
-      fi.addEventListener('change', function() {
-        var file = fi.files && fi.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          window.parent.postMessage({
-            type: 'obra:slot:file',
-            slotKey: key,
-            dataUrl: ev.target.result,
-            fileName: file.name,
-            mimeType: file.type
-          }, '*');
-        };
-        reader.readAsDataURL(file);
-        fi.value = '';
-      });
+      var fi = makeFileInput(key);
       overlay.appendChild(fi);
 
       var uploadBtn = document.createElement('button');

@@ -23,20 +23,25 @@
 
 ---
 
-### SQL — Columnas `book_template_id` y `layout_page_assignments` en `projects`
+### Edge Function — Redeploy `generate-document-template` (chapter opener image slots)
 
-**Migración:** `supabase/migrations/20260419100000_projects_book_template_layout_assignments.sql`  
-**Dónde:** Supabase Dashboard → SQL Editor
-
-```sql
-alter table public.projects
-  add column if not exists book_template_id text;
-
-alter table public.projects
-  add column if not exists layout_page_assignments jsonb not null default '{}'::jsonb;
+```bash
+npx supabase functions deploy generate-document-template --project-ref spmnqozkpjhcskxnavbf
 ```
 
-**Por qué:** el frontend lee estas columnas al cargar el wizard. Sin ellas aparece el error `column projects.book_template_id does not exist` en consola.
+**Qué cambió:** el template del chapter opener ahora incluye un image slot full-bleed (`data-slot-key="chapter-N-image-1"`) igual que la portada. Los shells existentes en cache no se actualizan solos — se regeneran la próxima vez que el contenido cambia o el usuario hace click en "Volver a intentar".
+
+---
+
+### Railway worker — Eliminar referencia a `layout_page_assignments`
+
+**Urgencia:** bloqueante (el PDF export falla con `column projects.layout_page_assignments does not exist`)
+
+**Qué pasó:** la columna `layout_page_assignments` fue agregada en `20260419100000` y **eliminada** en `20260509000000_drop_layout_page_assignments.sql`. El frontend y las Edge Functions ya no la referencian. Sin embargo el **Railway worker** (servicio externo que procesa los `pdf_export_jobs`) todavía la consulta en su `SELECT` sobre `projects`.
+
+**Fix necesario:** en el repositorio del Railway worker, eliminar `layout_page_assignments` del `SELECT` que carga el proyecto antes de generar el PDF.
+
+**Cómo verificar:** el error aparece en `pdf_export_jobs.error_message` de los jobs fallidos.
 
 ---
 

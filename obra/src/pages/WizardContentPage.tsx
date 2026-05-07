@@ -1040,8 +1040,13 @@ export function WizardContentPage() {
 
 
   const handleGenerateChapter = useCallback(async () => {
-    const current = chapterRows[chapterIdx];
-    if (!current || !project?.id) return;
+    if (!project?.id || !selectedEbookId) return;
+    // Always reload from DB to guard against stale chapter IDs in React state.
+    const freshDraft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!freshDraft.ok || freshDraft.rows.length === 0) return;
+    const current = freshDraft.rows[chapterIdx] ?? freshDraft.rows[0];
+    if (!current) return;
+    setChapterRows(freshDraft.rows);
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
@@ -1099,7 +1104,7 @@ export function WizardContentPage() {
     setChapterRichTextKey((k) => k + 1);
     void refreshChapterBodyPresence();
     setChapterSuccessMessage(t("wizard.content.chapters.generateSuccess"));
-  }, [chapterRows, chapterIdx, project?.id, t, refreshChapterBodyPresence, selectedKey]);
+  }, [chapterIdx, project?.id, selectedEbookId, t, refreshChapterBodyPresence, selectedKey]);
 
   const handleApproveChapter = useCallback(async () => {
     const current = chapterRows[chapterIdx];
@@ -1477,7 +1482,7 @@ export function WizardContentPage() {
 
   // ── Auto-generate all chapters for current artifact — parallel + streaming ─────
   const handleGenerateAllChapters = useCallback(async () => {
-    if (!project?.id) return;
+    if (!project?.id || !selectedEbookId) return;
     if (autoGenerating) {
       autoGenerateAbortRef.current = true;
       return;
@@ -1488,7 +1493,17 @@ export function WizardContentPage() {
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
 
-    const snapshot = [...chapterRows];
+    // Reload from DB to guard against stale chapter IDs in React state.
+    const freshDraft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!freshDraft.ok) {
+      setAutoGenerating(false);
+      toastApiFailure(t, "wizard.content.chapters.errorGenerateGeneric");
+      return;
+    }
+    if (freshDraft.rows.length > 0) {
+      setChapterRows(freshDraft.rows);
+    }
+    const snapshot = freshDraft.rows;
     const pending = snapshot.filter((ch) => isChapterHtmlEffectivelyEmpty(ch.content ?? ""));
     const currentChapterId = snapshot[chapterIdx]?.id;
 
@@ -1551,7 +1566,7 @@ export function WizardContentPage() {
     setAutoGenerateCurrent(0);
     setChapterGenerateLoading(false);
     autoGenerateAbortRef.current = false;
-  }, [project?.id, chapterRows, chapterIdx, autoGenerating, t, refreshChapterBodyPresence]);
+  }, [project?.id, chapterRows, chapterIdx, selectedEbookId, autoGenerating, t, refreshChapterBodyPresence]);
 
   // ── Approve all chapters in the current artifact ──────────────────────────────
   const handleApproveArtifact = useCallback(async () => {
