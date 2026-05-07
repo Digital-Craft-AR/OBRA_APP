@@ -2,6 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 
 /**
  * Generates or regenerates a cover/section image for a project deliverable.
@@ -188,11 +190,26 @@ Deno.serve(async (req: Request) => {
   if (!projectId || !slotKey) {
     return json({ error: "missing_params", detail: "projectId + slotKey required" }, 400);
   }
-  if (slotKey === "hero" && (!ebookId || !chapterId)) {
-    return json({ error: "missing_params", detail: "ebookId + chapterId required for hero slot" }, 400);
+  if (slotKey === "cover_art" && !ebookId) {
+    return json({ error: "missing_params", detail: "ebookId required for cover_art" }, 400);
+  }
+  if (slotKey !== "cover_art" && (!ebookId || !chapterId)) {
+    return json({ error: "missing_params", detail: "ebookId + chapterId required for chapter slots" }, 400);
   }
 
   const admin = createClient(url, serviceKey);
+
+  const { data: profileRow } = await admin
+    .from("creator_profiles")
+    .select("subscription_status, subscription_access_until")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!isSubscriptionEntitled(profileRow as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
+    return json({ error: "subscription_not_active" }, 403);
+  }
+
+  const rl = await checkRateLimit(admin, userId, "image-generate");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   // Load project (verify ownership)
   const { data: project, error: projErr } = await admin
@@ -219,16 +236,17 @@ Deno.serve(async (req: Request) => {
   // Instead: try SELECT first, then UPDATE or INSERT.
   let imageId: string;
   {
-    const isCover = slotKey === "cover_art" && !ebookId && !chapterId;
+    const isCover = slotKey === "cover_art";
     let existingId: string | null = null;
 
     if (isCover) {
+      // ebookId is validated above; each ebook has its own cover row.
       const { data } = await admin
         .from("project_images")
         .select("id")
         .eq("project_id", projectId)
         .eq("slot_key", slotKey)
-        .is("ebook_id", null)
+        .eq("ebook_id", ebookId)
         .is("chapter_id", null)
         .maybeSingle();
       existingId = (data as { id: string } | null)?.id ?? null;
@@ -279,8 +297,20 @@ Deno.serve(async (req: Request) => {
   const aspectRatio = slotAspectRatio(slotKey);
   let prompt: string;
   if (slotKey === "cover_art") {
+    // Load this ebook's title so each deliverable gets its own cover prompt.
+    let coverTitle = typeof project.main_title === "string" ? project.main_title : "Ebook";
+    if (ebookId) {
+      const { data: ebookRow } = await admin
+        .from("ebooks")
+        .select("title")
+        .eq("id", ebookId)
+        .maybeSingle();
+      if (typeof (ebookRow as { title?: string } | null)?.title === "string") {
+        coverTitle = (ebookRow as { title: string }).title;
+      }
+    }
     prompt = buildCoverPrompt({
-      title: typeof project.main_title === "string" ? project.main_title : "Ebook",
+      title: coverTitle,
       author: typeof project.author === "string" ? project.author : null,
       imageStyle,
       primaryColor,
@@ -333,10 +363,10 @@ Deno.serve(async (req: Request) => {
     return json({ error: "storage_upload_failed" }, 500);
   }
 
-  // Mark done
+  // Mark done — persist the prompt for traceability and future "regenerate with same prompt"
   await admin
     .from("project_images")
-    .update({ status: "done", storage_path: storagePath, updated_at: new Date().toISOString() })
+    .update({ status: "done", storage_path: storagePath, prompt, updated_at: new Date().toISOString() })
     .eq("id", imageId);
 
   // Deduct credits on success
@@ -346,11 +376,18 @@ Deno.serve(async (req: Request) => {
     p_reason: "consumption",
     p_idempotency_key: `image_generate:v1:${imageId}`,
     p_project_id: projectId,
+    p_source_function: "image-generate",
   });
 
   if (rpcErr) {
     // Non-fatal: image is already uploaded. Log and continue.
-    console.error("obra_credit_ledger_apply", rpcErr);
+    const rpcMsg = rpcErr.message ?? "";
+    if (rpcMsg.includes("subscription not active")) {
+      // Cancelled user slipped through mid-session; image served but credits not deducted.
+      console.warn("image_generate_credit_skip_subscription_not_active", { userId, imageId });
+    } else {
+      console.error("obra_credit_ledger_apply", rpcErr);
+    }
   }
 
   // Return signed URL (1 hour expiry)

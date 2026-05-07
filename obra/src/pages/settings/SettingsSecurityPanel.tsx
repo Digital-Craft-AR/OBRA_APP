@@ -5,6 +5,7 @@ import type { UserIdentity } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 import { inputFieldClass } from "@/lib/uiClasses";
+import { toast } from "@/toast";
 
 type Props = {
   userEmail: string | null | undefined;
@@ -22,7 +23,6 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [newEmail, setNewEmail] = useState("");
@@ -30,7 +30,6 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
   const [emailChangePassword, setEmailChangePassword] = useState("");
   const [showEmailChangePassword, setShowEmailChangePassword] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
-  const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const reloadIdentities = useCallback(async () => {
@@ -81,7 +80,6 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
 
   async function onEmailChangeSubmit() {
     if (busy) return;
-    setEmailMessage(null);
     setEmailError(null);
     const next = newEmail.trim();
     const confirm = confirmNewEmail.trim();
@@ -120,7 +118,7 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
       });
       if (signErr) {
         setEmailBusy(false);
-        setEmailError(t("settings.security.currentWrong"));
+        toast.error({ title: t("settings.security.currentWrong") });
         return;
       }
     }
@@ -128,18 +126,17 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
     const { error: upErr } = await supabase.auth.updateUser({ email: next });
     setEmailBusy(false);
     if (upErr) {
-      setEmailError(mapEmailChangeError(upErr.message));
+      toast.error({ title: mapEmailChangeError(upErr.message), description: t("toast.api.genericHint") });
       return;
     }
     setNewEmail("");
     setConfirmNewEmail("");
     setEmailChangePassword("");
-    setEmailMessage(t("settings.security.emailChangeSent"));
+    toast.success({ title: t("settings.security.emailChangeSent") });
   }
 
   async function onPasswordSubmit() {
     if (emailBusy) return;
-    setMessage(null);
     setError(null);
     if (newPassword.length < 8) {
       setError(t("settings.security.passwordTooShort"));
@@ -168,7 +165,7 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
       });
       if (signErr) {
         setBusy(false);
-        setError(t("settings.security.currentWrong"));
+        toast.error({ title: t("settings.security.currentWrong") });
         return;
       }
     }
@@ -176,18 +173,17 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
     const { error: upErr } = await supabase.auth.updateUser({ password: newPassword });
     setBusy(false);
     if (upErr) {
-      setError(upErr.message);
+      toast.error({ title: t("settings.security.passwordUpdateFailed"), description: t("toast.api.genericHint") });
       return;
     }
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setMessage(t("settings.security.passwordUpdated"));
+    toast.success({ title: t("settings.security.passwordUpdated") });
     void reloadIdentities();
   }
 
   async function onUnlink(identity: UserIdentity) {
-    setMessage(null);
     setError(null);
     if (!canUnlinkOAuth) {
       setError(t("settings.security.unlinkBlocked"));
@@ -197,15 +193,14 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
     const { error: unlinkErr } = await supabase.auth.unlinkIdentity(identity);
     setBusy(false);
     if (unlinkErr) {
-      setError(unlinkErr.message);
+      toast.error({ title: t("settings.security.unlinkFailed"), description: t("toast.api.genericHint") });
       return;
     }
-    setMessage(t("settings.security.unlinked"));
+    toast.success({ title: t("settings.security.unlinked") });
     void reloadIdentities();
   }
 
   async function onLinkGoogle() {
-    setMessage(null);
     setError(null);
     setBusy(true);
     const redirectTo = `${window.location.origin}/auth/callback`;
@@ -215,7 +210,7 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
     });
     setBusy(false);
     if (linkErr) {
-      setError(linkErr.message);
+      toast.error({ title: t("settings.security.linkFailed"), description: t("toast.api.genericHint") });
     }
   }
 
@@ -309,11 +304,6 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
             {error}
           </p>
         ) : null}
-        {message ? (
-          <p className="text-sm text-obra-neutral-700" role="status">
-            {message}
-          </p>
-        ) : null}
 
         <Button
           type="button"
@@ -396,11 +386,6 @@ export function SettingsSecurityPanel({ userEmail }: Props) {
           {emailError ? (
             <p className="text-sm text-red-600" role="alert">
               {emailError}
-            </p>
-          ) : null}
-          {emailMessage ? (
-            <p className="text-sm text-obra-neutral-700" role="status">
-              {emailMessage}
             </p>
           ) : null}
 

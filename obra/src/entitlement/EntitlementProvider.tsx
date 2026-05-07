@@ -21,6 +21,8 @@ export type EntitlementContextValue = {
   loadError: string | null;
   user: User | null;
   subscriptionStatus: SubscriptionStatus;
+  /** End of the current paid billing period; null if never paid. See #107. */
+  subscriptionAccessUntil: Date | null;
   creditsBalance: number;
   refetchProfile: () => Promise<void>;
   reconcileSubscription: () => Promise<void>;
@@ -30,8 +32,12 @@ export type EntitlementContextValue = {
 
 const EntitlementContext = createContext<EntitlementContextValue | null>(null);
 
+// Tracks which users have already been reconciled in this page load.
+// Module-level: resets on every page refresh, but survives SPA navigation.
+const reconciledThisLoad = new Set<string>();
+
 function normalizeSubscriptionStatus(raw: string | null | undefined): SubscriptionStatus {
-  if (raw === "active" || raw === "past_due" || raw === "none") {
+  if (raw === "active" || raw === "past_due" || raw === "none" || raw === "cancelled") {
     return raw;
   }
   return "none";
@@ -43,8 +49,15 @@ function normalizeCreditsBalance(raw: unknown): number {
   return Math.floor(n);
 }
 
+function parseAccessUntil(raw: string | null | undefined): Date | null {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 type ProfileRowState = {
   subscription_status: SubscriptionStatus;
+  subscription_access_until: string | null;
   ui_locale: string;
   credits_balance: number;
 };
@@ -70,17 +83,19 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
     const withCredits = await supabase
       .from("creator_profiles")
-      .select("subscription_status, ui_locale, credits_balance")
+      .select("subscription_status, subscription_access_until, ui_locale, credits_balance")
       .maybeSingle();
 
     if (!withCredits.error) {
       const row = withCredits.data as {
         subscription_status?: string;
+        subscription_access_until?: string | null;
         ui_locale?: string | null;
         credits_balance?: number | null;
       } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        subscription_access_until: row?.subscription_access_until ?? null,
         ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
         credits_balance: normalizeCreditsBalance(row?.credits_balance),
       });
@@ -90,13 +105,18 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
     const withLocale = await supabase
       .from("creator_profiles")
-      .select("subscription_status, ui_locale")
+      .select("subscription_status, subscription_access_until, ui_locale")
       .maybeSingle();
 
     if (!withLocale.error) {
-      const row = withLocale.data as { subscription_status?: string; ui_locale?: string | null } | null;
+      const row = withLocale.data as {
+        subscription_status?: string;
+        subscription_access_until?: string | null;
+        ui_locale?: string | null;
+      } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        subscription_access_until: row?.subscription_access_until ?? null,
         ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
         credits_balance: 0,
       });
@@ -112,6 +132,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       const row = minimal.data as { subscription_status?: string } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
+        subscription_access_until: null,
         ui_locale: normalizeUiLocale(undefined),
         credits_balance: 0,
       });
@@ -145,6 +166,30 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     void refetchProfile();
   }, [refetchProfile]);
 
+  // Auto-reconcile on session mount: MP doesn't send a webhook for user-initiated
+  // cancellations, so we query MP directly on every page load.
+  // Uses a module-level Set so it fires once per page load (resets on refresh)
+  // but not on SPA navigation (provider stays mounted).
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const token = session?.access_token;
+    if (!userId || !token) return;
+    if (reconciledThisLoad.has(userId)) return;
+
+    reconciledThisLoad.add(userId);
+    void supabase.functions
+      .invoke<{ subscription_status?: SubscriptionStatus; error?: string }>(
+        "reconcile-subscription-status",
+        { method: "POST", body: {}, headers: { Authorization: `Bearer ${token}` } },
+      )
+      .then(({ data }) => {
+        if (data && !data.error) void refetchProfile();
+      })
+      .catch(() => {
+        // Silent — reconcile failure does not block the app
+      });
+  }, [session?.user?.id, session?.access_token, refetchProfile]);
+
   useEffect(() => {
     if (!profileRow?.ui_locale) return;
     const lang = normalizeUiLocale(profileRow.ui_locale);
@@ -164,12 +209,14 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
   const emailVerified = isEmailVerifiedForEntitlement(user);
   const subscriptionStatus = profileRow?.subscription_status ?? "none";
+  const subscriptionAccessUntil = parseAccessUntil(profileRow?.subscription_access_until);
   const creditsBalance = profileRow?.credits_balance ?? 0;
 
   let outcome = resolveEntitlement({
     emailVerified,
     subscriptionStatus,
     checkoutReturnPending,
+    subscriptionAccessUntil,
   });
 
   if (import.meta.env.DEV) {
@@ -199,6 +246,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loadError,
       user,
       subscriptionStatus,
+      subscriptionAccessUntil,
       creditsBalance,
       refetchProfile,
       reconcileSubscription,
@@ -212,6 +260,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       loadError,
       user,
       subscriptionStatus,
+      subscriptionAccessUntil,
       creditsBalance,
       refetchProfile,
       reconcileSubscription,

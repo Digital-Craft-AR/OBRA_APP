@@ -12,7 +12,7 @@ export type QueuedToast = {
 export type AddToastInput = {
   variant?: ObraToastVariant;
   title: string;
-  description: string;
+  description?: string;
   /** Omit or `undefined` for default (15s). `0` = no auto-dismiss. */
   durationMs?: number;
 };

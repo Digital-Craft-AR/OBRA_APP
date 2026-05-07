@@ -140,4 +140,9 @@ export class ObraPayAdapter implements BillingAdapter {
       subscriptionStatus: "active",
     });
   }
+
+  hasAnyActiveSubscription(_accessToken: string, _userExternalReference: string): Promise<boolean> {
+    // Mock adapter never produces past_due; no active-subscription check needed.
+    return Promise.resolve(false);
+  }
 }

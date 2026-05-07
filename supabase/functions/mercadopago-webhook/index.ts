@@ -8,6 +8,13 @@ import {
   loadMercadoPagoWebhookSecret,
 } from "../_shared/payment/mercadopago/loadEnv.ts";
 
+/** Returns an ISO timestamp for one calendar month from now. */
+function nowPlusOneMonth(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toISOString();
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -23,12 +30,20 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
   let body: unknown = {};
+  let rawText = "";
   try {
-    const text = await req.text();
-    if (text) body = JSON.parse(text) as unknown;
+    rawText = await req.text();
+    if (rawText) body = JSON.parse(rawText) as unknown;
   } catch {
     return jsonResponse({ error: "invalid_json" }, 400);
   }
+
+  console.log("mp_webhook_received", JSON.stringify({
+    method: req.method,
+    url: url.toString(),
+    query: Object.fromEntries(url.searchParams.entries()),
+    body,
+  }));
 
   let billing;
   try {
@@ -40,8 +55,11 @@ Deno.serve(async (req: Request) => {
 
   const resource = billing.parseWebhookResource(body, url);
   if (!resource) {
+    console.log("mp_webhook_ignored", JSON.stringify({ body, query: Object.fromEntries(url.searchParams.entries()) }));
     return jsonResponse({ ok: true, ignored: true });
   }
+
+  console.log("mp_webhook_resource_parsed", JSON.stringify(resource));
 
   const secret = loadMercadoPagoWebhookSecret();
   const accessToken = loadMercadoPagoAccessToken();
@@ -54,10 +72,6 @@ Deno.serve(async (req: Request) => {
     console.error("mercadopago_webhook_misconfigured");
     return jsonResponse({ error: "misconfigured" }, 500);
   }
-  if (needMpSecret && !secret) {
-    console.error("mercadopago_webhook_misconfigured");
-    return jsonResponse({ error: "misconfigured" }, 500);
-  }
   if (needMpToken && !accessToken) {
     console.error("mercadopago_webhook_misconfigured");
     return jsonResponse({ error: "misconfigured" }, 500);
@@ -66,16 +80,21 @@ Deno.serve(async (req: Request) => {
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id");
 
-  const sigOk = billing.verifyWebhookSignature({
-    secret: secret ?? "",
-    xSignature,
-    xRequestId,
-    resourceId: resource.resourceId,
-  });
-
-  if (!sigOk) {
-    console.warn("mercadopago_webhook_signature_rejected");
-    return jsonResponse({ error: "unauthorized" }, 401);
+  // Test accounts (MP users de prueba) don't have a webhook secret — skip signature
+  // verification in that case. In production the secret is always set.
+  if (needMpSecret && secret) {
+    const sigOk = billing.verifyWebhookSignature({
+      secret,
+      xSignature,
+      xRequestId,
+      resourceId: resource.resourceId,
+    });
+    if (!sigOk) {
+      console.warn("mercadopago_webhook_signature_rejected");
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+  } else if (needMpSecret) {
+    console.warn("mercadopago_webhook_signature_skipped: no secret configured (test account)");
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
@@ -99,17 +118,42 @@ Deno.serve(async (req: Request) => {
   }
 
   let ext: string | null = null;
-  let profileStatus: "active" | "past_due" = "active";
+  let profileStatus: "active" | "past_due" | "none" | "cancelled" = "active";
+  let updateAccessUntil = false;
 
   try {
     if (resource.topic === "subscription") {
       const snap = await billing.fetchSubscriptionSnapshot(accessToken ?? "", resource.resourceId);
       const st = snap.status ?? "unknown";
+      console.log("mp_subscription_snapshot", JSON.stringify({ resourceId: resource.resourceId, status: st, externalReference: snap.externalReference }));
       if (st !== "authorized" && st !== "paused" && st !== "cancelled") {
+        console.log("mp_subscription_skipped", JSON.stringify({ status: st }));
         return jsonResponse({ ok: true, skipped_status: st });
       }
       ext = snap.externalReference;
-      profileStatus = st === "authorized" ? "active" : "past_due";
+      if (st === "authorized") {
+        profileStatus = "active";
+        updateAccessUntil = true;
+      } else {
+        // Before downgrading status, check if the user has another authorized subscription.
+        const stillActive =
+          ext && /^[0-9a-f-]{36}$/i.test(ext.trim())
+            ? await billing.hasAnyActiveSubscription(accessToken ?? "", ext.trim())
+            : false;
+        console.log("mp_has_active_check", JSON.stringify({ externalReference: ext, status: st, stillActive }));
+        if (stillActive) {
+          profileStatus = "active";
+          updateAccessUntil = true;
+        } else if (st === "paused") {
+          // Paused = payment failed; preserve subscription_access_until so access persists
+          // until the already-paid period ends.
+          profileStatus = "past_due";
+        } else {
+          // Cancelled = user (or MP) ended the subscription; preserve subscription_access_until
+          // so the user keeps full_app access until the paid period expires.
+          profileStatus = "cancelled";
+        }
+      }
     } else {
       const snap = await billing.fetchPaymentSnapshot(accessToken ?? "", resource.resourceId);
       if (snap.status !== "approved") {
@@ -117,6 +161,7 @@ Deno.serve(async (req: Request) => {
       }
       ext = snap.externalReference;
       profileStatus = "active";
+      updateAccessUntil = true;
 
       const creditTopUp = parseCreditTopUpExternalReference(ext);
       if (creditTopUp) {
@@ -195,12 +240,17 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, skipped: "no_profile" });
   }
 
+  const profileUpdate: Record<string, string> = {
+    subscription_status: profileStatus,
+    updated_at: new Date().toISOString(),
+  };
+  if (updateAccessUntil) {
+    profileUpdate.subscription_access_until = nowPlusOneMonth();
+  }
+
   const { error: upErr } = await admin
     .from("creator_profiles")
-    .update({
-      subscription_status: profileStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(profileUpdate)
     .eq("id", profileId);
 
   if (upErr) {

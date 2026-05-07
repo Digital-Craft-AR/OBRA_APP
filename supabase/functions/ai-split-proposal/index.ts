@@ -3,7 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
 import { generateSplitProposalPrompt } from "../_shared/prompts.ts";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 import type { ContentLocale } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Upload path: read extracted manuscript text from Storage, call Claude to
@@ -92,6 +94,18 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    const { data: profileRow } = await admin
+      .from("creator_profiles")
+      .select("subscription_status, subscription_access_until")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!isSubscriptionEntitled(profileRow as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
+      return json({ error: "subscription_not_active" }, 403);
+    }
+
+    const rl = await checkRateLimit(admin, user.id, "ai-split-proposal");
+    if (!rl.allowed) return rateLimitResponse(rl);
+
     // ── Project + ownership ───────────────────────────────────────────────
     const { data: project, error: projErr } = await admin
       .from("projects")
@@ -151,6 +165,11 @@ Deno.serve(async (req: Request) => {
       return json({ error: "empty_manuscript" }, 422);
     }
 
+    const wordCount = manuscriptText.trim().split(/\s+/).filter((w) => w.length > 0).length;
+    if (wordCount < 100) {
+      return json({ error: "manuscript_too_short", word_count: wordCount }, 422);
+    }
+
     // ── Main ebook title ──────────────────────────────────────────────────
     const { data: mainEbook } = await admin
       .from("ebooks")
@@ -174,6 +193,7 @@ Deno.serve(async (req: Request) => {
       user: prompt.user,
       maxTokens: 1500,
       temperature: 0.3,
+      clientId: "ai-split-proposal",
     });
 
     if (!claudeResult.ok) {

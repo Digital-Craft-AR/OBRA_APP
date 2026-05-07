@@ -16,6 +16,8 @@ import {
   optimizeProblemPrompt,
   optimizeTopicPrompt,
 } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { isSubscriptionEntitled } from "../_shared/auth.ts";
 
 const json = corsJson;
 
@@ -98,6 +100,19 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
 
+  const { data: profileRow } = await admin
+    .from("creator_profiles")
+    .select("subscription_status, subscription_access_until")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!isSubscriptionEntitled(profileRow as { subscription_status?: string; subscription_access_until?: string | null } | null)) {
+    return json({ error: "subscription_not_active" }, 403);
+  }
+
+  const rl = await checkRateLimit(admin, user.id, "ai-optimize");
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   let projectRow: {
     content_locale: string | null;
     topic: string | null;
@@ -138,27 +153,6 @@ Deno.serve(async (req: Request) => {
       ? `ai-optimize:${user.id}:${field}:${intent}:${clientRequestId}`
       : null;
 
-  const delta = -Math.floor(cost);
-  const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
-    p_creator_id: user.id,
-    p_delta: delta,
-    p_reason: "consumption",
-    p_idempotency_key: idempotencyKey,
-    p_project_id: projectId,
-  });
-
-  if (rpcErr) {
-    const msg = rpcErr.message ?? "";
-    if (msg.includes("insufficient credits")) {
-      return json({ error: "insufficient_credits" }, 402);
-    }
-    if (msg.includes("creator profile not found")) {
-      return json({ error: "profile_not_found" }, 400);
-    }
-    console.error("obra_credit_ledger_apply", rpcErr);
-    return json({ error: "ledger_failed" }, 500);
-  }
-
   const topic =
     typeof payload?.topic === "string" && payload.topic.trim()
       ? payload.topic.trim()
@@ -181,22 +175,25 @@ Deno.serve(async (req: Request) => {
   const lockedTitles = readStringArray(payload?.locked_titles);
   const previousTitles = readStringArray(payload?.previous_titles);
 
-  try {
+  // successData is set by the branch that runs; deduction happens after.
+  let successData: Record<string, unknown> | null = null;
+
+  main: try {
     if (intent === "improve" && field === "topic") {
       const { system, user: userMsg } = optimizeTopicPrompt({
         content_locale: contentLocale,
         raw_input: rawText,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096, clientId: "ai-optimize:improve-topic" });
       if (!ai.ok) {
         return json(
-          { ok: false, error: ai.error, credits_balance_after: balanceAfter },
+          { ok: false, error: ai.error },
           ai.error === "anthropic_not_configured" ? 503 : 502,
         );
       }
       const parsed = parseJsonObject(ai.text);
       if (!parsed.ok) {
-        return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: "model_parse_error" }, 502);
       }
       const o = parsed.value;
       if (typeof o.error === "string" && o.error === "INVALID_INPUT") {
@@ -204,7 +201,6 @@ Deno.serve(async (req: Request) => {
           ok: false,
           error: "invalid_input",
           reason: typeof o.reason === "string" ? o.reason : undefined,
-          credits_balance_after: balanceAfter,
         }, 400);
       }
       const topicObj = o as Record<string, unknown>;
@@ -217,7 +213,7 @@ Deno.serve(async (req: Request) => {
           : title && description
             ? `${title}\n\n${description}`
             : title || description || "";
-      return json({
+      successData = {
         ok: true,
         stub: false,
         field,
@@ -229,26 +225,26 @@ Deno.serve(async (req: Request) => {
           niche: typeof topicObj.niche === "string" ? topicObj.niche : undefined,
           angle: typeof topicObj.angle === "string" ? topicObj.angle : undefined,
         },
-        credits_balance_after: balanceAfter,
-      });
+      };
+      break main;
     }
 
     if (intent === "improve" && field === "target_avatar") {
       if (!topic) {
-        return json({ ok: false, error: "missing_topic", credits_balance_after: balanceAfter }, 400);
+        return json({ ok: false, error: "missing_topic" }, 400);
       }
       const { system, user: userMsg } = optimizeAvatarPrompt({
         content_locale: contentLocale,
         topic,
         raw_input: rawText,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096, clientId: "ai-optimize:improve-avatar" });
       if (!ai.ok) {
-        return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: ai.error }, 502);
       }
       const parsed = parseJsonObject(ai.text);
       if (!parsed.ok) {
-        return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: "model_parse_error" }, 502);
       }
       const o = parsed.value;
       if (typeof o.error === "string" && o.error === "INVALID_INPUT") {
@@ -256,30 +252,22 @@ Deno.serve(async (req: Request) => {
           ok: false,
           error: "invalid_input",
           reason: typeof o.reason === "string" ? o.reason : undefined,
-          credits_balance_after: balanceAfter,
         }, 400);
       }
       const avatarObj = o as Record<string, unknown>;
       const unifiedAvatar = avatarProfileToUnifiedText(avatarObj);
       const optimized =
         unifiedAvatar.trim().length > 0 ? unifiedAvatar : JSON.stringify(avatarObj, null, 2);
-      return json({
-        ok: true,
-        stub: false,
-        field,
-        intent,
-        optimized,
-        avatar_profile: avatarObj,
-        credits_balance_after: balanceAfter,
-      });
+      successData = { ok: true, stub: false, field, intent, optimized, avatar_profile: avatarObj };
+      break main;
     }
 
     if (intent === "improve" && field === "problem") {
       if (!topic) {
-        return json({ ok: false, error: "missing_topic", credits_balance_after: balanceAfter }, 400);
+        return json({ ok: false, error: "missing_topic" }, 400);
       }
       if (!avatarText) {
-        return json({ ok: false, error: "missing_avatar", credits_balance_after: balanceAfter }, 400);
+        return json({ ok: false, error: "missing_avatar" }, 400);
       }
       const { system, user: userMsg } = optimizeProblemPrompt({
         content_locale: contentLocale,
@@ -287,13 +275,13 @@ Deno.serve(async (req: Request) => {
         avatar: avatarText,
         raw_input: rawText,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 4096, clientId: "ai-optimize:improve-problem" });
       if (!ai.ok) {
-        return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: ai.error }, 502);
       }
       const parsed = parseJsonObject(ai.text);
       if (!parsed.ok) {
-        return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: "model_parse_error" }, 502);
       }
       const o = parsed.value;
       if (typeof o.error === "string" && o.error === "INVALID_INPUT") {
@@ -301,22 +289,14 @@ Deno.serve(async (req: Request) => {
           ok: false,
           error: "invalid_input",
           reason: typeof o.reason === "string" ? o.reason : undefined,
-          credits_balance_after: balanceAfter,
         }, 400);
       }
       const framingObj = o as Record<string, unknown>;
       const unified = problemFramingToUnifiedText(framingObj);
       const optimized =
         unified.trim().length > 0 ? unified : JSON.stringify(framingObj, null, 2);
-      return json({
-        ok: true,
-        stub: false,
-        field,
-        intent,
-        optimized,
-        problem_framing: framingObj,
-        credits_balance_after: balanceAfter,
-      });
+      successData = { ok: true, stub: false, field, intent, optimized, problem_framing: framingObj };
+      break main;
     }
 
     if (intent === "suggest" && field === "main_title") {
@@ -328,9 +308,9 @@ Deno.serve(async (req: Request) => {
         locked_titles: lockedTitles,
         previous_titles: previousTitles,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048, clientId: "ai-optimize:suggest-main-title" });
       if (!ai.ok) {
-        return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: ai.error }, 502);
       }
       const objTry = parseJsonObject(ai.text);
       if (objTry.ok && typeof objTry.value.error === "string") {
@@ -340,34 +320,24 @@ Deno.serve(async (req: Request) => {
             ok: false,
             error: err === "ALL_LOCKED" ? "all_locked" : "invalid_input",
             reason: typeof objTry.value.reason === "string" ? objTry.value.reason : undefined,
-            credits_balance_after: balanceAfter,
           }, 400);
         }
       }
       const arr = parseJsonArray(ai.text);
       if (!arr.ok) {
-        return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: "model_parse_error" }, 502);
       }
       const suggestions = arr.value
         .map((x) => (typeof x === "string" ? x.trim() : ""))
         .filter(Boolean)
         .slice(0, count);
-      return json({
-        ok: true,
-        stub: false,
-        field,
-        intent,
-        suggestions,
-        credits_balance_after: balanceAfter,
-      });
+      successData = { ok: true, stub: false, field, intent, suggestions };
+      break main;
     }
 
     if (intent === "suggest" && field === "bonus_title") {
       if (!ebookTitle || !topic) {
-        return json(
-          { ok: false, error: "missing_ebook_or_topic", credits_balance_after: balanceAfter },
-          400,
-        );
+        return json({ ok: false, error: "missing_ebook_or_topic" }, 400);
       }
       const { system, user: userMsg } = generateBonusTitlesPrompt({
         content_locale: contentLocale,
@@ -378,9 +348,9 @@ Deno.serve(async (req: Request) => {
         locked_titles: lockedTitles,
         previous_titles: previousTitles,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048, clientId: "ai-optimize:suggest-bonus-title" });
       if (!ai.ok) {
-        return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: ai.error }, 502);
       }
       const objTry = parseJsonObject(ai.text);
       if (objTry.ok && typeof objTry.value.error === "string") {
@@ -390,34 +360,24 @@ Deno.serve(async (req: Request) => {
             ok: false,
             error: err === "ALL_LOCKED" ? "all_locked" : "invalid_input",
             reason: typeof objTry.value.reason === "string" ? objTry.value.reason : undefined,
-            credits_balance_after: balanceAfter,
           }, 400);
         }
       }
       const arr = parseJsonArray(ai.text);
       if (!arr.ok) {
-        return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: "model_parse_error" }, 502);
       }
       const suggestions = arr.value
         .map((x) => (typeof x === "string" ? x.trim() : ""))
         .filter(Boolean)
         .slice(0, count);
-      return json({
-        ok: true,
-        stub: false,
-        field,
-        intent,
-        suggestions,
-        credits_balance_after: balanceAfter,
-      });
+      successData = { ok: true, stub: false, field, intent, suggestions };
+      break main;
     }
 
     if (intent === "suggest" && field === "bump_title") {
       if (!ebookTitle || !topic) {
-        return json(
-          { ok: false, error: "missing_ebook_or_topic", credits_balance_after: balanceAfter },
-          400,
-        );
+        return json({ ok: false, error: "missing_ebook_or_topic" }, 400);
       }
       const { system, user: userMsg } = generateBumpTitlesPrompt({
         content_locale: contentLocale,
@@ -428,9 +388,9 @@ Deno.serve(async (req: Request) => {
         locked_titles: lockedTitles,
         previous_titles: previousTitles,
       });
-      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048 });
+      const ai = await callClaudeJsonText({ system, user: userMsg, maxTokens: 2048, clientId: "ai-optimize:suggest-bump-title" });
       if (!ai.ok) {
-        return json({ ok: false, error: ai.error, credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: ai.error }, 502);
       }
       const objTry = parseJsonObject(ai.text);
       if (objTry.ok && typeof objTry.value.error === "string") {
@@ -440,31 +400,56 @@ Deno.serve(async (req: Request) => {
             ok: false,
             error: err === "ALL_LOCKED" ? "all_locked" : "invalid_input",
             reason: typeof objTry.value.reason === "string" ? objTry.value.reason : undefined,
-            credits_balance_after: balanceAfter,
           }, 400);
         }
       }
       const arr = parseJsonArray(ai.text);
       if (!arr.ok) {
-        return json({ ok: false, error: "model_parse_error", credits_balance_after: balanceAfter }, 502);
+        return json({ ok: false, error: "model_parse_error" }, 502);
       }
       const suggestions = arr.value
         .map((x) => (typeof x === "string" ? x.trim() : ""))
         .filter(Boolean)
         .slice(0, count);
-      return json({
-        ok: true,
-        stub: false,
-        field,
-        intent,
-        suggestions,
-        credits_balance_after: balanceAfter,
-      });
+      successData = { ok: true, stub: false, field, intent, suggestions };
+      break main;
     }
 
-    return json({ ok: false, error: "unsupported_operation", field, intent, credits_balance_after: balanceAfter }, 400);
+    return json({ ok: false, error: "unsupported_operation", field, intent }, 400);
   } catch (e) {
     console.error("ai_optimize_unhandled", (e as Error)?.message ?? e);
-    return json({ ok: false, error: "internal_error", credits_balance_after: balanceAfter }, 500);
+    return json({ ok: false, error: "internal_error" }, 500);
   }
+
+  if (!successData) {
+    return json({ ok: false, error: "unsupported_operation", field, intent }, 400);
+  }
+
+  // ── Deduct credits after Claude succeeds (deduct on success only) ─────────────
+  const delta = -Math.floor(cost);
+  const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
+    p_creator_id: user.id,
+    p_delta: delta,
+    p_reason: "consumption",
+    p_idempotency_key: idempotencyKey,
+    p_project_id: projectId,
+    p_source_function: "ai-optimize",
+  });
+
+  if (rpcErr) {
+    const msg = rpcErr.message ?? "";
+    if (msg.includes("insufficient credits")) {
+      return json({ error: "insufficient_credits" }, 402);
+    }
+    if (msg.includes("subscription not active")) {
+      return json({ error: "subscription_not_active" }, 403);
+    }
+    if (msg.includes("creator profile not found")) {
+      return json({ error: "profile_not_found" }, 400);
+    }
+    console.error("obra_credit_ledger_apply", rpcErr);
+    return json({ error: "ledger_failed" }, 500);
+  }
+
+  return json({ ...successData, credits_balance_after: balanceAfter });
 });

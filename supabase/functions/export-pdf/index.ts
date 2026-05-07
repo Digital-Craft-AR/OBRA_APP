@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { injectAll } from "../_shared/prompts.ts";
 import { rewriteStorageSignedUrlForPublicAccess } from "../_shared/storageSignedUrl.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 /**
  * Renders a single ebook artifact as PDF using Puppeteer.
@@ -337,6 +338,9 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(url, serviceKey);
 
+  const rl = await checkRateLimit(admin, userId, "export-pdf");
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   // Load project — verify ownership; no manuscript content logged
   const { data: project, error: projErr } = await admin
     .from("projects")
@@ -407,6 +411,8 @@ Deno.serve(async (req: Request) => {
     }
     if (/^chapter-\d+-image-1$/.test(row.slot_key)) {
       imageUrls[row.slot_key] = signedUrl;
+      // Also inject using legacy key for shells generated before the prompt fix
+      imageUrls[row.slot_key.replace(/-image-\d+$/, "-img")] = signedUrl;
     }
   }
 

@@ -135,11 +135,10 @@ export async function ensureContentWorkspace(projectId: string): Promise<
 
   const phase = proj.content_source === "upload" ? "upload_alignment" : "main_index";
 
-  const { error: progInsertErr } = await supabase.from("project_content_progress").insert({
-    project_id: projectId,
-    current_phase: phase,
-  });
-  if (progInsertErr && progInsertErr.code !== "23505") {
+  const { error: progInsertErr } = await supabase
+    .from("project_content_progress")
+    .upsert({ project_id: projectId, current_phase: phase }, { onConflict: "project_id", ignoreDuplicates: true });
+  if (progInsertErr) {
     return { ok: false, code: "db_error" };
   }
 
@@ -313,13 +312,58 @@ export async function replaceEbookDraftChapters(
 /** @deprecated Use `replaceEbookDraftChapters` */
 export const replaceMainEbookDraftChapters = replaceEbookDraftChapters;
 
+/**
+ * Builds the chapter insert rows for `upsertEbookDraftChaptersFromRows`, preserving
+ * content and approval for chapters whose id matches an existing DB row.
+ */
+export function buildChapterInsertsPreservingContent(
+  ebookId: string,
+  rows: TocChapterRow[],
+  existing: ChapterDraftRow[],
+): Array<{
+  ebook_id: string;
+  sort_order: number;
+  title: string;
+  content: string | null;
+  approved_at: string | null;
+}> {
+  const preservedById = new Map(
+    existing.map((r) => [r.id, { content: r.content, approved_at: r.approved_at }]),
+  );
+  return rows.map((row, index) => {
+    const preserved = preservedById.get(row.id);
+    return {
+      ebook_id: ebookId,
+      sort_order: index + 1,
+      title: row.title.trim() || " ",
+      content: preserved?.content ?? null,
+      approved_at: preserved?.approved_at ?? null,
+    };
+  });
+}
+
+/**
+ * Replaces the chapter list for an ebook while preserving content/approval for chapters that
+ * remain (matched by row.id). Chapters removed from `rows` are deleted; chapters whose id is
+ * new (locally-generated, not in DB) are inserted with null content.
+ */
 export async function upsertEbookDraftChaptersFromRows(
   ebookId: string,
   rows: TocChapterRow[],
 ): Promise<{ ok: true; rows: TocChapterRow[] } | { ok: false }> {
-  const titles = rows.map((r) => r.title);
-  const okReplace = await replaceEbookDraftChapters(ebookId, titles);
-  if (!okReplace.ok) return { ok: false };
+  const existing = await loadEbookChaptersDraft(ebookId);
+  if (!existing.ok) return { ok: false };
+
+  const { error: delError } = await supabase.from("chapters").delete().eq("ebook_id", ebookId);
+  if (delError) return { ok: false };
+
+  if (rows.length === 0) return { ok: true, rows: [] };
+
+  const inserts = buildChapterInsertsPreservingContent(ebookId, rows, existing.rows);
+
+  const { error: insError } = await supabase.from("chapters").insert(inserts);
+  if (insError) return { ok: false };
+
   const loaded = await loadEbookChapters(ebookId);
   if (!loaded.ok) return { ok: false };
   return { ok: true, rows: loaded.rows };
@@ -404,8 +448,9 @@ export type SyncMainTocResult =
   | { ok: false };
 
 /**
- * When TOC row count and chapter ids match DB, update titles in place (preserves bodies).
- * Otherwise caller should use `upsertEbookDraftChaptersFromRows` (destructive replace of draft rows).
+ * When TOC row count and chapter ids match DB, update titles in place (fast path, preserves bodies).
+ * Otherwise caller should use `upsertEbookDraftChaptersFromRows` which also preserves bodies for
+ * chapters that remain (matched by id) while dropping only truly removed chapters.
  */
 export async function trySyncMainEbookTocBeforeFreeze(
   ebookId: string,
@@ -598,6 +643,134 @@ export async function invokeGenerateIndex(
     titles,
     creditsBalanceAfter: data.credits_balance_after,
   };
+}
+
+export type GenerateAllBonusIndexResponse = {
+  ok?: boolean;
+  bonuses?: Array<{ ebook_id: string; chapters: { title: string }[] }>;
+  credits_balance_after?: number;
+  error?: string;
+};
+
+export async function invokeGenerateAllBonusIndex(
+  projectId: string,
+  clientRequestId: string,
+  bonusEbookIds: string[],
+  options?: { contentTone?: string },
+): Promise<
+  | { ok: true; bonuses: Array<{ ebookId: string; titles: string[] }>; creditsBalanceAfter?: number }
+  | { ok: false; code: string }
+> {
+  const body: Record<string, unknown> = {
+    project_id: projectId,
+    client_request_id: clientRequestId,
+    bonus_ebook_ids: bonusEbookIds,
+  };
+  if (options?.contentTone !== undefined && options.contentTone.trim()) {
+    body.content_tone = options.contentTone.trim();
+  }
+  const { data, error } = await supabase.functions.invoke<GenerateAllBonusIndexResponse>(
+    "ai-generate-all-bonus-index",
+    { body },
+  );
+
+  if (error) {
+    const code = await getFunctionsInvokeErrorCode(error);
+    return { ok: false, code: code ?? "invoke_failed" };
+  }
+  if (!data?.ok || !Array.isArray(data.bonuses)) {
+    const err = typeof data?.error === "string" ? data.error : "bad_response";
+    return { ok: false, code: err };
+  }
+  const bonuses = data.bonuses.map((b) => ({
+    ebookId: b.ebook_id,
+    titles: b.chapters
+      .map((c) => (typeof c.title === "string" ? c.title : ""))
+      .filter(Boolean),
+  }));
+  return { ok: true, bonuses, creditsBalanceAfter: data.credits_balance_after };
+}
+
+export async function streamGenerateChapterContent(
+  projectId: string,
+  chapterId: string,
+  clientRequestId: string,
+  onChunk: (text: string) => void,
+): Promise<
+  | { ok: true; content: string; creditsBalanceAfter?: number }
+  | { ok: false; code: string; message?: string }
+> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) return { ok: false, code: "unauthorized" };
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  let res: Response;
+  try {
+    res = await fetch(`${supabaseUrl}/functions/v1/ai-generate-content`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: projectId,
+        chapter_id: chapterId,
+        client_request_id: clientRequestId,
+        stream: true,
+      }),
+    });
+  } catch {
+    return { ok: false, code: "invoke_failed" };
+  }
+
+  if (!res.ok || !res.body) {
+    try {
+      const errBody = (await res.json()) as Record<string, unknown>;
+      const code = typeof errBody?.error === "string" ? errBody.error : "invoke_failed";
+      return { ok: false, code };
+    } catch {
+      return { ok: false, code: "invoke_failed" };
+    }
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let accumulated = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let chunk: Record<string, unknown>;
+        try { chunk = JSON.parse(line) as Record<string, unknown>; } catch { continue; }
+
+        if (chunk.type === "chunk" && typeof chunk.text === "string") {
+          accumulated += chunk.text;
+          onChunk(chunk.text);
+        } else if (chunk.type === "done") {
+          const raw = typeof chunk.content === "string" ? chunk.content : accumulated;
+          const content = sanitizeChapterHtml(raw.trim());
+          if (isChapterHtmlEffectivelyEmpty(content)) return { ok: false, code: "model_empty_content" };
+          return {
+            ok: true,
+            content,
+            creditsBalanceAfter: typeof chunk.credits_balance_after === "number" ? chunk.credits_balance_after : undefined,
+          };
+        } else if (chunk.type === "error") {
+          const code = typeof chunk.error === "string" ? chunk.error : "generation_failed";
+          return { ok: false, code };
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { ok: false, code: "stream_ended_unexpectedly" };
 }
 
 export async function invokeGenerateChapterContent(

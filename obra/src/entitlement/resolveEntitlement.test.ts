@@ -7,6 +7,9 @@ import {
   resolveEntitlement,
 } from "./resolveEntitlement";
 
+const FUTURE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 days
+const PAST = new Date(Date.now() - 24 * 60 * 60 * 1000); // -1 day
+
 describe("resolveEntitlement", () => {
   it("requires email verification before any subscription state", () => {
     expect(
@@ -14,18 +17,75 @@ describe("resolveEntitlement", () => {
         emailVerified: false,
         subscriptionStatus: "active",
         checkoutReturnPending: false,
+        subscriptionAccessUntil: null,
       }),
     ).toBe("verify_email");
   });
 
-  it("maps past_due to subscription_error after email is verified", () => {
+  it("maps past_due + expired access to subscription_error", () => {
     expect(
       resolveEntitlement({
         emailVerified: true,
         subscriptionStatus: "past_due",
         checkoutReturnPending: false,
+        subscriptionAccessUntil: null,
       }),
     ).toBe("subscription_error");
+  });
+
+  it("maps past_due + past access_until to subscription_error", () => {
+    expect(
+      resolveEntitlement({
+        emailVerified: true,
+        subscriptionStatus: "past_due",
+        checkoutReturnPending: false,
+        subscriptionAccessUntil: PAST,
+      }),
+    ).toBe("subscription_error");
+  });
+
+  it("grants full_app for past_due when access_until is in the future", () => {
+    expect(
+      resolveEntitlement({
+        emailVerified: true,
+        subscriptionStatus: "past_due",
+        checkoutReturnPending: false,
+        subscriptionAccessUntil: FUTURE,
+      }),
+    ).toBe("full_app");
+  });
+
+  it("maps cancelled + no access to pending_subscription", () => {
+    expect(
+      resolveEntitlement({
+        emailVerified: true,
+        subscriptionStatus: "cancelled",
+        checkoutReturnPending: false,
+        subscriptionAccessUntil: null,
+      }),
+    ).toBe("pending_subscription");
+  });
+
+  it("maps cancelled + expired access_until to pending_subscription", () => {
+    expect(
+      resolveEntitlement({
+        emailVerified: true,
+        subscriptionStatus: "cancelled",
+        checkoutReturnPending: false,
+        subscriptionAccessUntil: PAST,
+      }),
+    ).toBe("pending_subscription");
+  });
+
+  it("grants full_app for cancelled when access_until is in the future", () => {
+    expect(
+      resolveEntitlement({
+        emailVerified: true,
+        subscriptionStatus: "cancelled",
+        checkoutReturnPending: false,
+        subscriptionAccessUntil: FUTURE,
+      }),
+    ).toBe("full_app");
   });
 
   it("shows activating when checkout return is pending and not yet active", () => {
@@ -34,6 +94,18 @@ describe("resolveEntitlement", () => {
         emailVerified: true,
         subscriptionStatus: "none",
         checkoutReturnPending: true,
+        subscriptionAccessUntil: null,
+      }),
+    ).toBe("activating");
+  });
+
+  it("shows activating for cancelled + checkoutReturnPending (re-subscriber before webhook fires)", () => {
+    expect(
+      resolveEntitlement({
+        emailVerified: true,
+        subscriptionStatus: "cancelled",
+        checkoutReturnPending: true,
+        subscriptionAccessUntil: null,
       }),
     ).toBe("activating");
   });
@@ -44,6 +116,7 @@ describe("resolveEntitlement", () => {
         emailVerified: true,
         subscriptionStatus: "active",
         checkoutReturnPending: true,
+        subscriptionAccessUntil: FUTURE,
       }),
     ).toBe("full_app");
   });
@@ -54,6 +127,7 @@ describe("resolveEntitlement", () => {
         emailVerified: false,
         subscriptionStatus: "none",
         checkoutReturnPending: true,
+        subscriptionAccessUntil: null,
       }),
     ).toBe("verify_email");
   });
@@ -64,6 +138,7 @@ describe("resolveEntitlement", () => {
         emailVerified: true,
         subscriptionStatus: "none",
         checkoutReturnPending: false,
+        subscriptionAccessUntil: null,
       }),
     ).toBe("pending_subscription");
   });

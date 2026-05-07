@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -7,6 +7,7 @@ import { AuthContext } from "@/auth/authContext";
 import { i18n } from "@/i18n";
 import { WizardPreviewPage } from "@/pages/WizardPreviewPage";
 import { makeSession } from "@/test/factories";
+import { hashChapters } from "@/lib/preview/documentShellApi";
 
 // Minimal project row matching ProjectRow shape expected by useWizardStructureProject
 const PROJECT_ID = "project-preview-test";
@@ -34,8 +35,6 @@ const projectData = {
     page: { size: "a4", orientation: "portrait" },
     image: { mode: "ai", style: "illustration" },
   },
-  book_template_id: "classic_fixed",
-  layout_page_assignments: { "main:cover": "layout_cover_v1", "main:body": "layout_body_a" },
   structure_completed_at: "2024-01-10T00:00:00.000Z",
   lifecycle_status: "active",
 };
@@ -59,59 +58,57 @@ const mockChains = vi.hoisted(() => {
   const selectChain = vi.fn();
   const inChain = vi.fn();
   const isChain = vi.fn();
+  const pdfJobsOrder = vi.fn();
 
-  return { single, maybeSingle, order, eqChain, selectChain, inChain, isChain };
+  return { single, maybeSingle, order, eqChain, selectChain, inChain, isChain, pdfJobsOrder };
 });
 
+/**
+ * Controls what the ebooks table returns for the `html_shell` / `shell_meta` query
+ * used by fetchOrGenerateShell. Set `freshMeta` to a ShellMeta with a matching
+ * content_hash to simulate a cache hit (no regeneration); leave null to simulate
+ * a cache miss (shell regenerated, cached: false).
+ */
+const mockEbooksShell = vi.hoisted(() => ({
+  freshMeta: null as Record<string, unknown> | null,
+}));
+
+const mockCreateSignedUrl = vi.hoisted(() => vi.fn());
 const mockFunctionsInvoke = vi.hoisted(() => vi.fn());
+const mockGetSession = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
+    auth: { getSession: mockGetSession },
     from: vi.fn((table: string) => {
       if (table === "ebooks") {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               order: mockChains.order,
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: {
-                  html_shell: "<html><head></head><body><p>Cached shell</p></body></html>",
-                  shell_meta: {
-                    chapter_count: 1,
-                    page_size: "a4",
-                    page_orientation: "portrait",
-                    generated_at: "2026-01-01T00:00:00.000Z",
-                  },
-                },
-                error: null,
-              }),
+              maybeSingle: vi.fn().mockImplementation(() =>
+                Promise.resolve({
+                  data: mockEbooksShell.freshMeta
+                    ? {
+                        html_shell: "<html><head></head><body><p>Cached shell</p></body></html>",
+                        shell_meta: mockEbooksShell.freshMeta,
+                      }
+                    : null,
+                  error: null,
+                }),
+              ),
             })),
           })),
           update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
         };
       }
       if (table === "pdf_export_jobs") {
+        // Supports: .select().eq(project_id).eq(status).not().order() — load initial PDF URLs query
+        const notFn = vi.fn(() => ({ order: mockChains.pdfJobsOrder }));
+        const eq2Fn = vi.fn(() => ({ not: notFn }));
+        const eq1Fn = vi.fn(() => ({ eq: eq2Fn }));
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: "job-zip-test",
-                  project_id: PROJECT_ID,
-                  ebook_id: "ebook-main",
-                  user_id: "u1",
-                  status: "completed",
-                  pdf_url: "https://example.com/mock.pdf",
-                  error_message: null,
-                  retries: 0,
-                  render_duration_ms: null,
-                  created_at: "",
-                  completed_at: "",
-                },
-                error: null,
-              }),
-            })),
-          })),
+          select: vi.fn(() => ({ eq: eq1Fn })),
         };
       }
       return {
@@ -132,6 +129,11 @@ vi.mock("@/lib/supabaseClient", () => ({
       };
     }),
     functions: { invoke: mockFunctionsInvoke },
+    storage: {
+      from: vi.fn(() => ({
+        createSignedUrl: mockCreateSignedUrl,
+      })),
+    },
   },
 }));
 
@@ -173,7 +175,15 @@ describe("WizardPreviewPage", () => {
     mockChains.maybeSingle.mockReset();
     mockChains.order.mockReset();
     mockChains.inChain.mockReset();
+    mockChains.pdfJobsOrder.mockReset();
+    mockCreateSignedUrl.mockReset();
     mockFunctionsInvoke.mockReset();
+    mockGetSession.mockReset();
+
+    // Default: no completed PDF export jobs; ebooks table returns no cached shell (triggers regeneration)
+    mockChains.pdfJobsOrder.mockResolvedValue({ data: [], error: null });
+    mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: "https://cdn/test.pdf" } });
+    mockEbooksShell.freshMeta = null;
 
     // Default: project loads successfully, ebooks load, chapters load
     mockChains.single.mockResolvedValue({ data: projectData, error: null });
@@ -187,6 +197,34 @@ describe("WizardPreviewPage", () => {
       if (callCount <= 1) return Promise.resolve({ data: ebooksData, error: null });
       return Promise.resolve({ data: chaptersData, error: null });
     });
+
+    // generate-document-template uses fetch() + auth.getSession() (streaming NDJSON).
+    // shell_meta.content_hash won't match computed hash so generation is triggered each time.
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: "test-token" } } });
+    const generatedShellNdjson = JSON.stringify({
+      type: "done",
+      htmlShell: "<html><head></head><body><p>Generated shell</p></body></html>",
+      shellMeta: {
+        chapter_count: 1,
+        page_size: "a4",
+        page_orientation: "portrait",
+        content_hash: "generated",
+        generated_at: "2026-01-01T00:00:00.000Z",
+      },
+    }) + "\n";
+    // Use mockImplementation (not mockResolvedValue) so each parallel fetch call gets its own
+    // Response instance with a fresh ReadableStream — reusing one instance locks the stream.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(generatedShellNdjson, {
+            status: 200,
+            headers: { "Content-Type": "application/x-ndjson" },
+          }),
+        ),
+      ),
+    );
   });
 
   it("renders global stepper with preview step active", async () => {
@@ -210,15 +248,15 @@ describe("WizardPreviewPage", () => {
 
   it("shows export PDF button in footer", async () => {
     renderPreviewPage();
-    expect(await screen.findByRole("button", { name: /Exportar PDF/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Generar PDF/i })).toBeTruthy();
   });
 
   it("shows deliverable tabs when ebooks are loaded", async () => {
     renderPreviewPage();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Ebook principal/i })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
     });
-    expect(screen.getByRole("button", { name: /Bonus 1/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Bonus 1/i })).toBeTruthy();
   });
 
   it("shows loading state initially", () => {
@@ -244,7 +282,7 @@ describe("WizardPreviewPage", () => {
     it("does not show a badge when status is draft", async () => {
       renderPreviewPage();
       // Wait for the page to settle
-      await screen.findByRole("button", { name: /Exportar PDF/i });
+      await screen.findByRole("button", { name: /Generar PDF/i });
       // "Exportado" badge should not appear in draft state
       expect(screen.queryByText(/Exportado/i)).toBeNull();
     });
@@ -265,6 +303,40 @@ describe("WizardPreviewPage", () => {
         // i18n key wizard.preview.publishStatus.modified → "Modificado desde el último export"
         expect(screen.getByText(/Modificado/i)).toBeTruthy();
       });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Shell generation — tab switching behavior
+  // ---------------------------------------------------------------------------
+
+  describe("shell generation on tab switch", () => {
+    it("generates shells for all tabs simultaneously on first visit and makes no new calls when switching tabs", async () => {
+      renderPreviewPage();
+
+      // Initial load should trigger generate-document-template for every ebook (main + bonus)
+      await waitFor(() => {
+        const shellCalls = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
+          String(url).includes("generate-document-template"),
+        );
+        expect(shellCalls).toHaveLength(2);
+      });
+
+      vi.mocked(globalThis.fetch).mockClear();
+
+      // Switch to the Bonus tab
+      const bonusTab = screen.getByRole("tab", { name: /Bonus 1/i });
+      await userEvent.click(bonusTab);
+
+      // Give effects a chance to settle, then assert no new generation calls were made
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: /Bonus 1/i })).toBeTruthy();
+      });
+
+      const newShellCalls = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
+        String(url).includes("generate-document-template"),
+      );
+      expect(newShellCalls).toHaveLength(0);
     });
   });
 
@@ -334,6 +406,193 @@ describe("WizardPreviewPage", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Chapter image generation via postMessage
+  // ---------------------------------------------------------------------------
+
+  describe("chapter image generation", () => {
+    it("calls generateImage with chapter-N-image-1 slot key when iframe posts obra:slot:generate with current format", async () => {
+      const generateSpy = vi.mocked(imageSlotApiModule.generateImage);
+      generateSpy.mockResolvedValue({
+        ok: true,
+        imageId: "img-ch1",
+        signedUrl: "https://cdn/chapter1.jpg",
+        credits_balance_after: 4,
+        aspectRatio: "16:9",
+      });
+
+      renderPreviewPage();
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
+      });
+
+      // Simulate iframe postMessage for current slot key format
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "obra:slot:generate", slotKey: "chapter-1-image-1" },
+        }),
+      );
+
+      // Modal should open; confirm generation scoped to dialog to avoid matching other buttons
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(within(dialog).getByRole("button", { name: /^Generar$/ }));
+
+      await waitFor(() => {
+        expect(generateSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId: PROJECT_ID,
+            slotKey: "chapter-1-image-1",
+          }),
+        );
+      });
+    });
+
+    it("calls generateImage with chapter-N-image-1 slot key when iframe posts obra:slot:generate with legacy chapter-N-img format", async () => {
+      const generateSpy = vi.mocked(imageSlotApiModule.generateImage);
+      generateSpy.mockResolvedValue({
+        ok: true,
+        imageId: "img-ch1-legacy",
+        signedUrl: "https://cdn/chapter1-legacy.jpg",
+        credits_balance_after: 3,
+        aspectRatio: "16:9",
+      });
+
+      renderPreviewPage();
+      await waitFor(() => {
+        expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
+      });
+
+      // Simulate iframe postMessage with the old slot key format (chapter-N-img)
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "obra:slot:generate", slotKey: "chapter-1-img" },
+        }),
+      );
+
+      const dialog = await screen.findByRole("dialog");
+      await userEvent.click(within(dialog).getByRole("button", { name: /^Generar$/ }));
+
+      // Must normalize to chapter-1-image-1 before calling the API
+      await waitFor(() => {
+        expect(generateSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId: PROJECT_ID,
+            slotKey: "chapter-1-image-1",
+          }),
+        );
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // PDF button mutual exclusion (issue #209)
+  // ---------------------------------------------------------------------------
+
+  describe("PDF export button mutual exclusion", () => {
+    it("shows only Generar PDF when status is draft and no PDF URL exists", async () => {
+      renderPreviewPage();
+      await screen.findByRole("button", { name: /Generar PDF/i });
+      expect(screen.queryByRole("button", { name: /Descargar PDF/i })).toBeNull();
+    });
+
+    it("shows Descargar PDF when published + URL and shell is served from cache (no content change)", async () => {
+      // Shell meta with content_hash matching chaptersData → fetchOrGenerateShell returns cached:true
+      // → markModified NOT called → publishStatus stays "published" → Descargar PDF shown
+      mockEbooksShell.freshMeta = {
+        chapter_count: chaptersData.length,
+        page_size: "a4",
+        page_orientation: "portrait",
+        content_hash: hashChapters(chaptersData),
+        generated_at: "2026-01-01T00:00:00.000Z",
+      };
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "published" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Descargar PDF/i })).toBeTruthy();
+      });
+      expect(screen.queryByRole("button", { name: /Generar PDF/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Re-generar PDF/i })).toBeNull();
+    });
+
+    it("shows Generar PDF when published + URL but content changed (shell had to regenerate)", async () => {
+      // Default mockEbooksShell.freshMeta = null → no cached shell in DB
+      // → fetchOrGenerateShell regenerates → cached:false → markModified is called:
+      //   - publishStatus becomes "modified"
+      //   - ebookPdfUrls[ebookId] is cleared
+      // So the button shows "Generar PDF" (no URL in state anymore)
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "published" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Generar PDF/i })).toBeTruthy();
+      });
+      expect(screen.queryByRole("button", { name: /Descargar PDF/i })).toBeNull();
+    });
+
+    it("shows only Re-generar PDF when status is modified and a PDF URL exists", async () => {
+      mockEbooksShell.freshMeta = {
+        chapter_count: chaptersData.length,
+        page_size: "a4",
+        page_orientation: "portrait",
+        content_hash: hashChapters(chaptersData),
+        generated_at: "2026-01-01T00:00:00.000Z",
+      };
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "modified" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Re-generar PDF/i })).toBeTruthy();
+      });
+      expect(screen.queryByRole("button", { name: /Descargar PDF/i })).toBeNull();
+    });
+
+    it("never shows Descargar PDF and Generar/Re-generar PDF simultaneously", async () => {
+      mockEbooksShell.freshMeta = {
+        chapter_count: chaptersData.length,
+        page_size: "a4",
+        page_orientation: "portrait",
+        content_hash: hashChapters(chaptersData),
+        generated_at: "2026-01-01T00:00:00.000Z",
+      };
+      mockChains.maybeSingle.mockResolvedValue({ data: { publish_status: "published" }, error: null });
+      mockChains.pdfJobsOrder.mockResolvedValue({
+        data: [{ ebook_id: "ebook-main", storage_path: "pdfs/project/ebook-main.pdf" }],
+        error: null,
+      });
+
+      renderPreviewPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Descargar PDF/i })).toBeTruthy();
+      });
+
+      const downloadBtns = screen.queryAllByRole("button", { name: /Descargar PDF/i });
+      const generateBtns = screen.queryAllByRole("button", { name: /Generar PDF/i });
+      const regenerateBtns = screen.queryAllByRole("button", { name: /Re-generar PDF/i });
+
+      expect(downloadBtns.length).toBe(1);
+      expect(generateBtns.length).toBe(0);
+      expect(regenerateBtns.length).toBe(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Cover upload
   // ---------------------------------------------------------------------------
 
@@ -350,7 +609,7 @@ describe("WizardPreviewPage", () => {
 
       // Wait for ebooks tab to load
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /Ebook principal/i })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: /Ebook principal/i })).toBeTruthy();
       });
 
       // Find the file input rendered by ImageSlot for cover

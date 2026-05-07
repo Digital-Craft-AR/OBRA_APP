@@ -23,25 +23,46 @@ export type ResolveEntitlementInput = {
   subscriptionStatus: SubscriptionStatus;
   /** True after Mercado Pago return while webhooks may still be pending (#36). */
   checkoutReturnPending: boolean;
+  /**
+   * End of the current paid billing period (`subscription_access_until` from the profile).
+   * When set and in the future, the user keeps full_app access even if status is
+   * `cancelled` or `past_due` (#107).
+   */
+  subscriptionAccessUntil: Date | null;
 };
 
 /**
  * Fixed ordering: email verification before checkout or full app; activating only when
  * returning from checkout and subscription not yet active (signup-onboarding PRD).
+ *
+ * For cancelled/past_due: access persists until `subscriptionAccessUntil` (#107).
  */
 export function resolveEntitlement(input: ResolveEntitlementInput): EntitlementOutcome {
   if (!input.emailVerified) {
     return "verify_email";
   }
+
+  const hasActiveAccess =
+    input.subscriptionAccessUntil != null && input.subscriptionAccessUntil > new Date();
+
   if (input.subscriptionStatus === "past_due") {
-    return "subscription_error";
+    return hasActiveAccess ? "full_app" : "subscription_error";
   }
+
+  // activating: user just returned from checkout, webhook not yet processed.
+  // Checked before cancelled so a re-subscriber in cancelled state sees activating.
   if (input.checkoutReturnPending && input.subscriptionStatus !== "active") {
     return "activating";
   }
-  if (input.subscriptionStatus !== "active") {
-    return "pending_subscription";
+
+  if (input.subscriptionStatus === "cancelled") {
+    return hasActiveAccess ? "full_app" : "pending_subscription";
   }
+
+  if (input.subscriptionStatus !== "active") {
+    return "pending_subscription"; // none
+  }
+
   return "full_app";
 }
 

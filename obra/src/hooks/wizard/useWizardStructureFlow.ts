@@ -15,10 +15,6 @@ import {
   type WizardTitleItem,
 } from "@/lib/wizard/structureTypes";
 import {
-  computeInitialLayoutAssignments,
-  normalizeBookTemplateId,
-} from "@obra/layout-catalog";
-import {
   INVOKE_ERROR_INSUFFICIENT_CREDITS,
   toastApiFailure,
   toastInsufficientCredits,
@@ -114,7 +110,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [itemRegeneratingKey, setItemRegeneratingKey] = useState<string | null>(null);
 
   const [designConfig, setDesignConfig] = useState<WizardDesignConfig>(DEFAULT_DESIGN_CONFIG);
-  const [bookTemplateId, setBookTemplateId] = useState<string>(() => normalizeBookTemplateId(null));
   const [designSaving, setDesignSaving] = useState(false);
   const [designMessage, setDesignMessage] = useState<string | null>(null);
 
@@ -145,7 +140,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     setBonusItems(normalizeItems(project.bonus_items, project.bonus_count ?? 0, "bonus"));
     setBumpItems(normalizeItems(project.bump_items, project.bump_count ?? 0, "bump"));
     setDesignConfig(project.design_config ?? DEFAULT_DESIGN_CONFIG);
-    setBookTemplateId(normalizeBookTemplateId(project.book_template_id));
 
     if (project.main_title) {
       const matchingIndex = titleSuggestions.findIndex((title) => title === project.main_title);
@@ -519,10 +513,11 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     const key = `${kind}-${index}`;
     setItemRegeneratingKey(key);
     setItemsMessage(null);
-    const lockedTitles = items.filter((x) => x.locked).map((x) => x.title.trim()).filter(Boolean);
-    const previousTitles = items
-      .map((x) => x.title.trim())
+    // All other titles (locked or not) are passed as locked_titles so the model
+    // strictly avoids them. previous_titles is not needed here since we want hard avoidance.
+    const lockedTitles = items
       .filter((_, i) => i !== index)
+      .map((x) => x.title.trim())
       .filter(Boolean);
     const result = await suggestSingleWizardTitle({
       projectId: project.id,
@@ -534,7 +529,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       contentLocale: project.content_locale ?? null,
       ebookTitle: ebookTitleForAi,
       lockedTitles,
-      previousTitles,
     });
     setItemRegeneratingKey(null);
     if (!result.ok || !result.suggestion) {
@@ -578,12 +572,15 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     let hadError = false;
     let creditBlocked = false;
     const updates: Record<number, string> = {};
+    // Titles already set (locked or not) that are not being regenerated in this batch.
+    const baseTitles = sourceItems
+      .filter((x) => x.locked)
+      .map((x) => x.title.trim())
+      .filter(Boolean);
     for (const index of unlockedIndexes) {
-      const lockedTitles = sourceItems.filter((x) => x.locked).map((x) => x.title.trim()).filter(Boolean);
-      const previousTitles = sourceItems
-        .map((x) => x.title.trim())
-        .filter((_, i) => i !== index)
-        .filter(Boolean);
+      // Pass locked source titles + titles already generated in this batch so the model
+      // cannot repeat any of them.
+      const lockedTitles = [...baseTitles, ...Object.values(updates)];
       const result = await suggestSingleWizardTitle({
         projectId: project.id,
         field: kind === "bonus" ? "bonus_title" : "bump_title",
@@ -594,7 +591,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
         contentLocale: project.content_locale ?? null,
         ebookTitle: ebookTitleForAi,
         lockedTitles,
-        previousTitles,
       });
       if (!result.ok || !result.suggestion) {
         hadError = true;
@@ -633,28 +629,7 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     if (!project?.id || designSaving) return false;
     setDesignSaving(true);
     setDesignMessage(null);
-    const savedDesign = normalizeDesignConfig(project.design_config);
-    const pageGeomChanged =
-      savedDesign.page.size !== designConfig.page.size ||
-      savedDesign.page.orientation !== designConfig.page.orientation;
-    const savedTemplate = normalizeBookTemplateId(project.book_template_id);
-    const nextTemplate = normalizeBookTemplateId(bookTemplateId);
-    const templateChanged = savedTemplate !== nextTemplate;
-    const existingAssignments = project.layout_page_assignments ?? {};
-    const shouldRecomputeLayouts =
-      pageGeomChanged || templateChanged || Object.keys(existingAssignments).length === 0;
-    const layoutPageAssignments = shouldRecomputeLayouts
-      ? computeInitialLayoutAssignments({
-          projectId: project.id,
-          bookTemplateId: nextTemplate,
-          geometry: designConfig.page,
-        })
-      : existingAssignments;
-    const result = await saveWizardDesignConfig(project.id, {
-      designConfig,
-      bookTemplateId: nextTemplate,
-      layoutPageAssignments,
-    });
+    const result = await saveWizardDesignConfig(project.id, designConfig);
     setDesignSaving(false);
     if (!result.ok) {
       const key = "wizard.structure.step7.saveError";
@@ -662,31 +637,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       toastApiFailure(t, key);
       return false;
     }
-    setProject((current) => {
-      if (!current) return current;
-      if (result.persisted === "full") {
-        return {
-          ...current,
-          design_config: designConfig,
-          book_template_id: nextTemplate,
-          layout_page_assignments: layoutPageAssignments,
-        };
-      }
-      if (result.persisted === "design_and_template") {
-        return {
-          ...current,
-          design_config: designConfig,
-          book_template_id: nextTemplate,
-        };
-      }
-      return {
-        ...current,
-        design_config: designConfig,
-      };
-    });
-    setDesignMessage(
-      result.persisted === "full" ? t("wizard.structure.step7.saved") : t("wizard.structure.step7.savedPartial"),
-    );
+    setProject((current) => current ? { ...current, design_config: designConfig } : current);
+    setDesignMessage(t("wizard.structure.step7.saved"));
     return true;
   }
 
@@ -819,8 +771,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     regenerateAllItems,
     designConfig,
     setDesignConfig,
-    bookTemplateId,
-    setBookTemplateId,
     designSaving,
     designMessage,
     handleNextStep,

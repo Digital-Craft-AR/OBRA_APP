@@ -10,6 +10,7 @@ import { ContentChapterMilestone, ContentChapterNav } from "@/components/wizard/
 import { ContentArtifactTabs } from "@/components/wizard/content/ContentArtifactTabs";
 import { WizardGlobalStepper } from "@/components/wizard/WizardGlobalStepper";
 import { ObraSpinner } from "@/components/obra/ObraSpinner";
+import { ObraGeneratingOverlay } from "@/components/obra/ObraGeneratingOverlay";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useWizardStructureProject } from "@/hooks/wizard/useWizardStructureProject";
 import {
@@ -26,7 +27,9 @@ import {
   confirmOrderBumpIndex,
   ensureContentWorkspace,
   fetchPackageEbookIdMap,
+  invokeGenerateAllBonusIndex,
   invokeGenerateChapterContent,
+  streamGenerateChapterContent,
   invokeGenerateIndex,
   loadEbookChapters,
   loadEbookChaptersDraft,
@@ -51,7 +54,7 @@ import {
   type SplitProposalChapter,
 } from "@/lib/wizard/splitProposalApi";
 import type { TocChapterRow } from "@/lib/wizard/tocTypes";
-import { toastApiFailure, toastInsufficientCredits } from "@/lib/apiToast";
+import { toastApiFailure, toastInsufficientCredits, toastRateLimited, INVOKE_ERROR_RATE_LIMITED } from "@/lib/apiToast";
 import { chapterHtmlEquals, isChapterHtmlEffectivelyEmpty } from "@/lib/sanitizeChapterHtml";
 import { makeRetryRequestIdStore } from "@/lib/wizard/retryRequestId";
 import { supabase } from "@/lib/supabaseClient";
@@ -168,14 +171,17 @@ export function WizardContentPage() {
   const [backWarningOpen, setBackWarningOpen] = useState(false);
   const [artifactApproveLoading, setArtifactApproveLoading] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [autoGenerateCurrent, setAutoGenerateCurrent] = useState(0);
   const autoGenerateAbortRef = useRef(false);
   const [chapterRows, setChapterRows] = useState<ChapterDraftRow[]>([]);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [chapterBodyDraft, setChapterBodyDraft] = useState("");
-  const [chapterSaveLoading, setChapterSaveLoading] = useState(false);
+  const [, setChapterSaveLoading] = useState(false);
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
   const [chapterSuccessMessage, setChapterSuccessMessage] = useState<string | null>(null);
+  // Streaming state: accumulates raw text chunks while Claude responds
+  const [chapterStreamingHtml, setChapterStreamingHtml] = useState<string | null>(null);
   const [chapterRichTextKey, setChapterRichTextKey] = useState(0);
   const [chapterBodyPresence, setChapterBodyPresence] = useState<Record<string, boolean>>({});
   const [artifactApprovedByKey, setArtifactApprovedByKey] = useState<Record<string, boolean>>({});
@@ -702,11 +708,6 @@ export function WizardContentPage() {
     [selectedKey, selectedTarget.kind, packageEbookIds, bumpIndexFrozenAt, mainTocRows, chapterBodyPresence],
   );
 
-  const navItemDisabled = useCallback(
-    (key: string) =>
-      (needsUploadAlignment && key !== "main") || generateLoading || chapterGenerateLoading,
-    [needsUploadAlignment, generateLoading, chapterGenerateLoading],
-  );
 
   const handleRegenerateMainOutline = useCallback(async () => {
     if (selectedTarget.kind !== "main" || !project?.id || !mainEbookId) return;
@@ -723,6 +724,8 @@ export function WizardContentPage() {
       const code = result.code;
       if (code === "insufficient_credits") {
         toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -777,6 +780,8 @@ export function WizardContentPage() {
       if (code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
         toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (code === "wrong_content_source") {
         const message = t("wizard.content.index.errorWrongSource");
         toast.error({
@@ -818,64 +823,90 @@ export function WizardContentPage() {
     t,
   ]);
 
+  // Generates ALL bonus TOCs in a single Claude call so the model has full package
+  // context and avoids repeating section titles across bonuses (issue #213).
   const handleRegenerateBonusOutline = useCallback(async () => {
     if (selectedTarget.kind !== "bonus" || !project?.id) return;
-    const ebookId = packageEbookIds[selectedKey];
-    if (!ebookId) return;
     if (needsUploadAlignment || indexFrozen) return;
-    const pending = persistTimersRef.current[selectedKey];
-    if (pending) {
-      clearTimeout(pending);
-      delete persistTimersRef.current[selectedKey];
+
+    // Collect all bonus ebook IDs in package_ordinal order.
+    const bonusEntries = Object.entries(packageEbookIds)
+      .filter(([key]) => key.startsWith("bonus:"))
+      .sort(([a], [b]) => {
+        const aIdx = parseInt(a.split(":")[1] ?? "0", 10);
+        const bIdx = parseInt(b.split(":")[1] ?? "0", 10);
+        return aIdx - bIdx;
+      });
+    const bonusEbookIds = bonusEntries.map(([, id]) => id);
+
+    if (bonusEbookIds.length === 0) return;
+
+    // Flush any pending persists for ALL bonus keys before regenerating.
+    for (const [key] of bonusEntries) {
+      const pending = persistTimersRef.current[key];
+      if (pending) {
+        clearTimeout(pending);
+        delete persistTimersRef.current[key];
+      }
     }
+
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("index");
-    const opKey = `bonus-outline:${ebookId}`;
+
+    const opKey = `bonus-outline-all:${project.id}`;
     const clientRequestId = retryIds.current.getOrCreate(opKey);
     setGenerateLoading(true);
-    const result = await invokeGenerateIndex(project.id, clientRequestId, { targetEbookId: ebookId });
+    const result = await invokeGenerateAllBonusIndex(project.id, clientRequestId, bonusEbookIds);
     setGenerateLoading(false);
+
     if (!result.ok) {
       const code = result.code;
       if (code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
         toastInsufficientCredits(t, "wizard.content.index.errorInsufficientCredits");
+      } else if (code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (code === "wrong_content_source") {
-        const message = t("wizard.content.index.errorWrongSource");
         toast.error({
           title: t("wizard.content.index.regenerateOutline"),
-          description: message,
+          description: t("wizard.content.index.errorWrongSource"),
         });
       } else {
-        const message = t("wizard.content.index.errorGenerateGeneric");
         toast.error({
           title: t("wizard.content.index.regenerateOutline"),
-          description: message,
+          description: t("wizard.content.index.errorGenerateGeneric"),
         });
       }
       return;
     }
+
     retryIds.current.clear(opKey);
-    const saved = await replaceEbookDraftChapters(ebookId, result.titles);
-    if (!saved.ok) {
-      const message = t("wizard.content.index.errorSaveToc");
-      toast.error({
-        title: t("wizard.content.index.regenerateOutline"),
-        description: message,
-      });
-      return;
+
+    // Persist chapters for every bonus and update all TOC states at once.
+    for (const { ebookId, titles } of result.bonuses) {
+      const bonusKey = bonusEntries.find(([, id]) => id === ebookId)?.[0];
+      if (!bonusKey) continue;
+
+      const saved = await replaceEbookDraftChapters(ebookId, titles);
+      if (!saved.ok) {
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: t("wizard.content.index.errorSaveToc"),
+        });
+        return;
+      }
+      const loaded = await loadEbookChapters(ebookId);
+      if (loaded.ok) {
+        setBonusBumpToc((p) => ({ ...p, [bonusKey]: loaded.rows }));
+      }
     }
-    const loaded = await loadEbookChapters(ebookId);
-    if (loaded.ok) {
-      setBonusBumpToc((p) => ({ ...p, [selectedKey]: loaded.rows }));
-    }
+
     setActionAnnouncement(t("wizard.content.index.regenerateSuccess"));
   }, [
     selectedTarget.kind,
     project?.id,
     packageEbookIds,
-    selectedKey,
     needsUploadAlignment,
     indexFrozen,
     t,
@@ -1007,50 +1038,39 @@ export function WizardContentPage() {
     [chapterIdx, chapterRows, chapterBodyDraft, t],
   );
 
-  const handleSaveChapterBody = useCallback(async () => {
-    const current = chapterRows[chapterIdx];
-    if (!current) return;
-    setActionAnnouncement(null);
-    setChapterSaveLoading(true);
-    const res = await updateChapterDraftContent(current.id, chapterBodyDraft);
-    setChapterSaveLoading(false);
-    if (!res.ok) {
-      const key = "wizard.content.chapters.errorSave";
-      setActionAnnouncement(t(key));
-      toastApiFailure(t, key);
-      return;
-    }
-    setChapterRows((rows) =>
-      rows.map((r) => (r.id === current.id ? { ...r, content: chapterBodyDraft, approved_at: null } : r)),
-    );
-    setArtifactApprovedByKey((prev) => ({ ...prev, [selectedKey]: false }));
-    void refreshChapterBodyPresence();
-    // Mark project as modified if it was already published (content changed after export).
-    // Conditional update: only applies when publish_status = 'published', no-op otherwise.
-    if (project?.id) {
-      void supabase
-        .from("projects")
-        .update({ publish_status: "modified" })
-        .eq("id", project.id)
-        .eq("publish_status", "published");
-    }
-  }, [chapterRows, chapterIdx, chapterBodyDraft, t, refreshChapterBodyPresence, selectedKey, project?.id]);
 
   const handleGenerateChapter = useCallback(async () => {
-    const current = chapterRows[chapterIdx];
-    if (!current || !project?.id) return;
+    if (!project?.id || !selectedEbookId) return;
+    // Always reload from DB to guard against stale chapter IDs in React state.
+    const freshDraft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!freshDraft.ok || freshDraft.rows.length === 0) return;
+    const current = freshDraft.rows[chapterIdx] ?? freshDraft.rows[0];
+    if (!current) return;
+    setChapterRows(freshDraft.rows);
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
     const opKey = `chapter:${current.id}`;
     const clientRequestId = retryIds.current.getOrCreate(opKey);
     setChapterGenerateLoading(true);
-    const result = await invokeGenerateChapterContent(project.id, current.id, clientRequestId);
+    setChapterStreamingHtml("");
+
+    const result = await streamGenerateChapterContent(
+      project.id,
+      current.id,
+      clientRequestId,
+      (chunk) => setChapterStreamingHtml((prev) => (prev ?? "") + chunk),
+    );
+
+    setChapterStreamingHtml(null);
     setChapterGenerateLoading(false);
+
     if (!result.ok) {
       if (result.code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
         toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
+      } else if (result.code?.startsWith(INVOKE_ERROR_RATE_LIMITED)) {
+        toastRateLimited(t);
       } else if (result.code === "wrong_content_source") {
         const key = "wizard.content.index.errorWrongSource";
         setActionAnnouncement(t(key));
@@ -1059,10 +1079,7 @@ export function WizardContentPage() {
         const key = "wizard.content.chapters.errorGenerateGeneric";
         if (result.message) {
           setActionAnnouncement(result.message);
-          toast.error({
-            title: t(key),
-            description: result.message,
-          });
+          toast.error({ title: t(key), description: result.message });
         } else {
           setActionAnnouncement(t(key));
           toastApiFailure(t, key);
@@ -1070,6 +1087,7 @@ export function WizardContentPage() {
       }
       return;
     }
+
     retryIds.current.clear(opKey);
     const saved = await updateChapterDraftContent(current.id, result.content);
     if (!saved.ok) {
@@ -1086,7 +1104,7 @@ export function WizardContentPage() {
     setChapterRichTextKey((k) => k + 1);
     void refreshChapterBodyPresence();
     setChapterSuccessMessage(t("wizard.content.chapters.generateSuccess"));
-  }, [chapterRows, chapterIdx, project?.id, t, refreshChapterBodyPresence, selectedKey]);
+  }, [chapterIdx, project?.id, selectedEbookId, t, refreshChapterBodyPresence, selectedKey]);
 
   const handleApproveChapter = useCallback(async () => {
     const current = chapterRows[chapterIdx];
@@ -1462,52 +1480,93 @@ export function WizardContentPage() {
     [handleSelectPackageKey],
   );
 
-  // ── Auto-generate all chapters for current artifact ───────────────────────────
+  // ── Auto-generate all chapters for current artifact — parallel + streaming ─────
   const handleGenerateAllChapters = useCallback(async () => {
-    if (!project?.id) return;
+    if (!project?.id || !selectedEbookId) return;
     if (autoGenerating) {
       autoGenerateAbortRef.current = true;
       return;
     }
     autoGenerateAbortRef.current = false;
     setAutoGenerating(true);
+    setAutoGenerateCurrent(0);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
 
-    const snapshot = [...chapterRows];
-    for (let i = 0; i < snapshot.length; i++) {
-      if (autoGenerateAbortRef.current) break;
-      const ch = snapshot[i]!;
-      if (!isChapterHtmlEffectivelyEmpty(ch.content ?? "")) continue;
-      setChapterIdx(i);
-      const opKey = `autogen:${ch.id}`;
-      const clientRequestId = retryIds.current.getOrCreate(opKey);
-      setChapterGenerateLoading(true);
-      const result = await invokeGenerateChapterContent(project.id, ch.id, clientRequestId);
-      setChapterGenerateLoading(false);
-      if (autoGenerateAbortRef.current) break;
-      if (!result.ok) {
-        if (result.code === "insufficient_credits") {
-          setInsufficientCreditsToastOpen(true);
-          toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
-          break;
-        }
-        continue;
-      }
-      retryIds.current.clear(opKey);
-      await updateChapterDraftContent(ch.id, result.content);
-      setChapterBodyDraft(result.content);
-      setChapterRichTextKey((k) => k + 1);
-      snapshot[i] = { ...ch, content: result.content, approved_at: null };
-      setChapterRows((rows) =>
-        rows.map((r) => (r.id === ch.id ? { ...r, content: result.content, approved_at: null } : r)),
-      );
+    // Reload from DB to guard against stale chapter IDs in React state.
+    const freshDraft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!freshDraft.ok) {
+      setAutoGenerating(false);
+      toastApiFailure(t, "wizard.content.chapters.errorGenerateGeneric");
+      return;
     }
+    if (freshDraft.rows.length > 0) {
+      setChapterRows(freshDraft.rows);
+    }
+    const snapshot = freshDraft.rows;
+    const pending = snapshot.filter((ch) => isChapterHtmlEffectivelyEmpty(ch.content ?? ""));
+    const currentChapterId = snapshot[chapterIdx]?.id;
 
+    // Track how many have completed for the progress counter
+    let completedCount = 0;
+    const updateCompleted = () => {
+      completedCount++;
+      setAutoGenerateCurrent(completedCount);
+    };
+
+    // Fire all pending chapters in parallel — each streams independently
+    const results = await Promise.allSettled(
+      pending.map(async (ch) => {
+        if (autoGenerateAbortRef.current) return;
+        const opKey = `autogen:${ch.id}`;
+        const clientRequestId = retryIds.current.getOrCreate(opKey);
+        const isCurrentChapter = ch.id === currentChapterId;
+
+        const result = await streamGenerateChapterContent(
+          project.id!,
+          ch.id,
+          clientRequestId,
+          // Only pipe streaming chunks to the editor for the currently visible chapter
+          isCurrentChapter
+            ? (chunk) => setChapterStreamingHtml((prev) => (prev ?? "") + chunk)
+            : () => {},
+        );
+
+        if (isCurrentChapter) setChapterStreamingHtml(null);
+        updateCompleted();
+
+        if (!result.ok) {
+          if (result.code === "insufficient_credits") {
+            setInsufficientCreditsToastOpen(true);
+            toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
+          }
+          return;
+        }
+
+        retryIds.current.clear(opKey);
+        await updateChapterDraftContent(ch.id, result.content);
+
+        // Update state: visible chapter gets full editor refresh; others just update rows
+        setChapterRows((rows) =>
+          rows.map((r) => (r.id === ch.id ? { ...r, content: result.content, approved_at: null } : r)),
+        );
+        if (isCurrentChapter) {
+          setChapterBodyDraft(result.content);
+          setChapterRichTextKey((k) => k + 1);
+        }
+      }),
+    );
+
+    // Surface the first unhandled rejection if any
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed) console.error("autogen_chapter_failed", (failed as PromiseRejectedResult).reason);
+
+    void refreshChapterBodyPresence();
     setAutoGenerating(false);
+    setAutoGenerateCurrent(0);
     setChapterGenerateLoading(false);
     autoGenerateAbortRef.current = false;
-  }, [project?.id, chapterRows, autoGenerating, t]);
+  }, [project?.id, chapterRows, chapterIdx, selectedEbookId, autoGenerating, t, refreshChapterBodyPresence]);
 
   // ── Approve all chapters in the current artifact ──────────────────────────────
   const handleApproveArtifact = useCallback(async () => {
@@ -1540,7 +1599,7 @@ export function WizardContentPage() {
     const updatedApprovals = { ...artifactApprovedByKey, [selectedKey]: true };
     setArtifactApprovedByKey(updatedApprovals);
     setArtifactApproveLoading(false);
-    toast.success({ title: t("wizard.content.generating.artifactApproved") });
+    toast.success({ title: t("wizard.content.generating.artifactApproved"), description: "" });
 
     // Advance to next unapproved artifact using locally-updated map
     const currentIdx = navItems.findIndex((item) => item.key === selectedKey);
@@ -1749,7 +1808,16 @@ export function WizardContentPage() {
               onGenerateAll={project.content_source === "ai" ? () => void handleGenerateAllChapters() : undefined}
               generateAllLoading={autoGenerating}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+              {autoGenerating ? (
+                <ObraGeneratingOverlay
+                  title={t("wizard.content.chapters.generatingOverlayTitle")}
+                  messages={t("wizard.content.chapters.generatingOverlayMsgs", { returnObjects: true }) as string[]}
+                  ariaLabel={t("wizard.content.chapters.generatingOverlayAria")}
+                  current={autoGenerateCurrent}
+                  total={chapterRows.length}
+                />
+              ) : null}
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="w-full min-h-full bg-white px-8 py-10">
                   {/* Complete banner */}
@@ -1764,23 +1832,34 @@ export function WizardContentPage() {
                     </div>
                   )}
 
-                  <ContentChapterMilestone
-                    t={t}
-                    panelTitle={chapterPanelCopy.title}
-                    chapters={chapterRows}
-                    selectedIndex={chapterIdx}
-                    bodyValue={chapterBodyDraft}
-                    onBodyChange={setChapterBodyDraft}
-                    onGenerate={() => void handleGenerateChapter()}
-                    onApprove={() => void handleApproveChapter()}
-                    generateLoading={chapterGenerateLoading}
-                    approveLoading={chapterApproveLoading}
-                    richTextResetKey={chapterRichTextKey}
-                    progressValue={chapterProgressValue}
-                    progressMax={Math.max(chapterRows.length, 1)}
-                    showAiGenerateButton={project.content_source === "ai"}
-                    successMessage={chapterSuccessMessage}
-                  />
+                  {chapterStreamingHtml !== null ? (
+                    <div className="flex flex-col gap-3 p-4">
+                      <div
+                        className="prose prose-sm max-w-none rounded-lg border border-obra-blue-100 bg-white p-4 text-obra-blue-950"
+                        // eslint-disable-next-line react/no-danger
+                        dangerouslySetInnerHTML={{ __html: chapterStreamingHtml || "…" }}
+                      />
+                    </div>
+                  ) : (
+                    <ContentChapterMilestone
+                      t={t}
+                      panelTitle={chapterPanelCopy.title}
+                      chapters={chapterRows}
+                      selectedIndex={chapterIdx}
+                      bodyValue={chapterBodyDraft}
+                      onBodyChange={setChapterBodyDraft}
+                      onGenerate={() => void handleGenerateChapter()}
+                      onApprove={() => void handleApproveChapter()}
+                      generateLoading={chapterGenerateLoading}
+                      generateAllLoading={autoGenerating}
+                      approveLoading={chapterApproveLoading}
+                      richTextResetKey={chapterRichTextKey}
+                      progressValue={chapterProgressValue}
+                      progressMax={Math.max(chapterRows.length, 1)}
+                      showAiGenerateButton={project.content_source === "ai"}
+                      successMessage={chapterSuccessMessage}
+                    />
+                  )}
                 </div>
               </div>
             </div>

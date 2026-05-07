@@ -81,5 +81,5 @@ export type SubscriptionReconcileResult =
   | {
       found: true;
       source: "subscription" | "payment";
-      subscriptionStatus: "none" | "active" | "past_due";
+      subscriptionStatus: "none" | "active" | "past_due" | "cancelled";
     };

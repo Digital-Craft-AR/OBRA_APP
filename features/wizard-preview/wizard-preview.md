@@ -104,21 +104,28 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
   - `{{TOC_ENTRIES}}` — table of contents list items
   - `{{CHAPTER_N_TITLE}}` / `{{CHAPTER_N_CONTENT}}` — per-chapter slots (N = 1-based sort order)
   - `<div data-slot-key="…" data-slot-type="…" data-slot-description="…">` — image slots
-- **`injectAll(htmlShell, { chapters, images })`** — pure function (no Claude call) run client-side on every render. Replaces all placeholders with current chapter data and signed image URLs. Same function runs in the Railway PDF worker.
+- **`injectAll(htmlShell, { chapters, images })`** — pure function (no Claude call) run client-side on every render. Replaces all placeholders with current chapter data and signed image URLs. A corresponding implementation runs in the Railway PDF worker (`obra-pdf-export/src/pdf-builder.js`). **Note:** the two implementations diverge for the cover slot — see "Cover image rendering" below.
 - **Staleness check** (`shell_meta: { chapter_count, page_size, page_orientation, generated_at }`): shell is regenerated only when structure changes (chapter count or page config). Text edits in Content never trigger regeneration.
 - **Same HTML for preview and PDF:** `ebooks.html_shell` is the single source of truth for both `<iframe srcdoc>` preview and the Railway Puppeteer worker — no divergence between what the user sees and what gets exported.
-- **Image slots** are defined by the Claude-generated shell; slot keys follow the convention `cover` (cover art), `chapter_N_image`, etc. The DB stores images in `project_images` with `slot_key` matching the HTML attribute. The mapping `cover_art` (DB) ↔ `cover` (HTML) is normalized in `injectAll()`.
+- **Image slots** are defined by the Claude-generated shell. Slot key conventions:
+  - **Cover:** HTML `data-slot-key="cover"` ↔ DB `slot_key="cover_art"` — this mapping is normalized inside `injectAll()`.
+  - **Chapter images:** HTML `data-slot-key="chapter-N-image-1"` (1-based chapter order) ↔ DB `slot_key="chapter-N-image-1"`. Legacy shells generated before the prompt fix used `chapter-N-img`; all three `injectAll()` implementations (client, Edge Function `export-pdf`, Railway worker `obra-pdf-export`) add a backward-compat alias so old shells still resolve images correctly.
+  - The DB stores images in `project_images` with `slot_key` set to the **DB key** (`cover_art`, `chapter-N-image-1`).
+- **`removeImage()` (`obra/src/lib/preview/imageSlotApi.ts`):** deletes the `project_images` row and the corresponding Storage object. Requires an RLS `DELETE` policy on `project_images` (see migration `20260501120000_project_images_delete_policy.sql`); without it, Supabase silently ignores the delete.
+- **Cover image rendering:** In the browser preview, the cover image is injected as an `<img>` element inside the `.obra-image-slot--cover` div. In the Railway PDF worker, the cover is instead injected as a CSS `background-image` on `.obra-page.obra-cover` (the slot div is hidden via `display:none`). This is required because pagedjs 0.4.x does not reliably support `position:absolute; inset:0` inside page areas; `background-image` on the page element is the correct approach for full-bleed cover images.
+- **Fixed page dimensions (PDF worker):** The worker injects explicit `width`/`height` overrides (from `design_config.page`) on `.obra-page.obra-cover` and `.obra-page.obra-chapter-opener` to prevent pagedjs from miscomputing their dimensions.
 - **Post-MVP:** book template / layout registry / pools architecture for structured multi-layout documents (see [`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)).
 
 ### Styling and PDF
 
-- **Design system → CSS:** project tokens are inlined into the HTML shell as CSS custom properties (`--color-primary`, `--color-secondary`, `--color-accent`, `--font-display`, `--font-body`). Google Fonts are loaded via `<link>` in the shell.
+- **Design system → CSS:** project tokens are inlined into the HTML shell as CSS custom properties (`--color-primary`, `--color-secondary`, `--color-accent`, `--font-display`, `--font-body`). Google Fonts are loaded via `<link>` in the shell (browser preview only — the PDF worker strips these tags before loading the HTML; see below).
 - **PDF engine:** Puppeteer (Railway worker, `Digital-Craft-AR/obra-pdf-export`) renders the same `html_shell` after `injectAll()`. `@page` rules and `page-break-after` / `break-after` in the shell CSS control pagination. `@media screen` adds card simulation for in-app preview; Puppeteer uses the print path.
 - **Named CSS pages:** `obra-full-bleed` (zero margin, for cover/chapter-opener full-bleed images) and `obra-content` (20mm margin, for body/TOC pages).
 
 ### Images pipeline
 
-- **Image slot interactions (MVP):** slots inside the `<iframe>` have a hover overlay (injected CSS + JS) with three actions: upload from disk, generate with AI (opens modal with instruction field), remove. Actions are communicated to the React parent via `postMessage` (`obra:slot:file`, `obra:slot:generate`, `obra:slot:remove`). The parent handles Storage upload, Gemini generation, and DB write; `injectAll()` re-runs with the new signed URL.
+- **Image slot interactions (MVP):** slots inside the `<iframe>` have a hover overlay (injected CSS + JS) with three actions: upload from disk, generate with AI (opens modal with instruction field), remove. Actions are communicated to the React parent via `postMessage` (`obra:slot:file`, `obra:slot:generate`, `obra:slot:remove`). The parent handles Storage upload, Gemini generation, DB write, and DB delete; `injectAll()` re-runs with the new signed URL (or without the removed slot's URL on removal).
+- **Slot key resolution in parent (`resolveSlotArgs`):** the iframe emits the HTML slot key (e.g. `chapter-2-image-1`); `resolveSlotArgs` normalizes legacy `chapter-N-img` → `chapter-N-image-1`, then maps to the DB key, `ebookId`, and `chapterId` for API calls. The composite key `{ebookId}:{dbSlotKey}` is used in `imageSlots` React state.
 - On **entering Preview**, enqueue **missing** slot URLs according to `image_mode`; **auto-run** jobs; on **reload**, only **still-empty** slots enqueue again.
 - **Uploads:** validate **KB max** and **layout max dimensions/aspect**; persist **single optimized** derivative; reject or downscale per product rules.
 - **AI regenerate:** optional **short user instruction**; **preview** result; **confirm** to commit; credits on **successful** persist; **idempotency** keys for retries.
@@ -149,7 +156,9 @@ Without a clear spec, teams risk: preview diverging from PDF, ambiguous image bi
 
 - **HTML shell pipeline:** `generate-document-template` (Edge Function) → `ebooks.html_shell` + `shell_meta` → `fetchOrGenerateShell()` (client) → `injectAll()` (client + Railway worker) → `<iframe srcdoc>` / Puppeteer.
 - **Image slot service:** `project_images` table (slot_key → storage_path); signed URLs fetched at render time; slot interactions via postMessage in preview.
-- **Export service:** `export-pdf-queue` Edge Function enqueues jobs; Railway worker renders and uploads; `pdf_export_jobs` tracks state, retries, and signed delivery URL.
+- **Export service:** `export-pdf-queue` Edge Function always creates a new `pdf_export_jobs` row on every call (no timestamp-based reuse — image changes don't bump `ebooks.updated_at`). It guards against concurrent exports for the same ebook: if a `pending`/`processing` job already exists, it returns that job's ID so the UI can track progress without duplicating work. The Railway worker (`Digital-Craft-AR/obra-pdf-export`) picks up the job, renders with Puppeteer + pagedjs, uploads the PDF to Storage, and marks the job `completed` with a `storage_path`.
+- **Per-ebook download:** Once an export completes, `WizardPreviewPage` stores the signed URL per `ebookId` in `ebookPdfUrls` state (loaded on mount from the latest completed job per ebook). A "Descargar PDF" button appears alongside the export button when a URL is available. Any image change or design regeneration calls `markModified(ebookId)`, which clears that ebook's entry from `ebookPdfUrls` and resets `exportJobId` so the next export starts fresh.
+- **`publishStatus` on export:** On `export-pdf-queue` success, `publishStatus` is set to `"published"` unconditionally (overriding both `"draft"` and `"modified"`). Any subsequent image change or design regeneration resets it to `"modified"` via `markModified()`.
 - **Post-MVP — Layout registry:** book templates, layout catalog, and pools ([`docs/architecture/layout-registry-and-pools.md`](../../docs/architecture/layout-registry-and-pools.md)) for structured multi-layout documents.
 
 ---

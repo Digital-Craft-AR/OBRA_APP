@@ -26,6 +26,7 @@ export type ProjectImageRow = {
   layout_id: string;
   storage_path: string | null;
   status: ImageSlotStatus;
+  prompt: string | null;
 };
 
 export async function loadProjectImages(
@@ -33,7 +34,7 @@ export async function loadProjectImages(
 ): Promise<{ ok: true; rows: ProjectImageRow[] } | { ok: false }> {
   const { data, error } = await supabase
     .from("project_images")
-    .select("id, project_id, ebook_id, chapter_id, slot_key, layout_id, storage_path, status")
+    .select("id, project_id, ebook_id, chapter_id, slot_key, layout_id, storage_path, status, prompt")
     .eq("project_id", projectId);
 
   if (error || !data) return { ok: false };
@@ -97,6 +98,37 @@ export async function getSignedImageUrl(storagePath: string): Promise<string | n
   return rewriteStorageSignedUrlForPublicAccess(data.signedUrl, publicSupabaseApiUrl);
 }
 
+export async function removeImage(args: {
+  projectId: string;
+  slotKey: string;
+  ebookId?: string;
+  chapterId?: string;
+}): Promise<{ ok: boolean }> {
+  const { projectId, slotKey, ebookId, chapterId } = args;
+
+  let q = supabase
+    .from("project_images")
+    .select("id, storage_path")
+    .eq("project_id", projectId)
+    .eq("slot_key", slotKey);
+  if (ebookId) q = q.eq("ebook_id", ebookId); else q = q.is("ebook_id", null);
+  if (chapterId) q = q.eq("chapter_id", chapterId); else q = q.is("chapter_id", null);
+  const { data } = await q.maybeSingle();
+  if (!data) return { ok: true };
+
+  const row = data as { id: string; storage_path: string | null };
+
+  const { error: delErr } = await supabase.from("project_images").delete().eq("id", row.id);
+  if (delErr) return { ok: false };
+
+  if (row.storage_path) {
+    const path = normalizeProjectImageStoragePath(row.storage_path);
+    await supabase.storage.from("project-images").remove([path]);
+  }
+
+  return { ok: true };
+}
+
 export type UploadImageResult =
   | { ok: true; signedUrl: string; storagePath: string }
   | { ok: false; code: string };
@@ -141,18 +173,19 @@ export async function uploadImage(args: {
 
   // Upsert project_images row using select-then-update/insert
   // (partial unique indexes can't be targeted by .upsert onConflict)
-  const isCover = slotKey === "cover_art" && !ebookId && !chapterId;
+  const isCover = slotKey === "cover_art";
   let existingId: string | null = null;
 
   if (isCover) {
-    const { data } = await supabase
+    // Cover slots are scoped per ebook; ebookId must be provided by caller.
+    let q = supabase
       .from("project_images")
       .select("id")
       .eq("project_id", projectId)
       .eq("slot_key", slotKey)
-      .is("ebook_id", null)
-      .is("chapter_id", null)
-      .maybeSingle();
+      .is("chapter_id", null);
+    if (ebookId) q = q.eq("ebook_id", ebookId); else q = q.is("ebook_id", null);
+    const { data } = await q.maybeSingle();
     existingId = (data as { id: string } | null)?.id ?? null;
   } else {
     let q = supabase

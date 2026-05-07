@@ -4,7 +4,13 @@ import { billingNeedsMercadoPagoAccessToken } from "../_shared/payment/billingEn
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadEnv.ts";
 
-type SubscriptionStatus = "none" | "active" | "past_due";
+type SubscriptionStatus = "none" | "active" | "past_due" | "cancelled";
+
+function nowPlusOneMonth(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toISOString();
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -57,11 +63,13 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRole);
   const { data: profile } = await admin
     .from("creator_profiles")
-    .select("subscription_status")
+    .select("subscription_status, subscription_access_until")
     .eq("id", userId)
     .maybeSingle();
 
-  const currentStatus = normalizeStatus((profile as { subscription_status?: string } | null)?.subscription_status);
+  const profileRow = profile as { subscription_status?: string; subscription_access_until?: string | null } | null;
+  const currentStatus = normalizeStatus(profileRow?.subscription_status);
+  const currentAccessUntil = profileRow?.subscription_access_until ?? null;
   let reconciledFrom: "subscription_preapproval" | "payment" | "profile" = "profile";
   let nextStatus = currentStatus;
 
@@ -71,10 +79,26 @@ Deno.serve(async (req: Request) => {
     nextStatus = remote.subscriptionStatus;
   }
 
-  if (nextStatus !== currentStatus) {
+  // Set subscription_access_until when:
+  // 1. Reconciling to "active" with no future access date (webhook delay or missing webhook).
+  // 2. Transitioning from "active" to "cancelled" with no access date set — MP has no
+  //    cancellation webhook, so this is the only moment we can grant the grace period.
+  const needsAccessUntil =
+    (nextStatus === "active" &&
+      (!currentAccessUntil || new Date(currentAccessUntil) <= new Date())) ||
+    (nextStatus === "cancelled" && currentStatus === "active" && !currentAccessUntil);
+
+  if (nextStatus !== currentStatus || needsAccessUntil) {
+    const updatePayload: Record<string, string> = {
+      subscription_status: nextStatus,
+      updated_at: new Date().toISOString(),
+    };
+    if (needsAccessUntil) {
+      updatePayload.subscription_access_until = nowPlusOneMonth();
+    }
     const { error: upErr } = await admin
       .from("creator_profiles")
-      .update({ subscription_status: nextStatus, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq("id", userId);
     if (upErr) return json({ error: "db_update" }, 500);
   }
@@ -88,6 +112,6 @@ Deno.serve(async (req: Request) => {
 });
 
 function normalizeStatus(raw: string | undefined): SubscriptionStatus {
-  if (raw === "active" || raw === "past_due" || raw === "none") return raw;
+  if (raw === "active" || raw === "past_due" || raw === "none" || raw === "cancelled") return raw;
   return "none";
 }

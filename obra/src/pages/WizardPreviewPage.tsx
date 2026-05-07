@@ -17,20 +17,15 @@ import {
   generateImage,
   getSignedImageUrl,
   loadProjectImages,
+  removeImage,
   uploadImage,
   type ImageSlotStatus,
   type ProjectImageRow,
 } from "@/lib/preview/imageSlotApi";
-import {
-  fetchOrGenerateShell,
-  isShellMetaStale,
-  regenerateShell,
-  hashChapters,
-  type ShellMeta,
-} from "@/lib/preview/documentShellApi";
+import { fetchOrGenerateShell, regenerateShell, hashChapters, type ShellMeta, type ShellProgress } from "@/lib/preview/documentShellApi";
 import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
-import { queuePdfExport, getErrorMessage } from "@/utils/pdf-export";
+import { queuePdfExport, downloadPdf, getErrorMessage } from "@/utils/pdf-export";
 import { supabase } from "@/lib/supabaseClient";
 
 type EbookRow = {
@@ -41,8 +36,10 @@ type EbookRow = {
 };
 
 /**
- * Stable key for imageSlots. Cover uses `cover_art`. Chapter heroes use
- * `{ebookId}:{chapterId}:hero` so preview can map to shell keys `chapter-N-image-1`.
+ * Stable key for imageSlots state.
+ * - Cover: "cover_art"
+ * - New chapter slots (slot_key = "chapter-N-image-1"): "{ebookId}:chapter-N-image-1"
+ * - Legacy hero rows (slot_key = "hero"): "{ebookId}:{chapterId}:hero"
  */
 function rowSlotKey(row: ProjectImageRow): string {
   return compositeSlotKey(row.slot_key, row.ebook_id ?? undefined, row.chapter_id ?? undefined);
@@ -53,9 +50,13 @@ function rowSlotKey(row: ProjectImageRow): string {
  * so handlers stay consistent with keys produced by rowSlotKey on initial load).
  */
 function compositeSlotKey(dbSlotKey: string, ebookId: string | undefined, chapterId: string | undefined): string {
-  if (dbSlotKey === "cover_art" && !ebookId && !chapterId) return "cover_art";
+  // Cover slots are scoped per ebook: each deliverable has its own cover.
+  if (dbSlotKey === "cover_art") return ebookId ? `${ebookId}:cover_art` : "cover_art";
+  // Legacy rows stored with slot_key="hero" before the chapter-N-image-1 migration
   if (dbSlotKey === "hero" && ebookId && chapterId) return `${ebookId}:${chapterId}:hero`;
-  return `${ebookId ?? ""}:${chapterId ?? ""}:${dbSlotKey}`;
+  // New chapter slots: slot_key is already the html_shell key (e.g. "chapter-1-image-1")
+  if (ebookId) return `${ebookId}:${dbSlotKey}`;
+  return dbSlotKey;
 }
 
 function chaptersSortedByOrder(chapters: ChapterDraftRow[]): ChapterDraftRow[] {
@@ -150,6 +151,8 @@ export function WizardPreviewPage() {
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  // ebookId → signed PDF URL for the most recent completed export
+  const [ebookPdfUrls, setEbookPdfUrls] = useState<Record<string, string>>({});
 
   const [isZipModalOpen, setIsZipModalOpen] = useState(false);
   const [publishStatus, setPublishStatus] = useState<"draft" | "published" | "modified">("draft");
@@ -170,6 +173,7 @@ export function WizardPreviewPage() {
    * while the first generation still runs) must not clear loading until every request for that id ends.
    */
   const [shellInflightByEbook, setShellInflightByEbook] = useState<Record<string, number>>({});
+  const [shellProgressByEbook, setShellProgressByEbook] = useState<Record<string, ShellProgress>>({});
   const beginShellInflight = useCallback((ebookId: string) => {
     setShellInflightByEbook((prev) => ({ ...prev, [ebookId]: (prev[ebookId] ?? 0) + 1 }));
   }, []);
@@ -186,6 +190,9 @@ export function WizardPreviewPage() {
   const [shellError, setShellError] = useState<string | null>(null);
   const selectedEbookIdRef = useRef<string | null>(null);
   selectedEbookIdRef.current = selectedEbookId;
+  /** Tracks ebook IDs for which shell generation has already been started, preventing duplicate
+   * concurrent invocations when the shell effect re-fires due to React state updates. */
+  const shellGenerationStartedRef = useRef(new Set<string>());
   /** True when current chapters count/page config differs from what the shell was generated with */
   const [shellStale, setShellStale] = useState(false);
 
@@ -225,6 +232,29 @@ export function WizardPreviewPage() {
       if (status === "published" || status === "modified" || status === "draft") {
         setPublishStatus(status);
       }
+
+      // Load latest completed PDF URL per ebook
+      const { data: completedJobs } = await supabase
+        .from("pdf_export_jobs")
+        .select("ebook_id, storage_path")
+        .eq("project_id", project!.id)
+        .eq("status", "completed")
+        .not("storage_path", "is", null)
+        .order("completed_at", { ascending: false });
+      if (!cancelled && completedJobs?.length) {
+        const urls: Record<string, string> = {};
+        const seen = new Set<string>();
+        for (const job of completedJobs as { ebook_id: string | null; storage_path: string | null }[]) {
+          if (!job.ebook_id || !job.storage_path || seen.has(job.ebook_id)) continue;
+          seen.add(job.ebook_id);
+          const { data: signed } = await supabase.storage
+            .from("project-pdfs")
+            .createSignedUrl(job.storage_path, 3600);
+          if (signed?.signedUrl) urls[job.ebook_id] = signed.signedUrl;
+        }
+        if (!cancelled) setEbookPdfUrls(urls);
+      }
+
       setEbooksLoading(false);
     }
 
@@ -234,89 +264,137 @@ export function WizardPreviewPage() {
     };
   }, [project?.id, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load chapters for the selected ebook when not yet cached
+  // Load chapters for ALL visible ebooks in parallel on first visit
   useEffect(() => {
-    if (!selectedEbookId || chaptersCache[selectedEbookId] !== undefined) return;
+    const missing = visibleEbooks.filter((e) => chaptersCache[e.id] === undefined);
+    if (missing.length === 0) return;
     let cancelled = false;
 
-    async function load() {
-      if (!selectedEbookId) return;
+    async function loadAll() {
       setChaptersLoading(true);
-      const result = await loadEbookChaptersDraft(selectedEbookId);
+      const pairs = await Promise.all(
+        missing.map(async (e) => ({ id: e.id, result: await loadEbookChaptersDraft(e.id) })),
+      );
       if (cancelled) return;
-      if (result.ok) {
-        setChaptersCache((prev) => ({ ...prev, [selectedEbookId]: result.rows }));
+      const updates: Record<string, ChapterDraftRow[]> = {};
+      for (const { id, result } of pairs) {
+        if (result.ok) updates[id] = result.rows;
       }
+      setChaptersCache((prev) => ({ ...prev, ...updates }));
       setChaptersLoading(false);
     }
 
-    void load();
+    void loadAll();
     return () => {
       cancelled = true;
     };
-  }, [selectedEbookId, chaptersCache]);
+  }, [visibleEbooks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load or generate the HTML shell when chapters for selected ebook are ready
+  const markModified = useCallback((ebookId?: string) => {
+    setPublishStatus((prev) => (prev === "published" ? "modified" : prev));
+    // Clear the cached PDF URL for this ebook and reset the export job so the modal remounts fresh.
+    if (ebookId) setEbookPdfUrls((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
+    setExportJobId(null);
+    if (project?.id) {
+      void supabase
+        .from("projects")
+        .update({ publish_status: "modified" })
+        .eq("id", project.id)
+        .then(({ error }) => { if (error) console.error("mark_modified_error", error); });
+    }
+  }, [project?.id]);
+
+  // Generate shells for ALL ebooks with chapters simultaneously; tab switches reuse the cache
   useEffect(() => {
-    if (!project?.id || !selectedEbookId) return;
-    const chapters = chaptersCache[selectedEbookId];
-    if (!chapters || chapters.length === 0) return;
-    // Already cached for this ebook
-    if (shellCache[selectedEbookId]) {
+    if (!project?.id) return;
+
+    // Staleness check for the currently selected ebook (UI state only, no generation)
+    if (selectedEbookId && shellCache[selectedEbookId]) {
       const meta = shellCache[selectedEbookId]!.meta;
-      const dc = (project.design_config ?? {}) as Record<string, unknown>;
-      const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      setShellStale(isShellMetaStale(meta, chapters.length, page.size, page.orientation, hashChapters(chapters)));
-      return;
+      const chapters = chaptersCache[selectedEbookId];
+      if (chapters && chapters.length > 0) {
+        const dc = (project.design_config ?? {}) as Record<string, unknown>;
+        const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
+        const contentHash = hashChapters(chapters);
+        const stale =
+          meta.chapter_count !== chapters.length ||
+          meta.page_size !== page.size ||
+          meta.page_orientation !== page.orientation ||
+          meta.content_hash !== contentHash;
+        setShellStale(stale);
+      }
     }
 
-    let cancelled = false;
-    async function load() {
-      if (!project?.id || !selectedEbookId) return;
-      const ebookId = selectedEbookId;
+    const dc = (project.design_config ?? {}) as Record<string, unknown>;
+    const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
+
+    // Collect ebooks that need generation (chapters ready, no cached shell, not already started)
+    const toGenerate = visibleEbooks.filter((e) => {
+      const chapters = chaptersCache[e.id];
+      return (
+        chapters &&
+        chapters.length > 0 &&
+        !shellCache[e.id] &&
+        !shellGenerationStartedRef.current.has(e.id)
+      );
+    });
+
+    if (toGenerate.length === 0) return;
+
+    setShellError(null);
+
+    for (const ebook of toGenerate) {
+      const ebookId = ebook.id;
+      shellGenerationStartedRef.current.add(ebookId);
       beginShellInflight(ebookId);
-      setShellError(null);
+      setShellProgressByEbook((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
+
       const chapters = chaptersCache[ebookId]!;
-      const dc = (project.design_config ?? {}) as Record<string, unknown>;
-      const page = (dc.page as { size: string; orientation: string } | null) ?? { size: "a4", orientation: "portrait" };
-      const result = await fetchOrGenerateShell({
+
+      void fetchOrGenerateShell({
         projectId: project.id,
         ebookId,
         currentChapterCount: chapters.length,
         currentPageSize: page.size,
         currentPageOrientation: page.orientation,
         currentContentHash: hashChapters(chapters),
+        onProgress: (p) => setShellProgressByEbook((prev) => ({ ...prev, [ebookId]: p })),
+      }).then((result) => {
+        if (result.ok) {
+          setShellCache((prev) => ({
+            ...prev,
+            [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
+          }));
+          if (selectedEbookIdRef.current === ebookId) setShellStale(result.stale);
+          // Shell had to be regenerated (not served from cache) → content changed since last export.
+          // Mark the project as modified so the stale PDF URL is cleared and Download PDF is hidden.
+          if (!result.cached) markModified(ebookId);
+        } else if (result.error !== "generation_in_progress") {
+          // Allow retry on error so the effect can restart generation if triggered again
+          shellGenerationStartedRef.current.delete(ebookId);
+          if (selectedEbookIdRef.current === ebookId) setShellError(result.error);
+        }
+        endShellInflight(ebookId);
       });
-      if (cancelled) {
-        endShellInflight(ebookId);
-        return;
-      }
-      if (selectedEbookIdRef.current !== ebookId) {
-        endShellInflight(ebookId);
-        return;
-      }
-      if (result.ok) {
-        setShellCache((prev) => ({
-          ...prev,
-          [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
-        }));
-        setShellStale(result.stale);
-      } else if (result.error !== "generation_in_progress") {
-        setShellError(result.error);
-      }
-      endShellInflight(ebookId);
     }
+  }, [project, visibleEbooks, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight, markModified]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    void load();
-    return () => { cancelled = true; };
-  }, [project, selectedEbookId, chaptersCache, shellCache, beginShellInflight, endShellInflight]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleExportSuccess = useCallback((pdfUrl: string) => {
+    if (!selectedEbookId) return;
+    setEbookPdfUrls((prev) => ({ ...prev, [selectedEbookId]: pdfUrl }));
+  }, [selectedEbookId]);
 
   const handleRegenerateShell = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
     const ebookId = selectedEbookId;
     beginShellInflight(ebookId);
     setShellError(null);
-    const result = await regenerateShell({ projectId: project.id, ebookId });
+    setShellProgressByEbook((prev) => { const { [ebookId]: _, ...rest } = prev; return rest; });
+    const result = await regenerateShell({
+      projectId: project.id,
+      ebookId,
+      onProgress: (p) => setShellProgressByEbook((prev) => ({ ...prev, [ebookId]: p })),
+    });
     if (selectedEbookIdRef.current !== ebookId) {
       endShellInflight(ebookId);
       return;
@@ -327,11 +405,12 @@ export function WizardPreviewPage() {
         [ebookId]: { html: result.htmlShell, meta: result.shellMeta },
       }));
       setShellStale(false);
+      markModified(ebookId);
     } else if (result.error !== "generation_in_progress") {
       setShellError(result.error);
     }
     endShellInflight(ebookId);
-  }, [project?.id, selectedEbookId, beginShellInflight, endShellInflight]);
+  }, [project?.id, selectedEbookId, beginShellInflight, endShellInflight, markModified]);
 
   // Load existing image slots when project is loaded
   useEffect(() => {
@@ -390,11 +469,15 @@ export function WizardPreviewPage() {
       if (htmlSlotKey === "cover") {
         return {
           dbSlotKey: "cover_art" as const,
-          ebookId: undefined as string | undefined,
+          ebookId: selectedEbookId ?? undefined,
           chapterId: undefined as string | undefined,
         };
       }
-      const m = /^chapter-(\d+)-image-1$/.exec(htmlSlotKey);
+      // Also handle legacy format "chapter-N-img" generated by older prompt templates
+      const normalizedSlotKey = /^chapter-(\d+)-img$/.test(htmlSlotKey)
+        ? htmlSlotKey.replace(/^(chapter-\d+)-img$/, "$1-image-1")
+        : htmlSlotKey;
+      const m = /^chapter-(\d+)-image-(\d+)$/.exec(normalizedSlotKey);
       if (!m || !selectedEbookId) {
         return {
           dbSlotKey: htmlSlotKey,
@@ -406,7 +489,7 @@ export function WizardPreviewPage() {
       const sorted = chaptersSortedByOrder(chaptersCache[selectedEbookId] ?? []);
       const chapter = Number.isFinite(n) && n >= 1 ? sorted[n - 1] : undefined;
       return {
-        dbSlotKey: "hero" as const,
+        dbSlotKey: normalizedSlotKey,
         ebookId: selectedEbookId,
         chapterId: chapter?.id,
       };
@@ -418,7 +501,7 @@ export function WizardPreviewPage() {
     if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
     const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
-    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+    if (dbSlotKey !== "cover_art" && (!ebookId || !chapterId)) {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
       return;
     }
@@ -426,16 +509,17 @@ export function WizardPreviewPage() {
     const result = await uploadImage({ projectId: project.id, slotKey: dbSlotKey, file, ebookId, chapterId });
     if (result.ok) {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl } }));
+      markModified(ebookId);
     } else {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
-  }, [project?.id, resolveSlotArgs]);
+  }, [project?.id, resolveSlotArgs, markModified]);
 
   const handleSlotGenerate = useCallback(async (htmlSlotKey: string, instruction?: string) => {
     if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
     const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
-    if (dbSlotKey === "hero" && (!ebookId || !chapterId)) {
+    if (dbSlotKey !== "cover_art" && (!ebookId || !chapterId)) {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
       return;
     }
@@ -449,12 +533,14 @@ export function WizardPreviewPage() {
     });
     if (result.ok) {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "done", url: result.signedUrl ?? null } }));
+      markModified(ebookId);
     } else {
       setImageSlots((prev) => ({ ...prev, [cKey]: { status: "error", url: prev[cKey]?.url ?? null } }));
     }
-  }, [project?.id, resolveSlotArgs]);
+  }, [project?.id, resolveSlotArgs, markModified]);
 
   const handleSlotRemove = useCallback((htmlSlotKey: string) => {
+    if (!project?.id) return;
     const { dbSlotKey, ebookId, chapterId } = resolveSlotArgs(htmlSlotKey);
     const cKey = compositeSlotKey(dbSlotKey, ebookId, chapterId);
     setImageSlots((prev) => {
@@ -462,7 +548,9 @@ export function WizardPreviewPage() {
       delete next[cKey];
       return next;
     });
-  }, [resolveSlotArgs]);
+    markModified(ebookId);
+    void removeImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, chapterId });
+  }, [project?.id, resolveSlotArgs, markModified]);
 
   // postMessage listener — receives slot actions from the preview iframe
   useEffect(() => {
@@ -510,8 +598,7 @@ export function WizardPreviewPage() {
       setExportJobId(result.jobId);
       setIsExportModalOpen(true);
 
-      // Mark as published after first successful queue
-      setPublishStatus((prev) => (prev === "draft" ? "published" : prev));
+      setPublishStatus("published");
       await supabase
         .from("projects")
         .update({ publish_status: "published" })
@@ -537,10 +624,21 @@ export function WizardPreviewPage() {
     const sorted = chaptersSortedByOrder(selectedChapters);
     for (const [key, slot] of Object.entries(imageSlots)) {
       if (!slot.url) continue;
-      if (key === "cover_art") {
+      // Cover is keyed per ebook as "{ebookId}:cover_art"
+      if (key === `${selectedEbookId}:cover_art`) {
         imageUrls.cover = slot.url;
         continue;
       }
+      // New format: "{ebookId}:chapter-N-image-1"
+      const newMatch = /^([^:]+):(chapter-\d+-image-\d+)$/.exec(key);
+      if (newMatch && newMatch[1] === selectedEbookId) {
+        const slotKeyNew = newMatch[2]!;
+        imageUrls[slotKeyNew] = slot.url;
+        // Also inject using legacy key for shells generated before the prompt fix
+        imageUrls[slotKeyNew.replace(/-image-\d+$/, "-img")] = slot.url;
+        continue;
+      }
+      // Legacy format: "{ebookId}:{chapterId}:hero"
       const heroMatch = /^([^:]+):([^:]+):hero$/.exec(key);
       if (heroMatch && heroMatch[1] === selectedEbookId) {
         const chapterId = heroMatch[2]!;
@@ -608,7 +706,14 @@ export function WizardPreviewPage() {
 
           {/* Preview content */}
           <div ref={previewScrollRef} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#e8edf2]">
-            {shellLoading ? <ObraShellGeneratingOverlay /> : chaptersLoading ? <ObraLoadingOverlay /> : null}
+            {shellLoading ? (
+              <ObraShellGeneratingOverlay
+                current={selectedEbookId ? shellProgressByEbook[selectedEbookId]?.current : undefined}
+                total={selectedEbookId ? (shellProgressByEbook[selectedEbookId]?.total ?? selectedChapters.length) : selectedChapters.length}
+              />
+            ) : chaptersLoading ? (
+              <ObraLoadingOverlay />
+            ) : null}
 
             {isLoading ? (
               <ObraSpinner size="lg" className="py-16" />
@@ -626,27 +731,13 @@ export function WizardPreviewPage() {
               </div>
             ) : previewSrcDoc ? (
               <div className="flex min-h-0 w-full flex-col gap-3 p-4">
-                {/* Per-artifact toolbar: regenerate button + stale warning */}
-                <div className="shrink-0 flex flex-wrap items-start gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    onClick={() => void handleRegenerateShell()}
-                    disabled={shellLoading}
-                  >
-                    <RefreshCw className="size-3.5" aria-hidden />
-                    {t("wizard.preview.shell.regenerateCta")}
-                  </Button>
-                  {shellStale ? (
-                    <ObraAlert
-                      variant="warning"
-                      title={t("wizard.preview.shell.staleTitle")}
-                      description={t("wizard.preview.shell.staleDesc")}
-                      className="flex-1"
-                    />
-                  ) : null}
-                </div>
+                {shellStale ? (
+                  <ObraAlert
+                    variant="warning"
+                    title={t("wizard.preview.shell.staleTitle")}
+                    description={t("wizard.preview.shell.staleDesc")}
+                  />
+                ) : null}
                 <iframe
                   srcDoc={previewSrcDoc}
                   title={t("wizard.preview.iframeTitle")}
@@ -655,8 +746,16 @@ export function WizardPreviewPage() {
                   onLoad={(e) => {
                     const iframe = e.currentTarget;
                     try {
-                      const h = iframe.contentDocument?.body?.scrollHeight;
-                      if (h) iframe.style.height = `${h + 64}px`;
+                      const doc = iframe.contentDocument;
+                      if (!doc) return;
+                      // Use the last .obra-page element's bottom edge as the true document height,
+                      // avoiding extra space from min-height on body pages.
+                      const pages = doc.querySelectorAll<HTMLElement>(".obra-page");
+                      const last = pages.length > 0 ? pages[pages.length - 1] : null;
+                      const h = last
+                        ? last.offsetTop + last.offsetHeight
+                        : doc.body.scrollHeight;
+                      iframe.style.height = `${h + 32}px`;
                     } catch { /* cross-origin guard */ }
                   }}
                 />
@@ -721,12 +820,14 @@ export function WizardPreviewPage() {
         </ModalFooter>
       </Modal>
 
-      {/* Export PDF Modal */}
+      {/* Export PDF Modal — key forces remount when jobId changes so internal state never shows stale results */}
       <ExportPdfModal
+        key={exportJobId ?? "no-job"}
         isOpen={isExportModalOpen}
         onOpenChange={setIsExportModalOpen}
         jobId={exportJobId}
         projectTitle={project?.main_title ?? "ebook"}
+        onSuccess={handleExportSuccess}
       />
 
       {/* Export ZIP Modal */}
@@ -773,23 +874,52 @@ export function WizardPreviewPage() {
 
               <Button
                 type="button"
+                variant="tertiary"
+                size="small"
+                disabled={!selectedEbookId || shellLoading}
+                onClick={() => void handleRegenerateShell()}
+                title={t("wizard.preview.shell.regenerateCta")}
+              >
+                <RefreshCw className={["size-4", shellLoading ? "animate-spin" : ""].join(" ").trim()} aria-hidden />
+                {t("wizard.preview.shell.regenerateCta")}
+              </Button>
+
+              <Button
+                type="button"
                 variant="secondary"
-                disabled={!project?.id}
+                size="small"
+                disabled={!project?.id || shellLoading}
                 onClick={() => setIsZipModalOpen(true)}
               >
                 <Package className="size-4" aria-hidden />
                 {t("wizard.preview.export.zip")}
               </Button>
 
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!selectedEbook || exportLoading}
-                onClick={() => void handleExportPdf()}
-              >
-                <FileDown className="size-4" aria-hidden />
-                {exportLoading ? "…" : t("wizard.preview.export.pdf")}
-              </Button>
+              {selectedEbookId && ebookPdfUrls[selectedEbookId] && publishStatus === "published" ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  disabled={shellLoading}
+                  onClick={() => downloadPdf(ebookPdfUrls[selectedEbookId!]!, `${project?.main_title ?? "ebook"}.pdf`)}
+                >
+                  <FileDown className="size-4" aria-hidden />
+                  {t("wizard.preview.export.download")}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  disabled={!selectedEbook || exportLoading || shellLoading}
+                  onClick={() => void handleExportPdf()}
+                >
+                  <FileDown className="size-4" aria-hidden />
+                  {exportLoading ? "…" : selectedEbookId && ebookPdfUrls[selectedEbookId]
+                    ? t("wizard.preview.export.regeneratePdf")
+                    : t("wizard.preview.export.generatePdf")}
+                </Button>
+              )}
             </div>
           </div>
         </div>
