@@ -1,10 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { callClaudeJsonText, parseJsonObject } from "../_shared/claude.ts";
+import { callClaudeJsonText, callClaudeStream, parseJsonObject } from "../_shared/claude.ts";
 import { parseDesignConfigForAi } from "../_shared/designConfig.ts";
-import { generateChapterPrompt, generateBonusChapterPrompt, generateBumpChapterPrompt } from "../_shared/prompts.ts";
+import { generateChapterPrompt, generateBonusChapterPrompt, generateBumpChapterPrompt, toStreamingSystem } from "../_shared/prompts.ts";
 import { isSubscriptionEntitled } from "../_shared/auth.ts";
-import { corsJson, corsOptions } from "../_shared/cors.ts";
+import { corsJson, corsOptions, CORS_HEADERS } from "../_shared/cors.ts";
 import type { ContentLocale } from "../_shared/prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
@@ -196,6 +196,7 @@ Deno.serve(async (req: Request) => {
   const projectId = typeof payload?.project_id === "string" ? payload.project_id : null;
   const chapterId = typeof payload?.chapter_id === "string" ? payload.chapter_id : null;
   const clientRequestId = typeof payload?.client_request_id === "string" ? payload.client_request_id : null;
+  const streamMode = payload?.stream === true;
 
   if (!projectId || !chapterId) {
     return json({ error: "invalid_payload", detail: "project_id_and_chapter_id" }, 400);
@@ -493,7 +494,86 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: "prompt_build_failed", detail: "chapter_not_found_in_index" }, 502);
   }
 
-  // ── Call Claude ──────────────────────────────────────────────────────────────
+  // ── Shared: deduct credits + save to DB ──────────────────────────────────────
+  async function persistResult(content: string): Promise<
+    | { ok: true; creditsBalanceAfter: number | null }
+    | { ok: false; error: string; status: number }
+  > {
+    const delta = -Math.floor(cost);
+    const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
+      p_creator_id: user.id,
+      p_delta: delta,
+      p_reason: "consumption",
+      p_idempotency_key: idempotencyKey,
+      p_project_id: projectId,
+      p_source_function: "ai-generate-content",
+    });
+    if (rpcErr) {
+      const msg = rpcErr.message ?? "";
+      if (msg.includes("insufficient credits")) return { ok: false, error: "insufficient_credits", status: 402 };
+      if (msg.includes("subscription not active")) return { ok: false, error: "subscription_not_active", status: 403 };
+      if (msg.includes("creator profile not found")) return { ok: false, error: "profile_not_found", status: 400 };
+      console.error("obra_credit_ledger_apply", rpcErr);
+      return { ok: false, error: "ledger_failed", status: 500 };
+    }
+    const { error: saveErr } = await admin
+      .from("chapters")
+      .update({ content, approved_at: null })
+      .eq("id", chapterId);
+    if (saveErr) console.error("chapter_content_save_failed", saveErr.message);
+    return { ok: true, creditsBalanceAfter: balanceAfter ?? null };
+  }
+
+  // ── Streaming mode ────────────────────────────────────────────────────────────
+  if (streamMode) {
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = writable.getWriter();
+    const enc = new TextEncoder();
+    const send = (data: Record<string, unknown>): Promise<void> =>
+      writer.write(enc.encode(JSON.stringify(data) + "\n"));
+
+    (async () => {
+      try {
+        const ai = await callClaudeStream({
+          system: toStreamingSystem(promptBundle.system),
+          user: promptBundle.user,
+          maxTokens: 8192,
+          clientId: "ai-generate-content:stream",
+          onChunk: (text) => send({ type: "chunk", text }),
+        });
+
+        if (!ai.ok) {
+          await send({ type: "error", error: ai.error });
+          return;
+        }
+
+        const content = ai.text.trim();
+        if (!content) {
+          await send({ type: "error", error: "model_empty_content" });
+          return;
+        }
+
+        const persist = await persistResult(content);
+        if (!persist.ok) {
+          await send({ type: "error", error: persist.error, status: persist.status });
+          return;
+        }
+
+        await send({ type: "done", content, credits_balance_after: persist.creditsBalanceAfter });
+      } catch (e) {
+        try { await send({ type: "error", error: String(e) }); } catch { /* writer may be closed */ }
+      } finally {
+        try { await writer.close(); } catch { /* already closed */ }
+      }
+    })();
+
+    return new Response(readable, {
+      status: 200,
+      headers: { "Content-Type": "application/x-ndjson", ...CORS_HEADERS },
+    });
+  }
+
+  // ── Non-streaming mode (existing behaviour) ───────────────────────────────────
   const ai = await callClaudeJsonText({
     system: promptBundle.system,
     user: promptBundle.user,
@@ -513,76 +593,25 @@ Deno.serve(async (req: Request) => {
 
   const o = parsed.value;
 
-  // Model returned an error object
   if (typeof o.error === "string") {
     return json(
-      {
-        ok: false,
-        error: "model_invalid_input",
-        message: typeof o.message === "string" ? o.message : undefined,
-      },
+      { ok: false, error: "model_invalid_input", message: typeof o.message === "string" ? o.message : undefined },
       400,
     );
   }
 
-  // Primary key is "content"; fall back to other common names Claude may use when
-  // the prompt schema was ambiguous (html, body, chapter_html, text).
   const FALLBACK_KEYS = ["html", "body", "chapter_html", "chapter", "text"] as const;
   const rawContent: unknown =
     o.content ??
-    FALLBACK_KEYS.reduce<unknown>(
-      (found, k) => (found !== undefined ? found : o[k]),
-      undefined,
-    );
+    FALLBACK_KEYS.reduce<unknown>((found, k) => (found !== undefined ? found : o[k]), undefined);
   const content = typeof rawContent === "string" ? rawContent.trim() : "";
   if (!content) {
     console.error("model_empty_content", { keys: Object.keys(o) });
     return json({ ok: false, error: "model_empty_content" }, 502);
   }
 
-  // ── Deduct credits after Claude succeeds (deduct on success only) ─────────────
-  const delta = -Math.floor(cost);
-  const { data: balanceAfter, error: rpcErr } = await admin.rpc("obra_credit_ledger_apply", {
-    p_creator_id: user.id,
-    p_delta: delta,
-    p_reason: "consumption",
-    p_idempotency_key: idempotencyKey,
-    p_project_id: projectId,
-    p_source_function: "ai-generate-content",
-  });
+  const persist = await persistResult(content);
+  if (!persist.ok) return json({ error: persist.error }, persist.status);
 
-  if (rpcErr) {
-    const msg = rpcErr.message ?? "";
-    if (msg.includes("insufficient credits")) {
-      return json({ error: "insufficient_credits" }, 402);
-    }
-    if (msg.includes("subscription not active")) {
-      return json({ error: "subscription_not_active" }, 403);
-    }
-    if (msg.includes("creator profile not found")) {
-      return json({ error: "profile_not_found" }, 400);
-    }
-    console.error("obra_credit_ledger_apply", rpcErr);
-    return json({ error: "ledger_failed" }, 500);
-  }
-
-  // ── Persist to DB ────────────────────────────────────────────────────────────
-  const { error: saveErr } = await admin
-    .from("chapters")
-    .update({ content, approved_at: null })
-    .eq("id", chapterId);
-
-  if (saveErr) {
-    console.error("chapter_content_save_failed", saveErr.message);
-    // Return content anyway — client can retry the save via updateChapterDraftContent.
-    return json({
-      ok: true,
-      stub: false,
-      content,
-      credits_balance_after: balanceAfter,
-      save_warning: "db_save_failed",
-    });
-  }
-
-  return json({ ok: true, stub: false, content, credits_balance_after: balanceAfter });
+  return json({ ok: true, stub: false, content, credits_balance_after: persist.creditsBalanceAfter });
 });

@@ -477,7 +477,7 @@ export function WizardPreviewPage() {
       const normalizedSlotKey = /^chapter-(\d+)-img$/.test(htmlSlotKey)
         ? htmlSlotKey.replace(/^(chapter-\d+)-img$/, "$1-image-1")
         : htmlSlotKey;
-      const m = /^chapter-(\d+)-image-1$/.exec(normalizedSlotKey);
+      const m = /^chapter-(\d+)-image-(\d+)$/.exec(normalizedSlotKey);
       if (!m || !selectedEbookId) {
         return {
           dbSlotKey: htmlSlotKey,
@@ -739,7 +739,6 @@ export function WizardPreviewPage() {
                   />
                 ) : null}
                 <iframe
-                  data-testid="preview-iframe"
                   srcDoc={previewSrcDoc}
                   title={t("wizard.preview.iframeTitle")}
                   className="w-full min-w-0"
@@ -747,8 +746,16 @@ export function WizardPreviewPage() {
                   onLoad={(e) => {
                     const iframe = e.currentTarget;
                     try {
-                      const h = iframe.contentDocument?.body?.scrollHeight;
-                      if (h) iframe.style.height = `${h + 64}px`;
+                      const doc = iframe.contentDocument;
+                      if (!doc) return;
+                      // Use the last .obra-page element's bottom edge as the true document height,
+                      // avoiding extra space from min-height on body pages.
+                      const pages = doc.querySelectorAll<HTMLElement>(".obra-page");
+                      const last = pages.length > 0 ? pages[pages.length - 1] : null;
+                      const h = last
+                        ? last.offsetTop + last.offsetHeight
+                        : doc.body.scrollHeight;
+                      iframe.style.height = `${h + 32}px`;
                     } catch { /* cross-origin guard */ }
                   }}
                 />
@@ -881,7 +888,6 @@ export function WizardPreviewPage() {
                 type="button"
                 variant="secondary"
                 size="small"
-                data-testid="preview-export-zip-btn"
                 disabled={!project?.id || shellLoading}
                 onClick={() => setIsZipModalOpen(true)}
               >
@@ -905,7 +911,6 @@ export function WizardPreviewPage() {
                   type="button"
                   variant="primary"
                   size="small"
-                  data-testid="preview-export-pdf-btn"
                   disabled={!selectedEbook || exportLoading || shellLoading}
                   onClick={() => void handleExportPdf()}
                 >

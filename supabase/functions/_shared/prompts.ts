@@ -53,6 +53,21 @@ const CRITICAL_JSON_OBJECT =
 const CRITICAL_JSON_ARRAY =
   "CRITICAL OUTPUT FORMAT: Your response must be a valid JSON array starting with [ and ending with ]. Do NOT wrap it in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the array. The first character must be [ and the last must be ].";
 
+const STREAM_HTML_OUTPUT =
+  "Output raw sanitized HTML only — no JSON wrapper, no markdown fences, no explanation. Your entire response is the HTML body content. The first character must be <.";
+
+/**
+ * Converts a JSON-format system prompt into a streaming-friendly one that
+ * returns raw HTML instead of {"content": "..."}. Used by ai-generate-content
+ * when stream=true so chunks can be forwarded directly to the client.
+ */
+export function toStreamingSystem(jsonSystem: string): string {
+  return (
+    jsonSystem.replace(CRITICAL_JSON_OBJECT, STREAM_HTML_OUTPUT) +
+    "\n\nOVERRIDE: Output ONLY the raw HTML — NOT wrapped in JSON. Your entire response is the chapter body HTML."
+  );
+}
+
 // ─── optimize-topic ───────────────────────────────────────────────────────────
 // docs: prompts/wizard/optimize-topic.md (v1.0)
 
@@ -1347,85 +1362,229 @@ export function generateDocumentHeaderPrompt(
 
   const system = `CRITICAL OUTPUT FORMAT: Return only raw HTML wrapped in <obra-header> and </obra-header> tags. No markdown, no backticks, no explanation. Start with <obra-header> and end with </obra-header>.
 
-You are Obra's editorial design AI. You produce the HEADER section of a premium infoproduct HTML document.
+You are Obra's editorial design AI. You produce premium infoproduct documents for LATAM creators — quality comparable to commercial publishers like Penguin or Planeta.
 
-Your output must contain:
-1. Complete <!DOCTYPE html><html><head>...</head><body> opening
-2. Cover page (.obra-page .obra-cover)
-3. TOC page (.obra-page .obra-toc)
+Your output: complete <!DOCTYPE html> → <head> with <style> → <body> opening → Cover page → TOC page.
+Do NOT include chapter openers, chapter body, or </body></html> — those come separately.
 
-Do NOT include chapter content or </body></html> — those come separately.
+═══ MANDATORY CSS — copy these rules EXACTLY into <style>. Do NOT add, remove, or alter any rule here. ═══
 
-═══ CSS TOOLKIT (define ALL of these classes — chapters will use them) ═══
+/* ⛔ The ONLY margin source is padding on .obra-body/.obra-toc — nothing else. */
+@page { size: ${pageDimensions}; margin: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-Define a full editorial CSS toolkit in <style>. Every class listed here MUST be defined:
+/* Every .obra-page forces a page break after it */
+.obra-page { break-after: page; page-break-after: always; }
+.obra-page:last-child { break-after: avoid; page-break-after: avoid; }
 
-Layout:
+/* Full-bleed pages: fixed height, overflow hidden — NO padding, NO margin */
+.obra-cover,
+.obra-chapter-opener {
+  position: relative;
+  overflow: hidden;
+  height: ${dims.h};
+  min-height: ${dims.h};
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Content pages: padding IS the only margin. Background fills the full page. */
+.obra-body,
+.obra-toc {
+  padding: 15mm;
+  background: var(--page-bg);
+  box-sizing: border-box;
+}
+
+/* ── Break rules — prevent ugly cuts ── */
+.obra-body h2,
+.obra-body h3 { break-after: avoid; page-break-after: avoid; }
+
+/* keep heading glued to the element that follows it */
+.obra-body h2 + *,
+.obra-body h3 + * { break-before: avoid; page-break-before: avoid; }
+
+.obra-body p { orphans: 4; widows: 4; }
+
+/* Every editorial container: never split across pages */
+.obra-callout,
+.obra-pull-quote,
+figure,
+table,
+blockquote,
+.obra-image-slot--chapter { break-inside: avoid; page-break-inside: avoid; }
+
+.obra-body li { break-inside: avoid; page-break-inside: avoid; orphans: 3; widows: 3; }
+
+/* Screen preview — page cards */
+@media screen {
+  html { zoom: 0.75; }
+  body { background: #c8d0dc; padding: 32px 16px; }
+  .obra-page { width: ${dims.w}; margin: 0 auto 32px; box-shadow: 0 4px 28px rgba(0,0,0,0.18); }
+  .obra-toc,
+  .obra-body { min-height: ${dims.h}; }
+}
+
+⛔ After these mandatory rules, do NOT add any rule that sets margin or padding on body, html, or .obra-page.
+
+═══ CSS VARIABLES — define in :root ═══
+
+:root {
+  --color-primary: [primary hex];
+  --color-secondary: [secondary hex];
+  --color-accent: [accent hex];
+  --font-heading: "[Heading Font]", Georgia, serif;
+  --font-body: "[Body Font]", system-ui, sans-serif;
+
+  /* --page-bg is ALWAYS the secondary color — the light neutral that fills pages */
+  --page-bg: var(--color-secondary);
+
+  /* Derive tints for richer design — stay within the same palette families */
+  /* e.g. --color-primary-dark, --color-accent-muted, --color-secondary-deep */
+  /* Mix with white/black/opacity — never introduce unrelated hues */
+}
+
+═══ FULL EDITORIAL CSS TOOLKIT — define ALL of these classes ═══
+
+Base typography:
+  body { font-family: var(--font-body); font-size: 11pt; line-height: 1.72; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, h4 { font-family: var(--font-heading); }
+  h2 { font-size: 1.22rem; font-weight: 700; color: var(--color-primary); margin: 1.8em 0 0.5em; padding-bottom: 0.35em; border-bottom: 2px solid var(--color-secondary); }
+  h3 { font-size: 0.98rem; font-weight: 600; color: var(--color-primary); margin: 1.4em 0 0.4em; }
+  p { margin-bottom: 0.85em; hyphens: auto; }
+  ul, ol { margin: 0.4em 0 0.85em 1.2em; }
+  li { margin-bottom: 0.25em; }
+  li::marker { color: var(--color-accent); }
+  strong { font-weight: 700; }
+  blockquote { border-left: 3px solid var(--color-accent); padding: 0.5rem 1rem; margin: 1rem 0; font-style: italic; color: #444; }
+  hr { border: none; height: 2px; background: linear-gradient(90deg, transparent, var(--color-accent), transparent); margin: 1.5rem 0; }
+
+Editorial components — MUST be visually distinctive and richly designed:
+
+  .obra-callout {
+    /* MUST include break-inside: avoid — keep content ≤ 4 lines to guarantee it works */
+    break-inside: avoid; page-break-inside: avoid;
+    background: [light tint of secondary or accent — e.g. rgba of --color-secondary at 60%]];
+    border-left: 4px solid var(--color-accent);
+    padding: 0.85rem 1.1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.2rem 0;
+  }
+  .obra-callout::before {
+    content: "Concepto clave" / "Key concept" / "Nota" (match content_locale);
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 0.3rem;
+  }
+
+  .obra-pull-quote {
+    /* MUST include break-inside: avoid — keep to 1–2 sentences */
+    break-inside: avoid; page-break-inside: avoid;
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: var(--color-primary);
+    border-left: 4px solid var(--color-accent);
+    padding: 1rem 1.5rem;
+    margin: 1.6rem 0;
+    background: [subtle tint of primary at ~6% opacity];
+  }
+
+  .obra-section-divider {
+    width: 3rem; height: 3px;
+    background: var(--color-accent);
+    border-radius: 2px;
+    margin: 1.8rem 0;
+  }
+
+  .obra-highlight {
+    background: [accent at 20% opacity — use rgba];
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+
+  .obra-styled-list {
+    list-style: none;
+    padding-left: 1.4em;
+    margin: 0.4em 0 0.85em;
+  }
+  .obra-styled-list li { break-inside: avoid; page-break-inside: avoid; }
+  .obra-styled-list li::before {
+    content: "→";
+    color: var(--color-accent);
+    font-weight: 700;
+    margin-right: 0.5em;
+    margin-left: -1.4em;
+    display: inline-block;
+    width: 1.4em;
+  }
+
   .obra-two-col { column-count: 2; column-gap: 2rem; }
   .obra-two-col h2, .obra-two-col h3 { column-span: all; }
 
-Editorial elements:
-  .obra-pull-quote — large impactful quote; accent color; heading font; 1.5rem+; generous padding; left border in accent color or decorative quotation mark
-  .obra-callout — key concept box; secondary background; left border 4px accent color; padding 1rem 1.25rem; border-radius 6px
-  .obra-section-divider — short decorative line in accent color (width: 3rem; height: 3px; border-radius: 2px; margin: 1.5rem 0)
-  .obra-chapter-number — huge decorative number; 5rem; heading font; accent or primary color; line-height 1; margin-bottom 1rem
-  .obra-styled-list — list with accent-colored bullets (use ::before with accent color instead of default bullets)
-  .obra-highlight — inline text highlight; accent color background at 20% opacity; padding 0 3px; border-radius 2px
-
-Typography:
-  body — font-family: var(--font-body); color: #1a1a1a; font-size: 15px; line-height: 1.75
-  h1, h2, h3 — font-family: var(--font-heading)
-  h2 — 1.3rem; font-weight: 700; color: var(--color-primary); margin: 1.5em 0 0.5em
-  h3 — 1.1rem; font-weight: 600; color: var(--color-primary); margin: 1.25em 0 0.4em
-  p — margin-bottom: 0.9em
-  ul, ol — margin: 0 0 0.9em 1.5rem
-  blockquote — border-left: 3px solid var(--color-accent); padding: 0.5rem 1rem; margin: 1rem 0; font-style: italic
-  strong — font-weight: 700
+Tables — always no-split:
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.82rem; }
+  th { background: var(--color-primary); color: white; font-weight: 700; text-align: left; padding: 0.5rem 0.7rem; font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--color-secondary); }
+  tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
 
 Image slots:
-  .obra-image-slot { display: block; background-color: var(--color-secondary); }
-  .obra-image-slot--cover { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
-  .obra-image-slot--chapter { width: 100%; height: 220px; border-radius: 6px; overflow: hidden; margin: 1.5rem 0; }
+  .obra-image-slot { display: block; background: var(--color-secondary); overflow: hidden; }
+  .obra-image-slot--cover { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  .obra-image-slot--opener { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; background: transparent; }
+  .obra-image-slot--chapter { width: 100%; height: 180px; border-radius: 8px; margin: 1.4rem 0; }
   .obra-image-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-CSS variables (:root):
-  --color-primary, --color-secondary, --color-accent, --font-heading, --font-body
-  You MAY also define derived tints/shades (e.g. --color-primary-light, --color-primary-dark, --color-secondary-light, --color-accent-muted) by mixing the base colors with white, black, or adjusting opacity. Stay within the same color family. Use these to enrich backgrounds, text contrast, hover states, and subtle fills — without introducing unrelated colors.
+═══ COVER PAGE — FIXED TEMPLATE, copy verbatim ═══
 
-Pagination (mandatory — do not modify):
-  .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
-  @page obra-full-bleed { margin: 0; }
-  .obra-body, .obra-toc { page: obra-content; }
-  @page obra-content { margin: 20mm; }
-  .obra-page { break-after: page; page-break-after: always; }
-  .obra-body h2, .obra-body h3 { break-after: avoid; page-break-after: avoid; }
-  .obra-body li, .obra-body blockquote { break-inside: avoid; page-break-inside: avoid; }
-  .obra-body p { orphans: 3; widows: 3; }
-  @media screen { html { zoom: 0.75; } }
-  @media screen { body { background: #e8edf2; padding: 32px 16px; } }
-  @media screen { .obra-page { width: ${dims.w}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
-  @media screen { .obra-cover, .obra-chapter-opener { height: ${dims.h} !important; max-height: ${dims.h} !important; overflow: hidden !important; padding: 0; position: relative; } }
-  @media screen { .obra-toc, .obra-body { padding: 20mm; min-height: ${dims.h}; box-sizing: border-box; } }
-  @page { size: ${pageDimensions}; }
+Copy this EXACT structure. Only fill in: slot description, category label, title, tagline, and author.
+Do NOT change any style, z-index, class, or structural property.
 
-⛔ INLINE STYLE RULE: Never use viewport units (vh, vw) in inline styles — they break inside iframes.
-If you must set a height inline, use 100% (not 100vh). The page height is already enforced by the CSS classes above.
+<div class="obra-page obra-cover">
+  <!-- Layer 0: solid primary color — always visible, serves as background when no image -->
+  <div style="position:absolute;inset:0;background:var(--color-primary);z-index:0;pointer-events:none"></div>
+  <!-- Layer 1: full-bleed cover image -->
+  <div class="obra-image-slot obra-image-slot--cover" data-slot-key="cover" data-slot-type="cover"
+       data-slot-description="[vivid 2-sentence visual for AI image gen — describe mood, setting, and style matching the ebook topic and palette]"
+       style="position:absolute;inset:0;z-index:1"></div>
+  <!-- Layer 2: primary color overlay ~78% — creates dark editorial look over any image -->
+  <div style="position:absolute;inset:0;z-index:2;background:var(--color-primary);opacity:0.78;pointer-events:none"></div>
+  <!-- Layer 3: decorative circles — visual texture -->
+  <div style="position:absolute;top:-80px;right:-100px;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,0.05);z-index:3;pointer-events:none"></div>
+  <div style="position:absolute;bottom:-60px;right:60px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,0.04);z-index:3;pointer-events:none"></div>
+  <div style="position:absolute;top:38%;left:-60px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.04);z-index:3;pointer-events:none"></div>
+  <!-- Layer 3: accent bar at bottom edge -->
+  <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:var(--color-accent);z-index:3;pointer-events:none"></div>
+  <!-- Layer 4: editorial content — bottom-left. Extra bottom padding leaves room for the JS-injected image button. -->
+  <div style="position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem 2.5rem 5.5rem 2.5rem;pointer-events:none">
+    <p style="font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:0.9rem">[TOPIC CATEGORY — 2–3 words]</p>
+    <h1 style="font-family:var(--font-heading);font-size:4.5rem;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-0.03em;margin-bottom:0.9rem">[exact ebook title]</h1>
+    <p style="font-size:1rem;color:rgba(255,255,255,0.7);max-width:380px;line-height:1.55;margin-bottom:0">[1-sentence tagline — core promise of the ebook]</p>
+    [if author present: <p style="margin-top:1.4rem;font-size:0.88rem;color:rgba(255,255,255,0.48);font-weight:500">por [Author Name]</p>]
+  </div>
+</div>
 
-═══ PAGES TO GENERATE ═══
+═══ TOC PAGE ═══
 
-COVER (.obra-page .obra-cover):
-  • Full-bleed. Background: var(--color-primary). Position: relative.
-  • Title at bottom (position absolute, bottom 2.5rem, left 2.5rem) in white, var(--font-heading), 2.5rem bold
-  • Author if provided, white, 1rem, below title
-  • Full-bleed image slot overlay (z-index 2):
-    <div class="obra-image-slot obra-image-slot--cover" data-slot-key="cover" data-slot-type="cover" data-slot-description="[vivid 1-2 sentence visual description for this ebook topic]"></div>
+Structure: <div class="obra-page obra-toc"> (background will be var(--page-bg) via CSS)
 
-TOC (.obra-page .obra-toc):
-  • "${toc}" heading in var(--font-heading), var(--color-primary)
-  • Styled list of chapter titles with #chapter-N anchor links
-  • Accent color for numbers
+Layout:
+  • "${toc}" heading: var(--font-heading); 2rem; font-weight: 600; color: var(--color-primary)
+  • Decorative accent line below heading: width 40px; height 3px; background: var(--color-accent); border-radius 2px; margin-bottom: 2rem
+  • Each chapter entry: chapter number in var(--color-accent) (font-weight 700), title in #1a1a1a
+  • Subtle separator between entries (1px border-bottom in a light tint of secondary)
+  • Links with href="#chapter-N" — style them (color: inherit; text-decoration: none)
+  • Use a proper table layout or flexbox row (number | title) for clean alignment
 
-STRUCTURAL TEXT: use "${chapter}" for chapter labels, "${toc}" for TOC heading.`;
+STRUCTURAL TEXT: use "${chapter}" for chapter labels, "${toc}" for TOC heading.
+⛔ NEVER use viewport units (vh, vw) — not in CSS, not in inline styles. Heights must use mm, %, or rem.`;
 
   const authorLine = vars.author ? `Author: ${vars.author}` : "Author: (none)";
   const tocEntries = vars.chapter_titles
@@ -1476,22 +1635,68 @@ export function generateChapterHtmlPrompt(
 
   const system = `Output: raw HTML inside <obra-chapter></obra-chapter> only. No markdown, no explanation.
 
-Generate ONE chapter: opener + body page(s). Include EVERY word of the content verbatim — no omissions.
+Generate ONE chapter: opener div + one or more body divs. Include EVERY word of the content verbatim — no omissions, no paraphrasing.
 
-OPENER: <div class="obra-page obra-chapter-opener" id="chapter-${vars.chapter_number}">
-  • "${chapter} ${numPadded}" — 4-5rem, var(--font-heading), white or var(--color-accent)
-  • Chapter title — var(--font-heading), 2rem+, high-contrast on var(--color-primary) bg
-  • Optional: <div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-image-1" data-slot-type="chapter" data-slot-description="[vivid description]"></div>
+══ OPENER — FIXED TEMPLATE, copy verbatim. Only replace [chapter title here]. ══
 
-BODY: <div class="obra-page obra-body"> (split naturally if long)
-  CSS classes (defined in <head> — just use them):
-  obra-pull-quote (1-2 impactful sentences) | obra-callout (key concepts) | obra-section-divider (between sections)
-  obra-two-col (dense prose) | obra-styled-list (on ul/ol) | obra-highlight (key terms inline)
-  h2/h3 for headings | multiple .obra-body divs if content is long
+Every chapter opener MUST use this EXACT structure — same shapes, same layout, same z-index stack.
+Do NOT add, remove, or rearrange any element. Do NOT vary the design.
+All values (id, data-slot-key, span text) are already set — only replace [chapter title here] in the h2.
 
-NO viewport units (vh/vw) in inline styles — use 100% if needed, never 100vh. NO placeholders. NO added content.`;
+<div class="obra-page obra-chapter-opener" id="chapter-${vars.chapter_number}">
+  <!-- z-index 0: solid primary background -->
+  <div style="position:absolute;inset:0;background:var(--color-primary);z-index:0"></div>
+  <!-- z-index 1: decorative elements — visible through the transparent slot when no image is set -->
+  <div style="position:absolute;top:-60px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,0.06);z-index:1;pointer-events:none"></div>
+  <div style="position:absolute;bottom:0;left:0;width:5px;height:55%;background:var(--color-accent);z-index:1;pointer-events:none"></div>
+  <!-- z-index 2: full-bleed image slot — transparent background so primary shows through when empty -->
+  <div class="obra-image-slot obra-image-slot--opener" data-slot-key="chapter-${vars.chapter_number}-image-1" data-slot-type="chapter" style="z-index:2;background:transparent"></div>
+  <!-- z-index 3: gradient overlay — improves text legibility over any image -->
+  <div style="position:absolute;inset:0;z-index:3;background:linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 60%);pointer-events:none"></div>
+  <!-- z-index 4: text — bottom-left. Extra bottom padding leaves room for the JS-injected image button. -->
+  <div style="position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem 2.5rem 5.5rem 2.5rem">
+    <span style="display:block;font-family:var(--font-heading);font-size:4.5rem;line-height:1;color:var(--color-accent);font-weight:700">${chapter} ${numPadded}</span>
+    <h2 style="font-family:var(--font-heading);font-size:2rem;font-weight:700;color:white;line-height:1.2;margin-top:0.6rem;max-width:80%;border:none;padding:0">[chapter title here]</h2>
+  </div>
+</div>
 
-  const user = `Chapter ${vars.chapter_number} of ${vars.chapter_total}: ${vars.chapter_title}
+⛔ No vh/vw. Do not modify the template structure in any way.
+
+══ BODY ══
+<div class="obra-page obra-body">
+
+⚠️ The FIRST element inside every .obra-body MUST be this image slot — copy verbatim, do not change anything:
+<div class="obra-image-slot obra-image-slot--chapter" data-slot-key="chapter-${vars.chapter_number}-image-2" data-slot-type="chapter"></div>
+
+Then convert chapter content into rich editorial HTML using these CSS classes actively:
+
+  obra-callout — for key concepts, tips, warnings, definitions
+    ⚠️ BREAK SAFETY: keep each callout ≤ 4 lines. break-inside: avoid only works if the element fits within one page.
+    If a concept needs more space, use a heading + paragraph instead.
+
+  obra-pull-quote — for 1–2 sentences that deserve visual emphasis
+    ⚠️ BREAK SAFETY: keep to a single short sentence. Never wrap a paragraph in obra-pull-quote.
+
+  obra-section-divider — between major topic shifts (a short accent line)
+
+  obra-highlight — inline, for key terms, critical numbers, or memorable phrases
+
+  obra-styled-list — wrap <ul> or <ol> when styled bullets improve readability
+
+  obra-two-col — for lists of ≥ 6 short items (steps, ingredients, tools, etc.)
+
+  h2 — for main section headings (already glued to next element via CSS break rules)
+  h3 — for sub-sections
+
+  table — for comparative or structured data (break-inside: avoid already in base CSS)
+
+MULTIPLE BODY PAGES: if content is long, open a new <div class="obra-page obra-body"> at a natural section break.
+This is the correct way to handle long chapters — do not put everything in one body div.
+
+⛔ No viewport units (vh/vw) anywhere. No placeholders. No invented content. Include ALL original text verbatim.`;
+
+  const user = `Chapter ${vars.chapter_number} of ${vars.chapter_total}
+Chapter title (use this exact text in the opener <h2>): ${vars.chapter_title}
 
 Design system:
   Primary: ${vars.palette.primary}
@@ -1503,7 +1708,7 @@ Design system:
 ${vars.chapter_content}
 === END CHAPTER CONTENT ===
 
-Generate the chapter opener and body pages for this chapter. Include ALL content verbatim.`;
+Generate the chapter opener (using the fixed template above) and body pages. Include ALL content verbatim.`;
 
   return { system, user };
 }

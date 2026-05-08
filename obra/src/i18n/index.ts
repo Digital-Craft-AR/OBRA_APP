@@ -389,7 +389,6 @@ const resources = {
       "wizard.modal.create": "Crear proyecto →",
       "wizard.modal.creating": "Creando…",
       "wizard.modal.createError": "No pudimos crear el proyecto. Intentá de nuevo.",
-      "wizard.modal.createLimitError": "Ya tenés 20 proyectos activos. Archivá o eliminá alguno antes de crear uno nuevo.",
       "wizard.structure.back": "Volver a proyectos",
       "wizard.structure.title": "Wizard compartido — Estructura",
       "wizard.structure.subtitle":
@@ -1440,7 +1439,6 @@ const resources = {
       "wizard.modal.create": "Criar projeto →",
       "wizard.modal.creating": "Criando…",
       "wizard.modal.createError": "Não foi possível criar o projeto. Tente novamente.",
-      "wizard.modal.createLimitError": "Você já tem 20 projetos ativos. Arquive ou exclua um antes de criar um novo.",
       "wizard.structure.back": "Voltar aos projetos",
       "wizard.structure.title": "Wizard compartilhado — Estrutura",
       "wizard.structure.subtitle":

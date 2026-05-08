@@ -135,11 +135,10 @@ export async function ensureContentWorkspace(projectId: string): Promise<
 
   const phase = proj.content_source === "upload" ? "upload_alignment" : "main_index";
 
-  const { error: progInsertErr } = await supabase.from("project_content_progress").insert({
-    project_id: projectId,
-    current_phase: phase,
-  });
-  if (progInsertErr && progInsertErr.code !== "23505") {
+  const { error: progInsertErr } = await supabase
+    .from("project_content_progress")
+    .upsert({ project_id: projectId, current_phase: phase }, { onConflict: "project_id", ignoreDuplicates: true });
+  if (progInsertErr) {
     return { ok: false, code: "db_error" };
   }
 
@@ -690,6 +689,88 @@ export async function invokeGenerateAllBonusIndex(
       .filter(Boolean),
   }));
   return { ok: true, bonuses, creditsBalanceAfter: data.credits_balance_after };
+}
+
+export async function streamGenerateChapterContent(
+  projectId: string,
+  chapterId: string,
+  clientRequestId: string,
+  onChunk: (text: string) => void,
+): Promise<
+  | { ok: true; content: string; creditsBalanceAfter?: number }
+  | { ok: false; code: string; message?: string }
+> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) return { ok: false, code: "unauthorized" };
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  let res: Response;
+  try {
+    res = await fetch(`${supabaseUrl}/functions/v1/ai-generate-content`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: projectId,
+        chapter_id: chapterId,
+        client_request_id: clientRequestId,
+        stream: true,
+      }),
+    });
+  } catch {
+    return { ok: false, code: "invoke_failed" };
+  }
+
+  if (!res.ok || !res.body) {
+    try {
+      const errBody = (await res.json()) as Record<string, unknown>;
+      const code = typeof errBody?.error === "string" ? errBody.error : "invoke_failed";
+      return { ok: false, code };
+    } catch {
+      return { ok: false, code: "invoke_failed" };
+    }
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let accumulated = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let chunk: Record<string, unknown>;
+        try { chunk = JSON.parse(line) as Record<string, unknown>; } catch { continue; }
+
+        if (chunk.type === "chunk" && typeof chunk.text === "string") {
+          accumulated += chunk.text;
+          onChunk(chunk.text);
+        } else if (chunk.type === "done") {
+          const raw = typeof chunk.content === "string" ? chunk.content : accumulated;
+          const content = sanitizeChapterHtml(raw.trim());
+          if (isChapterHtmlEffectivelyEmpty(content)) return { ok: false, code: "model_empty_content" };
+          return {
+            ok: true,
+            content,
+            creditsBalanceAfter: typeof chunk.credits_balance_after === "number" ? chunk.credits_balance_after : undefined,
+          };
+        } else if (chunk.type === "error") {
+          const code = typeof chunk.error === "string" ? chunk.error : "generation_failed";
+          return { ok: false, code };
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { ok: false, code: "stream_ended_unexpectedly" };
 }
 
 export async function invokeGenerateChapterContent(

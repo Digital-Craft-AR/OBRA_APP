@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lee esto antes de arrancar — Emprendé desde Casa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --dark: #1a1612;
+        --gold: #c9a440;
+        --gold2: #e8c870;
+        --cream: #faf8f2;
+        --warm: #f5f0e4;
+        --tx: #1c1c1c;
+        --tx2: #555555;
+        --sf: "Fraunces", Georgia, serif;
+        --sn: "Plus Jakarta Sans", system-ui, sans-serif;
+      }
+
+      html {
+        font-size: 12pt;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body {
+        font-family: var(--sn);
+        background: #c8c0b0;
+        color: var(--tx);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      @media screen {
+        body {
+          padding: 40px 20px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0;
+        }
+      }
+
+      @media print {
+        body {
+          background: none;
+          padding: 0;
+        }
+      }
+
+      /* ── PAGES ── */
+      .page {
+        width: 210mm;
+        position: relative;
+        overflow: hidden;
+      }
+
+      @media screen {
+        .page {
+          box-shadow: 0 4px 40px rgba(0, 0, 0, 0.22);
+        }
+      }
+
+      @media print {
+        .page {
+          width: 210mm;
+          height: 297mm;
+          box-shadow: none;
+          page-break-after: always;
+          break-after: page;
+        }
+        .page:last-child {
+          page-break-after: avoid;
+          break-after: avoid;
+        }
+      }
+
+      /* ═══════════════════════
+   PÁGINA 1 — PORTADA
+═══════════════════════ */
+      .cover-page {
+        height: 297mm;
+        background: var(--dark);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40mm 28mm;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* arco decorativo */
+      .cover-page::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 380px;
+        height: 380px;
+        border-radius: 50%;
+        border: 1px solid rgba(201, 164, 64, 0.15);
+        pointer-events: none;
+      }
+      .cover-page::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 260px;
+        height: 260px;
+        border-radius: 50%;
+        border: 1px solid rgba(201, 164, 64, 0.22);
+        pointer-events: none;
+      }
+
+      .cover-eyebrow {
+        font-size: 0.68rem;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--gold);
+        font-weight: 700;
+        margin-bottom: 2.4rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover-icon {
+        font-size: 2.8rem;
+        margin-bottom: 1.8rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(201, 164, 64, 0.7);
+        margin-bottom: 0.6rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover-title {
+        font-family: var(--sf);
+        font-size: 3.6rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover-title em {
+        font-style: italic;
+        color: var(--gold2);
+      }
+
+      .cover-sub {
+        font-family: var(--sf);
+        font-size: 1.05rem;
+        font-style: italic;
+        font-weight: 300;
+        color: rgba(255, 255, 255, 0.55);
+        line-height: 1.65;
+        max-width: 300px;
+        margin: 1.4rem auto 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover-rule {
+        width: 48px;
+        height: 2px;
+        background: var(--gold);
+        margin: 2rem auto 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover-brand {
+        position: absolute;
+        bottom: 18mm;
+        font-size: 0.65rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.25);
+        z-index: 1;
+      }
+
+      /* ═══════════════════════
+   PÁGINAS DE CONTENIDO
+═══════════════════════ */
+      .content-page {
+        height: 297mm;
+        background: var(--cream);
+        padding: 15mm;
+        display: flex;
+        flex-direction: column;
+      }
+
+      @media print {
+        .content-page {
+          min-height: 0;
+        }
+      }
+
+      /* número de página lateral */
+      .page-marker {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 10mm;
+        height: 100%;
+        background: var(--dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .page-marker span {
+        font-family: var(--sf);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--gold);
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      .content-page .inner {
+        padding-left: 10mm;
+      }
+
+      /* tipografía de contenido */
+      .section-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-bottom: 0.5rem;
+      }
+
+      .section-title {
+        font-family: var(--sf);
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: var(--tx);
+        line-height: 1.2;
+        margin-bottom: 1rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 2px solid #e8d890;
+      }
+
+      .section-title em {
+        font-style: italic;
+        color: var(--gold);
+      }
+
+      p {
+        font-size: 0.917rem;
+        line-height: 1.78;
+        color: var(--tx);
+        margin-bottom: 0.75rem;
+        text-align: justify;
+        hyphens: auto;
+      }
+
+      p strong {
+        font-weight: 700;
+      }
+
+      p em {
+        font-style: italic;
+        color: var(--gold);
+      }
+
+      .pull-quote {
+        font-family: var(--sf);
+        font-size: 1.15rem;
+        font-style: italic;
+        font-weight: 400;
+        color: var(--dark);
+        line-height: 1.5;
+        border-left: 3px solid var(--gold);
+        padding: 0.7rem 1rem;
+        margin: 1.2rem 0;
+        background: var(--warm);
+        border-radius: 0 6px 6px 0;
+      }
+
+      .block-dark {
+        background: var(--dark);
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        margin: 1.2rem 0;
+      }
+
+      .block-dark .block-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-bottom: 0.5rem;
+      }
+
+      .block-dark p {
+        color: rgba(255, 255, 255, 0.82);
+        margin-bottom: 0.4rem;
+        text-align: left;
+        line-height: 1.4;
+      }
+
+      .block-dark p:last-child {
+        margin: 0;
+      }
+
+      .block-dark strong {
+        color: #fff;
+      }
+
+      .tip-list {
+        list-style: none;
+        margin: 0.6rem 0 1rem;
+      }
+
+      .tip-list li {
+        font-size: 0.917rem;
+        line-height: 1.72;
+        color: var(--tx);
+        padding: 0.45rem 0 0.45rem 1.4rem;
+        position: relative;
+        border-bottom: 1px dotted #ddd8c8;
+      }
+
+      .tip-list li::before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: var(--gold);
+        font-weight: 700;
+      }
+
+      .tip-list li:last-child {
+        border: none;
+      }
+      .tip-list li strong {
+        font-weight: 700;
+      }
+
+      .divider {
+        width: 40px;
+        height: 2px;
+        background: var(--gold);
+        margin: 1.4rem 0;
+        border-radius: 2px;
+      }
+
+      /* ── CLOSING ── */
+      .closing-box {
+        margin-top: auto;
+        background: var(--dark);
+        border-radius: 8px;
+        padding: 1.1rem 1.3rem;
+        text-align: center;
+      }
+
+      .closing-box p {
+        font-family: var(--sf);
+        font-size: 1rem;
+        font-style: italic;
+        color: var(--gold2);
+        line-height: 1.6;
+        margin: 0;
+        text-align: center;
+      }
+
+      .closing-box .closing-brand {
+        font-family: var(--sn);
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.3);
+        margin-top: 0.6rem;
+        display: block;
+        font-style: normal;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ══════════════════════
+     PORTADA
+══════════════════════ -->
+    <div class="page cover-page">
+      <div class="cover-eyebrow">Velas que Venden · Bonus de mentalidad</div>
+      <div class="cover-icon">🔥</div>
+      <div class="cover-label">Leé esto antes de arrancar</div>
+      <div class="cover-title">
+        Lo que no<br />te enseña <em>ningún<br />ebook</em>
+      </div>
+      <p class="cover-sub">
+        Mentalidad, movimiento, redes sociales y por qué lo que piensen los
+        demás no te define. Esto es lo que separa a las que venden de las que
+        esperan.
+      </p>
+      <div class="cover-rule"></div>
+      <div class="cover-brand">Velas que Venden · Emprendé desde Casa</div>
+    </div>
+
+    <!-- ══════════════════════
+     PÁGINA 2
+══════════════════════ -->
+    <div class="page content-page">
+      <div class="page-marker"><span>Mentalidad</span></div>
+      <div class="inner">
+        <div class="section-label">La verdad incómoda</div>
+        <div class="section-title">
+          La vela perfecta que<br />nadie ve <em>no existe.</em>
+        </div>
+
+        <p>
+          Leíste el ebook. Sabés las fórmulas, los aromas, el costeo, el
+          packaging. Tenés más información que el 90% de las personas que alguna
+          vez pensaron en emprender con velas. Y sin embargo, el mayor riesgo
+          ahora mismo no es equivocarte en una fórmula.
+        </p>
+
+        <p><strong>Es quedarte preparándote para siempre.</strong></p>
+
+        <p>
+          El ebook más completo del mundo no te va a dar tu primera venta. Te la
+          da el movimiento. La vela que hacés aunque todavía no sea perfecta. La
+          foto que sacás con el celular antes de tener la iluminación ideal. El
+          mensaje que mandás aunque te tiemble un poco la mano.
+        </p>
+
+        <div class="pull-quote">
+          "Una vela imperfecta que alguien compra vale infinitamente más que la
+          vela perfecta que sigue esperando en tu cocina."
+        </div>
+
+        <p>
+          La información ya la tenés. Lo que falta es la decisión. Y esa no te
+          la puede dar ningún libro — solo vos.
+        </p>
+
+        <div class="divider"></div>
+
+        <div class="section-label">El error más común</div>
+        <div class="section-title">
+          Tener el mejor producto<br />y <em>no hablarle a nadie.</em>
+        </div>
+
+        <p>
+          Podés tener la vela más hermosa, el aroma más especial, el packaging
+          más cuidado. Pero si no le estás hablando a nadie, es como tener un
+          local en el medio del desierto. El producto existe. El negocio todavía
+          no.
+        </p>
+
+        <p>
+          El negocio empieza cuando alguien que no te conoce decide comprarte. Y
+          para que eso pase, tiene que encontrarte.
+          <strong>Eso no ocurre solo.</strong> Necesita que vos salgas.
+        </p>
+
+        <div class="block-dark">
+          <div class="block-label">🕯️ Lo que hay que hacer ahora</div>
+          <p>
+            Hacé tus primeras velas. Sacá fotos, aunque no sean perfectas.
+            Publicá. Mandá un mensaje a tus contactos. Armá una mesa en una
+            feria.
+            <strong
+              >Cada acción, por chica que sea, te devuelve información real que
+              ninguna lectura puede darte.</strong
+            >
+            La primera venta te va a enseñar más que este ebook entero.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════
+     PÁGINA 3
+══════════════════════ -->
+    <div class="page content-page">
+      <div class="page-marker"><span>Redes y ads</span></div>
+      <div class="inner">
+        <div class="section-label">Marketing que funciona</div>
+        <div class="section-title">
+          Instagram, TikTok y Meta Ads:<br /><em>la palanca más accesible</em>
+          para escalar.
+        </div>
+
+        <p>
+          Las redes sociales y la publicidad digital son hoy la herramienta más
+          democrática que existe para que alguien que no te conoce llegue a tus
+          velas. No necesitás presupuesto grande. Necesitás entender cómo
+          funcionan y tener el coraje de usarlas.
+        </p>
+
+        <p>
+          <strong>TikTok en particular</strong> es el canal con mayor potencial
+          de viralización orgánica que existe hoy. Un video del proceso de hacer
+          una vela — fundir la cera, agregar el aroma, verter en el frasco —
+          puede llegar a decenas de miles de personas sin gastar un peso. El
+          algoritmo premia el contenido real sobre el producido. Eso te favorece
+          a vos.
+        </p>
+
+        <div class="block-dark">
+          <div class="block-label">⚡ La regla que cambia todo</div>
+          <p><strong>Un buen creativo mata a la mejor estrategia.</strong></p>
+          <p>
+            No la foto perfecta de estudio. No el copy más trabajado. El video
+            de tus manos haciendo una vela a las 10 de la noche. El momento en
+            que desmoldás y aparece el color. La clienta que abre el paquete y
+            no puede dejar de olerlo. <strong>Eso vende.</strong>
+          </p>
+          <p>Porque la persona empatiza con la persona, no con el producto.</p>
+        </div>
+
+        <p>
+          Mostrá el proceso. Mostrá el error que corregiste. Mostrá que detrás
+          de cada vela hay alguien real que se levantó un domingo a hacer algo
+          con sus manos. Eso no lo puede replicar ninguna marca grande del
+          mundo.
+          <strong
+            >Es tu ventaja competitiva más poderosa y no te cuesta nada.</strong
+          >
+        </p>
+
+
+        <div class="section-title">Lo mínimo para <em>ir creciendo.</em></div>
+
+        <ul class="tip-list">
+          <li>
+            <strong>Publicá con consistencia antes de invertir en ads:</strong>
+            un perfil activo con contenido real convierte mucho mejor que uno
+            vacío con anuncios encima. El algoritmo necesita aprender quién sos.
+          </li>
+          <li>
+            <strong>TikTok primero si recién arrancás:</strong> el alcance
+            orgánico es incomparable. Un video del proceso de tus velas puede
+            viralizarse sin pagar nada. Empezá ahí.
+          </li>
+          <li>
+            <strong>Meta Ads cuando ya tenés tracción:</strong> primero validá
+            que la gente compra, después amplificá con publicidad. Los ads
+            multiplican lo que ya funciona — no arreglan lo que no funciona.
+          </li>
+          <li>
+            <strong>Medí lo básico:</strong> alcance, guardados, visitas al
+            perfil, mensajes recibidos. Sin datos no podés mejorar nada. La
+            intuición ayuda, los números confirman.
+          </li>
+          <li>
+            <strong>Iterá sin parar:</strong> el primer video casi nunca es el
+            mejor. El décimo ya es otro nivel. La única forma de llegar al
+            décimo es publicar el primero hoy.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ══════════════════════
+     PÁGINA 4
+══════════════════════ -->
+    <div class="page content-page">
+      <div class="page-marker"><span>Tu historia</span></div>
+      <div class="inner">
+        <div class="section-label">Sobre el hate y los que opinan</div>
+        <div class="section-title">
+          Que comenten. <em>Eso también es alcance.</em>
+        </div>
+
+        <p>
+          Cuando empezás a publicar, van a aparecer. El comentario que dice
+          "caro". El que pregunta "¿y esto se vende?". El que opina sin haber
+          comprado nada en su vida. El hate, en todas sus formas.
+        </p>
+
+        <p><strong>No le tengas miedo. Entendelo.</strong></p>
+
+        <p>
+          La persona que escribe un comentario negativo en tu publicación está
+          scrolleando desde la comodidad de su sillón, mirando cómo vos te movés
+          para construir algo propio. Esa persona no tiene nada que hacer con su
+          tiempo. Vos sí. Esa diferencia lo dice todo.
+        </p>
+
+        <div class="pull-quote">
+          "Cada comentario — bueno o malo — le dice al algoritmo que tu
+          contenido genera reacción. Y el algoritmo lo muestra a más gente. El
+          hate también trabaja para vos."
+        </div>
+
+        <p>
+          Lo que alguien piense de tu precio, de tu packaging o de tu decisión
+          de emprender no tiene ningún poder sobre tu negocio.
+          <strong>El único poder real es el que le das vos.</strong> Usá la
+          crítica constructiva para mejorar. Ignorá el resto. Y seguí
+          publicando.
+        </p>
+
+        <div class="divider"></div>
+
+        <div class="section-label">Lo que realmente comprán</div>
+        <div class="section-title">
+          No comprán velas. Comprán <em>una emoción.</em>
+        </div>
+
+        <p>
+          Tus clientes no compran una vela de cera de soja con aroma lavanda.
+          Compran el momento de encenderla un domingo a la noche. Compran el
+          regalo que llega envuelto con cuidado. Compran el olor que les
+          recuerda algo. Compran un mimo que se dieron a sí mismas o le dieron a
+          alguien que quieren.
+        </p>
+
+        <p>
+          Cuando comuniques — en redes, en ferias, en tu tienda — hablá de eso.
+          No de los gramos ni de los aceites esenciales.
+          <strong>Hablá de la experiencia.</strong> Del baño silencioso. De la
+          mesa puesta. Del momento que la vela hace más especial.
+        </p>
+
+        <p>
+          Y contá tu historia. Por qué empezaste. Qué sentiste la primera vez
+          que alguien te pagó por algo que hiciste con tus manos. Eso no lo
+          puede replicar ninguna marca grande. Es tuyo.
+        </p>
+
+        <div class="closing-box">
+          <p>
+            "El momento perfecto para empezar era ayer.<br />El segundo mejor
+            momento es ahora.<br /><strong>Prendé la primera vela.</strong>"
+          </p>
+          <span class="closing-brand"
+            >Velas que Venden · Emprendé desde Casa</span
+          >
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

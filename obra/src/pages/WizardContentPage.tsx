@@ -29,6 +29,7 @@ import {
   fetchPackageEbookIdMap,
   invokeGenerateAllBonusIndex,
   invokeGenerateChapterContent,
+  streamGenerateChapterContent,
   invokeGenerateIndex,
   loadEbookChapters,
   loadEbookChaptersDraft,
@@ -179,6 +180,8 @@ export function WizardContentPage() {
   const [chapterGenerateLoading, setChapterGenerateLoading] = useState(false);
   const [chapterApproveLoading, setChapterApproveLoading] = useState(false);
   const [chapterSuccessMessage, setChapterSuccessMessage] = useState<string | null>(null);
+  // Streaming state: accumulates raw text chunks while Claude responds
+  const [chapterStreamingHtml, setChapterStreamingHtml] = useState<string | null>(null);
   const [chapterRichTextKey, setChapterRichTextKey] = useState(0);
   const [chapterBodyPresence, setChapterBodyPresence] = useState<Record<string, boolean>>({});
   const [artifactApprovedByKey, setArtifactApprovedByKey] = useState<Record<string, boolean>>({});
@@ -1037,16 +1040,31 @@ export function WizardContentPage() {
 
 
   const handleGenerateChapter = useCallback(async () => {
-    const current = chapterRows[chapterIdx];
-    if (!current || !project?.id) return;
+    if (!project?.id || !selectedEbookId) return;
+    // Always reload from DB to guard against stale chapter IDs in React state.
+    const freshDraft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!freshDraft.ok || freshDraft.rows.length === 0) return;
+    const current = freshDraft.rows[chapterIdx] ?? freshDraft.rows[0];
+    if (!current) return;
+    setChapterRows(freshDraft.rows);
     setActionAnnouncement(null);
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
     const opKey = `chapter:${current.id}`;
     const clientRequestId = retryIds.current.getOrCreate(opKey);
     setChapterGenerateLoading(true);
-    const result = await invokeGenerateChapterContent(project.id, current.id, clientRequestId);
+    setChapterStreamingHtml("");
+
+    const result = await streamGenerateChapterContent(
+      project.id,
+      current.id,
+      clientRequestId,
+      (chunk) => setChapterStreamingHtml((prev) => (prev ?? "") + chunk),
+    );
+
+    setChapterStreamingHtml(null);
     setChapterGenerateLoading(false);
+
     if (!result.ok) {
       if (result.code === "insufficient_credits") {
         setInsufficientCreditsToastOpen(true);
@@ -1061,10 +1079,7 @@ export function WizardContentPage() {
         const key = "wizard.content.chapters.errorGenerateGeneric";
         if (result.message) {
           setActionAnnouncement(result.message);
-          toast.error({
-            title: t(key),
-            description: result.message,
-          });
+          toast.error({ title: t(key), description: result.message });
         } else {
           setActionAnnouncement(t(key));
           toastApiFailure(t, key);
@@ -1072,6 +1087,7 @@ export function WizardContentPage() {
       }
       return;
     }
+
     retryIds.current.clear(opKey);
     const saved = await updateChapterDraftContent(current.id, result.content);
     if (!saved.ok) {
@@ -1088,7 +1104,7 @@ export function WizardContentPage() {
     setChapterRichTextKey((k) => k + 1);
     void refreshChapterBodyPresence();
     setChapterSuccessMessage(t("wizard.content.chapters.generateSuccess"));
-  }, [chapterRows, chapterIdx, project?.id, t, refreshChapterBodyPresence, selectedKey]);
+  }, [chapterIdx, project?.id, selectedEbookId, t, refreshChapterBodyPresence, selectedKey]);
 
   const handleApproveChapter = useCallback(async () => {
     const current = chapterRows[chapterIdx];
@@ -1464,9 +1480,9 @@ export function WizardContentPage() {
     [handleSelectPackageKey],
   );
 
-  // ── Auto-generate all chapters for current artifact ───────────────────────────
+  // ── Auto-generate all chapters for current artifact — parallel + streaming ─────
   const handleGenerateAllChapters = useCallback(async () => {
-    if (!project?.id) return;
+    if (!project?.id || !selectedEbookId) return;
     if (autoGenerating) {
       autoGenerateAbortRef.current = true;
       return;
@@ -1477,42 +1493,80 @@ export function WizardContentPage() {
     setInsufficientCreditsToastOpen(false);
     setInsufficientCreditsSource("chapter");
 
-    const snapshot = [...chapterRows];
-    for (let i = 0; i < snapshot.length; i++) {
-      if (autoGenerateAbortRef.current) break;
-      setAutoGenerateCurrent(i);
-      const ch = snapshot[i]!;
-      if (!isChapterHtmlEffectivelyEmpty(ch.content ?? "")) continue;
-      setChapterIdx(i);
-      const opKey = `autogen:${ch.id}`;
-      const clientRequestId = retryIds.current.getOrCreate(opKey);
-      setChapterGenerateLoading(true);
-      const result = await invokeGenerateChapterContent(project.id, ch.id, clientRequestId);
-      setChapterGenerateLoading(false);
-      if (autoGenerateAbortRef.current) break;
-      if (!result.ok) {
-        if (result.code === "insufficient_credits") {
-          setInsufficientCreditsToastOpen(true);
-          toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
-          break;
-        }
-        continue;
-      }
-      retryIds.current.clear(opKey);
-      await updateChapterDraftContent(ch.id, result.content);
-      setChapterBodyDraft(result.content);
-      setChapterRichTextKey((k) => k + 1);
-      snapshot[i] = { ...ch, content: result.content, approved_at: null };
-      setChapterRows((rows) =>
-        rows.map((r) => (r.id === ch.id ? { ...r, content: result.content, approved_at: null } : r)),
-      );
+    // Reload from DB to guard against stale chapter IDs in React state.
+    const freshDraft = await loadEbookChaptersDraft(selectedEbookId);
+    if (!freshDraft.ok) {
+      setAutoGenerating(false);
+      toastApiFailure(t, "wizard.content.chapters.errorGenerateGeneric");
+      return;
     }
+    if (freshDraft.rows.length > 0) {
+      setChapterRows(freshDraft.rows);
+    }
+    const snapshot = freshDraft.rows;
+    const pending = snapshot.filter((ch) => isChapterHtmlEffectivelyEmpty(ch.content ?? ""));
+    const currentChapterId = snapshot[chapterIdx]?.id;
 
+    // Track how many have completed for the progress counter
+    let completedCount = 0;
+    const updateCompleted = () => {
+      completedCount++;
+      setAutoGenerateCurrent(completedCount);
+    };
+
+    // Fire all pending chapters in parallel — each streams independently
+    const results = await Promise.allSettled(
+      pending.map(async (ch) => {
+        if (autoGenerateAbortRef.current) return;
+        const opKey = `autogen:${ch.id}`;
+        const clientRequestId = retryIds.current.getOrCreate(opKey);
+        const isCurrentChapter = ch.id === currentChapterId;
+
+        const result = await streamGenerateChapterContent(
+          project.id!,
+          ch.id,
+          clientRequestId,
+          // Only pipe streaming chunks to the editor for the currently visible chapter
+          isCurrentChapter
+            ? (chunk) => setChapterStreamingHtml((prev) => (prev ?? "") + chunk)
+            : () => {},
+        );
+
+        if (isCurrentChapter) setChapterStreamingHtml(null);
+        updateCompleted();
+
+        if (!result.ok) {
+          if (result.code === "insufficient_credits") {
+            setInsufficientCreditsToastOpen(true);
+            toastInsufficientCredits(t, "wizard.content.chapters.errorInsufficientCredits");
+          }
+          return;
+        }
+
+        retryIds.current.clear(opKey);
+        await updateChapterDraftContent(ch.id, result.content);
+
+        // Update state: visible chapter gets full editor refresh; others just update rows
+        setChapterRows((rows) =>
+          rows.map((r) => (r.id === ch.id ? { ...r, content: result.content, approved_at: null } : r)),
+        );
+        if (isCurrentChapter) {
+          setChapterBodyDraft(result.content);
+          setChapterRichTextKey((k) => k + 1);
+        }
+      }),
+    );
+
+    // Surface the first unhandled rejection if any
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed) console.error("autogen_chapter_failed", (failed as PromiseRejectedResult).reason);
+
+    void refreshChapterBodyPresence();
     setAutoGenerating(false);
     setAutoGenerateCurrent(0);
     setChapterGenerateLoading(false);
     autoGenerateAbortRef.current = false;
-  }, [project?.id, chapterRows, autoGenerating, t]);
+  }, [project?.id, chapterRows, chapterIdx, selectedEbookId, autoGenerating, t, refreshChapterBodyPresence]);
 
   // ── Approve all chapters in the current artifact ──────────────────────────────
   const handleApproveArtifact = useCallback(async () => {
@@ -1743,7 +1797,7 @@ export function WizardContentPage() {
 
         {/* ── Generating / complete: chapter editing per artifact ────────── */}
         {(contentUiPhase === "generating" || contentUiPhase === "complete") && project ? (
-          <div data-testid="content-chapter-section" className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <ContentChapterNav
               t={t}
               chapters={chapterRows}
@@ -1778,24 +1832,34 @@ export function WizardContentPage() {
                     </div>
                   )}
 
-                  <ContentChapterMilestone
-                    t={t}
-                    panelTitle={chapterPanelCopy.title}
-                    chapters={chapterRows}
-                    selectedIndex={chapterIdx}
-                    bodyValue={chapterBodyDraft}
-                    onBodyChange={setChapterBodyDraft}
-                    onGenerate={() => void handleGenerateChapter()}
-                    onApprove={() => void handleApproveChapter()}
-                    generateLoading={chapterGenerateLoading}
-                    generateAllLoading={autoGenerating}
-                    approveLoading={chapterApproveLoading}
-                    richTextResetKey={chapterRichTextKey}
-                    progressValue={chapterProgressValue}
-                    progressMax={Math.max(chapterRows.length, 1)}
-                    showAiGenerateButton={project.content_source === "ai"}
-                    successMessage={chapterSuccessMessage}
-                  />
+                  {chapterStreamingHtml !== null ? (
+                    <div className="flex flex-col gap-3 p-4">
+                      <div
+                        className="prose prose-sm max-w-none rounded-lg border border-obra-blue-100 bg-white p-4 text-obra-blue-950"
+                        // eslint-disable-next-line react/no-danger
+                        dangerouslySetInnerHTML={{ __html: chapterStreamingHtml || "…" }}
+                      />
+                    </div>
+                  ) : (
+                    <ContentChapterMilestone
+                      t={t}
+                      panelTitle={chapterPanelCopy.title}
+                      chapters={chapterRows}
+                      selectedIndex={chapterIdx}
+                      bodyValue={chapterBodyDraft}
+                      onBodyChange={setChapterBodyDraft}
+                      onGenerate={() => void handleGenerateChapter()}
+                      onApprove={() => void handleApproveChapter()}
+                      generateLoading={chapterGenerateLoading}
+                      generateAllLoading={autoGenerating}
+                      approveLoading={chapterApproveLoading}
+                      richTextResetKey={chapterRichTextKey}
+                      progressValue={chapterProgressValue}
+                      progressMax={Math.max(chapterRows.length, 1)}
+                      showAiGenerateButton={project.content_source === "ai"}
+                      successMessage={chapterSuccessMessage}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1838,7 +1902,6 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
-              data-testid="content-confirm-index-btn"
               disabled={!confirmVisible || confirmDisabled || confirmLoading}
               onClick={() => void handleConfirmGlobalIndex()}
             >
@@ -1849,7 +1912,6 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
-              data-testid="content-go-to-preview-btn"
               onClick={() => void navigate(`/app/projects/${params.projectId ?? ""}/preview`)}
             >
               {t("wizard.content.footer.goToPreview")}
@@ -1859,7 +1921,6 @@ export function WizardContentPage() {
             <Button
               type="button"
               variant="primary"
-              data-testid="content-approve-artifact-btn"
               disabled={!canApproveArtifact}
               onClick={() => void handleApproveArtifact()}
             >

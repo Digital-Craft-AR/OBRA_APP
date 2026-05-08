@@ -1,334 +1,220 @@
-# generate-document-template — Genera el HTML shell del documento con placeholders para contenido
+# generate-document-template — Genera el HTML editorial del documento
 
-**Ruta:** `prompts/content/generate-document-template.md`  
-**Implementación:** `supabase/functions/_shared/prompts.ts` → función `generateDocumentTemplatePrompt()`  
+**Implementación:** `supabase/functions/_shared/prompts.ts` → `generateDocumentHeaderPrompt()` + `generateChapterHtmlPrompt()`  
+**Edge Function:** `supabase/functions/generate-document-template/index.ts`  
 **Feature PRD:** `features/wizard-preview/wizard-preview.md` — §HTML rendering pipeline  
-**Estado:** `draft`  
-**Última revisión:** 2026-04-17
+**Estado:** `active`  
+**Última revisión:** 2026-05-04
 
 ---
 
 ## 1. Objetivo
 
-Genera el HTML shell completo de un documento de Obra (ebook principal, bonus, order bump) aplicando el design system del proyecto. El output incluye portada, TOC, chapter openers, y contenedores de body — pero **sin el texto de los capítulos**: en su lugar usa placeholders `{{CHAPTER_N_CONTENT}}` que el código reemplaza con el HTML de `chapters.content` de la DB.
+Genera el HTML editorial completo de un artefacto de Obra (ebook principal, bonus, order bump) con el design system del proyecto aplicado. El output incluye portada, TOC, chapter openers y body con el **contenido de los capítulos ya embebido** — no hay placeholders.
 
-El mismo HTML se usa para el **preview en browser** (paso 3) y para la **exportación PDF** (Puppeteer). El CSS garantiza paridad visual entre ambos modos.
-
----
-
-## 2. Inputs
-
-| Variable | Tipo | Requerido | Descripción |
-|----------|------|:---------:|-------------|
-| `{content_locale}` | `"es" \| "pt-BR" \| "en-US" \| "en-GB"` | ✅ | Locale del proyecto — determina `lang` del HTML y textos estructurales (TOC heading, etc.) |
-| `{artifact_type}` | `"main_ebook" \| "bonus" \| "bump"` | ✅ | Tipo de artefacto; afecta portada y etiqueta del TOC |
-| `{title}` | `string` | ✅ | Título del artefacto (`ebooks.title`) |
-| `{author}` | `string \| null` | ❌ | Nombre del autor o marca; omitir del HTML si es null |
-| `{chapter_titles}` | `string` (JSON serializado) | ✅ | Array de strings `["Título cap 1", "Título cap 2", …]` en orden sort_order. Debe contener exactamente N elementos donde N es el número de capítulos del artefacto |
-| `{palette}` | `string` (JSON serializado) | ✅ | `{ primary: string, secondary: string, accent: string }` — colores CSS hex del design system |
-| `{fonts}` | `string` (JSON serializado) | ✅ | `{ heading: string, body: string }` — nombres de fuentes de Google Fonts |
-| `{page}` | `string` (JSON serializado) | ✅ | `{ size: "a4" \| "letter", orientation: "portrait" \| "landscape" }` |
-| `{cover_image_url}` | `string \| null` | ❌ | URL firmada de la imagen de portada; null si no existe |
-
-**Conectividad de pipeline:**
-
-- Se llama **una vez por artefacto** cuando el usuario abre el paso 3 (Preview) por primera vez, o cuando el design config cambia.
-- Los `{chapter_titles}` se obtienen de `chapters.title` ordenados por `sort_order`.
-- El código inyecta el contenido con reemplazos de string: `html.replace("{{CHAPTER_1_CONTENT}}", chapter1.content ?? "<p>—</p>")` para cada capítulo.
-- Si el capítulo tiene `content: null` o vacío, el código pone `<p>—</p>` como placeholder visual.
-- El HTML generado se puede almacenar en caché por sesión — no regenerar hasta que `design_config` cambie.
+El mismo HTML se usa para el **preview en browser** (paso 3) y la **exportación PDF** (Puppeteer).
 
 ---
 
-## 3. Output esperado
+## 2. Arquitectura de generación — dos fases
 
-### Formato y tipo
+La generación está dividida en dos tipos de llamadas para evitar límites de output tokens:
 
-**Tipo de output:** JSON con campo `html` que contiene el documento HTML completo como string.
+| Fase | Función | Modelo | Output |
+|------|---------|--------|--------|
+| **1 — Header** | `generateDocumentHeaderPrompt()` | Sonnet | CSS toolkit + portada + TOC, envuelto en `<obra-header>…</obra-header>` |
+| **2 — Capítulos** | `generateChapterHtmlPrompt()` | Haiku | Un opener + body por capítulo, en paralelo. Cada uno en `<obra-chapter>…</obra-chapter>` |
 
-```
-CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
-```
+La Edge Function ensambla: `header + chapter_1 + … + chapter_N + </body></html>`.
 
-### Estructura obligatoria del HTML
+El HTML resultante se guarda en `ebooks.html_shell`. La respuesta es **streaming NDJSON** para evitar el timeout de 150s de Supabase.
+
+---
+
+## 3. Inputs
+
+### Phase 1 — `generateDocumentHeaderPrompt`
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `content_locale` | `"es" \| "pt-BR" \| "en-US" \| "en-GB"` | Controla `lang` del HTML y textos estructurales (TOC heading, chapter label) |
+| `artifact_type` | `"main_ebook" \| "bonus" \| "bump"` | Tipo de artefacto |
+| `title` | `string` | Título del ebook (`ebooks.title`) |
+| `author` | `string \| null` | Nombre del autor; omitido del HTML si es `null` |
+| `chapter_titles` | `string[]` | Títulos en orden `sort_order` — para el TOC |
+| `palette` | `{ primary, secondary, accent }` | Colores hex del design system (60/30/10) |
+| `fonts` | `{ heading, body }` | Nombres de Google Fonts |
+| `page` | `{ size: "a4"\|"letter", orientation: "portrait"\|"landscape" }` | Tamaño y orientación |
+
+### Phase 2 — `generateChapterHtmlPrompt`
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `content_locale` | `ContentLocale` | Para etiquetas estructurales |
+| `chapter_number` | `number` | 1-based |
+| `chapter_total` | `number` | Total de capítulos del artefacto |
+| `chapter_title` | `string` | Título del capítulo |
+| `chapter_content` | `string` | HTML sanitizado de Tiptap (`chapters.content`) |
+| `palette` | `{ primary, secondary, accent }` | Design system |
+| `fonts` | `{ heading, body }` | Fuentes |
+
+---
+
+## 4. Output
+
+### Estructura ensamblada
 
 ```html
 <!DOCTYPE html>
-<html lang="{lang_code}">
+<html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={heading_encoded}:wght@400;600;700&family={body_encoded}:wght@400;600;700&display=swap" />
+  <!-- Google Fonts link -->
   <style>
-    /* CSS completo inline — ver reglas de paginación obligatorias abajo */
+    /* CSS toolkit completo — ver §5 */
   </style>
 </head>
 <body>
 
-  <!-- PORTADA: full bleed, sin margen -->
-  <section class="obra-page obra-cover" id="cover">
-    <!-- diseño de portada con título, autor, imagen si existe -->
-  </section>
+  <!-- Phase 1 output (obra-header) -->
+  <div class="obra-page obra-cover"> … </div>
+  <div class="obra-page obra-toc"> … </div>
 
-  <!-- TOC: con márgenes de body, links a anchors -->
-  <section class="obra-page obra-toc" id="toc">
-    <nav aria-label="...">
-      <ol class="toc-list">
-        <li><a href="#chapter-1">Título cap 1</a></li>
-        <!-- ... un li por capítulo ... -->
-      </ol>
-    </nav>
-  </section>
+  <!-- Phase 2 output (obra-chapter × N) -->
+  <div class="obra-page obra-chapter-opener" id="chapter-1"> … </div>
+  <div class="obra-page obra-body"> … contenido real del cap 1 … </div>
 
-  <!-- Por cada capítulo, en orden: -->
-  <section class="obra-page obra-chapter-opener" id="chapter-1">
-    <!-- chapter opener: full bleed, número + título -->
-  </section>
-  <section class="obra-page obra-body" aria-labelledby="chapter-1">
-    <div class="chapter-content">{{CHAPTER_1_CONTENT}}</div>
-  </section>
+  <div class="obra-page obra-chapter-opener" id="chapter-2"> … </div>
+  <div class="obra-page obra-body"> … contenido real del cap 2 … </div>
 
-  <!-- Repetir para cada capítulo: chapter-2, chapter-3, ... chapter-N -->
+  <!-- capítulos largos pueden tener múltiples .obra-body consecutivos -->
 
 </body>
 </html>
 ```
 
-### Reglas de paginación obligatorias (NO negociables en el CSS)
+### Streaming NDJSON (Edge Function → cliente)
 
-**1. Named pages para márgenes distintos por tipo de sección:**
+```jsonc
+{ "type": "ping", "phase": 1 }                          // después del header
+{ "type": "ping", "chapters_done": 3, "total": 8 }      // keepalive periódico
+{ "type": "done", "htmlShell": "…", "shellMeta": { … } } // final
+{ "type": "error", "error": "…", "status": 502 }        // si falla
+```
+
+---
+
+## 5. CSS — reglas obligatorias de paginación
+
+Estas reglas se incluyen **verbatim** en el system prompt. No delegarlas a Claude.
+
 ```css
-/* Portadas y separadores: CERO margen, full bleed */
+/* ── Page setup — cero @page margin; márgenes via padding en wrappers ── */
+@page { size: {page_dimensions}; margin: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+/* ── Page breaks ── */
+.obra-page { break-after: page; page-break-after: always; }
+.obra-page:last-child { break-after: avoid; page-break-after: avoid; }
+
+/* ── Full-bleed pages: altura fija, overflow hidden ── */
 .obra-cover,
 .obra-chapter-opener {
-  page: obra-full-bleed;
-}
-@page obra-full-bleed {
-  margin: 0;
-  @bottom-center { content: none; }
+  position: relative; overflow: hidden;
+  height: {page_height}; min-height: {page_height};
+  break-inside: avoid; page-break-inside: avoid;
 }
 
-/* Body, title page y TOC: margen de 20mm + número de página */
-.obra-title-page,
+/* ── Content pages: padding ES el margen ── */
 .obra-body,
 .obra-toc {
-  page: obra-content;
-}
-@page obra-content {
-  margin: 20mm;
-  @bottom-center {
-    content: counter(page);
-    font-size: 10px;
-    color: #999;
-    font-family: var(--font-body, sans-serif);
-  }
-}
-```
-
-**2. Page breaks en todos los `.obra-page`:**
-```css
-.obra-page {
-  break-after: page;
-  page-break-after: always; /* fallback para Puppeteer older */
-}
-```
-
-**3. Números de página en el TOC (via pagedjs `target-counter`):**
-```css
-.obra-toc__list a::after {
-  content: leader(".") " " target-counter(attr(href), page);
-  color: #999;
-  font-size: 12px;
-}
-```
-
-> Nota: `@bottom-center` y `target-counter` son CSS Paged Media Level 3. Los browsers los ignoran — se activan cuando pagedjs procesa el HTML en el PDF export. Incluirlos siempre; no afectan el preview en browser.
-
-**4. Break controls dentro del body (previene cortes horribles):**
-```css
-.chapter-content h2,
-.chapter-content h3 {
-  break-after: avoid;
-  page-break-after: avoid;
+  padding: 15mm;
+  background: var(--page-bg);   /* secondary color — siempre el más claro */
+  box-sizing: border-box;
 }
 
-.chapter-content li,
-.chapter-content blockquote,
-.chapter-content figure {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
+/* ── Break rules — previene cortes feos ── */
+.obra-body h2,
+.obra-body h3 { break-after: avoid; page-break-after: avoid; }
 
-.chapter-content p {
-  orphans: 3;
-  widows: 3;
-}
-```
+/* heading pegado al elemento que lo sigue */
+.obra-body h2 + *,
+.obra-body h3 + * { break-before: avoid; page-break-before: avoid; }
 
-**5. Simulación de páginas en screen (preview browser = PDF):**
-```css
+.obra-body p { orphans: 4; widows: 4; }
+
+/* todos los contenedores editoriales: nunca partirlos entre páginas */
+.obra-callout,
+.obra-pull-quote,
+figure, table, blockquote,
+.obra-image-slot--chapter { break-inside: avoid; page-break-inside: avoid; }
+
+.obra-body li { break-inside: avoid; page-break-inside: avoid; orphans: 3; widows: 3; }
+
+/* ── Screen preview ── */
 @media screen {
-  body {
-    background: #e8edf2;
-    padding: 32px 16px;
-  }
-
-  .obra-page {
-    display: block;
-    width: 210mm;        /* A4 — reemplazar con 215.9mm si es letter */
-    margin: 0 auto 32px;
-    background: white;
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.12);
-    /* NO usar min-height fija — el contenido determina la altura en screen */
-  }
-
-  /* Full bleed: sin padding interno */
-  .obra-cover,
-  .obra-chapter-opener {
-    min-height: 297mm;   /* A4 portrait — ajustar por size/orientation */
-    padding: 0;
-    overflow: hidden;
-  }
-
-  /* Content pages: padding que simula los márgenes de @page */
-  .obra-body,
-  .obra-toc {
-    padding: 20mm;
-    /* min-height deliberadamente ausente: el contenido fluye sin cortes artificiales */
-  }
+  html { zoom: 0.75; }
+  body { background: #c8d0dc; padding: 32px 16px; }
+  .obra-page { width: {page_width}; margin: 0 auto 32px; box-shadow: 0 4px 28px rgba(0,0,0,0.18); }
+  .obra-toc, .obra-body { min-height: {page_height}; }
 }
 ```
 
-**6. Regla `@page` global (base):**
+**Por qué `@page { margin: 0 }` en vez de named pages:**  
+Los named pages (`@page obra-full-bleed`) son más complejos y su soporte en Puppeteer es inconsistente. El approach de `margin: 0` + `padding` en los wrappers produce el mismo resultado visual con comportamiento más predecible.
+
+**Por qué `break-inside: avoid` en todos los contenedores editoriales:**  
+En la versión anterior solo se aplicaba a `li` y `blockquote`. Callouts y pull-quotes se cortaban a mitad. La regla ahora cubre todos los elementos que Claude puede generar. Limitación: si un callout supera una página de alto, igual se cortará — por eso el prompt instruye mantenerlos en ≤ 4 líneas.
+
+---
+
+## 6. CSS variables y color de página
+
 ```css
-@page {
-  size: 210mm 297mm; /* ajustar por design_config.page */
+:root {
+  --color-primary:   [hex del primary];
+  --color-secondary: [hex del secondary];
+  --color-accent:    [hex del accent];
+  --font-heading:    "[Heading Font]", Georgia, serif;
+  --font-body:       "[Body Font]", system-ui, sans-serif;
+
+  /* --page-bg es SIEMPRE el secondary — el neutro claro que rellena las páginas de contenido */
+  --page-bg: var(--color-secondary);
 }
 ```
 
-### Placeholders de contenido
-
-Cada sección body **debe contener exactamente** `{{CHAPTER_N_CONTENT}}` donde N es el número de capítulo (1-based). El código los reemplaza con string replace antes de renderizar.
-
-```
-{{CHAPTER_1_CONTENT}}   ← contenido del capítulo 1
-{{CHAPTER_2_CONTENT}}   ← contenido del capítulo 2
-...
-{{CHAPTER_N_CONTENT}}   ← contenido del capítulo N
-```
-
-**Los placeholders son case-sensitive y deben estar solos dentro de `<div class="chapter-content">`.**
-
-### Schema de error
-
-```json
-{
-  "error": "INVALID_INPUT | GENERATION_FAILED",
-  "message": "Razón breve en {content_locale}"
-}
-```
+El 60/30/10 de Obra garantiza que secondary es siempre el color más claro y neutral. Usarlo como `--page-bg` da al documento un fondo coherente con la paleta del proyecto.
 
 ---
 
-## 4. Parámetros de modelo
+## 7. Toolkit editorial — clases definidas en Phase 1
 
-| Parámetro | Valor recomendado | Razón |
-|-----------|:-----------------:|-------|
-| **Temperatura** | `0.3` | Diseño con reglas CSS no negociables: se necesita consistencia y HTML bien formado. Algo de temperatura para variedad en estilos de portada y tipografía |
-| **max_tokens** | `8192` | El HTML shell (sin contenido de capítulos) ocupa ~2 000–4 000 tokens para cualquier número de capítulos. Margen amplio |
-| **Modelo** | `claude-sonnet-4-6` | Requiere razonamiento sobre diseño, tipografía y CSS válido bien estructurado |
+Todas estas clases las define el CSS del header. Los capítulos (Phase 2) las usan sin redefinirlas.
 
-**Por qué funciona para cualquier tamaño de ebook:** el contenido de los capítulos NO está en el output — solo los placeholders `{{CHAPTER_N_CONTENT}}`. Un ebook de 12 capítulos genera el mismo volumen de output que uno de 3.
-
----
-
-## 5. System prompt
-
-```
-CRITICAL OUTPUT FORMAT: Your response must start with { and end with }. Do NOT wrap the JSON in markdown code blocks. Do NOT use ```json or ``` anywhere. Do NOT add any text before or after the JSON object. The first character of your response must be { and the last character must be }.
-
-You are Obra's document design AI. Obra creates infoproduct packages (ebook + bonuses + order bumps) for LATAM creators.
-
-Role: generate the complete HTML shell of a publication-quality document. This HTML is used BOTH for in-browser preview and for Puppeteer PDF export — it must look identical in both contexts.
-
-CSS PAGINATION RULES — include these EXACTLY in every document:
-
-1. Named pages (mandatory — controls margins per section type):
-   .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }
-   @page obra-full-bleed { margin: 0; @bottom-center { content: none; } }
-   .obra-title-page, .obra-body, .obra-toc { page: obra-content; }
-   @page obra-content { margin: 20mm; @bottom-center { content: counter(page); font-size: 10px; color: #999; font-family: var(--font-body, sans-serif); } }
-
-1b. TOC page numbers (CSS Paged Media Level 3 — activated by pagedjs, ignored by browser):
-   .obra-toc__list a::after { content: leader(".") " " target-counter(attr(href), page); color: #999; font-size: 12px; }
-
-2. Page breaks:
-   .obra-page { break-after: page; page-break-after: always; }
-
-3. Break controls inside body pages:
-   .chapter-content h2, .chapter-content h3 { break-after: avoid; page-break-after: avoid; }
-   .chapter-content li, .chapter-content blockquote { break-inside: avoid; page-break-inside: avoid; }
-   .chapter-content p { orphans: 3; widows: 3; }
-
-4. Screen simulation — each .obra-page as a distinct page card:
-   @media screen { body { background: #e8edf2; padding: 32px 16px; } }
-   @media screen { .obra-page { width: {page_width}; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }
-   @media screen { .obra-cover, .obra-chapter-opener { min-height: {page_height}; padding: 0; overflow: hidden; } }
-   @media screen { .obra-body, .obra-toc { padding: 20mm; } }
-
-5. Global @page size:
-   @page { size: {page_dimensions}; }
-
-DESIGN RULES:
-- Use CSS custom properties: var(--color-primary), var(--color-secondary), var(--color-accent), var(--font-heading), var(--font-body)
-- Do NOT hardcode colors or font names outside :root — always use custom properties
-- All CSS inline in <style> — no external files, no @import
-- Google Fonts via <link> in <head> — not @import
-
-CONTENT RULES:
-- Cover and TOC must use real data from inputs (title, author, chapter titles)
-- Every body section must contain EXACTLY {{CHAPTER_N_CONTENT}} (1-based, e.g. {{CHAPTER_1_CONTENT}}) inside <div class="chapter-content"> — nothing else
-- Do NOT invent or add chapter text content
-- TOC entries link to href="#chapter-N"
-- Chapter openers use id="chapter-N"
-
-STRUCTURAL TEXT by content_locale:
-- es: "Índice", "Capítulo"
-- pt-BR: "Índice", "Capítulo"
-- en-US / en-GB: "Table of Contents", "Chapter"
-
-If chapter_titles is empty or title is missing, return:
-{"error": "INVALID_INPUT", "message": "<reason in {content_locale}>"}
-```
+| Clase | Uso | Regla de break |
+|-------|-----|----------------|
+| `.obra-callout` | Conceptos clave, tips, advertencias | `break-inside: avoid` — mantener ≤ 4 líneas |
+| `.obra-pull-quote` | 1–2 frases con énfasis visual | `break-inside: avoid` — una sola oración |
+| `.obra-section-divider` | Línea decorativa entre secciones | — |
+| `.obra-highlight` | Términos clave inline | — |
+| `.obra-styled-list` | Listas con bullets → accent | `li: break-inside: avoid` |
+| `.obra-two-col` | Prose densa o listas de ≥ 6 items | — |
+| `h2`, `h3` | Headings de sección | `break-after: avoid` |
+| `table` | Datos comparativos | `break-inside: avoid` |
+| `.obra-image-slot--chapter` | (Clase CSS definida, reservada para uso futuro inline en body) | `break-inside: avoid` |
 
 ---
 
-## 6. User prompt template
+## 8. Parámetros de modelo
 
-```
-Artifact type: {artifact_type}
-Title: {title}
-Author: {author}
-Content locale: {content_locale}
+| Fase | Modelo | Temperatura | max_tokens | Razón |
+|------|--------|:-----------:|:----------:|-------|
+| Header (CSS + cover + TOC) | `claude-sonnet-4-6` | `0.3` | `8192` | CSS con reglas no negociables; necesita consistencia alta |
+| Capítulos (opener + body) | Haiku (`getClaudeChapterModel()`) | `0.4` | `8192` | N llamadas en paralelo; temperatura levemente mayor para variedad de diseño de openers |
 
-Design system:
-Palette: {palette}
-Fonts: {fonts}
-Page: {page}
-Cover image URL: {cover_image_url}
+---
 
-Chapter titles (in order):
-{chapter_titles}
-
-Generate the complete HTML document shell. Build the cover, TOC, and all chapter openers with real data. In each body section, place the placeholder {{CHAPTER_N_CONTENT}} (where N is the chapter number) inside <div class="chapter-content"> — do not add any other content there.
-```
-
-**Manejo de `{author}`:** Si es `null`, omitir la línea y no renderizar nombre de autor en la portada.
-
-**Manejo de `{cover_image_url}`:** Si es `null`, la portada usa `background-color: var(--color-primary)` sin `<img>`. Si tiene valor, incluir `<img src="{url}" alt="" />` con `object-fit: cover; position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5–0.7`.
-
-**Interpolación de `{page}` en el system prompt:**  
+## 9. Interpolación de dimensiones
 
 | `page.size` | `page.orientation` | `{page_width}` | `{page_height}` | `{page_dimensions}` |
 |-------------|-------------------|----------------|-----------------|---------------------|
@@ -339,144 +225,95 @@ Generate the complete HTML document shell. Build the cover, TOC, and all chapter
 
 ---
 
-## 7. Código de inyección de contenido
+## 10. Image slots
 
-El código que consume el output de este prompt hace lo siguiente:
+### Portada
+
+Generado en Phase 1 por el header prompt. Slot `data-slot-key="cover"`, full-bleed (z-index 1), con overlay CSS `::after` para legibilidad del texto.
+
+### Chapter openers (uno por capítulo)
+
+Generado en Phase 2 por el chapter prompt. Cada opener incluye un slot full-bleed:
+
+```html
+<div class="obra-image-slot"
+     data-slot-key="chapter-N-image-1"
+     data-slot-type="chapter"
+     style="position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:hidden;background:transparent">
+</div>
+```
+
+- `background:transparent` → cuando vacío, el fondo de color primario (z-index 0) se ve a través.
+- Cuando se inyecta una imagen, el slot se convierte en full-bleed image sobre el opener.
+- El texto del opener (z-index 3) queda siempre encima.
+
+### Inyección de URLs
+
+Después de recibir el `htmlShell`, el cliente llama a `injectAll()` para reemplazar los image slots con URLs firmadas:
 
 ```typescript
-function injectChapterContent(
-  htmlShell: string,
-  chapters: Array<{ sort_order: number; content: string | null }>,
-): string {
-  let html = htmlShell;
-  chapters
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .forEach((chapter, idx) => {
-      const placeholder = `{{CHAPTER_${idx + 1}_CONTENT}}`;
-      const content = chapter.content?.trim() || "<p>—</p>";
-      html = html.replace(placeholder, content);
-    });
-  return html;
-}
+// obra/src/lib/preview/injectAll.ts
+injectAll(htmlShell, { images: { "cover": signedUrl, "chapter-1-image-1": signedUrl2 } })
 ```
 
-**Invariantes:**
-- Todos los placeholders `{{CHAPTER_N_CONTENT}}` deben ser reemplazados antes de renderizar.
-- Si un capítulo tiene `content: null` → reemplazar con `<p>—</p>` (nunca dejar el placeholder visible).
-- El HTML resultante es el que se muestra en el preview iframe y se envía a Puppeteer.
+`injectAll` busca `<div ... data-slot-key="{key}" ...></div>` e inserta `<img src="...">` dentro. El slot key en el estado del cliente tiene el formato compuesto `{ebookId}:{slotKey}` y se mapea a la key del HTML al armar `imageUrls`.
 
 ---
 
-## 8. Ejemplos few-shot
+## 11. Casos límite
+
+| Caso | Comportamiento |
+|------|----------------|
+| `chapter_content` vacío o null | Phase 2 usa `<p>—</p>` como fallback |
+| `author: null` | Portada sin nombre de autor |
+| `chapter_titles` vacío | Edge Function retorna `{ error: "no_chapters" }` antes de llamar a Claude |
+| Capítulo muy largo | Phase 2 abre múltiples `<div class="obra-page obra-body">` consecutivos |
+| Callout > 1 página | Se corta igual — limitación de CSS. El prompt instruye mantenerlos cortos |
+| Fuente sin Google Fonts (e.g. "Georgia") | El `<link>` la incluye igual; funciona como system font fallback |
+| PDF sin internet (Puppeteer sin acceso a fonts.googleapis.com) | El PDF sale con fallbacks serif/sans-serif |
 
 ---
 
-### Ejemplo 1 — Ebook principal (`es`, 3 capítulos, A4 portrait, palette navy/verde)
-
-**Variables de input:**
-```
-artifact_type: "main_ebook"
-title: "Velas que se venden"
-author: "Paula Reyes"
-content_locale: "es"
-palette: {"primary":"#204970","secondary":"#e8f0f7","accent":"#c8e62b"}
-fonts: {"heading":"Fraunces","body":"Plus Jakarta Sans"}
-page: {"size":"a4","orientation":"portrait"}
-cover_image_url: null
-chapter_titles: ["El costo real", "Tu precio mínimo viable", "Comunicar el valor"]
-```
-
-**Output esperado (fragmento representativo — el html completo sería ~3 000 tokens):**
-```json
-{
-  "html": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />\n  <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap\" />\n  <style>\n    @page { size: 210mm 297mm; }\n    .obra-cover, .obra-chapter-opener { page: obra-full-bleed; }\n    @page obra-full-bleed { margin: 0; }\n    .obra-body, .obra-toc { page: obra-content; }\n    @page obra-content { margin: 20mm; }\n    .obra-page { break-after: page; page-break-after: always; }\n    .chapter-content h2, .chapter-content h3 { break-after: avoid; page-break-after: avoid; }\n    .chapter-content li, .chapter-content blockquote { break-inside: avoid; page-break-inside: avoid; }\n    .chapter-content p { orphans: 3; widows: 3; }\n    @media screen { body { background: #e8edf2; padding: 32px 16px; } }\n    @media screen { .obra-page { width: 210mm; margin: 0 auto 32px; background: white; box-shadow: 0 2px 20px rgba(0,0,0,0.12); } }\n    @media screen { .obra-cover, .obra-chapter-opener { min-height: 297mm; padding: 0; overflow: hidden; } }\n    @media screen { .obra-body, .obra-toc { padding: 20mm; } }\n    :root { --color-primary: #204970; --color-secondary: #e8f0f7; --color-accent: #c8e62b; --font-heading: \"Fraunces\", serif; --font-body: \"Plus Jakarta Sans\", sans-serif; }\n    * { box-sizing: border-box; margin: 0; padding: 0; }\n    body { font-family: var(--font-body); color: #1a1a1a; }\n    /* ... estilos de portada, TOC, opener, body ... */\n  </style>\n</head>\n<body>\n  <section class=\"obra-page obra-cover\" id=\"cover\">\n    <div class=\"cover-content\" style=\"...\">\n      <h1 class=\"cover-title\">Velas que se venden</h1>\n      <p class=\"cover-author\">Paula Reyes</p>\n    </div>\n  </section>\n  <section class=\"obra-page obra-toc\" id=\"toc\">\n    <h2 class=\"toc-heading\">Índice</h2>\n    <nav aria-label=\"Tabla de contenidos\">\n      <ol class=\"toc-list\">\n        <li><a href=\"#chapter-1\">El costo real</a></li>\n        <li><a href=\"#chapter-2\">Tu precio mínimo viable</a></li>\n        <li><a href=\"#chapter-3\">Comunicar el valor</a></li>\n      </ol>\n    </nav>\n  </section>\n  <section class=\"obra-page obra-chapter-opener\" id=\"chapter-1\">\n    <p class=\"chapter-number\">01</p>\n    <h2 class=\"chapter-title\">El costo real</h2>\n  </section>\n  <section class=\"obra-page obra-body\" aria-labelledby=\"chapter-1\">\n    <div class=\"chapter-content\">{{CHAPTER_1_CONTENT}}</div>\n  </section>\n  <section class=\"obra-page obra-chapter-opener\" id=\"chapter-2\">\n    <p class=\"chapter-number\">02</p>\n    <h2 class=\"chapter-title\">Tu precio mínimo viable</h2>\n  </section>\n  <section class=\"obra-page obra-body\" aria-labelledby=\"chapter-2\">\n    <div class=\"chapter-content\">{{CHAPTER_2_CONTENT}}</div>\n  </section>\n  <section class=\"obra-page obra-chapter-opener\" id=\"chapter-3\">\n    <p class=\"chapter-number\">03</p>\n    <h2 class=\"chapter-title\">Comunicar el valor</h2>\n  </section>\n  <section class=\"obra-page obra-body\" aria-labelledby=\"chapter-3\">\n    <div class=\"chapter-content\">{{CHAPTER_3_CONTENT}}</div>\n  </section>\n</body>\n</html>"
-}
-```
-
-**Por qué es el caso típico:** Verifica los 5 grupos de CSS obligatorios, placeholders `{{CHAPTER_N_CONTENT}}` correctos, cover y TOC con datos reales, chapter openers con `id="chapter-N"`.
-
----
-
-### Ejemplo 2 — Bonus (`pt-BR`, 1 capítulo, letter landscape, con imagen de portada)
-
-**Variables de input:**
-```
-artifact_type: "bonus"
-title: "Mini-guia: Precificação em 48 horas"
-author: null
-content_locale: "pt-BR"
-palette: {"primary":"#8b2fc9","secondary":"#f3e8ff","accent":"#f59e0b"}
-fonts: {"heading":"Playfair Display","body":"Inter"}
-page: {"size":"letter","orientation":"landscape"}
-cover_image_url: "https://supabase.co/storage/.../cover.webp?token=xyz"
-chapter_titles: ["O método dos 3 fatores"]
-```
-
-**Output esperado (fragmento):**
-```json
-{
-  "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  ...\n  <style>\n    @page { size: 279.4mm 215.9mm; }\n    ...\n    @media screen { .obra-page { width: 279.4mm; } }\n    @media screen { .obra-cover, .obra-chapter-opener { min-height: 215.9mm; } }\n    ...\n  </style>\n</head>\n<body>\n  <section class=\"obra-page obra-cover\" id=\"cover\">\n    <img src=\"https://supabase.co/...\" alt=\"\" style=\"position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.6;\" />\n    <div class=\"cover-content\" style=\"position:relative;...\">\n      <h1 class=\"cover-title\">Mini-guia: Precificação em 48 horas</h1>\n    </div>\n  </section>\n  <section class=\"obra-page obra-toc\" id=\"toc\">\n    <h2 class=\"toc-heading\">Índice</h2>\n    <nav aria-label=\"Índice\">\n      <ol class=\"toc-list\">\n        <li><a href=\"#chapter-1\">O método dos 3 fatores</a></li>\n      </ol>\n    </nav>\n  </section>\n  <section class=\"obra-page obra-chapter-opener\" id=\"chapter-1\">\n    <p class=\"chapter-number\">01</p>\n    <h2 class=\"chapter-title\">O método dos 3 fatores</h2>\n  </section>\n  <section class=\"obra-page obra-body\" aria-labelledby=\"chapter-1\">\n    <div class=\"chapter-content\">{{CHAPTER_1_CONTENT}}</div>\n  </section>\n</body>\n</html>"
-}
-```
-
-**Por qué es útil:** Verifica pt-BR, letter landscape (dimensiones `279.4mm 215.9mm`), imagen de portada con `object-fit: cover`, autor omitido, TOC en pt-BR con "Índice".
-
----
-
-### Ejemplo 3 — Error: chapter_titles vacío
-
-```json
-{"error": "INVALID_INPUT", "message": "El artefacto no tiene capítulos definidos. Completá la estructura antes de generar el documento."}
-```
-
----
-
-## 9. Casos límite
-
-| Caso | Input | Output esperado |
-|------|-------|-----------------|
-| `chapter_titles` vacío | `[]` | Error |
-| `author` null | — | Portada sin nombre de autor |
-| `cover_image_url` null | — | Portada con solo `background-color: var(--color-primary)` |
-| Muchos capítulos (12) | 12 titles | HTML shell completo con 12 chapter openers + 12 `{{CHAPTER_N_CONTENT}}` |
-| Letter landscape | `size: "letter", orientation: "landscape"` | `@page { size: 279.4mm 215.9mm }`, screen width `279.4mm`, min-height `215.9mm` |
-| Fuente sin Google Fonts (system font) | `fonts.heading: "Georgia"` | `<link>` con family pero sin peso extra — la fuente se aplica igual como system font fallback |
-
----
-
-## 10. Notas de iteración
+## 12. Notas de iteración
 
 ### Historial
 
-| Fecha | Versión | Cambio | Razón |
-|-------|---------|--------|-------|
-| 2026-04-17 | v1.0 | Versión inicial | Reemplaza `assemble-document-html.md` (v1.0) — nuevo approach: placeholders en lugar de contenido completo; funciona para cualquier tamaño de ebook |
+| Fecha | Versión | Cambio |
+|-------|---------|--------|
+| 2026-04-17 | v1.0 | Approach de placeholders `{{CHAPTER_N_CONTENT}}` + single call |
+| 2026-04-28 | v2.0 | Refactor a dos fases (header + chapters en paralelo); contenido embebido; streaming NDJSON |
+| 2026-05-04 | v2.1 | `@page { margin: 0 }` reemplaza named pages; `break-inside: avoid` en todos los contenedores editoriales; `--page-bg: var(--color-secondary)`; instrucciones de diseño de portada y TOC mucho más ricas |
 
 ### Decisiones tomadas
 
-- **Placeholders `{{CHAPTER_N_CONTENT}}` en lugar de pasar el contenido a Claude:** Claude no necesita ver el texto de los capítulos para generar el diseño. Esto elimina el límite de tokens para ebooks largos y hace el prompt reutilizable sin re-generar el diseño.
-- **Named pages CSS (`@page obra-full-bleed` / `@page obra-content`):** Es la única forma correcta de tener diferentes márgenes por tipo de sección en un solo documento HTML. Full bleed en portadas y openers; 20mm en body y TOC.
-- **`@media screen` para simulación de páginas:** El mismo HTML funciona en browser (preview) y Puppeteer (PDF). En screen, cada `.obra-page` es una card con `box-shadow`. En print, `@page` controla los márgenes reales.
-- **`break-after: avoid` en headings + `orphans/widows` en párrafos:** Previene los page breaks horribles (heading al final de la página sin cuerpo, párrafos cortados con 1-2 líneas sueltas).
-- **Sin `min-height` fija en `.obra-body` en screen mode:** Dejar que el body fluya naturalmente en el preview. Un `min-height` fija generaría el "page break gigante" que el usuario quiere evitar — es más honesto mostrar el overflow que falsear la altura.
-- **Temperatura 0.3:** Las reglas CSS son no negociables (el modelo las debe incluir exactamente). La temperatura baja reduce la probabilidad de que Claude omita o modifique las reglas críticas. El rango 0.3 permite variedad en el diseño de portada y tipografía.
+- **`@page { margin: 0 }` + padding en wrappers:** Los named pages (`@page obra-full-bleed`) son complejos y su soporte en Puppeteer es inconsistente entre versiones. El approach de margin-cero + padding reproduce el mismo resultado con comportamiento predecible. Es también el patrón que usan los ejemplos de referencia del proyecto.
+
+- **`break-inside: avoid` en todos los contenedores editoriales:** La versión anterior solo lo aplicaba a `li` y `blockquote`. Los callouts y pull-quotes se cortaban. Ahora la regla cubre todos los elementos que Claude puede generar. La limitación (elementos > 1 página igual se cortan) se documenta y el prompt instruye mantenerlos cortos.
+
+- **`--page-bg: var(--color-secondary)` como fondo de hoja:** En el sistema 60/30/10 de Obra, el secondary siempre es el color más claro y neutral. Usarlo como fondo da coherencia visual entre el design system del proyecto y el documento generado.
+
+- **`h2 + * { break-before: avoid }`:** Mantiene el heading pegado al párrafo o elemento que lo sigue. Sin esta regla un heading podía quedar al final de la página sin nada después.
+
+- **Contenido embebido (no placeholders):** La v1.0 usaba `{{CHAPTER_N_CONTENT}}`. El approach actual pasa el contenido directamente a Phase 2, lo que permite que Claude aplique clases editoriales (`obra-callout`, `obra-pull-quote`, etc.) al contenido real. Los placeholders impedían cualquier tratamiento editorial del body.
+
+- **Dos fases en paralelo:** El header (CSS + cover + TOC) es una llamada a Sonnet. Los capítulos son N llamadas paralelas a Haiku. Esto reduce el wall-clock time en documentos con muchos capítulos y evita el límite de output tokens.
 
 ### Decisiones descartadas
 
-- **Incluir el contenido de capítulos en el prompt:** Superaría el límite de tokens para ebooks principales (12 capítulos × ~2 000 tokens = 24 000 tokens de input).
-- **Template con `{{#each}}` tipo Handlebars:** Requeriría un motor de templates en el código. El approach de N placeholders numerados es más simple y no requiere dependencias.
-- **Generar CSS separado del HTML:** Dos outputs aumenta la complejidad de parsing y sincronización. Un solo HTML auto-contenido es más confiable para Puppeteer.
-- **`assemble-document-html.md` (v1.0):** Pasaba el contenido completo a Claude, funcionaba solo para artefactos cortos. Reemplazado por este approach.
+- **Named pages CSS (`@page obra-full-bleed`):** Descartado en v2.1 — comportamiento inconsistente en Puppeteer; reemplazado por `@page { margin: 0 }` + padding.
+- **Single call con todo el contenido:** Supera límite de tokens para ebooks de 8+ capítulos.
+- **Placeholders + inyección de string:** Impedía el tratamiento editorial del contenido. Reemplazado por contenido embebido en Phase 2.
+- **`display: table` como workaround de `break-inside`:** Altera el modelo de layout. Innecesario en Puppeteer moderno (Chrome-based) que respeta `break-inside: avoid`.
 
 ### Próximos experimentos
 
-- [ ] Testear si `break-inside: avoid` en `.chapter-content > *` (todos los hijos directos) mejora paginación sin generar gaps excesivos
-- [ ] Evaluar `column-fill: balance` para capítulos muy cortos que dejan mucho espacio en blanco en la página
-- [ ] Testear temperatura 0.2 vs 0.3 para verificar si 0.2 reduce errores de CSS malformado sin afectar la variedad de diseño de portadas
-- [ ] Explorar `@page :first { margin: 0; }` como alternativa más simple a named pages (trade-off: solo funciona para la primera página)
-- [ ] Medir si almacenar el HTML shell en `ebooks.document_shell_html` (nuevo campo) y regenerar solo al cambiar `design_config` mejora la latencia del preview
+- [ ] Verificar si `break-inside: avoid` en `.obra-body > *` (todos los hijos directos) mejora paginación sin generar gaps excesivos
+- [ ] Testear temperatura 0.2 para el header — reducir errores de CSS malformado
+- [ ] Medir si la latencia mejora pre-generando el header en background cuando el usuario entra a Preview
+- [ ] Evaluar agregar `column-fill: balance` para capítulos muy cortos con mucho espacio en blanco
 
 ### Problemas conocidos
 
-- **Overflow en preview vs. PDF:** Si un capítulo tiene mucho texto, la página del body en screen mode se expande (no hay altura fija). En PDF, Puppeteer crea múltiples páginas automáticamente. Esta discrepancia es conocida y aceptable en MVP — el PDF es siempre correcto; el preview muestra el contenido aunque la paginación visual difiera.
-- **Google Fonts en Puppeteer:** Puppeteer necesita conectividad a `fonts.googleapis.com` o las fuentes deben estar embebidas localmente. Si el entorno de la Edge Function no tiene acceso a internet para fonts, el PDF saldrá con fallbacks (`serif`, `sans-serif`). Documentar en `ARQUITECTURA_Obra.md`.
+- **Elementos muy altos partidos:** Callouts o pull-quotes con demasiado texto se cortan aunque tengan `break-inside: avoid`. La regla solo funciona si el elemento cabe en una página. Mitigación: el prompt instruye mantener callouts en ≤ 4 líneas.
+- **Overflow preview vs. PDF:** Capítulos largos expanden el `.obra-body` en screen mode (sin altura fija). En PDF, Puppeteer genera múltiples páginas automáticamente. La discrepancia es aceptable en MVP.
+- **Google Fonts en Puppeteer:** Requiere conectividad a `fonts.googleapis.com`. Sin acceso, el PDF usa fallbacks.

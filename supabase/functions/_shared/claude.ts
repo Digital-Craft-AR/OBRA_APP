@@ -108,6 +108,96 @@ export async function callClaudeJsonText(args: {
   }
 }
 
+/**
+ * Streaming variant of callClaudeJsonText. Uses Anthropic's SSE streaming API.
+ * Calls onChunk for each text delta as it arrives; returns the full assembled text.
+ */
+export async function callClaudeStream(args: {
+  system: string;
+  user: string;
+  maxTokens: number;
+  temperature?: number;
+  model?: string;
+  clientId?: string;
+  onChunk: (text: string) => Promise<void> | void;
+}): Promise<ClaudeResult> {
+  const apiKey = getApiKey();
+  if (!apiKey) return { ok: false, error: "anthropic_not_configured" };
+
+  const model = args.model ?? getClaudeModel();
+  const controller = new AbortController();
+  const timeoutMs = Number(Deno.env.get("CLAUDE_REQUEST_TIMEOUT_MS") ?? "120000");
+  const tid = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 120_000);
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: args.maxTokens,
+        stream: true,
+        ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
+        ...(args.clientId ? { metadata: { user_id: args.clientId } } : {}),
+        system: [{ type: "text", text: args.system, cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: args.user }],
+      }),
+    });
+
+    if (!res.ok || !res.body) {
+      console.error("anthropic_stream_http_error", res.status);
+      return { ok: false, error: "anthropic_http_error" };
+    }
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let fullText = "";
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += dec.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (raw === "[DONE]") continue;
+          try {
+            const evt = JSON.parse(raw) as {
+              type: string;
+              delta?: { type: string; text?: string };
+            };
+            if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta" && evt.delta.text) {
+              fullText += evt.delta.text;
+              await args.onChunk(evt.delta.text);
+            }
+          } catch { /* ignore unparseable SSE lines */ }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (!fullText.trim()) return { ok: false, error: "anthropic_empty_response" };
+    return { ok: true, text: fullText.trim() };
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") console.error("anthropic_stream_aborted");
+    else console.error("anthropic_stream_failed", (e as Error)?.message ?? e);
+    return { ok: false, error: "anthropic_http_error" };
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
 /** Strip optional markdown fences; extract outermost JSON object. */
 export function parseJsonObject(text: string): { ok: true; value: Record<string, unknown> } | { ok: false } {
   let s = text.trim();

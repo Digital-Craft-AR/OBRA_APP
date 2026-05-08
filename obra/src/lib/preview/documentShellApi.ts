@@ -53,11 +53,15 @@ export function isShellMetaStale(
   );
 }
 
+// Errors that are likely transient (cold start, network blip, API hiccup) and worth retrying once.
+const RETRYABLE_ERRORS = new Set(["invoke_failed", "stream_ended_unexpectedly", "anthropic_http_error"]);
+
 /**
  * Returns the HTML document for an ebook, using the cached version when valid,
  * regenerating via generate-document-template otherwise.
  *
  * Stale if: chapter count, page config, OR content hash changed.
+ * Retries once automatically on transient errors (cold start, network blip, etc.).
  */
 export async function fetchOrGenerateShell(opts: {
   projectId: string;
@@ -101,7 +105,12 @@ export async function fetchOrGenerateShell(opts: {
     }
   }
 
-  return _invokeGenerate(projectId, ebookId, onProgress);
+  const result = await _invokeGenerate(projectId, ebookId, onProgress);
+  if (!result.ok && RETRYABLE_ERRORS.has(result.error)) {
+    await new Promise<void>((r) => setTimeout(r, 2000));
+    return _invokeGenerate(projectId, ebookId, onProgress);
+  }
+  return result;
 }
 
 /**
