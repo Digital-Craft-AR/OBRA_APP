@@ -27,6 +27,7 @@ export function Modal({ open, onClose, closeLabel = "Close modal", surfaceClassN
           <button
             type="button"
             aria-label={closeLabel}
+            data-testid="modal-close-btn"
             onClick={onClose}
             className="absolute right-6 top-6 text-2xl leading-none text-obra-neutral-400 hover:text-obra-neutral-600"
           >

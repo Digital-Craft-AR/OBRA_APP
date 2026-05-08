@@ -28,7 +28,6 @@ import {
   ensureContentWorkspace,
   fetchPackageEbookIdMap,
   invokeGenerateAllBonusIndex,
-  invokeGenerateChapterContent,
   streamGenerateChapterContent,
   invokeGenerateIndex,
   loadEbookChapters,

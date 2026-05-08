@@ -23,7 +23,7 @@ async function nextStep(page: ReturnType<typeof test['use']> extends never ? nev
     (resp: any) =>
       resp.url().includes("/rest/v1/projects") && resp.request().method() === "PATCH",
   );
-  await page.getByTestId("wizard-structure-next-btn").click();
+  await page.getByTestId("wizard-structure-next").click();
   await saveDone;
   await page.getByTestId(`wizard-structure-step-${expectedStepIndex}`).waitFor();
 }
@@ -41,17 +41,17 @@ async function createProjectAndEnterWizard(page: any) {
   await expect(page).toHaveURL(/\/app\/dashboard/);
 
   await page.getByTestId("dashboard-new-project-btn").click();
-  await page.getByTestId("new-project-name").fill("E2E Wizard Step 1 Test");
-  await page.getByTestId("new-project-next").click();
+  await page.getByTestId("create-project-name").fill("E2E Wizard Step 1 Test");
+  await page.getByTestId("create-modal-next").click();
   await page.getByTestId("new-project-locale-es").click();
-  await page.getByTestId("new-project-next").click();
+  await page.getByTestId("create-modal-next").click();
   await page.getByTestId("new-project-source-ai").click();
 
   const createDone = page.waitForResponse(
     (resp: any) =>
       resp.url().includes("/rest/v1/projects") && resp.request().method() === "POST",
   );
-  await page.getByTestId("new-project-create").click();
+  await page.getByTestId("create-modal-create").click();
   await createDone;
 
   await page.waitForURL(/\/app\/projects\/[^/]+\/wizard/);
@@ -105,8 +105,8 @@ test("wizard step 1 full happy path navigates to content phase", async ({ page }
     // --- Inner step 3: Main title ---
     // Wait for the custom title input to be enabled — signals that title suggestions
     // finished loading (or gracefully failed). The fixture intercepts ai-optimize.
-    await expect(page.getByTestId("wizard-main-title-custom")).toBeEnabled();
-    await page.getByTestId("wizard-main-title-custom").fill("Velas artesanales: guía completa para emprendedoras");
+    await expect(page.getByTestId("wizard-main-title")).toBeEnabled();
+    await page.getByTestId("wizard-main-title").fill("Velas artesanales: guía completa para emprendedoras");
     await page.getByTestId("wizard-author").fill("Test Author");
     await nextStep(page, 4);
 
@@ -118,7 +118,7 @@ test("wizard step 1 full happy path navigates to content phase", async ({ page }
 
     // --- Inner step 6: Design config (accept defaults → finish structure) ---
     // This is the last step — Next saves design + marks structure complete, then navigates to /content.
-    await page.getByTestId("wizard-structure-next-btn").click();
+    await page.getByTestId("wizard-structure-next").click();
     await page.waitForURL(/\/app\/projects\/[^/]+\/content/, { timeout: 30_000 });
 
     expect(page.url()).toMatch(/\/app\/projects\/[^/]+\/content/);
@@ -140,7 +140,7 @@ test("topic step requires non-empty text before saving", async ({ page }) => {
     await expect(page.getByTestId("wizard-topic")).toBeVisible();
 
     // Click Next with empty topic — should NOT navigate to step 1
-    await page.getByTestId("wizard-structure-next-btn").click();
+    await page.getByTestId("wizard-structure-next").click();
 
     // Still on step 0
     await expect(page.getByTestId("wizard-structure-step-0")).toBeVisible();

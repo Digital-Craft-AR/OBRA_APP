@@ -24,6 +24,7 @@ import { ContentSourceCards } from "@/components/wizard/content/ContentSourceCar
 import type { ProjectContentProgressPhase, ProjectLifecycleTab } from "@/lib/projectDashboard";
 import { projectLifecycleTabLabel } from "@/lib/projectDashboard";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/toast";
 import { DEFAULT_DESIGN_CONFIG } from "@/lib/wizard/structureTypes";
 import { normalizeDesignConfig } from "@/lib/wizard/structureTypes";
 
@@ -92,6 +93,7 @@ export function DashboardPage() {
 
   const [lifecycleTab, setLifecycleTab] = useState<ProjectLifecycleTab>("active");
   const [totalProjectCount, setTotalProjectCount] = useState<number | null>(null);
+  const [activeProjectCount, setActiveProjectCount] = useState<number | null>(null);
   const [tabProjects, setTabProjects] = useState<ProjectSummaryCardModel[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
@@ -147,22 +149,25 @@ export function DashboardPage() {
     const uid = session?.user?.id;
     if (!uid) {
       setTotalProjectCount(null);
+      setActiveProjectCount(null);
       return;
     }
     let cancelled = false;
     void (async () => {
-      const { count, error: cError } = await supabase
-        .from("projects")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", uid);
+      const [totalResult, activeResult] = await Promise.all([
+        supabase.from("projects").select("id", { count: "exact", head: true }).eq("user_id", uid),
+        supabase.from("projects").select("id", { count: "exact", head: true }).eq("user_id", uid).eq("lifecycle_status", "active"),
+      ]);
       if (cancelled) return;
-      if (cError) {
-        setProjectsError(cError.message);
+      if (totalResult.error) {
+        setProjectsError(totalResult.error.message);
         setTotalProjectCount(0);
+        setActiveProjectCount(0);
         return;
       }
       setProjectsError(null);
-      setTotalProjectCount(count ?? 0);
+      setTotalProjectCount(totalResult.count ?? 0);
+      setActiveProjectCount(activeResult.count ?? 0);
     })();
     return () => {
       cancelled = true;
@@ -278,6 +283,7 @@ export function DashboardPage() {
       return;
     }
     setTabProjects((prev) => prev.filter((p) => p.id !== archiveTargetId));
+    setActiveProjectCount((c) => (c == null ? 0 : c - 1));
     setArchiveTargetId(null);
   }
 
@@ -295,6 +301,7 @@ export function DashboardPage() {
       return;
     }
     setTabProjects((prev) => prev.filter((p) => p.id !== trashTargetId));
+    setActiveProjectCount((c) => (c == null ? 0 : c - 1));
     setTrashTargetId(null);
   }
 
@@ -315,7 +322,7 @@ export function DashboardPage() {
       return;
     }
     if ((count ?? 0) >= 20) {
-      setRecoverError(t("projects.recover.limitError"));
+      toast.info({ title: t("projects.recover.limitError") });
       return;
     }
 
@@ -331,6 +338,7 @@ export function DashboardPage() {
       return;
     }
     setTabProjects((prev) => prev.filter((p) => p.id !== recoverTargetId));
+    setActiveProjectCount((c) => (c == null ? 1 : c + 1));
     setRecoverTargetId(null);
   }
 
@@ -351,7 +359,7 @@ export function DashboardPage() {
       return;
     }
     if ((count ?? 0) >= 20) {
-      setDuplicateError(t("projects.duplicate.limitError"));
+      toast.info({ title: t("projects.duplicate.limitError") });
       return;
     }
 
@@ -372,6 +380,7 @@ export function DashboardPage() {
 
     setDuplicateTargetId(null);
     setTotalProjectCount((c) => (c == null ? 1 : c + 1));
+    setActiveProjectCount((c) => (c == null ? 1 : c + 1));
     navigate(`/app/projects/${fnData.new_project_id as string}/wizard`);
   }
 
@@ -390,6 +399,10 @@ export function DashboardPage() {
   };
 
   function openNewProjectModal() {
+    if ((activeProjectCount ?? 0) >= 20) {
+      toast.info({ title: t("wizard.modal.createLimitError") });
+      return;
+    }
     setProjectCreateError(null);
     setProjectName("");
     setProjectLocale("es");
@@ -448,6 +461,7 @@ export function DashboardPage() {
 
     setShowNewProjectModal(false);
     setTotalProjectCount((c) => (c == null ? 1 : c + 1));
+    setActiveProjectCount((c) => (c == null ? 1 : c + 1));
     // Mark content source intro as done so the wizard skips the redundant intro panel.
     try {
       sessionStorage.setItem(`obra.content.sourceIntro.${data.id}`, "1");
@@ -502,7 +516,7 @@ export function DashboardPage() {
       <main className="flex min-h-0 flex-1 flex-col bg-white">
         <header className="flex h-18 shrink-0 items-center justify-between border-b border-obra-blue-100 px-10">
           <h1 className="font-display text-xl leading-none text-obra-blue-950 font-bold">{t("projects.pageTitle")}</h1>
-          <Button type="button" variant="primary" className="shrink-0" data-testid="new-project-btn" onClick={openNewProjectModal}>
+          <Button type="button" variant="primary" className="shrink-0" data-testid="dashboard-new-project-btn" onClick={openNewProjectModal}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -776,12 +790,13 @@ export function DashboardPage() {
           ) : null}
         </ModalContent>
         <ModalFooter className="justify-end">
-          <Button type="button" variant="tertiary" onClick={() => setRecoverTargetId(null)} disabled={recoverLoading}>
+          <Button type="button" variant="tertiary" data-testid="recover-modal-cancel" onClick={() => setRecoverTargetId(null)} disabled={recoverLoading}>
             {t("projects.recover.cancel")}
           </Button>
           <Button
             type="button"
             variant="secondary"
+            data-testid="recover-modal-confirm"
             onClick={() => void submitRecover()}
             disabled={recoverLoading}
           >
@@ -808,12 +823,13 @@ export function DashboardPage() {
           ) : null}
         </ModalContent>
         <ModalFooter className="justify-end">
-          <Button type="button" variant="tertiary" onClick={() => setDuplicateTargetId(null)} disabled={duplicateLoading}>
+          <Button type="button" variant="tertiary" data-testid="duplicate-modal-cancel" onClick={() => setDuplicateTargetId(null)} disabled={duplicateLoading}>
             {t("projects.duplicate.cancel")}
           </Button>
           <Button
             type="button"
             variant="primary"
+            data-testid="duplicate-modal-confirm"
             onClick={() => void submitDuplicate()}
             disabled={duplicateLoading}
           >

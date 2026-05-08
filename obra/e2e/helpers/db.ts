@@ -111,6 +111,31 @@ export async function createActiveProject(userId: string, name: string): Promise
   return rows[0].id;
 }
 
+export async function createArchivedProject(userId: string, name: string): Promise<string> {
+  const resp = await fetch(`${supabaseUrl()}/rest/v1/projects`, {
+    method: "POST",
+    headers: {
+      ...adminHeaders(),
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      name,
+      content_locale: "es",
+      content_source: "ai",
+      design_config: DEFAULT_DESIGN_CONFIG,
+      lifecycle_status: "archived",
+    }),
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "(no body)");
+    throw new Error(`E2E: failed to create archived project "${name}": ${resp.status} ${body}`);
+  }
+  const rows = (await resp.json()) as Array<{ id: string }>;
+  if (!rows[0]?.id) throw new Error(`E2E: createArchivedProject returned no id`);
+  return rows[0].id;
+}
+
 /**
  * Set tour_dismissed_at on the creator_profiles row for a given user email.
  * Useful in E2E tests to prevent the guided tour from covering UI elements.
