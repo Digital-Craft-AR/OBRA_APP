@@ -23,7 +23,7 @@ async function nextStep(page: ReturnType<typeof test['use']> extends never ? nev
     (resp: any) =>
       resp.url().includes("/rest/v1/projects") && resp.request().method() === "PATCH",
   );
-  await page.getByTestId("wizard-structure-next-btn").click();
+  await page.getByTestId("wizard-structure-next").click();
   await saveDone;
   await page.getByTestId(`wizard-structure-step-${expectedStepIndex}`).waitFor();
 }
@@ -118,7 +118,7 @@ test("wizard step 1 full happy path navigates to content phase", async ({ page }
 
     // --- Inner step 6: Design config (accept defaults → finish structure) ---
     // This is the last step — Next saves design + marks structure complete, then navigates to /content.
-    await page.getByTestId("wizard-structure-next-btn").click();
+    await page.getByTestId("wizard-structure-next").click();
     await page.waitForURL(/\/app\/projects\/[^/]+\/content/, { timeout: 30_000 });
 
     expect(page.url()).toMatch(/\/app\/projects\/[^/]+\/content/);
@@ -140,7 +140,7 @@ test("topic step requires non-empty text before saving", async ({ page }) => {
     await expect(page.getByTestId("wizard-topic")).toBeVisible();
 
     // Click Next with empty topic — should NOT navigate to step 1
-    await page.getByTestId("wizard-structure-next-btn").click();
+    await page.getByTestId("wizard-structure-next").click();
 
     // Still on step 0
     await expect(page.getByTestId("wizard-structure-step-0")).toBeVisible();
