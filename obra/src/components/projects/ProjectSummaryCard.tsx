@@ -190,6 +190,7 @@ export function ProjectSummaryCard({
             type="button"
             variant="secondary"
             size="small"
+            data-testid={`project-card-recover-${project.id}`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

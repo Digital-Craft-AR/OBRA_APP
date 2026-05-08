@@ -32,7 +32,7 @@ test("new project (AI, es) redirects to wizard step 1", async ({ page }) => {
     await expect(page).toHaveURL(/\/app\/dashboard/);
 
     // Open modal
-    await page.getByTestId("new-project-btn").click();
+    await page.getByTestId("dashboard-new-project-btn").click();
 
     // Step 1 — project name
     await page.getByTestId("create-project-name").fill("Test AI Project E2E");
@@ -72,7 +72,7 @@ test("locale selection (pt-BR) is remembered through to creation", async ({ page
     await signIn(page, testUser(2));
     await expect(page).toHaveURL(/\/app\/dashboard/);
 
-    await page.getByTestId("new-project-btn").click();
+    await page.getByTestId("dashboard-new-project-btn").click();
 
     await page.getByTestId("create-project-name").fill("Test AI Project pt-BR");
     await page.getByTestId("create-modal-next").click();
@@ -105,7 +105,7 @@ test("next button is disabled when project name is empty", async ({ page }) => {
   await signIn(page, testUser(1));
   await expect(page).toHaveURL(/\/app\/dashboard/);
 
-  await page.getByTestId("new-project-btn").click();
+  await page.getByTestId("dashboard-new-project-btn").click();
 
   // Name field empty by default — Next should be disabled
   await expect(page.getByTestId("create-modal-next")).toBeDisabled();

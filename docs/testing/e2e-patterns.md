@@ -77,6 +77,12 @@ Label text and ARIA names are locale-dependent (the app ships in `es` and `pt-BR
 | `archive-modal-cancel` | Cancel button in the archive confirmation modal |
 | `trash-modal-confirm` | Confirm button in the move-to-trash confirmation modal |
 | `trash-modal-cancel` | Cancel button in the move-to-trash confirmation modal |
+| `modal-close-btn` | × close button present on every Modal instance |
+| `recover-modal-confirm` | Confirm button in the recover confirmation modal |
+| `recover-modal-cancel` | Cancel button in the recover confirmation modal |
+| `duplicate-modal-confirm` | Confirm button in the duplicate confirmation modal |
+| `duplicate-modal-cancel` | Cancel button in the duplicate confirmation modal |
+| `project-card-recover-{id}` | "Recover" button on an archived project card |
 | `trash-retention-notice` | 30-day retention warning shown above the Trash tab project list |
 | `create-project-name` | Project name input in the new project modal (step 1) |
 | `create-modal-next` | "Next" button in the new project modal (steps 1 and 2) |
