@@ -111,17 +111,70 @@ cd obra && npx playwright test <archivo> --reporter=line
 
 ---
 
-## Fase 5 — Reporte final
+## Fase 5 — Review con subagente
 
-Por cada issue resuelto, reportá:
+Antes de abrir el PR, obtené una **segunda mirada independiente** sobre el diff. Spawnea un subagente para una revisión crítica.
+
+Ver `references/review-subagent.md` para el prompt exacto y las reglas de reconciliación. Resumen:
+
+1. Spawnea un subagente con el diff, el issue y `CONVENCIONES.md`. Decile que sea crítico, no halagador.
+2. El subagente devuelve hallazgos categorizados como **must-fix**, **should-fix** o **nit**.
+3. Vos (agente principal) reconciliás:
+   - **must-fix**: aplicá siempre, salvo que el subagente esté equivocado — en ese caso justificalo por escrito.
+   - **should-fix**: aplicá si el costo es bajo y el argumento es sólido; de lo contrario documentá por qué lo saltás.
+   - **nit**: a criterio.
+4. Re-corré los tests luego de cualquier cambio surgido del review.
+5. Mostrá al usuario el resumen del review antes de pasar a la Fase 6.
+
+---
+
+## Fase 6 — Confirmar y abrir PR **(gate: esperá aprobación explícita)**
+
+Preparate para el handoff y abrí el PR.
+
+- Escribí un **checklist de validación manual** para el humano: pasos concretos que puede hacer en la app corriendo / dashboard / staging para verificar que el cambio funciona (ej: "entrá como usuario, abrí Configuración, confirmá que ya no aparece el selector de idioma"). Estos **no** son los tests automatizados — son verificaciones visuales.
+- Redactá la **descripción del PR** con: resumen, issue linkeado (`Closes #N`), qué cambió, cómo se testeó, el checklist de validación como checkboxes, y limitaciones conocidas.
+- **Mostrá la descripción y el checklist al usuario antes de abrir el PR.** Esperá go-ahead explícito.
+- Con aprobación, pusheá la rama y abrí el PR con la GitHub CLI:
+
+```bash
+gh pr create --title "tipo(scope): descripción" --body "$(cat <<'EOF'
+## Resumen
+...
+
+## Qué cambió
+...
+
+## Cómo se testeó
+...
+
+## Checklist de validación manual
+- [ ] paso 1
+- [ ] paso 2
+
+Closes #N
+EOF
+)"
+```
+
+- Reportá la URL del PR.
+
+---
+
+## Reporte final
+
+Al cerrar el issue, resumí:
 
 | Campo | Detalle |
 |---|---|
 | **Issue** | `#N — Título` |
+| **Rama** | nombre de la rama |
 | **Cambios** | Archivos modificados/creados (paths) |
 | **Criterios de aceptación** | ✅ cumplido / ⚠️ parcial / ❌ pendiente (con nota) |
 | **Tests** | Tipo, archivo, resultado |
+| **Review del subagente** | hallazgos clave + qué se aplicó |
 | **Secrets** | Confirmación de que no se commiteó ninguno |
+| **PR** | URL |
 
 Si algún criterio requiere acceso al dashboard de Supabase, Vercel, o similar, listá los **pasos exactos** que el humano debe ejecutar.
 
@@ -137,4 +190,4 @@ Si algún criterio requiere acceso al dashboard de Supabase, Vercel, o similar, 
 
 ---
 
-**Empezá ahora:** leé el issue → construí el plan → presentalo → esperá aprobación → implementá → validá → reportá.
+**Empezá ahora:** leé el issue → construí el plan → presentalo → esperá aprobación → implementá → validá → revisión con subagente → confirmá con el usuario → abrí el PR → reportá.
