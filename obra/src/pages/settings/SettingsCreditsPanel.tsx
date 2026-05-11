@@ -15,6 +15,7 @@ import { toast } from "@/toast";
 type Props = {
   creditsBalance: number;
   subscriptionStatus: SubscriptionStatus;
+  subscriptionAccessUntil: Date | null;
 };
 
 type TopUpReturnNotice = "success_sync" | "failure" | "pending" | null;
@@ -40,13 +41,17 @@ function ledgerReasonLabel(reason: string, t: (key: string, o?: { defaultValue?:
   return t(`settings.credits.reason.${reason}`, { defaultValue: reason });
 }
 
-export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus }: Props) {
+export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subscriptionAccessUntil }: Props) {
   const { t, i18n } = useTranslation();
   const { session } = useAuth();
   const { refetchProfile } = useEntitlement();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const topUpEnabled = subscriptionStatus === "active";
+  const inGracePeriod =
+    subscriptionStatus === "cancelled" &&
+    subscriptionAccessUntil != null &&
+    subscriptionAccessUntil > new Date();
+  const topUpEnabled = subscriptionStatus === "active" || inGracePeriod;
 
   const [rows, setRows] = useState<CreditLedgerRow[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(true);
