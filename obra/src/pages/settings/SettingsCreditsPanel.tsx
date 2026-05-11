@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
+import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import type { SubscriptionStatus } from "@/entitlement/types";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { tCheckoutConfigError, tMercadoPagoProviderError } from "@/lib/checkoutEdgeErrors";
@@ -21,6 +22,12 @@ type Props = {
 type TopUpReturnNotice = "success_sync" | "failure" | "pending" | null;
 
 type CreditsCheckoutFnBody = {
+  redirect_url?: string;
+  error?: string;
+  detail?: string;
+};
+
+type SubscriptionCheckoutFnBody = {
   redirect_url?: string;
   error?: string;
   detail?: string;
@@ -59,6 +66,8 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
   const [topUpBusy, setTopUpBusy] = useState(false);
   const [topUpReturnNotice, setTopUpReturnNotice] = useState<TopUpReturnNotice>(null);
   const topupPollCancelRef = useRef(false);
+  const [showGracePeriodModal, setShowGracePeriodModal] = useState(false);
+  const [reactivateBusy, setReactivateBusy] = useState(false);
 
   const loadLedger = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -129,6 +138,37 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
     setRefreshing(true);
     await Promise.all([loadLedger(), refetchProfile()]);
     setRefreshing(false);
+  }
+
+  async function reactivateSubscription() {
+    setReactivateBusy(true);
+    if (!session?.access_token) {
+      setReactivateBusy(false);
+      toastApiFailure(t, "shell.pending.checkoutStartError");
+      return;
+    }
+
+    const { data, error } = await supabase.functions.invoke<SubscriptionCheckoutFnBody>(
+      "create-subscription-checkout",
+      { method: "POST", body: {}, headers: { Authorization: `Bearer ${session.access_token}` } },
+    );
+
+    setReactivateBusy(false);
+
+    if (error) { toastApiFailure(t, "shell.pending.checkoutStartError"); return; }
+    if (data?.error === "unauthorized") { toastApiFailure(t, "auth.callbackError"); return; }
+    if (data?.error === "email_not_verified") { toastApiFailure(t, "shell.pending.checkoutEmailNotVerified"); return; }
+    if (data?.error === "checkout_unavailable" || data?.error === "server_misconfigured") {
+      toast.error({ title: tCheckoutConfigError(t, data.detail), description: t("toast.api.genericHint") });
+      return;
+    }
+    if (data?.error === "mercadopago_error" || data?.error === "mercadopago_no_redirect") {
+      toast.error({ title: tMercadoPagoProviderError(t), description: t("toast.api.genericHint") });
+      return;
+    }
+    if (data?.error || !data?.redirect_url) { toastApiFailure(t, "shell.pending.checkoutStartError"); return; }
+
+    window.location.assign(data.redirect_url);
   }
 
   async function onTopUp() {
@@ -249,7 +289,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
               variant="primary"
               disabled={!topUpEnabled || topUpBusy}
               className="shrink-0"
-              onClick={() => void onTopUp()}
+              onClick={() => inGracePeriod ? setShowGracePeriodModal(true) : void onTopUp()}
             >
               {topUpBusy ? t("common.loading") : t("settings.credits.topUp")}
             </Button>
@@ -327,6 +367,49 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
           </div>
         )}
       </div>
+
+      {inGracePeriod && subscriptionAccessUntil ? (
+        <Modal
+          open={showGracePeriodModal}
+          onClose={() => setShowGracePeriodModal(false)}
+          data-testid="grace-period-topup-modal"
+        >
+          <ModalHead>
+            <ModalTitle>{t("settings.credits.gracePeriodModal.title")}</ModalTitle>
+          </ModalHead>
+          <ModalContent>
+            <p className="text-sm text-obra-neutral-600">
+              {t("settings.credits.gracePeriodModal.body", {
+                date: new Intl.DateTimeFormat(localeTag, { day: "numeric", month: "short", year: "numeric" }).format(
+                  subscriptionAccessUntil,
+                ),
+              })}
+            </p>
+          </ModalContent>
+          <ModalFooter className="justify-end">
+            <Button
+              type="button"
+              variant="tertiary"
+              disabled={reactivateBusy || topUpBusy}
+              onClick={() => {
+                setShowGracePeriodModal(false);
+                void onTopUp();
+              }}
+            >
+              {t("settings.credits.gracePeriodModal.continue")}
+            </Button>
+            <Button
+              type="button"
+              variant="cta"
+              disabled={reactivateBusy || topUpBusy}
+              onClick={() => void reactivateSubscription()}
+              data-testid="grace-period-modal-reactivate-btn"
+            >
+              {reactivateBusy ? t("common.loading") : t("settings.credits.gracePeriodModal.reactivate")}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      ) : null}
     </div>
   );
 }
