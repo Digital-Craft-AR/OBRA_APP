@@ -87,6 +87,10 @@ const resources = {
       "shell.cancelled.body":
         "Tu suscripción fue cancelada. Podés reactivarla cuando quieras para seguir creando tus infoproductos.",
       "shell.cancelled.cta": "Reactivar suscripción",
+      "softCancel.banner.message":
+        "Tu suscripción fue cancelada. Seguís teniendo acceso hasta el {{date}}.",
+      "softCancel.banner.cta": "Reactivar suscripción",
+      "softCancel.banner.dismiss": "Descartar",
       "shell.pending.checkoutNote":
         "Vas a iniciar una suscripción recurrente con Mercado Pago en un entorno seguro.",
       "shell.pending.checkoutStartError": "No pudimos abrir el pago. Probá de nuevo en unos minutos.",
@@ -983,6 +987,7 @@ const resources = {
       "settings.billing.openMp": "Gestionar en Mercado Pago",
       "settings.billing.mpUrlMissing":
         "Falta configurar VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL para abrir el portal de gestión.",
+      "settings.billing.reactivate": "Reactivar suscripción",
       "settings.credits.intro": "Saldo y movimientos de créditos para uso de IA.",
       "settings.credits.balanceLabel": "Saldo actual",
       "settings.credits.units": "créditos",
@@ -1123,6 +1128,10 @@ const resources = {
       "shell.cancelled.body":
         "Sua assinatura foi cancelada. Você pode reativá-la quando quiser para continuar criando seus infoprodutos.",
       "shell.cancelled.cta": "Reativar assinatura",
+      "softCancel.banner.message":
+        "Sua assinatura foi cancelada. Você ainda tem acesso até {{date}}.",
+      "softCancel.banner.cta": "Reativar assinatura",
+      "softCancel.banner.dismiss": "Fechar",
       "shell.pending.checkoutNote":
         "Você vai iniciar uma assinatura recorrente com o Mercado Pago em ambiente seguro.",
       "shell.pending.checkoutStartError": "Não foi possível abrir o pagamento. Tente novamente em alguns minutos.",
@@ -2024,6 +2033,7 @@ const resources = {
       "settings.billing.openMp": "Gerenciar no Mercado Pago",
       "settings.billing.mpUrlMissing":
         "Falta configurar VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL para abrir o portal de gestão.",
+      "settings.billing.reactivate": "Reativar assinatura",
       "settings.credits.intro": "Saldo e movimentações de créditos para uso de IA.",
       "settings.credits.balanceLabel": "Saldo atual",
       "settings.credits.units": "créditos",

@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthFlowLoading } from "@/components/obra/AuthFlowLoading";
 import { ObraLogoLink } from "@/components/obra/ObraLogoLink";
+import { SoftCancelBanner } from "@/components/obra/SoftCancelBanner";
 import { EntitlementProvider, useEntitlement } from "@/entitlement/EntitlementProvider";
 import { isPathAllowedForOutcome } from "@/entitlement/resolveEntitlement";
 
@@ -30,7 +31,12 @@ function EntitlementGate() {
     return <Navigate to={targetPath} replace state={{ from: path }} />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <SoftCancelBanner />
+      <Outlet />
+    </>
+  );
 }
 
 /** Session is already enforced by `ProtectedLayout`; this layer maps entitlement → `/app/*` shells. */
