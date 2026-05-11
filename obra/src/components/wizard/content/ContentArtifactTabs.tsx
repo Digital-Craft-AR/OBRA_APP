@@ -1,4 +1,5 @@
-import { CheckCircle2 } from "lucide-react";
+import { BookOpen, CheckCircle2, Gift, TrendingUp } from "lucide-react";
+import { parseContentNavKey } from "@/lib/wizard/contentNav";
 
 export type ArtifactTabItem = { key: string; navTitle: string };
 
@@ -8,6 +9,14 @@ type ContentArtifactTabsProps = {
   onSelect: (key: string) => void;
   approvedByKey?: Record<string, boolean>;
 };
+
+function ArtifactTabIcon({ tabKey }: { tabKey: string }) {
+  const target = parseContentNavKey(tabKey);
+  const kind = target?.kind ?? "main";
+  if (kind === "bonus") return <Gift className="size-3.5 shrink-0" aria-hidden />;
+  if (kind === "bump") return <TrendingUp className="size-3.5 shrink-0" aria-hidden />;
+  return <BookOpen className="size-3.5 shrink-0" aria-hidden />;
+}
 
 export function ContentArtifactTabs({
   tabs,
@@ -40,6 +49,7 @@ export function ContentArtifactTabs({
                 : "border-transparent text-obra-neutral-500 hover:border-obra-blue-200 hover:text-obra-blue-800",
             ].join(" ")}
           >
+            <ArtifactTabIcon tabKey={item.key} />
             {isApproved && (
               <CheckCircle2 className="size-3.5 shrink-0 text-obra-green-600" aria-hidden />
             )}
