@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, HelpCircle, FolderOpen, Home, Settings } from "lucide-react";
+import { HelpCircle, FolderOpen, Home, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
