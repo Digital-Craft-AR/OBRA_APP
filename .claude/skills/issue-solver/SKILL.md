@@ -63,6 +63,21 @@ Si el usuario pide cambios, volvé a entrar en modo Plan, ajustá, y salí de nu
 
 Una vez aprobado el plan:
 
+### 3.0 — Worktree + sync de entorno
+
+Antes de tocar cualquier archivo, creá un worktree aislado y sincronizá los env files:
+
+1. Usá la herramienta `EnterWorktree` para crear y entrar al worktree. El nombre de rama debe seguir el patrón `issue-<N>-<slug-del-titulo>`.
+2. Una vez dentro del worktree, ejecutá el sync de entorno:
+
+```bash
+bash /Users/ellord/code/OBRA_APP/scripts/sync-env.sh
+```
+
+Confirmá que el script terminó con "Done." antes de continuar. Si algún archivo dice `SKIP`, verificá que exista en el repo raíz — podría indicar un problema de configuración.
+
+---
+
 - Usá `TodoWrite` para trackear el progreso task por task
 - Implementá en orden lógico, priorizando que cada cambio compile/funcione de forma incremental
 - Seguí las convenciones del repo (tokens de `obra/src/lib/tokens.ts`, i18n para strings, shadcn/ui + Tailwind para UI)
