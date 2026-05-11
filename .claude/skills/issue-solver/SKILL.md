@@ -45,7 +45,7 @@ Si el issue toca código específico, leé esos archivos para entender el estado
 
 ## Fase 2 — Plan de implementación
 
-Construí un plan claro **antes de tocar código**. El plan debe incluir:
+Antes de tocar código, entrá en modo Plan con `EnterPlanMode` y construí el plan ahí. El plan debe cubrir:
 
 1. **Entendimiento del problema** — qué está pasando y por qué
 2. **Archivos a modificar** — lista con ruta y qué cambia en cada uno
@@ -54,8 +54,8 @@ Construí un plan claro **antes de tocar código**. El plan debe incluir:
 5. **Tests necesarios** — qué tipo (unitario, E2E) y qué cubren
 6. **Criterios de aceptación** — cómo se verifica que el issue está resuelto
 
-Presentá el plan al usuario y **esperá aprobación explícita** antes de continuar.
-Si el usuario pide cambios, ajustá el plan y mostralo de nuevo.
+Una vez que el plan esté completo en el modo Plan, salí con `ExitPlanMode` y **esperá aprobación explícita** antes de continuar.
+Si el usuario pide cambios, volvé a entrar en modo Plan, ajustá, y salí de nuevo.
 
 ---
 
