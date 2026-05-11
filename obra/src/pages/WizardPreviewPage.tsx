@@ -682,7 +682,7 @@ export function WizardPreviewPage() {
       {/* Artifact tab bar */}
       {visibleEbooks.length > 0 && (
         <ContentArtifactTabs
-          tabs={visibleEbooks.map((e) => ({ key: e.id, navTitle: tabLabel(e) }))}
+          tabs={visibleEbooks.map((e) => ({ key: e.id, navTitle: tabLabel(e), kind: e.type === "order_bump" ? "bump" : e.type }))}
           selectedKey={selectedEbookId ?? ""}
           onSelect={handleSelectEbook}
         />
