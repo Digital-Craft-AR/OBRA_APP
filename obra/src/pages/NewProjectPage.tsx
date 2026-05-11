@@ -1,13 +1,12 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, Check } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { ObraAlert } from "@/components/obra/ObraAlert";
 import { useAuth } from "@/auth/authContext";
 import { supabase } from "@/lib/supabaseClient";
-import type { ContentLocale, ContentSource } from "@/lib/projects";
-import { CONTENT_LOCALE_OPTIONS } from "@/lib/projects";
+import type { ContentSource } from "@/lib/projects";
 import { DEFAULT_DESIGN_CONFIG } from "@/lib/wizard/structureTypes";
 import { ContentSourceCards } from "@/components/wizard/content/ContentSourceCards";
 
@@ -15,20 +14,9 @@ export function NewProjectPage() {
   const { t } = useTranslation();
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [contentLocale, setContentLocale] = useState<ContentLocale>("es");
   const [contentSource, setContentSource] = useState<ContentSource>("ai");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const localeLabels = useMemo(
-    () => ({
-      es: t("wizard.create.locale.es"),
-      "pt-BR": t("wizard.create.locale.ptBR"),
-      "en-US": t("wizard.create.locale.enUS"),
-      "en-GB": t("wizard.create.locale.enGB"),
-    }),
-    [t],
-  );
 
   async function handleCreateProject() {
     if (!session?.user?.id || isSubmitting) return;
@@ -41,7 +29,7 @@ export function NewProjectPage() {
       .insert({
         user_id: session.user.id,
         name: projectName,
-        content_locale: contentLocale,
+        content_locale: "es",
         content_source: contentSource,
         design_config: DEFAULT_DESIGN_CONFIG,
         lifecycle_status: "active",
@@ -80,31 +68,6 @@ export function NewProjectPage() {
           <h1 className="font-display text-2xl text-obra-blue-950">{t("wizard.create.title")}</h1>
           <p className="text-sm text-obra-neutral-600">{t("wizard.create.subtitle")}</p>
         </header>
-
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-obra-blue-950">{t("wizard.create.localeTitle")}</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {CONTENT_LOCALE_OPTIONS.map((locale) => {
-              const selected = contentLocale === locale;
-              return (
-                <button
-                  key={locale}
-                  type="button"
-                  data-testid={`new-project-locale-${locale}`}
-                  onClick={() => setContentLocale(locale)}
-                  className={`flex items-center justify-between rounded-card border px-4 py-3 text-left text-sm transition-all ${
-                    selected
-                      ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950"
-                      : "border-obra-blue-100 bg-white text-obra-neutral-600 hover:border-obra-blue-700/50"
-                  }`}
-                >
-                  <span>{localeLabels[locale]}</span>
-                  {selected ? <Check className="size-4 text-obra-blue-700" aria-hidden /> : null}
-                </button>
-              );
-            })}
-          </div>
-        </section>
 
         <section className="space-y-4">
           <header className="space-y-2">

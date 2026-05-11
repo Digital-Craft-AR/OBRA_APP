@@ -19,7 +19,7 @@ import {
   ModalSubtitle,
   ModalTitle,
 } from "@/components/ui/Modal";
-import type { ContentLocale, ContentSource } from "@/lib/projects";
+import type { ContentSource } from "@/lib/projects";
 import { ContentSourceCards } from "@/components/wizard/content/ContentSourceCards";
 import type { ProjectContentProgressPhase, ProjectLifecycleTab } from "@/lib/projectDashboard";
 import { projectLifecycleTabLabel } from "@/lib/projectDashboard";
@@ -84,9 +84,8 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const { sidebarCollapsed, setSidebarCollapsed } = usePersistentSidebarCollapsed();
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-  const [projectStep, setProjectStep] = useState<1 | 2 | 3>(1);
+  const [projectStep, setProjectStep] = useState<1 | 2>(1);
   const [projectName, setProjectName] = useState("");
-  const [projectLocale, setProjectLocale] = useState<ContentLocale>("es");
   const [projectSource, setProjectSource] = useState<ContentSource>("ai");
   const [creatingProject, setCreatingProject] = useState(false);
   const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
@@ -405,7 +404,6 @@ export function DashboardPage() {
     }
     setProjectCreateError(null);
     setProjectName("");
-    setProjectLocale("es");
     setProjectSource("ai");
     setProjectStep(1);
     setShowNewProjectModal(true);
@@ -442,7 +440,7 @@ export function DashboardPage() {
       .insert({
         user_id: session.user.id,
         name: trimmedName,
-        content_locale: projectLocale,
+        content_locale: "es",
         content_source: projectSource,
         design_config: DEFAULT_DESIGN_CONFIG,
         lifecycle_status: "active",
@@ -847,11 +845,7 @@ export function DashboardPage() {
           <div>
             <ModalTitle>{t("wizard.modal.title")}</ModalTitle>
             <ModalSubtitle>
-              {projectStep === 1
-              ? t("wizard.modal.stepName")
-              : projectStep === 2
-                ? t("wizard.modal.stepLocale")
-                : t("wizard.modal.stepSource")}
+              {projectStep === 1 ? t("wizard.modal.stepName") : t("wizard.modal.stepSource")}
             </ModalSubtitle>
           </div>
         </ModalHead>
@@ -868,46 +862,6 @@ export function DashboardPage() {
                 placeholder={t("wizard.modal.namePlaceholder")}
                 hint={t("wizard.modal.nameHint")}
               />
-            </div>
-          ) : projectStep === 2 ? (
-            <div className="space-y-5">
-              <p className="text-xs text-obra-neutral-600">{t("wizard.modal.localeHint")}</p>
-              <div className="grid grid-cols-2 gap-3">
-                {(
-                  [
-                    { id: "es", flag: "🇦🇷", label: t("wizard.create.locale.es"), subtitle: "Argentina / España" },
-                    { id: "pt-BR", flag: "🇧🇷", label: t("wizard.create.locale.ptBR"), subtitle: "Brasil" },
-                    { id: "en-US", flag: "🇺🇸", label: t("wizard.create.locale.enUS"), subtitle: "United States" },
-                    { id: "en-GB", flag: "🇬🇧", label: t("wizard.create.locale.enGB"), subtitle: "United Kingdom" },
-                  ] as const
-                ).map((localeOption) => {
-                  const selected = projectLocale === localeOption.id;
-                  return (
-                    <button
-                      key={localeOption.id}
-                      type="button"
-                      onClick={() => setProjectLocale(localeOption.id)}
-                      data-testid={`new-project-locale-${localeOption.id}`}
-                      className={`flex items-center justify-between rounded-card border p-4 text-left transition-all ${
-                        selected
-                          ? "border-obra-blue-700 bg-obra-blue-50"
-                          : "border-obra-blue-100 bg-white hover:border-obra-blue-700/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span aria-hidden className="text-2xl">
-                          {localeOption.flag}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-obra-blue-950">{localeOption.label}</p>
-                          <p className="text-xs text-obra-neutral-600">{localeOption.subtitle}</p>
-                        </div>
-                      </div>
-                      <Check className={`size-3.5 ${selected ? "text-obra-blue-700" : "text-transparent"}`} />
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -937,7 +891,7 @@ export function DashboardPage() {
             <Button
               type="button"
               variant="tertiary"
-              onClick={() => setProjectStep((s) => (s - 1) as 1 | 2 | 3)}
+              onClick={() => setProjectStep(1)}
               disabled={creatingProject}
             >
               {t("wizard.modal.back")}
@@ -952,10 +906,6 @@ export function DashboardPage() {
               onClick={() => setProjectStep(2)}
               disabled={!projectName.trim()}
             >
-              {t("wizard.modal.next")}
-            </Button>
-          ) : projectStep === 2 ? (
-            <Button type="button" variant="secondary" data-testid="create-modal-next" onClick={() => setProjectStep(3)}>
               {t("wizard.modal.next")}
             </Button>
           ) : (
