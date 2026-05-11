@@ -161,6 +161,10 @@ export function WizardPreviewPage() {
   // Image slots state: slotKey → { status, url }
   const [imageSlots, setImageSlots] = useState<Record<string, { status: ImageSlotStatus; url: string | null }>>({});
 
+  // Always-current ref for project used in the postMessage listener (avoids re-registering on every project update).
+  const projectRef = useRef(project);
+  useEffect(() => { projectRef.current = project; }, [project]);
+
   // AI generate modal state
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [generateModalSlotKey, setGenerateModalSlotKey] = useState<string | null>(null);
@@ -558,7 +562,11 @@ export function WizardPreviewPage() {
     if (!project?.id) return;
     const newDesignConfig = { ...project.design_config, image: { ...project.design_config.image, style } };
     setProject((prev) => prev ? { ...prev, design_config: newDesignConfig } : prev);
-    await supabase.from("projects").update({ design_config: newDesignConfig }).eq("id", project.id);
+    // Await ensures the DB write commits before any subsequent read (e.g. the edge function reading
+    // design_config to pick the image style). PostgreSQL read-after-write guarantees visibility
+    // across connections once the transaction commits.
+    const { error } = await supabase.from("projects").update({ design_config: newDesignConfig }).eq("id", project.id);
+    if (error) console.error("save_image_style_error", error);
   }, [project, setProject]);
 
   // postMessage listener — receives slot actions from the preview iframe
@@ -580,7 +588,7 @@ export function WizardPreviewPage() {
         case "obra:slot:generate": {
           setGenerateModalSlotKey(msg.slotKey);
           setGenerateInstruction("");
-          setGenerateImageStyle(project?.design_config.image.style ?? "illustration");
+          setGenerateImageStyle(projectRef.current?.design_config.image.style ?? "illustration");
           setGenerateModalOpen(true);
           break;
         }
@@ -592,7 +600,7 @@ export function WizardPreviewPage() {
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [handleSlotUpload, handleSlotRemove, project]);
+  }, [handleSlotUpload, handleSlotRemove]);
 
   const handleExportPdf = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
@@ -782,7 +790,10 @@ export function WizardPreviewPage() {
       {/* AI Image Generate Modal */}
       <Modal
         open={generateModalOpen}
-        onClose={() => setGenerateModalOpen(false)}
+        onClose={() => {
+          setGenerateModalOpen(false);
+          setGenerateImageStyle(projectRef.current?.design_config.image.style ?? "illustration");
+        }}
         closeLabel={t("common.close")}
       >
         <ModalHead>
@@ -834,7 +845,10 @@ export function WizardPreviewPage() {
           <Button
             type="button"
             variant="tertiary"
-            onClick={() => setGenerateModalOpen(false)}
+            onClick={() => {
+              setGenerateModalOpen(false);
+              setGenerateImageStyle(projectRef.current?.design_config.image.style ?? "illustration");
+            }}
             disabled={generateBusy}
           >
             {t("common.cancel")}
@@ -847,7 +861,7 @@ export function WizardPreviewPage() {
               if (!generateModalSlotKey) return;
               setGenerateBusy(true);
               void (async () => {
-                if (generateImageStyle !== project?.design_config.image.style) {
+                if (generateImageStyle !== projectRef.current?.design_config.image.style) {
                   await handleSaveImageStyle(generateImageStyle);
                 }
                 await handleSlotGenerate(generateModalSlotKey, generateInstruction || undefined);
