@@ -190,13 +190,6 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       });
   }, [session?.user?.id, session?.access_token, refetchProfile]);
 
-  useEffect(() => {
-    if (!profileRow?.ui_locale) return;
-    const lang = normalizeUiLocale(profileRow.ui_locale);
-    if (i18n.language !== lang) {
-      void i18n.changeLanguage(lang);
-    }
-  }, [profileRow?.ui_locale]);
 
   const checkoutReturnPending = useMemo(() => {
     void checkoutBump;
