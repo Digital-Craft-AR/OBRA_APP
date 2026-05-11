@@ -304,7 +304,6 @@ export function WizardStructurePage() {
               {flow.innerStepIndex === 6 ? (
                 <StructureStepDesignConfig
                   config={flow.designConfig}
-                  message={flow.designMessage}
                   onChange={flow.setDesignConfig}
                 />
               ) : null}

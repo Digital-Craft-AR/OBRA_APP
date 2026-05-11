@@ -27,6 +27,7 @@ import { injectAll, isSlotMessage } from "@/lib/preview/injectAll";
 import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
 import { queuePdfExport, downloadPdf, getErrorMessage } from "@/utils/pdf-export";
 import { supabase } from "@/lib/supabaseClient";
+import type { WizardDesignConfig } from "@/lib/wizard/structureTypes";
 
 type EbookRow = {
   id: string;
@@ -112,7 +113,7 @@ export function WizardPreviewPage() {
   const navigate = useNavigate();
   const params = useParams<{ projectId: string }>();
 
-  const { project, loading: projectLoading, error: projectError } = useWizardStructureProject(
+  const { project, setProject, loading: projectLoading, error: projectError } = useWizardStructureProject(
     params.projectId,
     t("wizard.preview.error.load"),
   );
@@ -164,6 +165,7 @@ export function WizardPreviewPage() {
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [generateModalSlotKey, setGenerateModalSlotKey] = useState<string | null>(null);
   const [generateInstruction, setGenerateInstruction] = useState("");
+  const [generateImageStyle, setGenerateImageStyle] = useState<WizardDesignConfig["image"]["style"]>("illustration");
   const [generateBusy, setGenerateBusy] = useState(false);
 
   // HTML shell state per ebook id
@@ -552,6 +554,13 @@ export function WizardPreviewPage() {
     void removeImage({ projectId: project.id, slotKey: dbSlotKey, ebookId, chapterId });
   }, [project?.id, resolveSlotArgs, markModified]);
 
+  const handleSaveImageStyle = useCallback(async (style: WizardDesignConfig["image"]["style"]) => {
+    if (!project?.id) return;
+    const newDesignConfig = { ...project.design_config, image: { ...project.design_config.image, style } };
+    setProject((prev) => prev ? { ...prev, design_config: newDesignConfig } : prev);
+    await supabase.from("projects").update({ design_config: newDesignConfig }).eq("id", project.id);
+  }, [project, setProject]);
+
   // postMessage listener — receives slot actions from the preview iframe
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
@@ -571,6 +580,7 @@ export function WizardPreviewPage() {
         case "obra:slot:generate": {
           setGenerateModalSlotKey(msg.slotKey);
           setGenerateInstruction("");
+          setGenerateImageStyle(project?.design_config.image.style ?? "illustration");
           setGenerateModalOpen(true);
           break;
         }
@@ -582,7 +592,7 @@ export function WizardPreviewPage() {
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [handleSlotUpload, handleSlotRemove]);
+  }, [handleSlotUpload, handleSlotRemove, project]);
 
   const handleExportPdf = useCallback(async () => {
     if (!project?.id || !selectedEbookId) return;
@@ -779,18 +789,46 @@ export function WizardPreviewPage() {
           <ModalTitle>{t("wizard.preview.generateModal.title")}</ModalTitle>
         </ModalHead>
         <ModalContent>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-obra-blue-950">
-              {t("wizard.preview.generateModal.instructionLabel")}
-            </span>
-            <textarea
-              className="w-full rounded-md border border-obra-blue-100 px-3 py-2 font-body text-sm text-obra-blue-950 outline-none focus:border-obra-blue-700 focus:ring-2 focus:ring-obra-blue-700/20 min-h-[80px] resize-none"
-              placeholder={t("wizard.preview.generateModal.instructionPlaceholder")}
-              value={generateInstruction}
-              onChange={(e) => setGenerateInstruction(e.target.value)}
-              disabled={generateBusy}
-            />
-          </label>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-obra-blue-950">
+                {t("wizard.preview.generateModal.styleTitle")}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {(["illustration", "photography", "isometric", "minimalist", "watercolor"] as WizardDesignConfig["image"]["style"][]).map((style) => {
+                  const selected = generateImageStyle === style;
+                  return (
+                    <button
+                      key={style}
+                      type="button"
+                      aria-pressed={selected}
+                      disabled={generateBusy}
+                      onClick={() => setGenerateImageStyle(style)}
+                      className={`rounded-full border-2 px-3 py-1.5 font-body text-sm font-medium transition-colors ${
+                        selected
+                          ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950 shadow-sm"
+                          : "border-obra-neutral-200 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60"
+                      }`}
+                    >
+                      {t(`wizard.preview.generateModal.style.${style}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-obra-blue-950">
+                {t("wizard.preview.generateModal.instructionLabel")}
+              </span>
+              <textarea
+                className="w-full rounded-md border border-obra-blue-100 px-3 py-2 font-body text-sm text-obra-blue-950 outline-none focus:border-obra-blue-700 focus:ring-2 focus:ring-obra-blue-700/20 min-h-[80px] resize-none"
+                placeholder={t("wizard.preview.generateModal.instructionPlaceholder")}
+                value={generateInstruction}
+                onChange={(e) => setGenerateInstruction(e.target.value)}
+                disabled={generateBusy}
+              />
+            </label>
+          </div>
         </ModalContent>
         <ModalFooter>
           <Button
@@ -808,11 +846,15 @@ export function WizardPreviewPage() {
             onClick={() => {
               if (!generateModalSlotKey) return;
               setGenerateBusy(true);
-              void handleSlotGenerate(generateModalSlotKey, generateInstruction || undefined)
-                .finally(() => {
-                  setGenerateBusy(false);
-                  setGenerateModalOpen(false);
-                });
+              void (async () => {
+                if (generateImageStyle !== project?.design_config.image.style) {
+                  await handleSaveImageStyle(generateImageStyle);
+                }
+                await handleSlotGenerate(generateModalSlotKey, generateInstruction || undefined);
+              })().finally(() => {
+                setGenerateBusy(false);
+                setGenerateModalOpen(false);
+              });
             }}
           >
             {generateBusy ? t("wizard.preview.generateModal.generating") : t("wizard.preview.generateModal.cta")}
