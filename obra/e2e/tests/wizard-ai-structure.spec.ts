@@ -43,8 +43,6 @@ async function createProjectAndEnterWizard(page: any) {
   await page.getByTestId("dashboard-new-project-btn").click();
   await page.getByTestId("create-project-name").fill("E2E Wizard Step 1 Test");
   await page.getByTestId("create-modal-next").click();
-  await page.getByTestId("new-project-locale-es").click();
-  await page.getByTestId("create-modal-next").click();
   await page.getByTestId("new-project-source-ai").click();
 
   const createDone = page.waitForResponse(
