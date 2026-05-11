@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { useEntitlement } from "@/entitlement/EntitlementProvider";
 import { parseSettingsRouteSection, type SettingsRouteSection } from "@/entitlement/resolveEntitlement";
 import { usePersistentSidebarCollapsed } from "@/hooks/usePersistentSidebarCollapsed";
-import { i18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
-import type { UiLocale } from "@/lib/uiLocale";
-import { normalizeUiLocale } from "@/lib/uiLocale";
 import { inputFieldClass } from "@/lib/uiClasses";
 import { SettingsBillingPanel } from "@/pages/settings/SettingsBillingPanel";
 import { SettingsCreditsPanel } from "@/pages/settings/SettingsCreditsPanel";
@@ -20,12 +17,7 @@ import { SettingsSecurityPanel } from "@/pages/settings/SettingsSecurityPanel";
 import { toast } from "@/toast";
 
 async function loadProfileRow() {
-  const full = await supabase.from("creator_profiles").select("display_name, ui_locale").maybeSingle();
-  if (!full.error) {
-    return { data: full.data, hasUiLocaleColumn: true as const };
-  }
-  const minimal = await supabase.from("creator_profiles").select("display_name").maybeSingle();
-  return { data: minimal.data, error: minimal.error, hasUiLocaleColumn: false as const };
+  return supabase.from("creator_profiles").select("display_name").maybeSingle();
 }
 
 function initialsFromDisplay(label: string): string {
@@ -61,25 +53,21 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState("");
-  const [locale, setLocale] = useState<UiLocale>("es");
   const [loadError, setLoadError] = useState<string | null>(null);
   const { sidebarCollapsed, setSidebarCollapsed } = usePersistentSidebarCollapsed();
-  const [hasUiLocaleColumn, setHasUiLocaleColumn] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const result = await loadProfileRow();
       if (cancelled) return;
-      if ("error" in result && result.error) {
+      if (result.error) {
         setLoadError(result.error.message);
         setLoading(false);
         return;
       }
-      const row = result.data as { display_name?: string | null; ui_locale?: string | null } | null;
+      const row = result.data as { display_name?: string | null } | null;
       setDisplayName(row?.display_name ?? "");
-      setLocale(normalizeUiLocale(row?.ui_locale));
-      setHasUiLocaleColumn(result.hasUiLocaleColumn);
       setLoading(false);
     })();
     return () => {
@@ -113,45 +101,20 @@ export function SettingsPage() {
   async function onSave() {
     if (!session?.user?.id) return;
     setSaving(true);
-    const nextLocale = normalizeUiLocale(locale);
-    const basePayload = {
-      display_name: displayName.trim() || null,
-      updated_at: new Date().toISOString(),
-    };
-    const fullPayload = { ...basePayload, ui_locale: nextLocale };
-
-    let uError = null as { message: string } | null;
-    let localePersistedInDb = hasUiLocaleColumn;
-
-    if (hasUiLocaleColumn) {
-      const first = await supabase.from("creator_profiles").update(fullPayload).eq("id", session.user.id);
-      if (first.error) {
-        const second = await supabase.from("creator_profiles").update(basePayload).eq("id", session.user.id);
-        uError = second.error;
-        if (!uError) {
-          localePersistedInDb = false;
-          setHasUiLocaleColumn(false);
-        }
-      }
-    } else {
-      const r = await supabase.from("creator_profiles").update(basePayload).eq("id", session.user.id);
-      uError = r.error;
-      localePersistedInDb = false;
-    }
-
+    const { error } = await supabase
+      .from("creator_profiles")
+      .update({ display_name: displayName.trim() || null, updated_at: new Date().toISOString() })
+      .eq("id", session.user.id);
     setSaving(false);
-    if (uError) {
+    if (error) {
       toast.error({
         title: t("settings.saveError"),
         description: t("toast.api.genericHint"),
       });
       return;
     }
-    await i18n.changeLanguage(nextLocale);
     await refetchProfile();
-    toast.success({
-      title: localePersistedInDb ? t("settings.saved") : t("settings.savedLocaleUntilMigration"),
-    });
+    toast.success({ title: t("settings.saved") });
   }
 
   return (
@@ -272,28 +235,6 @@ export function SettingsPage() {
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder={t("settings.displayNamePlaceholder")}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <span className="text-sm font-semibold text-obra-neutral-900">{t("settings.localeLabel")}</span>
-                    <p className="text-xs text-obra-neutral-600">{t("settings.localeHint")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(["es", "pt-BR"] as const).map((l) => (
-                        <button
-                          key={l}
-                          type="button"
-                          onClick={() => setLocale(l)}
-                          className={[
-                            "rounded-full border px-4 py-2 font-body text-sm font-semibold transition-all",
-                            locale === l
-                              ? "border-obra-blue-700 bg-obra-blue-700 text-white"
-                              : "border-obra-blue-100 text-obra-neutral-600 hover:border-obra-blue-700/50",
-                          ].join(" ")}
-                        >
-                          {l === "es" ? t("settings.locale.es") : t("settings.locale.ptBR")}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   {loadError ? (

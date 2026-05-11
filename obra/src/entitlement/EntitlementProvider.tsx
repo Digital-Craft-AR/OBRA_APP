@@ -5,7 +5,6 @@ import { i18n } from "@/i18n";
 import { toastApiFailure } from "@/lib/apiToast";
 import { supabase } from "@/lib/supabaseClient";
 import { isEmailVerifiedForEntitlement } from "@/lib/authEmailEntitlement";
-import { normalizeUiLocale } from "@/lib/uiLocale";
 import { clearCheckoutReturnPending, isCheckoutReturnPending } from "./checkoutReturn";
 import {
   outcomeToPath,
@@ -58,7 +57,6 @@ function parseAccessUntil(raw: string | null | undefined): Date | null {
 type ProfileRowState = {
   subscription_status: SubscriptionStatus;
   subscription_access_until: string | null;
-  ui_locale: string;
   credits_balance: number;
 };
 
@@ -83,41 +81,37 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
     const withCredits = await supabase
       .from("creator_profiles")
-      .select("subscription_status, subscription_access_until, ui_locale, credits_balance")
+      .select("subscription_status, subscription_access_until, credits_balance")
       .maybeSingle();
 
     if (!withCredits.error) {
       const row = withCredits.data as {
         subscription_status?: string;
         subscription_access_until?: string | null;
-        ui_locale?: string | null;
         credits_balance?: number | null;
       } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
         subscription_access_until: row?.subscription_access_until ?? null,
-        ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
         credits_balance: normalizeCreditsBalance(row?.credits_balance),
       });
       setProfileLoading(false);
       return;
     }
 
-    const withLocale = await supabase
+    const withoutCredits = await supabase
       .from("creator_profiles")
-      .select("subscription_status, subscription_access_until, ui_locale")
+      .select("subscription_status, subscription_access_until")
       .maybeSingle();
 
-    if (!withLocale.error) {
-      const row = withLocale.data as {
+    if (!withoutCredits.error) {
+      const row = withoutCredits.data as {
         subscription_status?: string;
         subscription_access_until?: string | null;
-        ui_locale?: string | null;
       } | null;
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
         subscription_access_until: row?.subscription_access_until ?? null,
-        ui_locale: normalizeUiLocale(row?.ui_locale ?? undefined),
         credits_balance: 0,
       });
       setProfileLoading(false);
@@ -133,7 +127,6 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       setProfileRow({
         subscription_status: normalizeSubscriptionStatus(row?.subscription_status),
         subscription_access_until: null,
-        ui_locale: normalizeUiLocale(undefined),
         credits_balance: 0,
       });
     }
@@ -189,14 +182,6 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
         // Silent — reconcile failure does not block the app
       });
   }, [session?.user?.id, session?.access_token, refetchProfile]);
-
-  useEffect(() => {
-    if (!profileRow?.ui_locale) return;
-    const lang = normalizeUiLocale(profileRow.ui_locale);
-    if (i18n.language !== lang) {
-      void i18n.changeLanguage(lang);
-    }
-  }, [profileRow?.ui_locale]);
 
   const checkoutReturnPending = useMemo(() => {
     void checkoutBump;
