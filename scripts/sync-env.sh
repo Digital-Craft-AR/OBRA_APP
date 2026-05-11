@@ -26,4 +26,6 @@ for file in "${files[@]}"; do
   echo "  OK    $file"
 done
 
+echo "Running npm install in obra/..."
+(cd "$TARGET/obra" && npm install --silent)
 echo "Done."
