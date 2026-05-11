@@ -57,14 +57,13 @@ describe("NewProjectPage", () => {
     single.mockResolvedValue({ data: { id: "project-1" }, error: null });
   });
 
-  it("creates project with locale and source, then navigates to wizard", async () => {
+  it("creates project with source, then navigates to wizard", async () => {
     const user = userEvent.setup();
     renderNewProject();
 
     const main = screen.getByRole("heading", { name: /crear proyecto/i }).closest("div");
     if (!main) throw new Error("Could not locate page container");
 
-    await user.click(within(main).getByRole("button", { name: /english \(us\)/i }));
     await user.click(within(main).getByRole("button", { name: /subir mi manuscrito/i }));
     await user.click(within(main).getByRole("button", { name: /continuar al wizard/i }));
 
@@ -74,7 +73,7 @@ describe("NewProjectPage", () => {
 
     expect(insert.mock.calls[0][0]).toMatchObject({
       user_id: "u1",
-      content_locale: "en-US",
+      content_locale: "es",
       content_source: "upload",
     });
 

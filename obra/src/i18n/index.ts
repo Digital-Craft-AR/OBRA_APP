@@ -372,9 +372,8 @@ const resources = {
       "wizard.create.error":
         "No pudimos crear el proyecto. Revisá que la migración de projects esté aplicada.",
       "wizard.modal.title": "Nuevo proyecto",
-      "wizard.modal.stepName": "Paso 1 de 3 — Nombre",
-      "wizard.modal.stepLocale": "Paso 2 de 3 — Idioma del contenido",
-      "wizard.modal.stepSource": "Paso 3 de 3 — Método de creación",
+      "wizard.modal.stepName": "Paso 1 de 2 — Nombre",
+      "wizard.modal.stepSource": "Paso 2 de 2 — Método de creación",
       "wizard.modal.sourceHint": "Elegí cómo vas a generar el contenido de tu ebook. Podés cambiar el método hasta subir el primer archivo o confirmar la tabla de contenido.",
       "wizard.modal.close": "Cerrar",
       "wizard.modal.nameLabel": "Nombre del proyecto",
@@ -1423,9 +1422,8 @@ const resources = {
       "wizard.create.error":
         "Não foi possível criar o projeto. Verifique se a migration de projects foi aplicada.",
       "wizard.modal.title": "Novo projeto",
-      "wizard.modal.stepName": "Passo 1 de 3 — Nome",
-      "wizard.modal.stepLocale": "Passo 2 de 3 — Idioma do conteúdo",
-      "wizard.modal.stepSource": "Passo 3 de 3 — Método de criação",
+      "wizard.modal.stepName": "Passo 1 de 2 — Nome",
+      "wizard.modal.stepSource": "Passo 2 de 2 — Método de criação",
       "wizard.modal.sourceHint": "Escolha como vai gerar o conteúdo do seu ebook. Você pode mudar o método até fazer o upload do primeiro arquivo ou confirmar a tabela de conteúdo.",
       "wizard.modal.close": "Fechar",
       "wizard.modal.nameLabel": "Nome do projeto",
