@@ -16,7 +16,6 @@ import {
 
 type StructureStepDesignConfigProps = {
   config: WizardDesignConfig;
-  message: string | null;
   onChange: (next: WizardDesignConfig) => void;
 };
 
@@ -37,7 +36,6 @@ function formatHexForDisplay(hex: string): string {
 
 export function StructureStepDesignConfig({
   config,
-  message,
   onChange,
 }: StructureStepDesignConfigProps) {
   const { t } = useTranslation();
@@ -466,135 +464,6 @@ export function StructureStepDesignConfig({
 
       </div>
 
-      <div className="border-t border-obra-blue-100" aria-hidden />
-
-      <div className="flex flex-col gap-4">
-        <h3 className="text-sm font-semibold text-obra-blue-950">{t("wizard.structure.design.images.title")}</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                ...config,
-                image: { ...config.image, mode: "ai" },
-              })
-            }
-            className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
-              config.image.mode === "ai"
-                ? "border-obra-blue-700 bg-obra-blue-50"
-                : "border-obra-neutral-200 bg-white"
-            }`}
-          >
-            <div className="min-w-0 flex-1">
-              <p
-                className={`text-sm font-semibold ${
-                  config.image.mode === "ai" ? "text-obra-blue-700" : "text-obra-blue-950"
-                }`}
-              >
-                {t("wizard.structure.design.images.aiMode")}
-              </p>
-              <p
-                className={`text-xs ${
-                  config.image.mode === "ai" ? "text-obra-neutral-600" : "text-obra-neutral-500"
-                }`}
-              >
-                {t("wizard.structure.design.images.aiModeHint")}
-              </p>
-            </div>
-            {config.image.mode === "ai" ? (
-              <Check className="size-5 shrink-0 text-obra-blue-700" aria-hidden />
-            ) : (
-              <span className="size-5 shrink-0" aria-hidden />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                ...config,
-                image: { ...config.image, mode: "upload" },
-              })
-            }
-            className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
-              config.image.mode === "upload"
-                ? "border-obra-blue-700 bg-obra-blue-50"
-                : "border-obra-neutral-200 bg-white"
-            }`}
-          >
-            <div className="min-w-0 flex-1">
-              <p
-                className={`text-sm font-semibold ${
-                  config.image.mode === "upload" ? "text-obra-blue-700" : "text-obra-blue-950"
-                }`}
-              >
-                {t("wizard.structure.design.images.uploadMode")}
-              </p>
-              <p
-                className={`text-xs ${
-                  config.image.mode === "upload" ? "text-obra-neutral-600" : "text-obra-neutral-500"
-                }`}
-              >
-                {t("wizard.structure.design.images.uploadModeHint")}
-              </p>
-            </div>
-            {config.image.mode === "upload" ? (
-              <Check className="size-5 shrink-0 text-obra-blue-700" aria-hidden />
-            ) : (
-              <span className="size-5 shrink-0" aria-hidden />
-            )}
-          </button>
-        </div>
-        {config.image.mode === "ai" ? (
-          <>
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-obra-blue-950">
-                {t("wizard.structure.design.images.styleTitle")}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    "illustration",
-                    "photography",
-                    "isometric",
-                    "minimalist",
-                    "watercolor",
-                  ] as WizardDesignConfig["image"]["style"][]
-                ).map((style) => {
-                  const selected = config.image.style === style;
-                  return (
-                    <button
-                      key={style}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() =>
-                        onChange({
-                          ...config,
-                          image: { ...config.image, style },
-                        })
-                      }
-                      className={`rounded-full border-2 px-4 py-2.5 font-body text-sm font-medium transition-colors ${
-                        selected
-                          ? "border-obra-blue-700 bg-obra-blue-50 text-obra-blue-950 shadow-sm"
-                          : "border-obra-neutral-200 bg-white text-obra-neutral-600 hover:border-obra-blue-200 hover:bg-obra-blue-50/60"
-                      }`}
-                    >
-                      {t(`wizard.structure.design.images.style.${style}`)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="rounded-input border border-obra-blue-100 bg-obra-blue-50 px-3 py-2 text-xs text-obra-neutral-600">
-              {t("wizard.structure.design.images.note")}
-            </div>
-          </>
-        ) : null}
-        {message ? (
-          <p aria-live="polite" className="text-xs text-obra-neutral-600">
-            {message}
-          </p>
-        ) : null}
-      </div>
     </section>
   );
 }
