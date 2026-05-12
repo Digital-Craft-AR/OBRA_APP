@@ -150,7 +150,23 @@ Preparate para el handoff y abrí el PR.
 - Escribí un **checklist de validación manual** para el humano: pasos concretos que puede hacer en la app corriendo / dashboard / staging para verificar que el cambio funciona (ej: "entrá como usuario, abrí Configuración, confirmá que ya no aparece el selector de idioma"). Estos **no** son los tests automatizados — son verificaciones visuales.
 - Redactá la **descripción del PR** con: resumen, issue linkeado (`Closes #N`), qué cambió, cómo se testeó, el checklist de validación como checkboxes, y limitaciones conocidas.
 - **Mostrá la descripción y el checklist al usuario antes de abrir el PR.** Esperá go-ahead explícito.
-- Con aprobación, pusheá la rama y abrí el PR con la GitHub CLI:
+- Con aprobación, hacé rebase de la rama sobre `main` antes de pushear:
+
+```bash
+git fetch origin main
+git rebase origin/main
+```
+
+Si hay conflictos, reolvelos archivo por archivo:
+1. Revisá los archivos en conflicto con `git status`
+2. Editá cada archivo para resolver los conflictos (`<<<<`, `====`, `>>>>`)
+3. Marcá como resuelto con `git add <archivo>`
+4. Continuá con `git rebase --continue`
+5. Repetí hasta que el rebase termine limpio
+
+Si el rebase produce un resultado incorrecto o los conflictos son complejos, informá al usuario antes de continuar.
+
+- Con el rebase limpio, pusheá la rama y abrí el PR con la GitHub CLI:
 
 ```bash
 gh pr create --title "tipo(scope): descripción" --body "$(cat <<'EOF'
