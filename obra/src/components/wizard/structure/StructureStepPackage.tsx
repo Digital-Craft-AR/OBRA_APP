@@ -37,16 +37,18 @@ export function StructureStepPackage({
             <Button
               size="small"
               variant="tertiary"
+              data-testid="package-bonus-minus"
               onClick={() => onBonusChange(Math.max(0, bonusCount - 1))}
               disabled={saving || bonusCount === 0}
               className="size-8 rounded-full p-0 flex items-center justify-center"
             >
               <Minus className="size-4 shrink-0 text-obra-blue-700" aria-hidden />
             </Button>
-            <span className="w-8 text-center text-xl font-semibold text-obra-blue-950">{bonusCount}</span>
+            <span data-testid="package-bonus-count" className="w-8 text-center text-xl font-semibold text-obra-blue-950">{bonusCount}</span>
             <Button
               size="small"
               variant="tertiary"
+              data-testid="package-bonus-plus"
               onClick={() => onBonusChange(Math.min(5, bonusCount + 1))}
               disabled={saving || bonusCount === 5}
               className="size-8 rounded-full p-0 flex items-center justify-center"
