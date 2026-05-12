@@ -895,6 +895,14 @@ export function WizardContentPage() {
       const bonusKey = bonusEntries.find(([, id]) => id === ebookId)?.[0];
       if (!bonusKey) continue;
 
+      if (titles.length < 3) {
+        toast.error({
+          title: t("wizard.content.index.regenerateOutline"),
+          description: t("wizard.content.index.errorGenerateGeneric"),
+        });
+        return;
+      }
+
       const saved = await replaceEbookDraftChapters(ebookId, titles);
       if (!saved.ok) {
         toast.error({
