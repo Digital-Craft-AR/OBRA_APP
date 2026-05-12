@@ -143,6 +143,34 @@ Ver `references/review-subagent.md` para el prompt exacto y las reglas de reconc
 
 ---
 
+## Fase 5.5 — Actualización de documentación
+
+Antes de abrir el PR, revisá si los cambios implementados dejaron documentación desactualizada. El objetivo es que los docs reflejen el estado actual del código, no el anterior.
+
+**Documentos a revisar** (solo los relevantes al issue):
+
+| Archivo | Cuándo actualizarlo |
+|---|---|
+| `CLAUDE.md` | Cambios en reglas de ingeniería, convenciones, estructura del repo, o flujos de trabajo |
+| `ARQUITECTURA_Obra.md` | Cambios en el modelo de datos, tablas, Edge Functions, flujos técnicos, o stack |
+| `PRD_Obra.md` | Cambios en reglas de negocio, límites, créditos, o comportamiento del producto |
+| `CONVENCIONES.md` | Cambios en tokens, patrones de UI, o convenciones de estilo |
+| `features/<feature>.md` | Cambios en el comportamiento de una feature específica |
+| `docs/` | Cambios en patrones de testing, ADRs, o documentación técnica detallada |
+| `ONBOARDING.md` | Cambios en setup, scripts de instalación, o variables de entorno |
+
+**Proceso:**
+
+1. Leé el diff completo de la rama (`git diff main...HEAD`)
+2. Para cada doc relevante, identificá si alguna sección describe comportamiento que ya no es correcto
+3. Actualizá solo las secciones desactualizadas — no hagas reescrituras completas
+4. Si un doc no existe pero debería (ej: nueva feature sin spec), crealo mínimo
+5. Commiteá las actualizaciones de docs por separado con mensaje `docs: actualizar <archivo> tras issue #N`
+
+**Regla:** si no hay ningún doc desactualizado, documentá explícitamente que revisaste y nada requirió cambios. No omitas este paso en silencio.
+
+---
+
 ## Fase 6 — Confirmar y abrir PR **(gate: esperá aprobación explícita)**
 
 Preparate para el handoff y abrí el PR.
@@ -150,7 +178,23 @@ Preparate para el handoff y abrí el PR.
 - Escribí un **checklist de validación manual** para el humano: pasos concretos que puede hacer en la app corriendo / dashboard / staging para verificar que el cambio funciona (ej: "entrá como usuario, abrí Configuración, confirmá que ya no aparece el selector de idioma"). Estos **no** son los tests automatizados — son verificaciones visuales.
 - Redactá la **descripción del PR** con: resumen, issue linkeado (`Closes #N`), qué cambió, cómo se testeó, el checklist de validación como checkboxes, y limitaciones conocidas.
 - **Mostrá la descripción y el checklist al usuario antes de abrir el PR.** Esperá go-ahead explícito.
-- Con aprobación, pusheá la rama y abrí el PR con la GitHub CLI:
+- Con aprobación, hacé rebase de la rama sobre `main` antes de pushear:
+
+```bash
+git fetch origin main
+git rebase origin/main
+```
+
+Si hay conflictos, reolvelos archivo por archivo:
+1. Revisá los archivos en conflicto con `git status`
+2. Editá cada archivo para resolver los conflictos (`<<<<`, `====`, `>>>>`)
+3. Marcá como resuelto con `git add <archivo>`
+4. Continuá con `git rebase --continue`
+5. Repetí hasta que el rebase termine limpio
+
+Si el rebase produce un resultado incorrecto o los conflictos son complejos, informá al usuario antes de continuar.
+
+- Con el rebase limpio, pusheá la rama y abrí el PR con la GitHub CLI:
 
 ```bash
 gh pr create --title "tipo(scope): descripción" --body "$(cat <<'EOF'
@@ -188,6 +232,7 @@ Al cerrar el issue, resumí:
 | **Criterios de aceptación** | ✅ cumplido / ⚠️ parcial / ❌ pendiente (con nota) |
 | **Tests** | Tipo, archivo, resultado |
 | **Review del subagente** | hallazgos clave + qué se aplicó |
+| **Documentación** | Docs actualizados / confirmación de que ninguno requirió cambios |
 | **Secrets** | Confirmación de que no se commiteó ninguno |
 | **PR** | URL |
 
