@@ -122,6 +122,14 @@ function defaultSingleRows(): TocChapterRow[] {
   return [{ id: newRowId(), title: "" }];
 }
 
+function defaultBonusRows(): TocChapterRow[] {
+  return [
+    { id: newRowId(), title: "" },
+    { id: newRowId(), title: "" },
+    { id: newRowId(), title: "" },
+  ];
+}
+
 async function loadOrSeedPackageToc(
   ebookId: string,
   defaultFactory: () => TocChapterRow[],
@@ -317,7 +325,7 @@ export function WizardContentPage() {
             bumpResolved[key] = false;
           }
         } else {
-          tocUpdates[key] = await loadOrSeedPackageToc(ebookId, defaultSingleRows);
+          tocUpdates[key] = await loadOrSeedPackageToc(ebookId, defaultBonusRows);
           if (cancelled) return;
         }
       }
@@ -672,7 +680,7 @@ export function WizardContentPage() {
     selectedTarget.kind === "main"
       ? mainTocRows
       : bonusBumpToc[selectedKey] ??
-          (selectedTarget.kind === "bump" ? defaultMainRows() : defaultSingleRows());
+          (selectedTarget.kind === "bonus" ? defaultBonusRows() : defaultMainRows());
 
   const setCurrentToc = useCallback(
     (rows: TocChapterRow[]) => {
