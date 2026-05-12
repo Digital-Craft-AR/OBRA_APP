@@ -4,7 +4,7 @@
 **Implementación:** `supabase/functions/_shared/prompts.ts` → función `generateCoverImagePrompt()`  
 **Feature PRD:** `features/wizard-preview/wizard-preview.md` — image pipeline  
 **Estado:** `draft`  
-**Última revisión:** 2026-04-13
+**Última revisión:** 2026-05-12
 
 ---
 
@@ -125,9 +125,10 @@ OUTPUT RULES (non-negotiable):
 6. The artifact title MUST appear verbatim in quotes in the prompt — this increases Gemini's accuracy in rendering the text.
 7. Author name (if provided) always placed at the bottom of the cover — standard editorial convention.
 8. If no author is provided, omit the author line entirely.
-9. Never include: decorative frames, stock-photo collages, gradients in multiple directions, overly complex layouts.
+9. Never include: decorative frames, borders, inner margins, vignettes, stock-photo collages, gradients in multiple directions, overly complex layouts. The composition must bleed to the absolute edge of the canvas — no containment device of any kind.
 10. The cover must look like a premium infoproduct — not a social media graphic, not a textbook, not a stock photo.
 11. NEVER invent subtitles, taglines, or secondary text lines. The only text in the image is the artifact_title (verbatim) and the author name if provided. Do not pull phrases from the topic or any other field.
+12. The generated image IS the cover page itself — a flat, full-screen composition that fills the entire canvas edge to edge, viewed straight on. NEVER render the cover as: a physical book, a 3D book mockup, a book rendered at an angle with visible spine or depth, a floating book with drop shadow, a book spine, or any composition that places the cover as an object within a three-dimensional scene or environment.
 
 MODERN QUALITY STANDARD (applies to all styles — non-negotiable):
 The cover must feel contemporary and high-production regardless of the audience or topic. Visual references: think Kinfolk magazine, modern non-fiction book design, Apple product photography, 2020s editorial design. Avoid anything that reads as: generic stock photo, clip art, 90s/2000s design, busy background textures, drop shadows on text, symmetric clip-art-style compositions, or low-fi illustration.
@@ -142,7 +143,7 @@ STYLE GUIDE — apply the user's chosen style to the visual elements only. The m
 
 COLOR PALETTE: anchor the entire cover in {palette_description}. For covers, the dominant color of the background must come from the palette. Title text should use a high-contrast palette color. Accent color (10%) can highlight the author name or a single detail element.
 
-COVER COMPOSITION RULES — structure the vertical space in three zones:
+COVER COMPOSITION RULES — structure the vertical space in three zones. These zones describe the flat page surface itself — this image IS the page, not a representation of a physical book object:
 - Top zone (roughly upper 40%): visual element — scene, object, illustration, or abstract graphic
 - Middle zone (title area): the title text, large and legible, in a high-contrast palette color
 - Bottom zone: author name (if provided) in a smaller size, accent color; plus generous breathing room
@@ -193,7 +194,7 @@ content_locale: "es"
 
 **Output esperado:**
 ```
-Vertical A4 editorial book cover photograph. Upper 40%: a styled flat-lay of a handmade candle workshop — two artisan candles, a small botanical sprig, and an open pricing notebook on a warm cream linen surface. Soft natural side light, calm and professional mood. Deep navy blue fills the lower background. Large cream serif title text "Velas que se venden: sistema de precios, marca y clientes" centered in the middle zone. Small lime green author name "Ana Rodríguez" at the bottom. High-contrast, publishing-quality. No frames. Premium infoproduct aesthetic.
+Vertical A4 editorial book cover photograph. Upper 40%: a styled flat-lay of a handmade candle workshop — two artisan candles, a small botanical sprig, and an open pricing notebook on a warm cream linen surface. Soft natural side light, calm and professional mood. Deep navy blue fills the lower background. Large cream serif title text "Velas que se venden: sistema de precios, marca y clientes" centered in the middle zone. Small lime green author name "Ana Rodríguez" at the bottom. High-contrast, publishing-quality. No frames. No book object. Flat page composition. Premium infoproduct aesthetic.
 ```
 
 ---
@@ -269,6 +270,7 @@ Vertical A4 flat graphic book cover. Upper 40%: a bold 2D geometric composition 
 | Bonus con título genérico (ej: "Bonus 1") | Título sin contexto real | Usar `topic` como ancla conceptual para el visual; el título se renderiza igual |
 | Order bump | Artefacto secundario/standalone | Estructura de portada compacta: visual más pequeño, más protagonismo al título |
 | Título con caracteres especiales (comillas, dos puntos) | Título en español/portugués con puntuación | Incluir título entre comillas dobles en el prompt; los dos puntos son aceptables para Gemini |
+| Estilo `photography` + tipo `main` | Mayor riesgo de generar "libro sobre una mesa" — Gemini tiende a fotografiar el objeto del tópico y, si el tópico es el libro mismo, produce un mockup | Anclar el visual en la escena del mundo del avatar/tópico (ej: flat-lay del workspace), no en el libro como objeto. Rule 12 prohíbe explícitamente este output. |
 
 ---
 
@@ -280,6 +282,7 @@ Vertical A4 flat graphic book cover. Upper 40%: a bold 2D geometric composition 
 |-------|---------|--------|-------|
 | 2026-04-13 | v1.0 | Versión inicial | Nuevo sistema de prompts de imágenes — portada |
 | 2026-04-13 | v1.1 | Agregado MODERN QUALITY STANDARD + rule 11 anti-subtítulo inventado | Output de Workbench produjo portada con estética noventosa y subtítulo inventado; ambos problemas corregidos |
+| 2026-05-12 | v1.2 | Agregado rule 12 (flat full-screen guardrail) + extendido never-include de rule 9 | Issue #259: Gemini generaba imágenes de libro 3D/mockup en lugar de imagen plana de portada |
 
 ### Decisiones tomadas
 
@@ -306,4 +309,4 @@ Vertical A4 flat graphic book cover. Upper 40%: a bold 2D geometric composition 
 
 ### Problemas conocidos en producción
 
-- *Ninguno registrado — versión inicial.*
+- **3D book mockup (issue #259):** Gemini generaba imágenes de portada que mostraban el ebook como un libro físico en 3D (con lomo, ángulo y sombra), en lugar de una imagen plana full-screen. Corregido en v1.2 con Rule 12 y la cláusula "flat page surface" en COVER COMPOSITION RULES.
