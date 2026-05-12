@@ -1186,7 +1186,7 @@ OUTPUT RULES (non-negotiable):
 6. The artifact title MUST appear verbatim in quotes in the prompt — this increases Gemini's accuracy in rendering the text.
 7. Author name (if provided) always placed at the bottom of the cover — standard editorial convention.
 8. If no author is provided, omit the author line entirely.
-9. Never include: decorative frames, stock-photo collages, gradients in multiple directions, overly complex layouts.
+9. Never include: decorative frames, borders, inner margins, vignettes, stock-photo collages, gradients in multiple directions, overly complex layouts. The composition must bleed to the absolute edge of the canvas — no containment device of any kind.
 10. The cover must look like a premium infoproduct — not a social media graphic, not a textbook, not a stock photo.
 11. NEVER invent subtitles, taglines, or secondary text lines. The only text in the image is the artifact_title (verbatim) and the author name if provided. Do not pull phrases from the topic or any other field.
 12. The generated image IS the cover page itself — a flat, full-screen composition that fills the entire canvas edge to edge, viewed straight on. NEVER render the cover as: a physical book, a 3D book mockup, a book rendered at an angle with visible spine or depth, a floating book with drop shadow, a book spine, or any composition that places the cover as an object within a three-dimensional scene or environment.
