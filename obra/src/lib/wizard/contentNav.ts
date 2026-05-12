@@ -46,7 +46,7 @@ export function buildContentPackageNavTargets(bonusCount: number, bumpCount: num
   return out;
 }
 
-/** Main ebook and order bumps use a multi-chapter TOC; bonuses use a single section. */
+/** All artifact types (main ebook, bonuses, order bumps) use a multi-chapter TOC. */
 export function usesMultiChapterContentNavTarget(target: ContentPackageNavTarget): boolean {
-  return target.kind === "main" || target.kind === "bump";
+  return target.kind === "main" || target.kind === "bonus" || target.kind === "bump";
 }

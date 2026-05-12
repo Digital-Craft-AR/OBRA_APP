@@ -53,10 +53,10 @@ describe("buildContentPackageNavTargets", () => {
 });
 
 describe("usesMultiChapterContentNavTarget", () => {
-  it("is true for main and bumps, false for bonuses", () => {
+  it("is true for main, bonuses, and bumps", () => {
     expect(usesMultiChapterContentNavTarget({ kind: "main" })).toBe(true);
     expect(usesMultiChapterContentNavTarget({ kind: "bump", index: 0 })).toBe(true);
-    expect(usesMultiChapterContentNavTarget({ kind: "bonus", index: 0 })).toBe(false);
+    expect(usesMultiChapterContentNavTarget({ kind: "bonus", index: 0 })).toBe(true);
   });
 });
 
