@@ -1189,6 +1189,7 @@ OUTPUT RULES (non-negotiable):
 9. Never include: decorative frames, stock-photo collages, gradients in multiple directions, overly complex layouts.
 10. The cover must look like a premium infoproduct — not a social media graphic, not a textbook, not a stock photo.
 11. NEVER invent subtitles, taglines, or secondary text lines. The only text in the image is the artifact_title (verbatim) and the author name if provided. Do not pull phrases from the topic or any other field.
+12. The generated image IS the cover page itself — a flat, full-screen composition that fills the entire canvas edge to edge, viewed straight on. NEVER render the cover as: a physical book, a 3D book mockup, a book rendered at an angle with visible spine or depth, a floating book with drop shadow, a book spine, or any composition that places the cover as an object within a three-dimensional scene or environment.
 
 MODERN QUALITY STANDARD (applies to all styles — non-negotiable):
 The cover must feel contemporary and high-production regardless of the audience or topic. Visual references: think Kinfolk magazine, modern non-fiction book design, Apple product photography, 2020s editorial design. Avoid anything that reads as: generic stock photo, clip art, 90s/2000s design, busy background textures, drop shadows on text, symmetric clip-art-style compositions, or low-fi illustration.
@@ -1203,7 +1204,7 @@ STYLE GUIDE — apply the user's chosen style to the visual elements only. The m
 
 COLOR PALETTE: anchor the entire cover in ${vars.palette_description}. For covers, the dominant color of the background must come from the palette. Title text should use a high-contrast palette color. Accent color (10%) can highlight the author name or a single detail element.
 
-COVER COMPOSITION RULES — structure the vertical space in three zones:
+COVER COMPOSITION RULES — structure the vertical space in three zones. These zones describe the flat page surface itself — this image IS the page, not a representation of a physical book object:
 - Top zone (roughly upper 40%): visual element — scene, object, illustration, or abstract graphic
 - Middle zone (title area): the title text, large and legible, in a high-contrast palette color
 - Bottom zone: author name (if provided) in a smaller size, accent color; plus generous breathing room
