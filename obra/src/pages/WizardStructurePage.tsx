@@ -234,6 +234,20 @@ export function WizardStructurePage() {
                       ),
                     )
                   }
+                  onBlurBonusTitle={(index) =>
+                    flow.setBonusItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index && item.title.trim() ? { ...item, locked: true } : item,
+                      ),
+                    )
+                  }
+                  onBlurBumpTitle={(index) =>
+                    flow.setBumpItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index && item.title.trim() ? { ...item, locked: true } : item,
+                      ),
+                    )
+                  }
                   onToggleBonusLock={(index) =>
                     flow.setBonusItems((current) =>
                       current.map((item, itemIndex) =>
@@ -277,6 +291,20 @@ export function WizardStructurePage() {
                     flow.setBumpItems((current) =>
                       current.map((item, itemIndex) =>
                         itemIndex === index ? { ...item, title } : item,
+                      ),
+                    )
+                  }
+                  onBlurBonusTitle={(index) =>
+                    flow.setBonusItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index && item.title.trim() ? { ...item, locked: true } : item,
+                      ),
+                    )
+                  }
+                  onBlurBumpTitle={(index) =>
+                    flow.setBumpItems((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index && item.title.trim() ? { ...item, locked: true } : item,
                       ),
                     )
                   }
