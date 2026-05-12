@@ -124,7 +124,7 @@ export class MercadoPagoAdapter implements BillingAdapter {
     accessToken: string,
     input: SubscriptionCheckoutInput,
   ): Promise<BillingCheckoutResult> {
-    const startDate = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const startDate = (input.startDate ?? new Date(Date.now() + 5 * 60 * 1000)).toISOString();
 
     const subscriptionBody = {
       reason: input.plan.reason,

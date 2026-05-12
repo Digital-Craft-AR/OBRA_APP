@@ -260,7 +260,7 @@ export function SettingsPage() {
               />
             ) : null}
             {section === "credits" ? (
-              <SettingsCreditsPanel creditsBalance={creditsBalance} subscriptionStatus={subscriptionStatus} />
+              <SettingsCreditsPanel creditsBalance={creditsBalance} subscriptionStatus={subscriptionStatus} subscriptionAccessUntil={subscriptionAccessUntil} />
             ) : null}
             {section === "privacy" ? <SettingsPrivacyPanel /> : null}
           </div>

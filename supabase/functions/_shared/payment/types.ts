@@ -26,6 +26,9 @@ export type SubscriptionCheckoutInput = {
   /** Subscriber return URL after authorization (provider-specific). */
   returnUrl: string;
   plan: RecurringPlanParams;
+  /** If set, the first billing cycle starts on this date instead of immediately.
+   * Used when reactivating during a grace period so the user isn't charged twice. */
+  startDate?: Date;
 };
 
 export type CreditsPackCheckoutInput = {

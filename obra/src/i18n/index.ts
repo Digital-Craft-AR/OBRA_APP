@@ -87,6 +87,10 @@ const resources = {
       "shell.cancelled.body":
         "Tu suscripción fue cancelada. Podés reactivarla cuando quieras para seguir creando tus infoproductos.",
       "shell.cancelled.cta": "Reactivar suscripción",
+      "softCancel.banner.message":
+        "Tu suscripción fue cancelada. Seguís teniendo acceso hasta el {{date}}.",
+      "softCancel.banner.cta": "Reactivar suscripción",
+      "softCancel.banner.dismiss": "Descartar",
       "shell.pending.checkoutNote":
         "Vas a iniciar una suscripción recurrente con Mercado Pago en un entorno seguro.",
       "shell.pending.checkoutStartError": "No pudimos abrir el pago. Probá de nuevo en unos minutos.",
@@ -983,6 +987,7 @@ const resources = {
       "settings.billing.openMp": "Gestionar en Mercado Pago",
       "settings.billing.mpUrlMissing":
         "Falta configurar VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL para abrir el portal de gestión.",
+      "settings.billing.reactivate": "Reactivar suscripción",
       "settings.credits.intro": "Saldo y movimientos de créditos para uso de IA.",
       "settings.credits.balanceLabel": "Saldo actual",
       "settings.credits.units": "créditos",
@@ -998,6 +1003,11 @@ const resources = {
       "settings.credits.topUpReturnedPending":
         "El pago figura como pendiente. Los créditos se suman cuando quede aprobado; podés volver más tarde o usar «Actualizar historial».",
       "settings.credits.topUpReturnDismiss": "Entendido",
+      "settings.credits.gracePeriodModal.title": "Tu suscripción está cancelada",
+      "settings.credits.gracePeriodModal.body":
+        "Los créditos que comprés son válidos hasta el {{date}}, cuando vence tu acceso. Si querés seguir usando la app después de esa fecha, primero renovando tu suscripción.",
+      "settings.credits.gracePeriodModal.reactivate": "Renovar suscripción",
+      "settings.credits.gracePeriodModal.continue": "Continuar con la compra",
       "settings.credits.ledgerLoadError": "No pudimos cargar el historial de créditos.",
       "settings.credits.historyHeading": "Historial",
       "settings.credits.historyEmpty": "Todavía no hay movimientos para mostrar en esta vista.",
@@ -1123,6 +1133,10 @@ const resources = {
       "shell.cancelled.body":
         "Sua assinatura foi cancelada. Você pode reativá-la quando quiser para continuar criando seus infoprodutos.",
       "shell.cancelled.cta": "Reativar assinatura",
+      "softCancel.banner.message":
+        "Sua assinatura foi cancelada. Você ainda tem acesso até {{date}}.",
+      "softCancel.banner.cta": "Reativar assinatura",
+      "softCancel.banner.dismiss": "Fechar",
       "shell.pending.checkoutNote":
         "Você vai iniciar uma assinatura recorrente com o Mercado Pago em ambiente seguro.",
       "shell.pending.checkoutStartError": "Não foi possível abrir o pagamento. Tente novamente em alguns minutos.",
@@ -2024,6 +2038,7 @@ const resources = {
       "settings.billing.openMp": "Gerenciar no Mercado Pago",
       "settings.billing.mpUrlMissing":
         "Falta configurar VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL para abrir o portal de gestão.",
+      "settings.billing.reactivate": "Reativar assinatura",
       "settings.credits.intro": "Saldo e movimentações de créditos para uso de IA.",
       "settings.credits.balanceLabel": "Saldo atual",
       "settings.credits.units": "créditos",
@@ -2039,6 +2054,11 @@ const resources = {
       "settings.credits.topUpReturnedPending":
         "O pagamento consta como pendente. Os créditos serão somados quando for aprovado; você pode voltar mais tarde ou usar «Atualizar histórico».",
       "settings.credits.topUpReturnDismiss": "Entendi",
+      "settings.credits.gracePeriodModal.title": "Sua assinatura está cancelada",
+      "settings.credits.gracePeriodModal.body":
+        "Os créditos que você comprar serão válidos até {{date}}, quando seu acesso expira. Se quiser continuar usando o app depois dessa data, renove sua assinatura primeiro.",
+      "settings.credits.gracePeriodModal.reactivate": "Renovar assinatura",
+      "settings.credits.gracePeriodModal.continue": "Continuar com a compra",
       "settings.credits.ledgerLoadError": "Não foi possível carregar o histórico de créditos.",
       "settings.credits.historyHeading": "Histórico",
       "settings.credits.historyEmpty": "Ainda não há movimentações para mostrar nesta visualização.",

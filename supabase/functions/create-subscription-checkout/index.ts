@@ -76,7 +76,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized", detail: "missing_bearer" }, 401);
   }
   const jwt = authHeader.slice(7);
-  const supabase = createClient(supabaseUrl, anonKey);
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
   const {
     data: { user },
     error: userError,
@@ -91,6 +93,21 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized", detail: "missing_sub" }, 401);
   }
 
+  const { data: profile } = await supabase
+    .from("creator_profiles")
+    .select("subscription_status, subscription_access_until")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const profileRow = profile as { subscription_status?: string; subscription_access_until?: string | null } | null;
+  const accessUntilRaw = profileRow?.subscription_access_until ?? null;
+  const accessUntilDate = accessUntilRaw ? new Date(accessUntilRaw) : null;
+  const inGracePeriod =
+    profileRow?.subscription_status === "cancelled" &&
+    accessUntilDate != null &&
+    accessUntilDate > new Date();
+  const startDate = inGracePeriod && accessUntilDate ? accessUntilDate : undefined;
+
   const notificationUrl = billing.webhookUrlForSupabaseProject(supabaseUrl);
   // No query params here — MP appends preapproval_id with its own `?`, creating a malformed URL
   // if we already include `?status=success`. Success is detected via `preapproval_id` presence.
@@ -102,6 +119,7 @@ Deno.serve(async (req: Request) => {
     notificationUrl,
     returnUrl: backUrl,
     plan,
+    startDate,
   });
 
   if (!result.ok) {

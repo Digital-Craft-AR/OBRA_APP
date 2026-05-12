@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/auth/authContext";
 import { Button } from "@/components/ui/Button";
+import { tCheckoutConfigError, tMercadoPagoProviderError } from "@/lib/checkoutEdgeErrors";
+import { toastApiFailure } from "@/lib/apiToast";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/toast";
 import type { SubscriptionStatus } from "@/entitlement/types";
+
+type CheckoutFnResponse = {
+  redirect_url?: string;
+  error?: string;
+  detail?: string;
+};
 
 type Props = {
   subscriptionStatus: SubscriptionStatus;
@@ -13,8 +24,16 @@ type Props = {
 
 export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUntil, onRefreshStatus }: Props) {
   const { t, i18n } = useTranslation();
+  const { session } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [reactivateBusy, setReactivateBusy] = useState(false);
   const mpUrl = import.meta.env.VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL?.trim();
+
+  const now = new Date();
+  const inGracePeriod =
+    subscriptionStatus === "cancelled" &&
+    subscriptionAccessUntil != null &&
+    subscriptionAccessUntil > now;
 
   async function refresh() {
     setBusy(true);
@@ -27,6 +46,60 @@ export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUnt
     window.open(mpUrl, "_blank", "noopener,noreferrer");
   }
 
+  async function reactivate() {
+    setReactivateBusy(true);
+    if (!session?.access_token) {
+      setReactivateBusy(false);
+      toastApiFailure(t, "shell.pending.checkoutStartError");
+      return;
+    }
+
+    const { data, error } = await supabase.functions.invoke<CheckoutFnResponse>(
+      "create-subscription-checkout",
+      {
+        method: "POST",
+        body: {},
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      },
+    );
+
+    setReactivateBusy(false);
+
+    if (error) {
+      toastApiFailure(t, "shell.pending.checkoutStartError");
+      return;
+    }
+
+    if (data?.error === "unauthorized") {
+      toastApiFailure(t, "auth.callbackError");
+      return;
+    }
+
+    if (data?.error === "email_not_verified") {
+      toastApiFailure(t, "shell.pending.checkoutEmailNotVerified");
+      return;
+    }
+
+    if (data?.error === "checkout_unavailable" || data?.error === "server_misconfigured") {
+      const msg = tCheckoutConfigError(t, data.detail);
+      toast.error({ title: msg, description: t("toast.api.genericHint") });
+      return;
+    }
+
+    if (data?.error === "mercadopago_error" || data?.error === "mercadopago_no_redirect") {
+      const msg = tMercadoPagoProviderError(t);
+      toast.error({ title: msg, description: t("toast.api.genericHint") });
+      return;
+    }
+
+    if (data?.error || !data?.redirect_url) {
+      toastApiFailure(t, "shell.pending.checkoutStartError");
+      return;
+    }
+
+    window.location.assign(data.redirect_url);
+  }
+
   const statusKey =
     subscriptionStatus === "active"
       ? "settings.billing.status.active"
@@ -37,7 +110,6 @@ export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUnt
           : "settings.billing.status.none";
 
   // Resolve which date line to show (if any).
-  const now = new Date();
   let dateLine: string | null = null;
   if (subscriptionAccessUntil) {
     const locale = i18n.language === "pt-BR" ? "pt-BR" : "es-AR";
@@ -71,12 +143,34 @@ export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUnt
         ) : null}
         <p className="mt-4 text-sm text-obra-neutral-600">{t("settings.billing.reconcileHint")}</p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Button type="button" variant="secondary" disabled={busy || subscriptionStatus === "cancelled"} onClick={() => void refresh()}>
+          {/* Refresh enabled in grace period so user can confirm after reactivating via MP */}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy || (subscriptionStatus === "cancelled" && !inGracePeriod)}
+            onClick={() => void refresh()}
+          >
             {busy ? t("common.loading") : t("settings.billing.refresh")}
           </Button>
-          <Button type="button" variant="tertiary" disabled={!mpUrl || subscriptionStatus === "cancelled"} onClick={openMp}>
+          <Button
+            type="button"
+            variant="tertiary"
+            disabled={!mpUrl || (subscriptionStatus === "cancelled" && !inGracePeriod)}
+            onClick={openMp}
+          >
             {t("settings.billing.openMp")}
           </Button>
+          {inGracePeriod ? (
+            <Button
+              type="button"
+              variant="cta"
+              disabled={reactivateBusy}
+              onClick={() => void reactivate()}
+              data-testid="billing-reactivate-btn"
+            >
+              {reactivateBusy ? t("common.loading") : t("settings.billing.reactivate")}
+            </Button>
+          ) : null}
         </div>
         {!mpUrl ? <p className="mt-3 text-xs text-obra-neutral-500">{t("settings.billing.mpUrlMissing")}</p> : null}
       </div>

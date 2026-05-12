@@ -6,9 +6,9 @@ import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadE
 
 type SubscriptionStatus = "none" | "active" | "past_due" | "cancelled";
 
-function nowPlusOneMonth(): string {
+function nowPlusDays(days: number): string {
   const d = new Date();
-  d.setMonth(d.getMonth() + 1);
+  d.setDate(d.getDate() + days);
   return d.toISOString();
 }
 
@@ -81,12 +81,16 @@ Deno.serve(async (req: Request) => {
 
   // Set subscription_access_until when:
   // 1. Reconciling to "active" with no future access date (webhook delay or missing webhook).
-  // 2. Transitioning from "active" to "cancelled" with no access date set — MP has no
+  // 2. Transitioning from "active" to "cancelled" with no future access date set — MP has no
   //    cancellation webhook, so this is the only moment we can grant the grace period.
+  //    Also covers the edge case where subscription_access_until was set but has since expired
+  //    (user cancelled without visiting the app for a full billing cycle).
   const needsAccessUntil =
     (nextStatus === "active" &&
       (!currentAccessUntil || new Date(currentAccessUntil) <= new Date())) ||
-    (nextStatus === "cancelled" && currentStatus === "active" && !currentAccessUntil);
+    (nextStatus === "cancelled" &&
+      currentStatus === "active" &&
+      (!currentAccessUntil || new Date(currentAccessUntil) <= new Date()));
 
   if (nextStatus !== currentStatus || needsAccessUntil) {
     const updatePayload: Record<string, string> = {
@@ -94,7 +98,7 @@ Deno.serve(async (req: Request) => {
       updated_at: new Date().toISOString(),
     };
     if (needsAccessUntil) {
-      updatePayload.subscription_access_until = nowPlusOneMonth();
+      updatePayload.subscription_access_until = nowPlusDays(30);
     }
     const { error: upErr } = await admin
       .from("creator_profiles")
