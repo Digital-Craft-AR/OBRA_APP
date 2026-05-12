@@ -220,6 +220,8 @@ export function WizardStructurePage() {
                   bonusSectionLabel={t("wizard.structure.step5.bonusSection")}
                   bumpSectionLabel={t("wizard.structure.step5.bumpSection")}
                   regenerateAllLabel={t("wizard.structure.step5.regenerateAll")}
+                  confirmBonusAriaLabel={t("wizard.structure.step5.confirmBonusAriaLabel")}
+                  confirmBumpAriaLabel={t("wizard.structure.step5.confirmBumpAriaLabel")}
                   onChangeBonusTitle={(index, title) =>
                     flow.setBonusItems((current) =>
                       current.map((item, itemIndex) =>
@@ -280,6 +282,8 @@ export function WizardStructurePage() {
                   bonusSectionLabel={t("wizard.structure.step5.bonusSection")}
                   bumpSectionLabel={t("wizard.structure.step6.bumpSection")}
                   regenerateAllLabel={t("wizard.structure.step5.regenerateAll")}
+                  confirmBonusAriaLabel={t("wizard.structure.step5.confirmBonusAriaLabel")}
+                  confirmBumpAriaLabel={t("wizard.structure.step5.confirmBumpAriaLabel")}
                   onChangeBonusTitle={(index, title) =>
                     flow.setBonusItems((current) =>
                       current.map((item, itemIndex) =>

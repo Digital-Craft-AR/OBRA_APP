@@ -466,6 +466,8 @@ const resources = {
       "wizard.structure.step5.bonusSection": "Títulos de bonuses",
       "wizard.structure.step5.bumpSection": "Títulos de order bumps",
       "wizard.structure.step5.regenerateAll": "Regenerar los restantes",
+      "wizard.structure.step5.confirmBonusAriaLabel": "Confirmar bonus",
+      "wizard.structure.step5.confirmBumpAriaLabel": "Confirmar order bump",
       "wizard.structure.step6.title": "Títulos de order bumps",
       "wizard.structure.step6.subtitle":
         "Marcá los que querés conservar; el resto se puede regenerar.",

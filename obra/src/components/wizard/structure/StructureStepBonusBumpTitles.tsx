@@ -11,6 +11,8 @@ type StructureStepBonusBumpTitlesProps = {
   bonusSectionLabel: string;
   bumpSectionLabel: string;
   regenerateAllLabel: string;
+  confirmBonusAriaLabel: string;
+  confirmBumpAriaLabel: string;
   onChangeBonusTitle: (index: number, title: string) => void;
   onChangeBumpTitle: (index: number, title: string) => void;
   onBlurBonusTitle: (index: number) => void;
@@ -28,12 +30,14 @@ function sectionRow(
   index: number,
   kind: "bonus" | "bump",
   loadingKey: string | null,
+  confirmAriaLabel: string,
   onChangeTitle: (index: number, title: string) => void,
   onBlurTitle: (index: number) => void,
   onToggleLock: (index: number) => void,
   onRegenerate: (index: number) => void,
 ) {
   const key = `${kind}-${index}`;
+  const checkboxTestId = `${kind}-title-checkbox-${index}`;
   const isLoading = loadingKey === key;
   const aiBusy = loadingKey !== null;
   return (
@@ -41,11 +45,11 @@ function sectionRow(
       <div className="flex items-center gap-3 text-xs">
         <input
           type="checkbox"
-          data-testid={`${kind}-title-checkbox-${index}`}
+          data-testid={checkboxTestId}
           checked={item.locked}
           onChange={() => onToggleLock(index)}
           disabled={aiBusy}
-          aria-label={`Confirm ${kind} ${index + 1}`}
+          aria-label={`${confirmAriaLabel} ${index + 1}`}
           className="size-4 accent-obra-blue-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         />
 
@@ -59,7 +63,13 @@ function sectionRow(
             data-testid={`${kind}-title-input-${index}`}
             value={item.title}
             onChange={(event) => onChangeTitle(index, event.target.value)}
-            onBlur={() => onBlurTitle(index)}
+            onBlur={(event) => {
+              // Don't auto-check if AI is generating or if focus moved to the same-row
+              // checkbox (the toggle will handle the state transition instead).
+              const relatedTarget = event.relatedTarget as HTMLElement | null;
+              if (aiBusy || relatedTarget?.dataset.testid === checkboxTestId) return;
+              onBlurTitle(index);
+            }}
             placeholder={`Write ${kind} title`}
             disabled={aiBusy}
             className="h-9 w-full border-0 border-b border-obra-neutral-300 bg-transparent px-0 text-xs text-obra-blue-950 outline-none focus:border-obra-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -91,6 +101,8 @@ export function StructureStepBonusBumpTitles({
   bonusSectionLabel,
   bumpSectionLabel,
   regenerateAllLabel,
+  confirmBonusAriaLabel,
+  confirmBumpAriaLabel,
   onChangeBonusTitle,
   onChangeBumpTitle,
   onBlurBonusTitle,
@@ -102,8 +114,8 @@ export function StructureStepBonusBumpTitles({
   onRegenerateAllBonus,
   onRegenerateAllBump,
 }: StructureStepBonusBumpTitlesProps) {
-  const allBonusLocked = bonusItems.length > 0 && bonusItems.every((item) => item.locked);
-  const allBumpLocked = bumpItems.length > 0 && bumpItems.every((item) => item.locked);
+  const allBonusLocked = showBonus && bonusItems.length > 0 && bonusItems.every((item) => item.locked);
+  const allBumpLocked = showBump && bumpItems.length > 0 && bumpItems.every((item) => item.locked);
 
   return (
     <section className="space-y-6">
@@ -128,6 +140,7 @@ export function StructureStepBonusBumpTitles({
               index,
               "bonus",
               loadingKey,
+              confirmBonusAriaLabel,
               onChangeBonusTitle,
               onBlurBonusTitle,
               onToggleBonusLock,
@@ -158,6 +171,7 @@ export function StructureStepBonusBumpTitles({
               index,
               "bump",
               loadingKey,
+              confirmBumpAriaLabel,
               onChangeBumpTitle,
               onBlurBumpTitle,
               onToggleBumpLock,
