@@ -61,6 +61,20 @@ function normalizeItems(items: WizardTitleItem[] | null | undefined, count: numb
   return normalized;
 }
 
+function computeNextInnerStep(current: number, bonusCount: number, bumpCount: number): number {
+  let next = Math.min(INNER_STEPS.length - 1, current + 1);
+  if (next === 4 && bonusCount === 0) next = Math.min(INNER_STEPS.length - 1, next + 1);
+  if (next === 5 && bumpCount === 0) next = Math.min(INNER_STEPS.length - 1, next + 1);
+  return next;
+}
+
+function computePrevInnerStep(current: number, bonusCount: number, bumpCount: number): number {
+  let prev = Math.max(0, current - 1);
+  if (prev === 5 && bumpCount === 0) prev = Math.max(0, prev - 1);
+  if (prev === 4 && bonusCount === 0) prev = Math.max(0, prev - 1);
+  return prev;
+}
+
 export function useWizardStructureFlow({ project, setProject, t, language }: FlowArgs) {
   const [innerStepIndex, setInnerStepIndex] = useState(0);
   const [topicDraft, setTopicDraft] = useState("");
@@ -112,6 +126,15 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
   const [designConfig, setDesignConfig] = useState<WizardDesignConfig>(DEFAULT_DESIGN_CONFIG);
   const [designSaving, setDesignSaving] = useState(false);
   const [designMessage, setDesignMessage] = useState<string | null>(null);
+
+  const { visibleStepIndex, visibleStepCount } = useMemo(() => {
+    // [0,1,2,3, (4 if bonuses), (5 if bumps), 6]
+    const visibleSteps = [0, 1, 2, 3, ...(bonusCount > 0 ? [4] : []), ...(bumpCount > 0 ? [5] : []), 6];
+    return {
+      visibleStepCount: visibleSteps.length,
+      visibleStepIndex: Math.max(0, visibleSteps.indexOf(innerStepIndex)),
+    };
+  }, [innerStepIndex, bonusCount, bumpCount]);
 
   const avatarProblemChanged = useMemo(() => {
     if (!project) return false;
@@ -685,8 +708,12 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
       return saved ? { ok: true, finishedStructure: true } : { ok: false };
     }
 
-    setInnerStepIndex((current) => Math.min(INNER_STEPS.length - 1, current + 1));
+    setInnerStepIndex((current) => computeNextInnerStep(current, bonusCount, bumpCount));
     return { ok: true };
+  }
+
+  function handlePrevStep() {
+    setInnerStepIndex((current) => computePrevInnerStep(current, bonusCount, bumpCount));
   }
 
   const clearTopicAssistFeedback = useCallback(() => {
@@ -706,7 +733,6 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
 
   return {
     innerStepIndex,
-    setInnerStepIndex,
     stepTitle,
     stepSubtitle,
     topicDraft,
@@ -774,5 +800,8 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
     designSaving,
     designMessage,
     handleNextStep,
+    handlePrevStep,
+    visibleStepIndex,
+    visibleStepCount,
   };
 }

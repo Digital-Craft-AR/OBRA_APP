@@ -90,8 +90,8 @@ export function WizardStructurePage() {
 
       <StructureStepInnerProgress
         stepName={t(INNER_STEPS[flow.innerStepIndex] ?? "")}
-        currentStep={flow.innerStepIndex}
-        totalSteps={INNER_STEPS.length}
+        currentStep={flow.visibleStepIndex}
+        totalSteps={flow.visibleStepCount}
       />
 
       <main className="flex flex-1 min-h-0 flex-col overflow-y-auto">
@@ -316,8 +316,8 @@ export function WizardStructurePage() {
         <div className="mx-auto flex w-full items-center justify-between">
           <Button
             variant="tertiary"
-            disabled={flow.innerStepIndex === 0}
-            onClick={() => flow.setInnerStepIndex((current) => Math.max(0, current - 1))}
+            disabled={flow.visibleStepIndex === 0}
+            onClick={() => flow.handlePrevStep()}
             data-testid="wizard-structure-prev"
           >
             <ChevronLeft className="size-4" aria-hidden />
