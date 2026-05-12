@@ -118,10 +118,6 @@ function defaultMainRows(): TocChapterRow[] {
   ];
 }
 
-function defaultSingleRows(): TocChapterRow[] {
-  return [{ id: newRowId(), title: "" }];
-}
-
 function defaultBonusRows(): TocChapterRow[] {
   return [
     { id: newRowId(), title: "" },
