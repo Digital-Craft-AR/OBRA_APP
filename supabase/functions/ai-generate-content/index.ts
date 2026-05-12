@@ -62,7 +62,7 @@ async function resolveIndexJsonForGeneration(
 
   if (error || !rows?.length) return null;
 
-  const wordDefault = ebookType === "bonus" ? 900 : 1200;
+  const wordDefault = ebookType === "bonus" ? 500 : 1200;
   const chapters = rows
     .map((r) => {
       const sortOrder = Number(r.sort_order);
@@ -462,6 +462,8 @@ Deno.serve(async (req: Request) => {
       bonus_product_title: typeof ebook.title === "string" ? ebook.title.trim() : "",
       tone: contentTone,
       bonus_index: indexJsonString,
+      chapter_number: chapterNumber,
+      previous_chapters: previousChapters,
     });
   } else if (ebookType === "order_bump") {
     promptBundle = generateBumpChapterPrompt({

@@ -304,7 +304,7 @@ export function generateBonusTitlesPrompt(vars: GenerateBonusTitlesVars): { syst
 
 ${OBRA_SYSTEM_BASE}
 
-Role: propose exactly ${vars.count_to_generate} bonus titles that complement the main ebook as a coherent package. Each bonus is a short product (10–12 pages) that extends a specific dimension of the ebook's promise — a tool, a script, a planner, a checklist — from a different angle.
+Role: propose exactly ${vars.count_to_generate} bonus titles that complement the main ebook as a coherent package. Each bonus is a mini ebook (12–16 pages, 3 chapters) that extends a specific dimension of the ebook's promise — a tool, a script, a planner, a checklist — from a different angle.
 
 Respond strictly in ${vars.content_locale}. Output must be in ${vars.content_locale} regardless of input language.
 
@@ -670,8 +670,8 @@ export interface GenerateBonusSectionIndexVars {
 }
 
 /**
- * Single-section “TOC” for a bonus PDF (~10–12 pages): one primary body block title.
- * Output shape matches `extractChapterTitles(..., 1)` in ai-generate-index.
+ * 3-chapter TOC for a bonus mini ebook (~12–16 pages).
+ * Output shape: { narrative_arc, chapters: [ch1, ch2, ch3] }
  */
 export function generateBonusSectionIndexPrompt(vars: GenerateBonusSectionIndexVars): { system: string; user: string } {
   return {
@@ -679,11 +679,11 @@ export function generateBonusSectionIndexPrompt(vars: GenerateBonusSectionIndexV
 
 ${OBRA_SYSTEM_BASE}
 
-Role: propose exactly ONE primary section title for the body of a short bonus deliverable (roughly 10–12 pages). The bonus is a compact tool — checklist, planner, script, template, worksheet — that extends the main ebook’s promise from a different angle. The **bonus product title** is already chosen; your **section title** names the single main content block inside the bonus (the reader-facing heading for that block). It must NOT be a lazy copy of the product title — it should describe what the reader does or gets inside.
+Role: propose a complete 3-chapter index for a bonus mini ebook (12–16 pages). The bonus is a focused, standalone product that extends one specific dimension of the main ebook’s promise — a practical guide, workshop, template-based guide, or step-by-step tool. The **bonus product title** is already chosen; your job is to design 3 chapters that together deliver a coherent transformation for the reader.
 
 Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
 
-TONE GUIDE — apply to title, description, and key_concepts (preset key is English; output language is ${vars.content_locale}):
+TONE GUIDE — apply consistently (preset key is English; output language is ${vars.content_locale}):
 - professional: clear expert voice, structured, credible.
 - friendly: warm, direct, non-corporate — trusted peer (default Obra voice).
 - inspirational: motivating without hype or income promises.
@@ -691,15 +691,20 @@ TONE GUIDE — apply to title, description, and key_concepts (preset key is Engl
 - educational: didactic, stepwise, patient pacing.
 
 RULES (non-negotiable):
-1. Output must be a single JSON object with key "chapters" only — an array of exactly ONE object with number 1.
-2. That object must include: number (integer 1), title (string), description (string), key_concepts (array of 2–4 strings), word_count_target (integer, use 900).
-3. chapters[0].title: max 90 characters — specific, benefit-forward (this is the editable section heading in the content wizard).
-4. chapters[0].description: max 280 characters — what this block delivers.
-5. chapters[0].key_concepts: each string max 130 characters — concrete, specific bullets.
-6. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: tone is invalid | topic, main_ebook_title, or bonus_product_title is empty | avatar or problem JSON suggests an error field.
+1. Output must be a single JSON object with keys “narrative_arc” and “chapters” only.
+2. narrative_arc: one sentence describing the reader’s transformation from chapter 1 to chapter 3 — max 200 characters.
+3. “chapters” must be an array of exactly 3 objects, numbered 1 to 3.
+4. Each chapter object must include: number (integer), title (string), description (string), key_concepts (array of 2–4 strings), word_count_target (integer, use 500).
+5. chapters[n].title: max 90 characters — specific, benefit-forward.
+6. chapters[n].description: max 280 characters — what this chapter delivers.
+7. chapters[n].key_concepts: each string max 130 characters — concrete and distinct from other chapters.
+8. Chapter 1: opens the problem or validates the reader’s pain, sets up what the next chapters will deliver.
+9. Chapter 3: closes the transformation — actionable next steps. No external CTAs (no Telegram, Instagram, email lists, coaching).
+10. Every chapter must cover a DISTINCT angle — no repetition across chapters.
+11. Return {“error”:”INVALID_INPUT”,”reason”:”<brief in ${vars.content_locale}>”} if: tone is invalid | topic, main_ebook_title, or bonus_product_title is empty | avatar or problem JSON suggests an error field.
 
 Example (es, tone=friendly):
-{"chapters":[{"number":1,"title":"La hoja de costos en 6 líneas: de la materia prima al precio mínimo","description":"Una sola página para calcular el costo real de cada unidad sin omitir tiempo ni gastos fijos, alineada al método del ebook principal.","key_concepts":["Los seis renglones obligatorios del costo artesanal","Cómo convertir horas de taller en costo por unidad","El precio mínimo antes de hablar de margen"],"word_count_target":900}]}`,
+{“narrative_arc”:”De artesana que no sabe cuánto cobrar, a emprendedora que calcula su precio real y lo defiende con confianza.”,”chapters”:[{“number”:1,”title”:”Por qué tu precio actual probablemente no te alcanza”,”description”:”Abre el loop: muestra por qué el método intuitivo de fijar precios falla y qué pasa si no se corrige.”,”key_concepts”:[“El ciclo del precio bajo que no cubre costos”,”Los 3 errores más comunes al fijar el precio artesanal”,”Por qué compararse con la competencia es una trampa”],”word_count_target”:500},{“number”:2,”title”:”Calculá el costo real de cada producto en 6 pasos”,”description”:”Método paso a paso para calcular el costo completo de cada unidad: materiales, tiempo, costos fijos y ganancia mínima.”,”key_concepts”:[“Los 6 campos que no pueden faltar en el costo artesanal”,”Cómo convertir horas de taller en costo por unidad”,”El precio mínimo no negociable antes de hablar de margen”],”word_count_target”:500},{“number”:3,”title”:”Tu precio de venta y cómo defenderlo sin ceder”,”description”:”Cierra la transformación: cómo pasar del costo al precio final y responder objeciones con seguridad.”,”key_concepts”:[“Del costo al precio de venta: la fórmula completa”,”Las 3 respuestas para ‘está muy caro’”,”Tu plan de 30 días para revisar y comunicar el nuevo precio”],”word_count_target”:500}]}`,
 
     user: `Main ebook title: ${vars.main_ebook_title}
 Bonus product title: ${vars.bonus_product_title}
@@ -708,7 +713,7 @@ Tone: ${vars.tone}
 Avatar profile: ${vars.avatar}
 Problem: ${vars.problem}
 
-Generate exactly one section entry (chapters array length 1) for this bonus deliverable.`,
+Generate the 3-chapter index for this bonus mini ebook.`,
   };
 }
 
@@ -801,9 +806,9 @@ export interface GenerateAllBonusSectionIndexVars {
 }
 
 /**
- * Generates section TOC entries for ALL bonuses in a single Claude call so the
+ * Generates 3-chapter TOC entries for ALL bonuses in a single Claude call so the
  * model has full package context and avoids repeating titles across bonuses.
- * Output shape: { bonuses: [{ chapters: [BonusSectionChapter] }, ...] }
+ * Output shape: { bonuses: [{ narrative_arc, chapters: [ch1, ch2, ch3] }, ...] }
  * where bonuses[i] corresponds to bonus_titles[i].
  */
 export function generateAllBonusSectionIndexPrompt(
@@ -819,13 +824,13 @@ export function generateAllBonusSectionIndexPrompt(
 
 ${OBRA_SYSTEM_BASE}
 
-Role: for each bonus in the package, propose exactly ONE primary section title — the editable heading for the single content block inside that deliverable. Each bonus is a compact tool (checklist, planner, script, template, worksheet, ~10–12 pages) that extends the main ebook's promise from a different angle. The bonus product titles are already chosen; your section titles name the single main content block inside each bonus (the reader-facing heading). Section titles must NOT be lazy copies of the product titles — describe what the reader does or gets inside.
+Role: for each bonus in the package, propose a complete 3-chapter index (12–16 pages). Each bonus is a mini ebook — a focused standalone product that extends one specific dimension of the main ebook's promise. The bonus product titles are already chosen; your job is to design 3 chapters that together deliver a coherent transformation for the reader.
 
-This call generates all ${count} bonus section(s) at once so the model has full package context and can guarantee NO TWO section titles repeat or overlap across bonuses.
+This call generates all ${count} bonus(es) at once so the model has full package context and can guarantee NO TWO chapters repeat or overlap across the entire package.
 
 Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
 
-TONE GUIDE — apply to title, description, and key_concepts (preset key is English; output language is ${vars.content_locale}):
+TONE GUIDE — apply to titles, descriptions, and key_concepts (preset key is English; output language is ${vars.content_locale}):
 - professional: clear expert voice, structured, credible.
 - friendly: warm, direct, non-corporate — trusted peer (default Obra voice).
 - inspirational: motivating without hype or income promises.
@@ -834,17 +839,20 @@ TONE GUIDE — apply to title, description, and key_concepts (preset key is Engl
 
 RULES (non-negotiable):
 1. Output must be a single JSON object with a single key "bonuses" — an array of exactly ${count} object(s), one per bonus, in the same order as the input list.
-2. Each object in "bonuses" must have exactly one key: "chapters" — an array of exactly ONE chapter object.
-3. Each chapter object must include: number (integer 1), title (string), description (string), key_concepts (array of 2–4 strings), word_count_target (integer, always 900).
-4. chapters[0].title: max 90 characters — specific and benefit-forward. NEVER copy or paraphrase the bonus_product_title. Name what the reader does or gets inside the deliverable.
-5. chapters[0].description: max 280 characters — what this block delivers or what the reader does inside it.
-6. chapters[0].key_concepts: 2–4 strings, max 130 characters each — concrete elements covered. Specific over generic.
-7. UNIQUENESS (non-negotiable): Every section title across all ${count} bonus(es) must be meaningfully different — no shared phrasing, no overlapping topics. If two bonuses address different tools for the same theme, the section titles must be clearly distinct in angle and wording. Verify uniqueness before returning.
-8. Each section must complement the main ebook and extend or apply one piece of its method without repeating it.
-9. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: tone is invalid | topic or main_ebook_title is empty | any bonus_product_title is empty | avatar or problem JSON contains an error field.
+2. Each object in "bonuses" must have exactly two keys: "narrative_arc" (string) and "chapters" (array of exactly 3 chapter objects, numbered 1–3).
+3. narrative_arc: one sentence describing the reader's transformation from chapter 1 to chapter 3 — max 200 characters, in ${vars.content_locale}.
+4. Each chapter object must include: number (integer), title (string), description (string), key_concepts (array of 2–4 strings), word_count_target (integer, always 500).
+5. chapters[n].title: max 90 characters — specific and benefit-forward. NEVER copy or paraphrase the bonus_product_title.
+6. chapters[n].description: max 280 characters — what this chapter delivers.
+7. chapters[n].key_concepts: 2–4 strings, max 130 characters each — concrete, specific, and distinct from other chapters.
+8. Chapter 1: opens the problem or validates the reader's pain; sets up what the next chapters deliver.
+9. Chapter 3: closes the transformation with concrete next steps. NEVER include external CTAs (no Telegram, Instagram, email lists, coaching).
+10. UNIQUENESS (non-negotiable): No two chapter titles across ALL ${count} bonus(es) may share phrasing or overlapping topic angles. Verify uniqueness across the full output before returning.
+11. Each bonus must complement the main ebook without repeating content already in it.
+12. Return {"error":"INVALID_INPUT","reason":"<brief in ${vars.content_locale}>"} if: tone is invalid | topic or main_ebook_title is empty | any bonus_product_title is empty | avatar or problem JSON contains an error field.
 
 Example output (2 bonuses, es, tone=friendly):
-{"bonuses":[{"chapters":[{"number":1,"title":"Tu costo real en una planilla: completá los 6 campos y conocé tu precio mínimo","description":"Una planilla de una página para calcular el costo real de cada vela sin adivinar: materiales, tiempo, costos fijos y ganancia mínima incluidos.","key_concepts":["Los 6 campos que no pueden faltar en el costo de una vela","Cómo cargar tu tiempo de producción sin subestimarlo","El número que resulta: tu precio mínimo no negociable"],"word_count_target":900}]},{"chapters":[{"number":1,"title":"Las 12 objeciones de precio más comunes y cómo responder cada una sin ceder","description":"Scripts listos para usar ante las objeciones más frecuentes: precio alto, comparación con competidores, pedidos de descuento.","key_concepts":["Las 4 categorías de objeción de precio y su lógica","La estructura del script: reconocer, reencuadrar, cerrar","Cuándo negociar tiene sentido y cuándo no"],"word_count_target":900}]}]}`,
+{"bonuses":[{"narrative_arc":"De artesana que no sabe cuánto cobrar, a emprendedora que calcula su precio real y lo defiende con confianza.","chapters":[{"number":1,"title":"Por qué tu precio actual probablemente no te alcanza","description":"Abre el loop: muestra por qué el método intuitivo de fijar precios falla y qué pasa si no se corrige.","key_concepts":["El ciclo del precio bajo que no cubre costos","Los 3 errores más comunes al fijar el precio artesanal","Por qué compararse con la competencia es una trampa"],"word_count_target":500},{"number":2,"title":"Calculá el costo real de cada vela en 6 pasos","description":"Método paso a paso para calcular el costo completo de cada unidad: materiales, tiempo, costos fijos y ganancia mínima.","key_concepts":["Los 6 campos del costo artesanal completo","Cómo convertir horas de taller en costo por unidad","El precio mínimo no negociable antes de hablar de margen"],"word_count_target":500},{"number":3,"title":"Tu precio de venta y cómo defenderlo sin ceder","description":"Cierra la transformación: cómo pasar del costo al precio final y responder objeciones con seguridad.","key_concepts":["Del costo al precio de venta: la fórmula completa","Las 3 respuestas para 'está muy caro'","Tu plan de 30 días para comunicar el nuevo precio"],"word_count_target":500}]},{"narrative_arc":"De artesana que no sabe cómo responder cuando le dicen 'está caro', a vendedora que defiende su precio con frases listas y sin perder clientes.","chapters":[{"number":1,"title":"Por qué bajar el precio no es la solución — y qué sí funciona","description":"Valida la frustración y abre la pregunta: si el precio no es el problema, ¿qué es?","key_concepts":["La trampa de la competencia de precios en artesanías","Por qué ceder en precio destruye el negocio a largo plazo","Las dos razones reales por las que te dicen 'está caro'"],"word_count_target":500},{"number":2,"title":"Las 8 objeciones de precio más comunes y cómo responderlas","description":"Scripts listos para las objeciones más frecuentes: precio alto, comparación con importados, pedidos de descuento.","key_concepts":["Las 4 categorías de objeción y su lógica","La estructura del script: reconocer, reencuadrar, cerrar","Cuándo una objeción es una señal de compra disfrazada"],"word_count_target":500},{"number":3,"title":"Tu banco de frases: armá tu guión propio en 20 minutos","description":"Cierra con un ejercicio práctico para personalizar los scripts y practicarlos antes de la próxima venta.","key_concepts":["Cómo adaptar los scripts a tu producto y estilo","El ejercicio de los 20 minutos para internalizar las frases","Tu checklist antes de la próxima conversación de venta"],"word_count_target":500}]}]}`,
 
     user: `Main ebook title: ${vars.main_ebook_title}
 Topic: ${vars.topic}
@@ -852,10 +860,10 @@ Tone: ${vars.tone}
 Avatar profile: ${vars.avatar}
 Problem: ${vars.problem}
 
-Bonus titles (generate one section entry per bonus, in the same order — bonuses[0] for title 1, bonuses[1] for title 2, etc.):
+Bonus titles (generate one 3-chapter index per bonus, in the same order — bonuses[0] for title 1, bonuses[1] for title 2, etc.):
 ${bonusList}
 
-Generate exactly ${count} section entr${count === 1 ? "y" : "ies"} — one per bonus. Return the complete JSON object with the "bonuses" array.`,
+Generate exactly ${count} bonus entr${count === 1 ? "y" : "ies"} — one per bonus. Each must have narrative_arc and exactly 3 chapters. Return the complete JSON object with the "bonuses" array.`,
   };
 }
 
@@ -874,22 +882,29 @@ export interface GenerateBonusChapterVars {
   bonus_product_title: string;
   tone: ContentTone;
   /**
-   * Full output of generateBonusSectionIndexPrompt, serialized as JSON string.
-   * Must include chapters[0].{title, description, key_concepts, word_count_target}.
+   * Full output of generateAllBonusSectionIndexPrompt for this bonus, serialized as JSON string.
+   * Must include narrative_arc and chapters[0..2].{title, description, key_concepts, word_count_target}.
    */
   bonus_index: string;
+  /** Chapter number to generate (1–3). */
+  chapter_number: number;
+  /**
+   * Already-generated chapters of this bonus in order. Pass [] for chapter 1.
+   * Does NOT include chapters from the main ebook.
+   */
+  previous_chapters: PreviousChapter[];
   /** Optional author name; omitted from prompt when null/undefined. */
   author?: string | null;
 }
 
 /**
- * Builds system + user prompts for generating the single chapter body of a bonus deliverable.
- * Returns null if bonus_index cannot be parsed or chapter 1 is not found.
+ * Builds system + user prompts for generating one chapter body of a bonus mini ebook (3 chapters).
+ * Returns null if bonus_index cannot be parsed or chapter_number is not found.
  */
 export function generateBonusChapterPrompt(
   vars: GenerateBonusChapterVars,
 ): { system: string; user: string } | null {
-  const chapter = parseChapterFromIndex(vars.bonus_index, 1);
+  const chapter = parseChapterFromIndex(vars.bonus_index, vars.chapter_number);
   if (!chapter) return null;
 
   const authorLine =
@@ -897,12 +912,16 @@ export function generateBonusChapterPrompt(
       ? `Author: ${vars.author.trim()}\n`
       : "";
 
+  const previousChaptersJson = JSON.stringify(
+    vars.previous_chapters.map((c) => ({ number: c.number, title: c.title, content: c.content })),
+  );
+
   return {
     system: `${CRITICAL_JSON_OBJECT}
 
 ${OBRA_SYSTEM_BASE}
 
-Role: generate the full HTML body of a bonus deliverable — a compact, practical tool (checklist, template, script, planner, or quick guide) that extends one specific aspect of the main ebook's method. This is NOT a chapter of the ebook; it is a standalone, immediately usable artifact of roughly 900 words.
+Role: generate the full HTML body of chapter ${vars.chapter_number} of 3 for a bonus mini ebook — a standalone focused product that extends one specific aspect of the main ebook's method. Each chapter is ~500 words. The reader does NOT need to have read the main ebook to use this bonus.
 
 Respond strictly in ${vars.content_locale}. Output must be fully in ${vars.content_locale} regardless of input language.
 
@@ -915,34 +934,30 @@ TONE GUIDE — apply consistently:
 
 HTML OUTPUT RULES:
 1. Allowed tags only: <p>, <br>, <strong>, <b>, <em>, <i>, <u>, <ul>, <ol>, <li>, <h2>, <h3>, <blockquote>, <a>, <code>
-2. Do NOT include <h1> — the bonus title is rendered by the UI separately
+2. Do NOT include <h1> — the chapter title is rendered by the UI separately
 3. Do NOT add style attributes to any element
 4. All opened tags must be properly closed. Well-formed HTML only.
 5. Use <code> for fillable fields in templates: <code>[field name]</code>
 6. Use <blockquote> for ready-to-use script text or highlighted examples
-7. Infer the deliverable format from the bonus_product_title and key_concepts:
-   - Checklist / list of actions → <ol> or <ul> with action items
-   - Template / planner / worksheet → structured fields with <code>[field]</code>
-   - Script / swipe copy → <blockquote> blocks with context headings <h3>
-   - Step-by-step guide → <ol> for steps, <h2> for sections
-   Start the content with a brief orientation paragraph (1–2 sentences) explaining how to use the deliverable, then deliver the tool itself.
+7. Start the content directly with the chapter body — no title repetition
 
 CONTENT RULES (non-negotiable):
-1. Cover every key_concept listed in the bonus index entry. Each must appear with substance — not just mentioned.
-2. The deliverable must be immediately usable by the avatar — not a summary of the ebook, not theory. The reader should be able to apply it without re-reading the ebook.
-3. Do NOT repeat or summarize content already in the main ebook. Extend or apply one specific piece of the method.
-4. Do NOT mention order bumps or any other product in the package. This deliverable is self-contained.
+1. Cover every key_concept listed in the chapter's index entry. Each must appear with substance — not just mentioned.
+2. Use practical, concrete examples relevant to the avatar and the bonus topic. The reader should be able to apply the content without re-reading the main ebook.
+3. Do NOT repeat ground already covered in previous chapters of this bonus. Build forward.
+4. Do NOT mention the main ebook, order bumps, or any other product in the package. This bonus is standalone.
 5. Do NOT invent: no invented quotes, no specific statistics with numbers, no fabricated study citations.
-6. Do NOT include external CTAs: no mention of Telegram, Instagram, email lists, coaching programs, or any other channel.
-7. Word count: reach at least the word_count_target. Do not fall short. If you have covered all key concepts and are below target, add a practical example, an edge case, or a "common mistakes" section.
-8. The deliverable ends naturally — no "next steps" that reference external resources or other products.
-9. Token budget: aim to complete the deliverable in under 2500 output tokens. Write concisely — dense, useful prose over padding. The hard limit is 8192 tokens; never truncate the content to fit.
+6. Chapter 1 specifically: open by validating the reader's pain or situation in the context of THIS bonus's topic. Open a loop the next chapters will close.
+7. Last chapter (3): consolidate the transformation. Project forward with concrete next steps. NEVER include external CTAs: no mention of Telegram, Instagram, email lists, coaching programs, or any other channel.
+8. Middle chapters: deliver ONE concrete, actionable piece of the transformation. Practical first, theoretical second.
+9. Word count: reach at least the word_count_target. Do not fall short. If you have covered all key concepts and are below target, add a practical example, an edge case, or a "common mistakes" section.
+10. Token budget: aim to complete the chapter in under 2000 output tokens. Write concisely — dense, useful prose over padding. The hard limit is 8192 tokens; never truncate the content to fit.
 
 If input is missing required fields or contains error fields, return:
 {"error": "INVALID_INPUT", "message": "<brief reason in ${vars.content_locale}>"}
 
 On success, return exactly:
-{"content": "<full sanitized HTML body of the bonus deliverable>"}`,
+{"content": "<full sanitized HTML body of the chapter>"}`,
 
     user: `Topic: ${vars.topic}
 Main ebook title: ${vars.main_ebook_title}
@@ -956,22 +971,24 @@ ${vars.avatar}
 Problem resolved:
 ${vars.problem}
 
-Bonus index (section title + key concepts to cover):
+Full bonus index (narrative arc + 3 chapters):
 ${vars.bonus_index}
+
+Previously generated chapters of this bonus:
+${previousChaptersJson}
 
 ---
 
-Generate the full HTML body of this bonus deliverable.
+Generate chapter ${vars.chapter_number} of 3.
 
-Section to generate (from index):
+Chapter to generate (from index):
 - Title: ${chapter.title}
 - Description: ${chapter.description}
 - Key concepts (must all be covered):
 ${formatKeyConceptsForPrompt(chapter.key_concepts)}
 - Word count target: ${chapter.word_count_target}
 
-Infer the format (checklist, template, script, guide) from the bonus_product_title and key_concepts.
-Do not include the bonus title as <h1>. Start with a brief orientation paragraph, then deliver the tool.
+Write the full HTML body of this chapter. Do not include the chapter title as <h1>. Start directly with the chapter body.
 Return the HTML inside the "content" key of the JSON object.`,
   };
 }

@@ -26,8 +26,11 @@ type BonusSectionChapter = {
 };
 
 type BonusSection = {
+  narrative_arc: string;
   chapters: BonusSectionChapter[];
 };
+
+const BONUS_CHAPTER_COUNT = 3;
 
 function parseBonusSections(
   parsed: Record<string, unknown>,
@@ -41,18 +44,28 @@ function parseBonusSections(
     if (typeof bonus !== "object" || bonus === null) return null;
     const b = bonus as Record<string, unknown>;
     const chapters = b.chapters;
-    if (!Array.isArray(chapters) || chapters.length !== 1) return null;
-    const ch = chapters[0] as Record<string, unknown> | undefined;
-    if (!ch) return null;
-    const title = typeof ch.title === "string" ? ch.title.trim() : "";
-    const description = typeof ch.description === "string" ? ch.description.trim() : "";
-    const key_concepts = Array.isArray(ch.key_concepts)
-      ? (ch.key_concepts as unknown[]).filter((k) => typeof k === "string") as string[]
-      : [];
-    if (!title) return null;
-    result.push({
-      chapters: [{ number: 1, title, description, key_concepts, word_count_target: 900 }],
-    });
+    if (!Array.isArray(chapters) || chapters.length !== BONUS_CHAPTER_COUNT) return null;
+
+    const narrative_arc =
+      typeof b.narrative_arc === "string" ? b.narrative_arc.trim() : "";
+
+    const parsedChapters: BonusSectionChapter[] = [];
+    for (let idx = 0; idx < chapters.length; idx++) {
+      const ch = chapters[idx] as Record<string, unknown> | undefined;
+      if (!ch) return null;
+      const title = typeof ch.title === "string" ? ch.title.trim() : "";
+      const description = typeof ch.description === "string" ? ch.description.trim() : "";
+      const key_concepts = Array.isArray(ch.key_concepts)
+        ? (ch.key_concepts as unknown[]).filter((k) => typeof k === "string") as string[]
+        : [];
+      const word_count_target =
+        typeof ch.word_count_target === "number" && ch.word_count_target > 0
+          ? ch.word_count_target
+          : 500;
+      if (!title) return null;
+      parsedChapters.push({ number: idx + 1, title, description, key_concepts, word_count_target });
+    }
+    result.push({ narrative_arc, chapters: parsedChapters });
   }
   return result;
 }
@@ -244,8 +257,8 @@ Deno.serve(async (req: Request) => {
     tone,
   });
 
-  // ~512 tokens per bonus section + overhead buffer.
-  const maxTokens = 512 * bonusRows.length + 512;
+  // ~700 tokens per chapter × 3 chapters per bonus + overhead buffer.
+  const maxTokens = BONUS_CHAPTER_COUNT * 700 * bonusRows.length + 1024;
 
   const ai = await callClaudeJsonText({
     system: promptBundle.system,
@@ -311,7 +324,7 @@ Deno.serve(async (req: Request) => {
   for (let i = 0; i < bonusRows.length; i++) {
     const row = bonusRows[i]!;
     const section = sections[i]!;
-    const indexJson = { chapters: section.chapters };
+    const indexJson = { narrative_arc: section.narrative_arc, chapters: section.chapters };
 
     const { error: saveErr } = await admin
       .from("ebooks")
