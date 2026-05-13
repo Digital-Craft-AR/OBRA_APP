@@ -149,7 +149,61 @@ test("topic step requires non-empty text before saving", async ({ page }) => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Previous button navigates back to prior inner step
+// 3. Bonus title step: checkbox UX (issue #262)
+// ---------------------------------------------------------------------------
+test("bonus title checkboxes start unchecked; 'Regenerate remaining' disables when all confirmed", async ({ page }) => {
+  let createdProjectId: string | undefined;
+
+  try {
+    createdProjectId = await createProjectAndEnterWizard(page);
+
+    // Step 0: fill topic
+    await page.getByTestId("wizard-topic").fill("Cómo crear velas aromáticas artesanales y venderlas online");
+    await nextStep(page, 1);
+
+    // Step 1: avatar + problem
+    await page.getByTestId("wizard-avatar").fill("Mujeres emprendedoras que quieren generar ingresos desde casa");
+    await page.getByTestId("wizard-problem").fill("No saben cómo empezar ni cómo vender online");
+    await nextStep(page, 2);
+
+    // Step 2: set bonus count to 1
+    await expect(page.getByTestId("wizard-package-step")).toBeVisible();
+    await page.getByTestId("package-bonus-plus").click();
+    await expect(page.getByTestId("package-bonus-count")).toHaveText("1");
+    await nextStep(page, 3);
+
+    // Step 3: main title — wait for input to be enabled (ai-optimize intercepted)
+    await expect(page.getByTestId("wizard-main-title")).toBeEnabled();
+    await page.getByTestId("wizard-main-title").fill("Velas artesanales: guía completa para emprendedoras");
+    await nextStep(page, 4);
+
+    // Step 4: bonus titles — auto-generation fires (ai-optimize intercepted globally)
+    // Wait for the title input to be populated by the intercepted response
+    await expect(page.getByTestId("bonus-title-input-0")).toBeEnabled({ timeout: 10_000 });
+
+    // Checkbox starts unchecked
+    await expect(page.getByTestId("bonus-title-checkbox-0")).not.toBeChecked();
+
+    // "Regenerate remaining" is enabled when checkbox is unchecked
+    await expect(page.getByTestId("bonus-regen-all-btn")).toBeEnabled();
+
+    // Check the checkbox — row is confirmed
+    await page.getByTestId("bonus-title-checkbox-0").check();
+    await expect(page.getByTestId("bonus-title-checkbox-0")).toBeChecked();
+
+    // "Regenerate remaining" is disabled when all bonuses are confirmed
+    await expect(page.getByTestId("bonus-regen-all-btn")).toBeDisabled();
+
+    // Uncheck — button re-enables
+    await page.getByTestId("bonus-title-checkbox-0").uncheck();
+    await expect(page.getByTestId("bonus-regen-all-btn")).toBeEnabled();
+  } finally {
+    if (createdProjectId) await deleteProjectById(createdProjectId);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 5. Previous button navigates back to prior inner step
 // ---------------------------------------------------------------------------
 test("previous button returns to prior inner step", async ({ page }) => {
   let createdProjectId: string | undefined;

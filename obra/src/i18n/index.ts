@@ -462,13 +462,15 @@ const resources = {
         "No pudimos generar sugerencias ahora. Podés continuar con título personalizado.",
       "wizard.structure.step5.title": "Títulos de bonuses",
       "wizard.structure.step5.subtitle":
-        "Editá los títulos sugeridos y marcá los que no querés regenerar automáticamente.",
+        "Marcá los que querés conservar; el resto se puede regenerar.",
       "wizard.structure.step5.bonusSection": "Títulos de bonuses",
       "wizard.structure.step5.bumpSection": "Títulos de order bumps",
-      "wizard.structure.step5.regenerateAll": "Regenerar todos",
+      "wizard.structure.step5.regenerateAll": "Regenerar los restantes",
+      "wizard.structure.step5.confirmBonusAriaLabel": "Confirmar bonus",
+      "wizard.structure.step5.confirmBumpAriaLabel": "Confirmar order bump",
       "wizard.structure.step6.title": "Títulos de order bumps",
       "wizard.structure.step6.subtitle":
-        "Editá los títulos sugeridos y marcá los que no querés regenerar automáticamente.",
+        "Marcá los que querés conservar; el resto se puede regenerar.",
       "wizard.structure.step6.bumpSection": "Títulos de order bumps",
       "wizard.structure.step7.title": "Diseño base del proyecto",
       "wizard.structure.step7.subtitle":

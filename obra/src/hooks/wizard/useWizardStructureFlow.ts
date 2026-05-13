@@ -532,7 +532,12 @@ export function useWizardStructureFlow({ project, setProject, t, language }: Flo
 
   async function regenerateItem(kind: "bonus" | "bump", index: number) {
     const items = kind === "bonus" ? bonusItems : bumpItems;
-    if (!items[index] || items[index].locked || !project?.id) return;
+    if (!items[index] || !project?.id) return;
+    // Uncheck the row if it was confirmed — clicking ↺ is an explicit intent to get a new suggestion
+    if (items[index].locked) {
+      const setter = kind === "bonus" ? setBonusItems : setBumpItems;
+      setter((current) => current.map((item, i) => (i === index ? { ...item, locked: false } : item)));
+    }
     const key = `${kind}-${index}`;
     setItemRegeneratingKey(key);
     setItemsMessage(null);
