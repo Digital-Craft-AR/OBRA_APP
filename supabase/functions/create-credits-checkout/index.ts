@@ -98,9 +98,24 @@ Deno.serve(async (req: Request) => {
     return json({ error: "subscription_required" }, 403);
   }
 
+  let bodyCredits: number | undefined;
+  let bodyUnitPrice: number | undefined;
+  try {
+    const body = await req.json();
+    if (typeof body?.amount === "number" && Number.isFinite(body.amount) && body.amount > 0) {
+      bodyUnitPrice = body.amount;
+    }
+    if (typeof body?.credits === "number" && Number.isInteger(body.credits) && body.credits > 0 && body.credits <= 1_000_000) {
+      bodyCredits = body.credits;
+    }
+  } catch { /* body is optional */ }
+
+  const packCredits = bodyCredits ?? pack.packCredits;
+  const unitPrice = bodyUnitPrice ?? pack.unitPrice;
+
   const notificationUrl = billing.webhookUrlForSupabaseProject(supabaseUrl);
   const backUrl = `${appUrl}/checkout/return`;
-  const externalReference = buildCreditTopUpExternalReference(userId, pack.packCredits);
+  const externalReference = buildCreditTopUpExternalReference(userId, packCredits);
   /** Lets the SPA route credit top-up returns to Settings → Credits (not subscription activating). */
   const creditReturnSuccess = `${backUrl}?status=success&checkout_kind=credits`;
 
@@ -118,12 +133,12 @@ Deno.serve(async (req: Request) => {
     metadata: {
       obra_kind: "credits_topup",
       obra_user_id: userId,
-      obra_credits: String(pack.packCredits),
+      obra_credits: String(packCredits),
     },
     lineItem: {
       title: pack.itemTitle,
       quantity: 1,
-      unitPrice: pack.unitPrice,
+      unitPrice,
       currencyId: pack.currencyId,
     },
   });
