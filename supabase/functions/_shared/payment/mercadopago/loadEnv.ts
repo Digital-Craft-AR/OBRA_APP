@@ -4,6 +4,12 @@ export function loadMercadoPagoAccessToken(): string | undefined {
   return Deno.env.get("MERCADOPAGO_ACCESS_TOKEN")?.trim() || undefined;
 }
 
+/** When set, overrides the real user email sent to MP as payer_email.
+ * Useful in dev/local to avoid sending real emails to the MP sandbox. */
+export function loadPayerEmailOverride(): string | undefined {
+  return Deno.env.get("MERCADOPAGO_PAYER_EMAIL_OVERRIDE")?.trim() || undefined;
+}
+
 export function loadMercadoPagoWebhookSecret(): string | undefined {
   return Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET")?.trim() || undefined;
 }

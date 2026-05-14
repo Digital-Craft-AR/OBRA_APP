@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { billingNeedsMercadoPagoAccessToken } from "../_shared/payment/billingEnv.ts";
 import { getBillingAdapter } from "../_shared/payment/factory.ts";
-import { loadMercadoPagoAccessToken, loadRecurringPlanFromEnv } from "../_shared/payment/mercadopago/loadEnv.ts";
+import { loadMercadoPagoAccessToken, loadPayerEmailOverride, loadRecurringPlanFromEnv } from "../_shared/payment/mercadopago/loadEnv.ts";
 import type { RecurringPlanParams } from "../_shared/payment/types.ts";
 
 const corsHeaders: Record<string, string> = {
@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
 
   const result = await billing.createSubscriptionCheckout(accessToken ?? "", {
     creatorUserId: userId,
-    payerEmail: userEmail,
+    payerEmail: loadPayerEmailOverride() ?? userEmail,
     notificationUrl,
     returnUrl: backUrl,
     plan,
