@@ -33,6 +33,13 @@ type SubscriptionCheckoutFnBody = {
   detail?: string;
 };
 
+const TOP_UP_PRESETS = [
+  { credits: 50,  unitPriceArs: 3000  },
+  { credits: 150, unitPriceArs: 8000  },
+  { credits: 350, unitPriceArs: 17000 },
+] as const;
+type TopUpPreset = (typeof TOP_UP_PRESETS)[number];
+
 async function readCreditsCheckoutErrorBody(error: unknown): Promise<CreditsCheckoutFnBody | null> {
   if (error instanceof FunctionsHttpError) {
     try {
@@ -67,6 +74,8 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
   const [topUpReturnNotice, setTopUpReturnNotice] = useState<TopUpReturnNotice>(null);
   const topupPollCancelRef = useRef(false);
   const [showGracePeriodModal, setShowGracePeriodModal] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
   const [reactivateBusy, setReactivateBusy] = useState(false);
 
   const loadLedger = useCallback(
@@ -171,7 +180,12 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
     window.location.assign(data.redirect_url);
   }
 
-  async function onTopUp() {
+  function openTopUpModal() {
+    setSelectedPresetIdx(0);
+    setShowTopUpModal(true);
+  }
+
+  async function onConfirmTopUp(preset: TopUpPreset) {
     setTopUpBusy(true);
     if (!session?.access_token) {
       setTopUpBusy(false);
@@ -180,7 +194,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
     }
 
     const { data, error } = await supabase.functions.invoke<CreditsCheckoutFnBody>("create-credits-checkout", {
-      body: {},
+      body: { amount: preset.unitPriceArs, credits: preset.credits },
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
@@ -230,6 +244,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
     }
 
     if (data?.redirect_url) {
+      setShowTopUpModal(false);
       window.location.assign(data.redirect_url);
       return;
     }
@@ -289,7 +304,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
               variant="primary"
               disabled={!topUpEnabled || topUpBusy}
               className="shrink-0"
-              onClick={() => inGracePeriod ? setShowGracePeriodModal(true) : void onTopUp()}
+              onClick={() => inGracePeriod ? setShowGracePeriodModal(true) : openTopUpModal()}
             >
               {topUpBusy ? t("common.loading") : t("settings.credits.topUp")}
             </Button>
@@ -368,6 +383,67 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
         )}
       </div>
 
+      <Modal
+        open={showTopUpModal}
+        onClose={() => setShowTopUpModal(false)}
+        data-testid="top-up-preset-modal"
+      >
+        <ModalHead>
+          <ModalTitle>{t("settings.credits.topUpModal.title")}</ModalTitle>
+        </ModalHead>
+        <ModalContent>
+          <p className="mb-4 text-sm text-obra-neutral-600">
+            {t("settings.credits.topUpModal.balance", { count: creditsBalance })}
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {TOP_UP_PRESETS.map((preset, idx) => (
+              <button
+                key={preset.credits}
+                type="button"
+                aria-pressed={selectedPresetIdx === idx}
+                data-testid={`top-up-preset-card-${idx}`}
+                onClick={() => setSelectedPresetIdx(idx)}
+                className={`flex flex-col items-center gap-1 rounded-card border-2 p-4 text-center transition-colors ${
+                  selectedPresetIdx === idx
+                    ? "border-obra-blue-900 bg-obra-blue-50"
+                    : "border-obra-blue-100 bg-white hover:border-obra-blue-300"
+                }`}
+              >
+                <span className="font-display text-2xl font-semibold text-obra-blue-950">
+                  {preset.credits.toLocaleString()}
+                </span>
+                <span className="text-xs text-obra-neutral-600">{t("settings.credits.units")}</span>
+                <span className="mt-1 text-xs text-obra-neutral-600">
+                  {t("settings.credits.topUpModal.arsPrice", {
+                    amount: preset.unitPriceArs.toLocaleString(localeTag),
+                  })}
+                </span>
+              </button>
+            ))}
+          </div>
+        </ModalContent>
+        <ModalFooter className="justify-end">
+          <Button
+            type="button"
+            variant="tertiary"
+            disabled={topUpBusy}
+            data-testid="top-up-preset-cancel-btn"
+            onClick={() => setShowTopUpModal(false)}
+          >
+            {t("settings.credits.topUpModal.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="cta"
+            disabled={topUpBusy}
+            data-testid="top-up-preset-confirm-btn"
+            onClick={() => void onConfirmTopUp(TOP_UP_PRESETS[selectedPresetIdx])}
+          >
+            {topUpBusy ? t("common.loading") : t("settings.credits.topUpModal.confirm")}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
       {inGracePeriod && subscriptionAccessUntil ? (
         <Modal
           open={showGracePeriodModal}
@@ -393,7 +469,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
               disabled={reactivateBusy || topUpBusy}
               onClick={() => {
                 setShowGracePeriodModal(false);
-                void onTopUp();
+                openTopUpModal();
               }}
             >
               {t("settings.credits.gracePeriodModal.continue")}

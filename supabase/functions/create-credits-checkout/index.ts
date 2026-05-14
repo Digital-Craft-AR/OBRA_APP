@@ -1,5 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+
+/** Must mirror TOP_UP_PRESETS in SettingsCreditsPanel.tsx. */
+const ALLOWED_PRESETS: Array<{ credits: number; unitPrice: number }> = [
+  { credits: 50,  unitPrice: 3000  },
+  { credits: 150, unitPrice: 8000  },
+  { credits: 350, unitPrice: 17000 },
+];
 import {
   buildCreditTopUpExternalReference,
   parseCreditTopUpExternalReference,
@@ -99,9 +106,32 @@ Deno.serve(async (req: Request) => {
     return json({ error: "subscription_required" }, 403);
   }
 
+  let bodyCredits: number | undefined;
+  let bodyUnitPrice: number | undefined;
+  try {
+    const body = await req.json();
+    const rawAmount = body?.amount;
+    const rawCredits = body?.credits;
+    if (rawAmount !== undefined || rawCredits !== undefined) {
+      const matched = ALLOWED_PRESETS.find(
+        (p) =>
+          p.credits === rawCredits &&
+          p.unitPrice === rawAmount,
+      );
+      if (!matched) {
+        return json({ error: "invalid_preset" }, 400);
+      }
+      bodyUnitPrice = matched.unitPrice;
+      bodyCredits = matched.credits;
+    }
+  } catch { /* body is optional */ }
+
+  const packCredits = bodyCredits ?? pack.packCredits;
+  const unitPrice = bodyUnitPrice ?? pack.unitPrice;
+
   const notificationUrl = billing.webhookUrlForSupabaseProject(supabaseUrl);
   const backUrl = `${appUrl}/checkout/return`;
-  const externalReference = buildCreditTopUpExternalReference(userId, pack.packCredits);
+  const externalReference = buildCreditTopUpExternalReference(userId, packCredits);
   /** Lets the SPA route credit top-up returns to Settings → Credits (not subscription activating). */
   const creditReturnSuccess = `${backUrl}?status=success&checkout_kind=credits`;
 
@@ -119,12 +149,12 @@ Deno.serve(async (req: Request) => {
     metadata: {
       obra_kind: "credits_topup",
       obra_user_id: userId,
-      obra_credits: String(pack.packCredits),
+      obra_credits: String(packCredits),
     },
     lineItem: {
       title: pack.itemTitle,
       quantity: 1,
-      unitPrice: pack.unitPrice,
+      unitPrice,
       currencyId: pack.currencyId,
     },
   });
