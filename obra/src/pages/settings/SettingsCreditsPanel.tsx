@@ -186,7 +186,6 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
   }
 
   async function onConfirmTopUp(preset: TopUpPreset) {
-    setShowTopUpModal(false);
     setTopUpBusy(true);
     if (!session?.access_token) {
       setTopUpBusy(false);
@@ -245,6 +244,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
     }
 
     if (data?.redirect_url) {
+      setShowTopUpModal(false);
       window.location.assign(data.redirect_url);
       return;
     }
@@ -398,8 +398,9 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
           <div className="grid grid-cols-3 gap-3">
             {TOP_UP_PRESETS.map((preset, idx) => (
               <button
-                key={idx}
+                key={preset.credits}
                 type="button"
+                aria-pressed={selectedPresetIdx === idx}
                 data-testid={`top-up-preset-card-${idx}`}
                 onClick={() => setSelectedPresetIdx(idx)}
                 className={`flex flex-col items-center gap-1 rounded-card border-2 p-4 text-center transition-colors ${
@@ -414,7 +415,7 @@ export function SettingsCreditsPanel({ creditsBalance, subscriptionStatus, subsc
                 <span className="text-xs text-obra-neutral-600">{t("settings.credits.units")}</span>
                 <span className="mt-1 text-xs text-obra-neutral-600">
                   {t("settings.credits.topUpModal.arsPrice", {
-                    amount: preset.unitPriceArs.toLocaleString("es-AR"),
+                    amount: preset.unitPriceArs.toLocaleString(localeTag),
                   })}
                 </span>
               </button>

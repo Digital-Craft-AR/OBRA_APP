@@ -1,5 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+
+/** Must mirror TOP_UP_PRESETS in SettingsCreditsPanel.tsx. */
+const ALLOWED_PRESETS: Array<{ credits: number; unitPrice: number }> = [
+  { credits: 50,  unitPrice: 3000  },
+  { credits: 150, unitPrice: 8000  },
+  { credits: 350, unitPrice: 17000 },
+];
 import {
   buildCreditTopUpExternalReference,
   parseCreditTopUpExternalReference,
@@ -102,11 +109,19 @@ Deno.serve(async (req: Request) => {
   let bodyUnitPrice: number | undefined;
   try {
     const body = await req.json();
-    if (typeof body?.amount === "number" && Number.isFinite(body.amount) && body.amount > 0) {
-      bodyUnitPrice = body.amount;
-    }
-    if (typeof body?.credits === "number" && Number.isInteger(body.credits) && body.credits > 0 && body.credits <= 1_000_000) {
-      bodyCredits = body.credits;
+    const rawAmount = body?.amount;
+    const rawCredits = body?.credits;
+    if (rawAmount !== undefined || rawCredits !== undefined) {
+      const matched = ALLOWED_PRESETS.find(
+        (p) =>
+          p.credits === rawCredits &&
+          p.unitPrice === rawAmount,
+      );
+      if (!matched) {
+        return json({ error: "invalid_preset" }, 400);
+      }
+      bodyUnitPrice = matched.unitPrice;
+      bodyCredits = matched.credits;
     }
   } catch { /* body is optional */ }
 
