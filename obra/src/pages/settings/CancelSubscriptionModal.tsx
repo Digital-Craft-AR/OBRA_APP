@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Calendar, FolderOpen, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Modal, ModalContent, ModalFooter, ModalHead, ModalTitle } from "@/components/ui/Modal";
+import { Modal, ModalContent, ModalFooter, ModalHead, ModalSubtitle, ModalTitle } from "@/components/ui/Modal";
 import { supabase } from "@/lib/supabaseClient";
 
 type Props = {
@@ -12,6 +13,26 @@ type Props = {
   onConfirm: () => Promise<void>;
   busy: boolean;
 };
+
+type CardProps = {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+};
+
+function InfoCard({ icon, title, description }: CardProps) {
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-obra-blue-100 bg-obra-blue-50 p-4">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm text-obra-blue-700">
+        {icon}
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-semibold text-obra-blue-950">{title}</p>
+        <p className="text-sm text-obra-neutral-600">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 export function CancelSubscriptionModal({
   open,
@@ -47,39 +68,50 @@ export function CancelSubscriptionModal({
 
   const locale = i18n.language === "pt-BR" ? "pt-BR" : "es-AR";
   const dateStr = subscriptionAccessUntil
-    ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(
+    ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(
         subscriptionAccessUntil,
       )
     : null;
 
+  const projectCountTitle = projectsLoading
+    ? t("common.loading")
+    : t("settings.billing.cancelModal.activeProjects", { count: activeProjectCount ?? 0 });
+
   return (
     <Modal open={open} onClose={busy ? undefined : onClose} closeLabel={t("common.close")}>
       <ModalHead>
-        <ModalTitle>{t("settings.billing.cancelModal.title")}</ModalTitle>
+        <div>
+          <ModalTitle>{t("settings.billing.cancelModal.title")}</ModalTitle>
+          <ModalSubtitle>{t("settings.billing.cancelModal.subtitle")}</ModalSubtitle>
+        </div>
       </ModalHead>
-      <ModalContent>
-        <ul className="space-y-2 text-sm text-obra-blue-950">
-          <li>
-            <span className="text-obra-neutral-600">{t("settings.billing.cancelModal.credits", { count: creditsBalance })}</span>
-          </li>
-          <li>
-            <span className="text-obra-neutral-600">
-              {projectsLoading
-                ? t("common.loading")
-                : t("settings.billing.cancelModal.activeProjects", { count: activeProjectCount ?? 0 })}
-            </span>
-          </li>
-          {dateStr ? (
-            <li>
-              <span className="text-obra-neutral-600">
-                {t("settings.billing.cancelModal.accessUntil", { date: dateStr })}
-              </span>
-            </li>
-          ) : null}
-        </ul>
+      <ModalContent className="flex flex-col gap-3">
+        <InfoCard
+          icon={<Zap className="size-5" />}
+          title={t("settings.billing.cancelModal.credits", { count: creditsBalance })}
+          description={t("settings.billing.cancelModal.creditsDescription")}
+        />
+        <InfoCard
+          icon={<FolderOpen className="size-5" />}
+          title={projectCountTitle}
+          description={t("settings.billing.cancelModal.activeProjectsDescription")}
+        />
+        {dateStr ? (
+          <InfoCard
+            icon={<Calendar className="size-5" />}
+            title={t("settings.billing.cancelModal.accessUntil", { date: dateStr })}
+            description={t("settings.billing.cancelModal.accessUntilDescription")}
+          />
+        ) : null}
       </ModalContent>
-      <ModalFooter>
-        <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>
+      <ModalFooter className="flex-col sm:flex-row gap-3">
+        <Button
+          type="button"
+          variant="tertiary"
+          disabled={busy}
+          onClick={onClose}
+          className="w-full sm:w-auto flex-1"
+        >
           {t("settings.billing.cancelModal.back")}
         </Button>
         <Button
@@ -88,6 +120,7 @@ export function CancelSubscriptionModal({
           disabled={busy}
           onClick={() => void onConfirm()}
           data-testid="cancel-subscription-confirm-btn"
+          className="w-full sm:w-auto flex-1"
         >
           {busy ? t("common.loading") : t("settings.billing.cancelModal.confirm")}
         </Button>
