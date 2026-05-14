@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { corsJson, corsOptions } from "../_shared/cors.ts";
 import { loadMercadoPagoAccessToken } from "../_shared/payment/mercadopago/loadEnv.ts";
 
 const MP_API = "https://api.mercadopago.com";
@@ -19,36 +20,25 @@ function nowPlusDays(days: number): string {
   return d.toISOString();
 }
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
-
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return json({ ok: true });
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (req.method === "OPTIONS") return corsOptions();
+  if (req.method !== "POST") return corsJson({ error: "method_not_allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !anonKey || !serviceRole) {
-    return json({ error: "misconfigured" }, 500);
+    return corsJson({ error: "misconfigured" }, 500);
   }
 
   const mpToken = loadMercadoPagoAccessToken();
   if (!mpToken) {
-    return json({ error: "misconfigured", detail: "payment_provider" }, 500);
+    return corsJson({ error: "misconfigured", detail: "payment_provider" }, 500);
   }
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
+  if (!authHeader?.startsWith("Bearer ")) return corsJson({ error: "unauthorized" }, 401);
   const jwt = authHeader.slice(7);
 
   const authClient = createClient(supabaseUrl, anonKey);
@@ -56,7 +46,7 @@ Deno.serve(async (req: Request) => {
     data: { user },
     error: userError,
   } = await authClient.auth.getUser(jwt);
-  if (userError || !user) return json({ error: "unauthorized" }, 401);
+  if (userError || !user) return corsJson({ error: "unauthorized" }, 401);
 
   const userId = user.id;
 
@@ -69,7 +59,7 @@ Deno.serve(async (req: Request) => {
   if (!searchRes.ok) {
     const text = await searchRes.text();
     console.error("cancel_subscription_search_failed", JSON.stringify({ status: searchRes.status, detail: text, user_id_prefix: userId.slice(0, 8) }));
-    return json({ error: "mercadopago_error", detail: text }, 502);
+    return corsJson({ error: "mercadopago_error", detail: text }, 502);
   }
 
   const searchData = (await searchRes.json()) as MpPreapprovalSearch;
@@ -79,7 +69,7 @@ Deno.serve(async (req: Request) => {
     // No authorized subscription on MP — it was likely already cancelled via webhook or portal.
     // Treat as success so the frontend can call reconcile and sync the DB state.
     console.log("cancel_subscription_no_active", JSON.stringify({ user_id_prefix: userId.slice(0, 8) }));
-    return json({ ok: true, already_cancelled: true });
+    return corsJson({ ok: true, already_cancelled: true });
   }
 
   // Cancel the preapproval on MercadoPago
@@ -95,7 +85,7 @@ Deno.serve(async (req: Request) => {
   if (!cancelRes.ok) {
     const text = await cancelRes.text();
     console.error("cancel_subscription_mp_failed", JSON.stringify({ status: cancelRes.status, detail: text, user_id_prefix: userId.slice(0, 8) }));
-    return json({ error: "mercadopago_error", detail: text }, 502);
+    return corsJson({ error: "mercadopago_error", detail: text }, 502);
   }
 
   // Update the creator_profiles row
@@ -127,10 +117,10 @@ Deno.serve(async (req: Request) => {
 
   if (upErr) {
     console.error("cancel_subscription_db_failed", JSON.stringify({ message: upErr.message, user_id_prefix: userId.slice(0, 8) }));
-    return json({ error: "db_update" }, 500);
+    return corsJson({ error: "db_update" }, 500);
   }
 
   console.log("cancel_subscription_ok", JSON.stringify({ user_id_prefix: userId.slice(0, 8), preapprovalId }));
 
-  return json({ ok: true, subscription_access_until: accessUntil });
+  return corsJson({ ok: true, subscription_access_until: accessUntil });
 });
