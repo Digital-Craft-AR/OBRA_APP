@@ -994,7 +994,7 @@ const resources = {
       "settings.billing.cancelModal.title": "¿Cancelar tu suscripción?",
       "settings.billing.cancelModal.subtitle": "Esto es lo que perdés al cancelar.",
       "settings.billing.cancelModal.credits": "{{count}} créditos sin usar",
-      "settings.billing.cancelModal.creditsDescription": "Los créditos no se recuperan una vez que vence el período de acceso.",
+      "settings.billing.cancelModal.creditsDescription": "No podés usarlos sin suscripción activa, pero se recuperan si reactivás.",
       "settings.billing.cancelModal.activeProjects_one": "{{count}} proyecto activo",
       "settings.billing.cancelModal.activeProjects_other": "{{count}} proyectos activos",
       "settings.billing.cancelModal.activeProjectsDescription": "Tus proyectos se conservan pero no podrás editarlos ni exportarlos.",
