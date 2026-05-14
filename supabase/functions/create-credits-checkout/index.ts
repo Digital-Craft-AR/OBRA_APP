@@ -9,6 +9,7 @@ import { getBillingAdapter } from "../_shared/payment/factory.ts";
 import {
   loadCreditsPackFromEnv,
   loadMercadoPagoAccessToken,
+  loadPayerEmailOverride,
 } from "../_shared/payment/mercadopago/loadEnv.ts";
 import { isSubscriptionEntitled } from "../_shared/auth.ts";
 
@@ -106,7 +107,7 @@ Deno.serve(async (req: Request) => {
 
   const result = await billing.createCreditsPackCheckout(accessToken ?? "", {
     creatorUserId: userId,
-    payerEmail: user.email ?? undefined,
+    payerEmail: loadPayerEmailOverride() ?? user.email ?? undefined,
     notificationUrl,
     returnUrl: backUrl,
     backUrls: {

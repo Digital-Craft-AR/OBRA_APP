@@ -250,6 +250,7 @@ obra/
 │       ├── image-generate/         # Generar imagen con Gemini API (Nano Banana)
 │       ├── export-pdf-queue/       # Encolar job de export PDF (Railway worker genera async)
 │       ├── export-user-data/       # Paquete portabilidad LGPD-style (PRD §15)
+│       ├── cancel-subscription/    # Cancelación in-app de suscripción vía MP API (issue #284)
 │       ├── delete-account/         # Baja de cuenta + MP + purge (PRD §15)
 │       ├── mercadopago-webhook/    # Webhooks MP → suscripción, pagos, avisos (PRD §11)
 │       └── purge-deleted-projects/ # Hard delete proyectos tras 30 días (cron; ver PRD)
@@ -768,6 +769,11 @@ El cliente **sanitiza** el HTML (DOMPurify, subset de etiquetas) antes de persis
 
 ### 4.10 `delete-account`
 **Propósito:** Flujo de **baja de cuenta** tras confirmación en cliente: **cancelar** suscripción en **Mercado Pago** si aplica; eliminar **perfil**, proyectos en cascada, Storage y usuario en **Supabase Auth**. Detalle y orden — alineado a política legal. **No** exponer sin re-autenticación o token de un solo uso si se exige.
+
+---
+
+### 4.10.1 `cancel-subscription`
+**Propósito:** Cancelación in-app de la suscripción activa del usuario autenticado. Resuelve el `preapproval_id` vía `GET /preapproval/search?external_reference={userId}&status=authorized&limit=1`, llama `PUT /preapproval/{id}` con `{ status: "cancelled" }`, y actualiza `subscription_status` en `creator_profiles` a `cancelled` con `subscription_access_until` = ahora + 30 días (grace period) si no existe una fecha futura. **Auth:** JWT del usuario. **No** expuesta al público anónimo.
 
 ---
 

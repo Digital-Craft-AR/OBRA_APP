@@ -256,6 +256,7 @@ export function SettingsPage() {
               <SettingsBillingPanel
                 subscriptionStatus={subscriptionStatus}
                 subscriptionAccessUntil={subscriptionAccessUntil}
+                creditsBalance={creditsBalance}
                 onRefreshStatus={reconcileSubscription}
               />
             ) : null}

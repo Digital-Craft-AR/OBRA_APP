@@ -61,6 +61,7 @@ Provider-specific HTTP and signature rules stay inside the adapter; Obra domain 
 | `MERCADOPAGO_CREDITS_PACK_UNIT_PRICE` | `create-credits-checkout` | Optional; preference item `unit_price` (default `1000`) |
 | `MERCADOPAGO_CREDITS_PACK_CURRENCY_ID` | `create-credits-checkout` | Optional; default `ARS` |
 | `MERCADOPAGO_CREDITS_PACK_TITLE` | `create-credits-checkout` | Optional; checkout line title |
+| `MERCADOPAGO_PAYER_EMAIL_OVERRIDE` | `create-subscription-checkout`, `create-credits-checkout` | **Dev/local only.** When set, replaces the authenticated user's email as `payer_email` sent to MP. Use a MP sandbox test user. **Do not set in production.** Dev value: `test_user_7362024784269463115@testuser.com` |
 | `AI_OPTIMIZE_CREDIT_COST` | `ai-optimize` | Optional; positive integer credits debited per request (default `1`) |
 | `AI_GENERATE_INDEX_CREDIT_COST` | `ai-generate-index` | Optional; credits debited per successful TOC proposal (default `2`) |
 | `ANTHROPIC_API_KEY` | `ai-optimize`, `ai-generate-index`, `ai-generate-content` (future) | Claude text |

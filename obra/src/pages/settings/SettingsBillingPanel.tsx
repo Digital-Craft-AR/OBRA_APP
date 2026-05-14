@@ -7,6 +7,7 @@ import { toastApiFailure } from "@/lib/apiToast";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "@/toast";
 import type { SubscriptionStatus } from "@/entitlement/types";
+import { CancelSubscriptionModal } from "./CancelSubscriptionModal";
 
 type CheckoutFnResponse = {
   redirect_url?: string;
@@ -14,19 +15,28 @@ type CheckoutFnResponse = {
   detail?: string;
 };
 
+type CancelFnResponse = {
+  ok?: boolean;
+  error?: string;
+  subscription_access_until?: string;
+};
+
 type Props = {
   subscriptionStatus: SubscriptionStatus;
   /** End of the current paid billing period. Used to show next payment date (active)
    * or access expiry (cancelled / past_due). See #107. */
   subscriptionAccessUntil: Date | null;
+  creditsBalance: number;
   onRefreshStatus: () => Promise<void>;
 };
 
-export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUntil, onRefreshStatus }: Props) {
+export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUntil, creditsBalance, onRefreshStatus }: Props) {
   const { t, i18n } = useTranslation();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [reactivateBusy, setReactivateBusy] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const mpUrl = import.meta.env.VITE_MERCADOPAGO_SUBSCRIBER_PORTAL_URL?.trim();
 
   const now = new Date();
@@ -100,6 +110,45 @@ export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUnt
     window.location.assign(data.redirect_url);
   }
 
+  async function handleCancelConfirm() {
+    if (!session?.access_token) return;
+    setCancelBusy(true);
+
+    const { data, error } = await supabase.functions.invoke<CancelFnResponse>(
+      "cancel-subscription",
+      {
+        method: "POST",
+        body: {},
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      },
+    );
+
+    setCancelBusy(false);
+
+    if (error || data?.error) {
+      toast.error({ title: t("settings.billing.cancelError"), description: t("toast.api.genericHint") });
+      // Best-effort reconcile: MP may have been cancelled even if the DB write failed.
+      void onRefreshStatus();
+      return;
+    }
+
+    setCancelModalOpen(false);
+
+    if (data?.subscription_access_until) {
+      const locale = i18n.language === "pt-BR" ? "pt-BR" : "es-AR";
+      const dateStr = new Intl.DateTimeFormat(locale, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(data.subscription_access_until));
+      toast.success({ title: t("settings.billing.cancelSuccess", { date: dateStr }) });
+    } else {
+      toast.success({ title: t("settings.billing.cancelSuccessNoDate") });
+    }
+
+    await onRefreshStatus();
+  }
+
   const statusKey =
     subscriptionStatus === "active"
       ? "settings.billing.status.active"
@@ -129,51 +178,76 @@ export function SettingsBillingPanel({ subscriptionStatus, subscriptionAccessUnt
   }
 
   return (
-    <div className="flex max-w-lg flex-col gap-6">
-      <div>
-        <h2 className="font-display text-lg font-semibold text-obra-blue-950">{t("settings.sectionNav.billing")}</h2>
-        <p className="mt-1 text-sm text-obra-neutral-600">{t("settings.billing.intro")}</p>
-      </div>
+    <>
+      <div className="flex max-w-lg flex-col gap-6">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-obra-blue-950">{t("settings.sectionNav.billing")}</h2>
+          <p className="mt-1 text-sm text-obra-neutral-600">{t("settings.billing.intro")}</p>
+        </div>
 
-      <div className="rounded-card border border-obra-blue-100 bg-white p-6 shadow-card">
-        <p className="text-xs font-semibold uppercase tracking-wide text-obra-neutral-600">{t("settings.billing.statusLabel")}</p>
-        <p className="mt-2 font-body text-sm font-semibold text-obra-blue-950">{t(statusKey)}</p>
-        {dateLine ? (
-          <p className="mt-1 text-sm text-obra-neutral-600">{dateLine}</p>
-        ) : null}
-        <p className="mt-4 text-sm text-obra-neutral-600">{t("settings.billing.reconcileHint")}</p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          {/* Refresh enabled in grace period so user can confirm after reactivating via MP */}
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy || (subscriptionStatus === "cancelled" && !inGracePeriod)}
-            onClick={() => void refresh()}
-          >
-            {busy ? t("common.loading") : t("settings.billing.refresh")}
-          </Button>
-          <Button
-            type="button"
-            variant="tertiary"
-            disabled={!mpUrl || (subscriptionStatus === "cancelled" && !inGracePeriod)}
-            onClick={openMp}
-          >
-            {t("settings.billing.openMp")}
-          </Button>
-          {inGracePeriod ? (
+        <div className="rounded-card border border-obra-blue-100 bg-white p-6 shadow-card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-obra-neutral-600">{t("settings.billing.statusLabel")}</p>
+          <p className="mt-2 font-body text-sm font-semibold text-obra-blue-950">{t(statusKey)}</p>
+          {dateLine ? (
+            <p className="mt-1 text-sm text-obra-neutral-600">{dateLine}</p>
+          ) : null}
+          <p className="mt-4 text-sm text-obra-neutral-600">{t("settings.billing.reconcileHint")}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {/* Refresh enabled in grace period so user can confirm after reactivating via MP */}
             <Button
               type="button"
-              variant="cta"
-              disabled={reactivateBusy}
-              onClick={() => void reactivate()}
-              data-testid="billing-reactivate-btn"
+              variant="secondary"
+              disabled={busy || (subscriptionStatus === "cancelled" && !inGracePeriod)}
+              onClick={() => void refresh()}
             >
-              {reactivateBusy ? t("common.loading") : t("settings.billing.reactivate")}
+              {busy ? t("common.loading") : t("settings.billing.refresh")}
             </Button>
-          ) : null}
+            {subscriptionStatus === "active" ? (
+              <Button
+                type="button"
+                variant="tertiary"
+                disabled={cancelBusy}
+                onClick={() => setCancelModalOpen(true)}
+                data-testid="billing-cancel-btn"
+              >
+                {t("settings.billing.cancel")}
+              </Button>
+            ) : (
+              !inGracePeriod ? (
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  disabled={!mpUrl || subscriptionStatus === "cancelled"}
+                  onClick={openMp}
+                >
+                  {t("settings.billing.openMp")}
+                </Button>
+              ) : null
+            )}
+            {inGracePeriod ? (
+              <Button
+                type="button"
+                variant="cta"
+                disabled={reactivateBusy}
+                onClick={() => void reactivate()}
+                data-testid="billing-reactivate-btn"
+              >
+                {reactivateBusy ? t("common.loading") : t("settings.billing.reactivate")}
+              </Button>
+            ) : null}
+          </div>
+          {!mpUrl ? <p className="mt-3 text-xs text-obra-neutral-500">{t("settings.billing.mpUrlMissing")}</p> : null}
         </div>
-        {!mpUrl ? <p className="mt-3 text-xs text-obra-neutral-500">{t("settings.billing.mpUrlMissing")}</p> : null}
       </div>
-    </div>
+
+      <CancelSubscriptionModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        subscriptionAccessUntil={subscriptionAccessUntil}
+        creditsBalance={creditsBalance}
+        onConfirm={handleCancelConfirm}
+        busy={cancelBusy}
+      />
+    </>
   );
 }
